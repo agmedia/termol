@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin.access' => \App\Http\Middleware\EnsureAdminAccess::class,
             'admin.ability' => \App\Http\Middleware\EnsureAdminAbility::class,
+            'front.device' => \App\Http\Middleware\DetectFrontendVariant::class,
             'catalog.feature' => \App\Http\Middleware\EnsureCatalogFeatureEnabled::class,
             'user.feature' => \App\Http\Middleware\EnsureUserFeatureEnabled::class,
             'api.user.enabled' => \App\Http\Middleware\EnsureApiUserEnabled::class,

@@ -19,6 +19,7 @@
                 <header class="border-b border-slate-200/80 bg-white/95 backdrop-blur">
                     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
                         <a href="/" class="text-lg font-bold tracking-tight text-cyan-900">AGSHOP</a>
+                        <p class="hidden text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-700 md:block">Desktop Storefront</p>
 
                         <nav class="hidden items-center gap-7 text-sm font-medium md:flex">
                             <a href="#" class="text-slate-700 hover:text-cyan-800">Home</a>

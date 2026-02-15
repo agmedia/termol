@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Admin\AdminAiController;
+use App\Http\Controllers\Front\StorefrontController;
 use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Attribute\Attribute as CatalogAttribute;
 use App\Models\Catalog\Category\Category;
@@ -23,7 +24,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Spatie\Activitylog\Models\Activity;
 
-Route::view('/', 'welcome');
+Route::middleware('front.device')
+    ->get('/', [StorefrontController::class, 'home'])
+    ->name('home');
 
 Route::get('dashboard', function (Request $request) {
     $user = $request->user();
