@@ -1,0 +1,262 @@
+<div class="space-y-6">
+    <div class="admin-panel admin-search-panel p-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Catalog / Products</p>
+                <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ $isEdit ? 'Edit Product' : 'Create Product' }}</h1>
+                <p class="mt-2 text-sm text-slate-600">Core product fields, translation, and category assignments.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="admin-chip">Locale: {{ $form['locale'] }}</span>
+                <button type="button" wire:click="backToList" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Back to List</button>
+            </div>
+        </div>
+    </div>
+
+    <form wire:submit="save" class="space-y-6">
+        <div class="admin-panel admin-form-panel p-6">
+            <p class="admin-section-title">Core Data</p>
+            <div class="mt-4 grid gap-3" style="grid-template-columns: repeat(12, minmax(0, 1fr));">
+                <div style="grid-column: span 3;">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">SKU</label>
+                    <input type="text" wire:model="form.sku" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono" />
+                    @error('form.sku') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div style="grid-column: span 3;">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Code</label>
+                    <input type="text" wire:model="form.code" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono" />
+                    @error('form.code') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div style="grid-column: span 2;">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Locale</label>
+                    <select wire:model.live="form.locale" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm lowercase">
+                          @foreach ($adminLocaleOptions as $localeOption)
+                                <option value="{{ $localeOption }}">{{ $localeOption }}</option>
+                            @endforeach
+                    </select>
+                    @error('form.locale') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div style="grid-column: span 2;">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Base Price</label>
+                    <input type="number" min="0" step="0.01" wire:model="form.base_price" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    @error('form.base_price') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div style="grid-column: span 2;">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Stock Qty</label>
+                    <input type="number" min="0" wire:model="form.stock_qty" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    @error('form.stock_qty') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+            </div>
+            @if ($useManufacturers)
+                <div class="mt-3 grid gap-3" style="grid-template-columns: repeat(12, minmax(0, 1fr));">
+                    <div style="grid-column: span 5;">
+                        <div class="mb-1 flex items-center justify-between gap-2">
+                            <label class="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Manufacturer</label>
+                            <a href="{{ route('admin.manufacturers', ['locale' => $form['locale']]) }}" class="text-xs font-semibold text-slate-600 hover:text-slate-900">Manage</a>
+                        </div>
+                        <select wire:model="form.manufacturer_id" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                            <option value="">No manufacturer</option>
+                            @foreach ($this->manufacturerOptions as $manufacturer)
+                                @php
+                                    $tr = $manufacturer->translations->first();
+                                    $label = $tr?->name ?? ($manufacturer->code ?: 'Manufacturer #'.$manufacturer->id);
+                                @endphp
+                                <option value="{{ $manufacturer->id }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('form.manufacturer_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+            @endif
+            <div class="mt-4">
+                <button
+                    type="button"
+                    wire:click="$toggle('form.is_active')"
+                    class="admin-switch"
+                    data-state="{{ $form['is_active'] ? 'on' : 'off' }}"
+                    role="switch"
+                    aria-checked="{{ $form['is_active'] ? 'true' : 'false' }}"
+                    aria-label="Toggle product active state"
+                >
+                    <span class="admin-switch-track">
+                        <span class="admin-switch-thumb"></span>
+                    </span>
+                    <span class="admin-switch-label">{{ $form['is_active'] ? 'Active' : 'Inactive' }}</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="grid gap-6 xl:grid-cols-2">
+            <div class="admin-panel admin-form-panel p-6">
+                <p class="admin-section-title">Content</p>
+                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Name</label>
+                        <input type="text" wire:model="form.name" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                        @error('form.name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Slug</label>
+                            <button type="button" wire:click="generateSlug" class="text-xs font-semibold text-slate-600 hover:text-slate-900">Generate</button>
+                        </div>
+                        <input type="text" wire:model="form.slug" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm lowercase" />
+                        @error('form.slug') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Excerpt</label>
+                    <textarea rows="3" wire:model="form.excerpt" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                </div>
+
+                <div class="mt-3">
+                    <label for="product-description-html" class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Description</label>
+                    <textarea id="product-description-html" rows="8" wire:model="form.description" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                </div>
+            </div>
+
+            <div class="admin-panel admin-form-panel p-6">
+                <p class="admin-section-title">SEO & Payload</p>
+                <div class="mt-4">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Meta Title</label>
+                    <input type="text" wire:model="form.meta_title" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                </div>
+                <div class="mt-3">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Meta Description</label>
+                    <textarea rows="3" wire:model="form.meta_description" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                </div>
+                <div class="mt-3">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Product Payload JSON</label>
+                    <textarea rows="6" wire:model="form.payload_text" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>
+                    @error('form.payload_text') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div class="mt-3">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Translation Payload JSON</label>
+                    <textarea rows="6" wire:model="form.translation_payload_text" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>
+                    @error('form.translation_payload_text') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+            </div>
+        </div>
+
+        <livewire:admin.media.manager
+            :model-class="\App\Models\Catalog\Product\Product::class"
+            :model-id="$productId"
+            :locale="$form['locale']"
+            :wire:key="'product-media-manager-'.($productId ?? 'new').'-'.$form['locale']"
+        />
+
+        <div class="admin-panel admin-form-panel p-6">
+            <p class="admin-section-title">Categories & Attributes</p>
+            <div class="mt-4">
+                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Categories (order defines primary)</label>
+                <select wire:model="form.category_ids" multiple size="10" class="admin-multiselect w-full rounded-xl border border-slate-300 text-sm">
+                    @foreach ($this->categoryOptions as $category)
+                        @php
+                            $translation = $category->translations->first();
+                            $label = $translation?->name ?? ($category->code ?: 'Category #'.$category->id);
+                            $pad = str_repeat('— ', max(0, (int) ($category->depth ?? 0)));
+                        @endphp
+                        <option value="{{ $category->id }}">{{ $pad.$label }}</option>
+                    @endforeach
+                </select>
+                @error('form.category_ids.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+
+            @if ($useAttributes)
+                <div class="mt-5">
+                    <div class="mb-1 flex items-center justify-between gap-2">
+                        <label class="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Attributes</label>
+                        <a href="{{ route('admin.attributes', ['locale' => $form['locale']]) }}" class="text-xs font-semibold text-slate-600 hover:text-slate-900">Manage</a>
+                    </div>
+                    <div class="mb-3 grid gap-2 lg:grid-cols-[minmax(12rem,20rem)_auto]">
+                        <div>
+                            <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Visible Group</label>
+                            <select wire:model.live="attributeGroupView" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                <option value="all">All groups</option>
+                                @foreach ($this->attributeGroupOptions as $groupOption)
+                                    <option value="{{ $groupOption['group_code'] }}">
+                                        {{ $groupOption['group_name'] }} ({{ $groupOption['item_count'] }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button
+                                type="button"
+                                wire:click="$toggle('attributeShowAssignedOnly')"
+                                class="rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.1em] {{ $attributeShowAssignedOnly ? 'border-cyan-300 bg-cyan-50 text-cyan-800' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}"
+                            >
+                                {{ $attributeShowAssignedOnly ? 'Assigned Only: On' : 'Assigned Only: Off' }}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid gap-3 lg:grid-cols-2">
+                        @forelse ($this->visibleAttributeGroups as $group)
+                            @php
+                                $groupCode = (string) $group['group_code'];
+                                $groupType = (string) $group['type'];
+                            @endphp
+                            <div class="rounded-xl border border-slate-200 bg-white p-3">
+                                <div class="mb-2 flex items-center justify-between gap-2">
+                                    <p class="text-sm font-semibold text-slate-800">{{ $group['group_name'] }}</p>
+                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">{{ $groupType === 'multi' ? 'Multi' : 'Single' }}</span>
+                                </div>
+
+                                @if ($groupType === 'multi')
+                                    <select wire:model="attributeSelections.{{ $groupCode }}" multiple size="5" class="admin-multiselect w-full rounded-xl border border-slate-300 text-sm">
+                                        @foreach ($group['items'] as $item)
+                                            <option value="{{ $item['id'] }}">{{ $item['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <select wire:model="attributeSelections.{{ $groupCode }}" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                        <option value="">No value</option>
+                                        @foreach ($group['items'] as $item)
+                                            <option value="{{ $item['id'] }}">{{ $item['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                @endif
+
+                                @error('attributeSelections.'.$groupCode) <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                        @empty
+                            <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600 lg:col-span-2">
+                                No attribute groups match current filter.
+                            </div>
+                        @endforelse
+                    </div>
+                    @error('form.attribute_ids') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    @error('form.attribute_ids.*') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+            @endif
+
+            @if ($useOptions)
+                <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Product Option Values</p>
+                            <p class="text-xs text-slate-600">Assign option groups and manage per-value SKU/price/stock combinations.</p>
+                        </div>
+                        @if ($isEdit && $productId)
+                            <a href="{{ route('admin.products.options', ['product' => $productId, 'locale' => $form['locale']]) }}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                                Manage Option Values
+                            </a>
+                        @else
+                            <span class="text-xs text-slate-500">Save product first</span>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
+            <div class="admin-form-actions mt-5 flex items-center gap-2 pt-2">
+                <button type="submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">
+                    {{ $isEdit ? 'Update Product' : 'Create Product' }}
+                </button>
+                <button type="button" wire:click="backToList" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </form>
+</div>

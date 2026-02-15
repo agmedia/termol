@@ -1,0 +1,371 @@
+<?php
+
+namespace App\Livewire\Admin\User;
+
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Livewire\Component;
+use Silber\Bouncer\BouncerFacade as Bouncer;
+use Silber\Bouncer\Database\Ability;
+use Silber\Bouncer\Database\Role;
+
+class AccessManager extends Component
+{
+    public string $search = '';
+
+    /**
+     * @var array<string, mixed>
+     */
+    public array $form = [
+        'name' => '',
+        'title' => '',
+        'group' => 'misc',
+    ];
+
+    /**
+     * @var array<string, bool>
+     */
+    public array $collapsedGroups = [];
+
+    public function mount(): void
+    {
+        $this->authorizeAccess();
+    }
+
+    public function updatedSearch(): void
+    {
+        // Re-render only.
+    }
+
+    public function createAbility(): void
+    {
+        $this->authorizeAccess();
+
+        $normalizedName = $this->normalizeAbilityName((string) ($this->form['name'] ?? ''));
+        $group = $this->normalizeGroupKey((string) ($this->form['group'] ?? 'misc'));
+
+        $this->form['name'] = $normalizedName;
+        $this->form['group'] = $group;
+
+        $validated = $this->validate([
+            'form.name' => [
+                'required',
+                'string',
+                'max:120',
+                'regex:/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/',
+                Rule::unique('abilities', 'name')->where(fn ($q) => $q
+                    ->whereNull('entity_id')
+                    ->whereNull('entity_type')
+                ),
+            ],
+            'form.title' => ['nullable', 'string', 'max:160'],
+            'form.group' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9_.]+$/'],
+        ]);
+
+        $title = trim((string) ($validated['form']['title'] ?? ''));
+        if ($title === '') {
+            $title = $this->humanizeAbilityName((string) $validated['form']['name']);
+        }
+
+        $ability = Ability::query()->create([
+            'name' => (string) $validated['form']['name'],
+            'title' => $title,
+        ]);
+        $ability->forceFill([
+            'options' => ['group' => (string) $validated['form']['group']],
+        ])->save();
+
+        activity('admin_users')
+            ->performedOn($ability)
+            ->causedBy(auth()->user())
+            ->event('ability_created')
+            ->withProperties([
+                'name' => $ability->name,
+                'title' => $ability->title,
+                'group' => (string) $validated['form']['group'],
+            ])
+            ->log('Ability created');
+
+        $this->form = [
+            'name' => '',
+            'title' => '',
+            'group' => $group,
+        ];
+
+        $this->dispatch('notify', type: 'success', message: 'Ability added.');
+    }
+
+    public function togglePermission(int $abilityId, int $roleId): void
+    {
+        $this->authorizeAccess();
+
+        $ability = Ability::query()
+            ->whereNull('entity_id')
+            ->whereNull('entity_type')
+            ->findOrFail($abilityId);
+
+        $role = Role::query()->findOrFail($roleId);
+        abort_if($role->name === 'superadmin', 422, 'Superadmin permissions are managed via wildcard access.');
+
+        $roleMorph = $role->getMorphClass();
+
+        $isAllowed = DB::table('permissions')
+            ->where('ability_id', $ability->id)
+            ->where('entity_id', $role->id)
+            ->where('entity_type', $roleMorph)
+            ->where('forbidden', false)
+            ->exists();
+
+        if ($isAllowed) {
+            Bouncer::disallow($role)->to($ability);
+            Bouncer::unforbid($role)->to($ability);
+            $event = 'ability_revoked';
+        } else {
+            Bouncer::unforbid($role)->to($ability);
+            Bouncer::allow($role)->to($ability);
+            $event = 'ability_granted';
+        }
+
+        activity('admin_users')
+            ->performedOn($role)
+            ->causedBy(auth()->user())
+            ->event($event)
+            ->withProperties([
+                'role' => $role->name,
+                'ability' => $ability->name,
+                'allowed' => ! $isAllowed,
+            ])
+            ->log('Role ability updated');
+    }
+
+    public function toggleGroup(string $group): void
+    {
+        $group = $this->normalizeGroupKey($group);
+        $this->collapsedGroups[$group] = !($this->collapsedGroups[$group] ?? false);
+    }
+
+    public function render()
+    {
+        $roles = Role::query()
+            ->orderBy('id')
+            ->get(['id', 'name', 'title']);
+
+        $matrixRoles = $roles
+            ->reject(static fn (Role $role): bool => $role->name === 'superadmin')
+            ->values();
+
+        $abilities = Ability::query()
+            ->whereNull('entity_id')
+            ->whereNull('entity_type')
+            ->when($this->search !== '', function ($query): void {
+                $query->where(function ($q): void {
+                    $q->where('name', 'like', '%'.$this->search.'%')
+                        ->orWhere('title', 'like', '%'.$this->search.'%');
+                });
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'title', 'options']);
+
+        $permissionMap = $this->buildPermissionMap($matrixRoles->pluck('id')->all(), $abilities->pluck('id')->all());
+        $abilityGroups = $this->groupAbilities($abilities->all());
+        $groupOptions = $this->buildGroupOptions($abilityGroups);
+
+        return view('livewire.admin.user.access-manager', [
+            'roles' => $matrixRoles,
+            'abilityGroups' => $abilityGroups,
+            'permissionMap' => $permissionMap,
+            'groupOptions' => $groupOptions,
+        ]);
+    }
+
+    /**
+     * @param  array<int, int>  $roleIds
+     * @param  array<int, int>  $abilityIds
+     * @return array<int, array<int, bool>>
+     */
+    private function buildPermissionMap(array $roleIds, array $abilityIds): array
+    {
+        if ($roleIds === [] || $abilityIds === []) {
+            return [];
+        }
+
+        $roleMorph = (new Role())->getMorphClass();
+
+        $rows = DB::table('permissions')
+            ->select(['entity_id', 'ability_id', 'forbidden'])
+            ->where('entity_type', $roleMorph)
+            ->whereIn('entity_id', $roleIds)
+            ->whereIn('ability_id', $abilityIds)
+            ->get();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $abilityId = (int) $row->ability_id;
+            $roleId = (int) $row->entity_id;
+            $map[$abilityId][$roleId] = !(bool) $row->forbidden;
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  array<int, Ability>  $abilities
+     * @return array<string, array{key: string, label: string, abilities: array<int, Ability>}>
+     */
+    private function groupAbilities(array $abilities): array
+    {
+        $groups = [];
+
+        foreach ($abilities as $ability) {
+            $groupKey = $this->resolveAbilityGroupKey($ability);
+            if (!isset($groups[$groupKey])) {
+                $groups[$groupKey] = [
+                    'key' => $groupKey,
+                    'label' => $this->groupLabel($groupKey),
+                    'abilities' => [],
+                ];
+            }
+
+            $groups[$groupKey]['abilities'][] = $ability;
+        }
+
+        uasort($groups, fn ($a, $b) => strcmp((string) $a['label'], (string) $b['label']));
+
+        return $groups;
+    }
+
+    /**
+     * @param  array<string, array{key: string, label: string, abilities: array<int, Ability>}>  $abilityGroups
+     * @return array<string, string>
+     */
+    private function buildGroupOptions(array $abilityGroups): array
+    {
+        $options = $this->defaultGroupLabels();
+
+        foreach ($abilityGroups as $groupKey => $groupData) {
+            $options[$groupKey] = (string) $groupData['label'];
+        }
+
+        asort($options);
+
+        return $options;
+    }
+
+    private function resolveAbilityGroupKey(Ability $ability): string
+    {
+        $optionsGroup = data_get($this->decodeAbilityOptions($ability), 'group');
+        if (is_string($optionsGroup) && trim($optionsGroup) !== '') {
+            return $this->normalizeGroupKey($optionsGroup);
+        }
+
+        $name = (string) $ability->name;
+        if (str_contains($name, '.')) {
+            return $this->normalizeGroupKey(Str::before($name, '.'));
+        }
+
+        return 'misc';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeAbilityOptions(Ability $ability): array
+    {
+        $raw = $ability->getAttribute('options');
+        if (is_array($raw)) {
+            return $raw;
+        }
+
+        if (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return [];
+    }
+
+    private function normalizeGroupKey(string $group): string
+    {
+        $group = strtolower(trim($group));
+        $group = str_replace(['-', ' '], '_', $group);
+        $group = preg_replace('/[^a-z0-9_.]+/', '', $group) ?: 'misc';
+        $group = preg_replace('/\.{2,}/', '.', $group) ?: $group;
+
+        return trim($group, '._') !== '' ? trim($group, '._') : 'misc';
+    }
+
+    private function normalizeAbilityName(string $name): string
+    {
+        $name = strtolower(trim($name));
+        $name = str_replace(' ', '-', $name);
+        $name = preg_replace('/[^a-z0-9._-]+/', '-', $name) ?: '';
+        $name = trim($name, '.-_');
+
+        return preg_replace('/([._-]){2,}/', '$1', $name) ?: '';
+    }
+
+    private function groupLabel(string $groupKey): string
+    {
+        $labels = $this->defaultGroupLabels();
+        if (isset($labels[$groupKey])) {
+            return $labels[$groupKey];
+        }
+
+        return (string) Str::of($groupKey)->replace('.', ' / ')->replace('_', ' ')->title();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function defaultGroupLabels(): array
+    {
+        return [
+            'users.core' => 'Users / Core',
+            'users.groups' => 'Users / Groups',
+            'users.activity' => 'Users / Activity',
+            'users.loyalty' => 'Users / Loyalty',
+            'users.access' => 'Users / Access',
+            'catalog.categories' => 'Catalog / Categories',
+            'catalog.products' => 'Catalog / Products',
+            'catalog.attributes' => 'Catalog / Attributes',
+            'catalog.options' => 'Catalog / Options',
+            'catalog.manufacturers' => 'Catalog / Manufacturers',
+            'catalog.actions' => 'Catalog / Actions',
+            'content.blog' => 'Content / Blog',
+            'content.pages' => 'Content / Pages',
+            'content.faqs' => 'Content / FAQs',
+            'content.comments' => 'Content / Comments',
+            'content.blocks' => 'Content / Blocks',
+            'content.slots' => 'Content / Slots',
+            'content.media' => 'Content / Media',
+            'sales.orders' => 'Sales / Orders',
+            'sales' => 'Sales',
+            'settings.local' => 'Settings / Local',
+            'settings.system' => 'Settings / System',
+            'settings.api' => 'Settings / API',
+            'settings.user' => 'Settings / User',
+            'system.ai' => 'System / AI',
+            'dashboard' => 'Dashboard',
+            'misc' => 'Other',
+        ];
+    }
+
+    private function humanizeAbilityName(string $abilityName): string
+    {
+        return (string) Str::of($abilityName)
+            ->replace(['.', '_', '-'], ' ')
+            ->title();
+    }
+
+    private function authorizeAccess(): void
+    {
+        $user = auth()->user();
+        abort_unless(
+            $user && (Bouncer::is($user)->an('superadmin') || $user->can('users.access.manage')),
+            403
+        );
+    }
+}
