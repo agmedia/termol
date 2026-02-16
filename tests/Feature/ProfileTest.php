@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
@@ -14,6 +15,8 @@ class ProfileTest extends TestCase
     public function test_profile_page_is_displayed(): void
     {
         $user = User::factory()->create();
+        Bouncer::role()->firstOrCreate(['name' => 'admin']);
+        Bouncer::assign('admin')->to($user);
 
         $response = $this->actingAs($user)->get('/admin/profile');
 

@@ -70,7 +70,7 @@ class AuthenticationTest extends TestCase
         $adminResponse->assertRedirect('/admin/dashboard');
 
         $dashboardResponse = $this->get('/admin/dashboard');
-        $dashboardResponse->assertOk()->assertSee('Admin is ready');
+        $dashboardResponse->assertOk()->assertSee('Performance Overview');
     }
 
     public function test_users_can_logout(): void
