@@ -440,6 +440,13 @@ const initMediaImageEditor = () => {
     if (!document.body || document.body.dataset.mediaImageEditorReady === '1') {
         return;
     }
+
+    const currentPath = window.location?.pathname || '';
+    const isAdminPath = currentPath === '/admin' || currentPath.startsWith('/admin/');
+    if (!isAdminPath) {
+        return;
+    }
+
     document.body.dataset.mediaImageEditorReady = '1';
 
     const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
