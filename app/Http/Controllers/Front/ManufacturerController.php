@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
@@ -12,12 +13,14 @@ use Illuminate\View\View;
 
 class ManufacturerController extends Controller
 {
+    use ResolvesFrontendView;
+
     public function __construct(
         private readonly CatalogFeatureService $catalogFeatures
     ) {
     }
 
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->ensureEnabled();
 
@@ -33,7 +36,7 @@ class ManufacturerController extends Controller
             ->orderBy('id')
             ->get();
 
-        return view('front.desktop.manufacturers.index', [
+        return view($this->frontendView($request, 'manufacturers.index'), [
             'manufacturers' => $manufacturers,
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
@@ -46,6 +49,7 @@ class ManufacturerController extends Controller
 
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
+        $variant = $this->frontendVariant($request);
 
         $manufacturer = Manufacturer::query()
             ->where('is_active', true)
@@ -68,7 +72,7 @@ class ManufacturerController extends Controller
             locale: $locale,
             targetType: 'manufacturer',
             targetRef: $slug,
-            frontendVariant: 'desktop'
+            frontendVariant: $variant
         );
 
         $bottomBlocks = app(ContentBlockResolver::class)->forPlacement(
@@ -76,10 +80,10 @@ class ManufacturerController extends Controller
             locale: $locale,
             targetType: 'manufacturer',
             targetRef: $slug,
-            frontendVariant: 'desktop'
+            frontendVariant: $variant
         );
 
-        return view('front.desktop.manufacturers.show', [
+        return view($this->frontendView($request, 'manufacturers.show'), [
             'manufacturer' => $manufacturer,
             'products' => $products,
             'topBlocks' => $topBlocks,

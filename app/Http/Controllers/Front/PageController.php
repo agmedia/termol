@@ -3,16 +3,21 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Content\Page\InfoPage;
 use App\Services\Content\ContentBlockResolver;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PageController extends Controller
 {
-    public function show(string $slug): View
+    use ResolvesFrontendView;
+
+    public function show(Request $request, string $slug): View
     {
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
+        $variant = $this->frontendVariant($request);
 
         $page = InfoPage::query()
             ->where('is_active', true)
@@ -32,7 +37,7 @@ class PageController extends Controller
             locale: $locale,
             targetType: 'page',
             targetRef: $slug,
-            frontendVariant: 'desktop'
+            frontendVariant: $variant
         );
 
         $bottomBlocks = app(ContentBlockResolver::class)->forPlacement(
@@ -40,10 +45,10 @@ class PageController extends Controller
             locale: $locale,
             targetType: 'page',
             targetRef: $slug,
-            frontendVariant: 'desktop'
+            frontendVariant: $variant
         );
 
-        return view('front.desktop.pages.show', [
+        return view($this->frontendView($request, 'pages.show'), [
             'page' => $page,
             'topBlocks' => $topBlocks,
             'bottomBlocks' => $bottomBlocks,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Sales\Order\Order;
 use App\Models\User\LoyaltyTransaction;
 use App\Models\User\UserAddress;
@@ -16,6 +17,8 @@ use Illuminate\View\View;
 
 class AccountController extends Controller
 {
+    use ResolvesFrontendView;
+
     public function dashboard(Request $request): View
     {
         $user = $request->user();
@@ -45,7 +48,7 @@ class AccountController extends Controller
                 ->get();
         }
 
-        return view('front.desktop.account.dashboard', [
+        return view($this->frontendView($request, 'account.dashboard'), [
             'user' => $user,
             'orders' => $orders,
             'loyaltyEnabled' => $loyaltyEnabled,
@@ -62,7 +65,7 @@ class AccountController extends Controller
             ->latest('id')
             ->paginate(15);
 
-        return view('front.desktop.account.orders', [
+        return view($this->frontendView($request, 'account.orders'), [
             'orders' => $orders,
         ]);
     }
@@ -80,7 +83,7 @@ class AccountController extends Controller
             ])
             ->firstOrFail();
 
-        return view('front.desktop.account.order-show', [
+        return view($this->frontendView($request, 'account.order-show'), [
             'order' => $order,
         ]);
     }
@@ -94,7 +97,7 @@ class AccountController extends Controller
         $shipping = $user->addresses->firstWhere('type', UserAddress::TYPE_SHIPPING);
         $payload = is_array($user->profile?->payload) ? $user->profile->payload : [];
 
-        return view('front.desktop.account.profile', [
+        return view($this->frontendView($request, 'account.profile'), [
             'user' => $user,
             'billing' => $billing,
             'shipping' => $shipping,

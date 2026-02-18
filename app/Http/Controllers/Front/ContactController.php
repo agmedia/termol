@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Content\Support\ContactMessage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -10,9 +11,11 @@ use Illuminate\View\View;
 
 class ContactController extends Controller
 {
-    public function create(): View
+    use ResolvesFrontendView;
+
+    public function create(Request $request): View
     {
-        return view('front.desktop.contact.create');
+        return view($this->frontendView($request, 'contact.create'));
     }
 
     public function store(Request $request): RedirectResponse

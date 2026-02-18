@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Product\Product;
@@ -13,6 +14,8 @@ use Illuminate\View\View;
 
 class CatalogController extends Controller
 {
+    use ResolvesFrontendView;
+
     public function index(Request $request): View
     {
         $locale = app()->getLocale();
@@ -98,7 +101,7 @@ class CatalogController extends Controller
             ->orderBy('id')
             ->get();
 
-        return view('front.desktop.shop.index', [
+        return view($this->frontendView($request, 'shop.index'), [
             'products' => $products,
             'categories' => $categories,
             'manufacturers' => $manufacturers,
@@ -139,7 +142,7 @@ class CatalogController extends Controller
 
         $categories = $categoriesQuery->paginate(18)->withQueryString();
 
-        return view('front.desktop.categories.index', [
+        return view($this->frontendView($request, 'categories.index'), [
             'categories' => $categories,
             'search' => $search,
             'locale' => $locale,
@@ -151,6 +154,7 @@ class CatalogController extends Controller
     {
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
+        $variant = $this->frontendVariant($request);
 
         $category = Category::query()
             ->where('scope', Category::SCOPE_CATALOG)
@@ -181,7 +185,7 @@ class CatalogController extends Controller
             locale: $locale,
             targetType: 'category',
             targetRef: $slug,
-            frontendVariant: 'desktop'
+            frontendVariant: $variant
         );
 
         $bottomBlocks = app(ContentBlockResolver::class)->forPlacement(
@@ -189,10 +193,10 @@ class CatalogController extends Controller
             locale: $locale,
             targetType: 'category',
             targetRef: $slug,
-            frontendVariant: 'desktop'
+            frontendVariant: $variant
         );
 
-        return view('front.desktop.categories.show', [
+        return view($this->frontendView($request, 'categories.show'), [
             'category' => $category,
             'products' => $products,
             'topBlocks' => $topBlocks,

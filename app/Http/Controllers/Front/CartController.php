@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Catalog\Product\Product;
 use App\Services\Front\CartService;
 use Illuminate\Http\RedirectResponse;
@@ -11,14 +12,16 @@ use Illuminate\View\View;
 
 class CartController extends Controller
 {
+    use ResolvesFrontendView;
+
     public function __construct(
         private readonly CartService $cart
     ) {
     }
 
-    public function index(): View
+    public function index(Request $request): View
     {
-        return view('front.desktop.cart.index', [
+        return view($this->frontendView($request, 'cart.index'), [
             'lines' => $this->cart->lines(),
             'summary' => $this->cart->summary(),
         ]);

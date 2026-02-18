@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Content\Blog\BlogPost;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
@@ -11,17 +12,20 @@ use Illuminate\View\View;
 
 class BlogController extends Controller
 {
+    use ResolvesFrontendView;
+
     public function __construct(
         private readonly CatalogFeatureService $catalogFeatures
     ) {
     }
 
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->ensureEnabled();
 
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
+        $variant = $this->frontendVariant($request);
 
         $posts = BlogPost::query()
             ->where('is_active', true)
@@ -34,10 +38,10 @@ class BlogController extends Controller
             ->orderByDesc('id')
             ->paginate(12);
 
-        $topBlocks = app(ContentBlockResolver::class)->forPlacement('blog.top', $locale, null, null, 'desktop');
-        $bottomBlocks = app(ContentBlockResolver::class)->forPlacement('blog.bottom', $locale, null, null, 'desktop');
+        $topBlocks = app(ContentBlockResolver::class)->forPlacement('blog.top', $locale, null, null, $variant);
+        $bottomBlocks = app(ContentBlockResolver::class)->forPlacement('blog.bottom', $locale, null, null, $variant);
 
-        return view('front.desktop.blog.index', [
+        return view($this->frontendView($request, 'blog.index'), [
             'posts' => $posts,
             'topBlocks' => $topBlocks,
             'bottomBlocks' => $bottomBlocks,
@@ -46,7 +50,7 @@ class BlogController extends Controller
         ]);
     }
 
-    public function show(string $slug): View
+    public function show(Request $request, string $slug): View
     {
         $this->ensureEnabled();
 
@@ -82,7 +86,7 @@ class BlogController extends Controller
             ->limit(3)
             ->get();
 
-        return view('front.desktop.blog.show', [
+        return view($this->frontendView($request, 'blog.show'), [
             'post' => $post,
             'related' => $related,
             'locale' => $locale,

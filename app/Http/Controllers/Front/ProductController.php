@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Catalog\Product\Product;
 use App\Services\Content\ContentBlockResolver;
 use Illuminate\Http\Request;
@@ -10,10 +11,13 @@ use Illuminate\View\View;
 
 class ProductController extends Controller
 {
+    use ResolvesFrontendView;
+
     public function show(Request $request, string $slug): View
     {
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
+        $variant = $this->frontendVariant($request);
 
         $product = Product::query()
             ->where('is_active', true)
@@ -44,7 +48,7 @@ class ProductController extends Controller
             locale: $locale,
             targetType: 'product',
             targetRef: $slug,
-            frontendVariant: 'desktop'
+            frontendVariant: $variant
         );
 
         $bottomBlocks = app(ContentBlockResolver::class)->forPlacement(
@@ -52,10 +56,10 @@ class ProductController extends Controller
             locale: $locale,
             targetType: 'product',
             targetRef: $slug,
-            frontendVariant: 'desktop'
+            frontendVariant: $variant
         );
 
-        return view('front.desktop.products.show', [
+        return view($this->frontendView($request, 'products.show'), [
             'product' => $product,
             'related' => $related,
             'topBlocks' => $topBlocks,

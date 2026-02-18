@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Sales\Order\Order;
 use App\Models\User\UserAddress;
 use App\Models\User\UserProfile;
@@ -14,6 +15,8 @@ use Illuminate\View\View;
 
 class CheckoutController extends Controller
 {
+    use ResolvesFrontendView;
+
     public function __construct(
         private readonly CartService $cart,
         private readonly CheckoutService $checkout
@@ -34,7 +37,7 @@ class CheckoutController extends Controller
         $billing = $user?->addresses?->firstWhere('type', UserAddress::TYPE_BILLING);
         $shipping = $user?->addresses?->firstWhere('type', UserAddress::TYPE_SHIPPING);
 
-        return view('front.desktop.checkout.create', [
+        return view($this->frontendView($request, 'checkout.create'), [
             'lines' => $this->cart->lines(),
             'summary' => $summary,
             'shippingMethods' => $this->checkout->availableShippingMethods((float) $summary['subtotal']),
@@ -159,7 +162,7 @@ class CheckoutController extends Controller
 
         abort_unless($allowedBySession || $allowedByUser, 404);
 
-        return view('front.desktop.checkout.success', [
+        return view($this->frontendView($request, 'checkout.success'), [
             'order' => $order,
         ]);
     }
