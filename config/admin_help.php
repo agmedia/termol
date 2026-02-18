@@ -461,44 +461,72 @@ return [
             ],
         ],
         'admin.content.blocks*' => [
-            'title' => 'Content Blocks',
-            'summary' => 'Reusable visual/content units (hero, cards, carousel, rich text, CTA) that can be placed in one or many locations via slots.',
+            'title' => 'Content Block Building',
+            'summary' => 'Step-by-step builder for homepage/section blocks. Create one block, choose where it appears, add content/items, then publish and preview.',
             'sections' => [
                 [
-                    'title' => 'What This Is',
-                    'items' => [
-                        'Block = content design unit.',
-                        'Slot = placement rule that decides where/when block appears.',
-                        'Type presets define expected structure (hero/cards/carousel/etc).',
-                        'Locale values live in translation fields, not in random JSON.',
+                    'title' => 'How To Think About It',
+                    'subtitle' => 'Build one section at a time, not one whole page at once.',
+                    'explanation' => [
+                        'A content block is one visual section on front: hero, categories row, featured products, brand row, blog row, and similar.',
+                        'Type answers what the block does. Placement answers where it appears.',
+                        'If you keep this separation clear, block setup becomes predictable and fast.',
                     ],
                 ],
                 [
-                    'title' => 'How To Use',
-                    'items' => [
-                        '1) Create block with stable code and correct type preset.',
-                        '2) Fill title/subtitle/body/CTA for current locale.',
-                        '3) Use Ace only when HTML fine-tuning is required.',
-                        '4) Save block and attach it to slots.',
-                        '5) Validate front output with target refs and locale switch.',
+                    'title' => 'Step By Step Workflow',
+                    'subtitle' => 'Recommended order for best results.',
+                    'explanation' => [
+                        'Step 1: Choose Type first.',
+                        'Step 2: Fill Code and Name. Keep code stable after go-live.',
+                        'Step 3: Choose Placement. This controls front location.',
+                        'Step 4: Keep target fields empty for global blocks. Use target type/ref only for advanced context rendering.',
+                        'Step 5: Fill text fields (title/subtitle/CTA) and select items if block type requires items.',
+                        'Step 6: Open Blade Template (Ace), adjust output, save, then preview on front.',
                     ],
                 ],
                 [
-                    'title' => 'Simple Content Patterns',
-                    'items' => [
-                        'Hero single: one strong headline + one CTA.',
-                        'Cards 2/3: short message blocks with icon/image and link.',
-                        'Products carousel: lightweight block text + slot item refs.',
-                        'Rich text: editorial sections with minimal inline styles.',
+                    'title' => 'Block Parameters Guide',
+                    'subtitle' => 'What each main field is for.',
+                    'params' => [
+                        ['key' => 'type', 'value' => 'Defines block behavior and whether item picker is used.'],
+                        ['key' => 'code', 'value' => 'Technical identifier. Also maps to per-block template filename.'],
+                        ['key' => 'slot_placement', 'value' => 'Front position where this block is rendered.'],
+                        ['key' => 'slot_target_type', 'value' => 'Optional advanced scope (category, product, page, blog).'],
+                        ['key' => 'slot_target_ref', 'value' => 'Optional specific slug/id inside target_type.'],
+                        ['key' => 'selected_item_ids', 'value' => 'Ordered selected entities for item-based block types.'],
+                        ['key' => 'bg_css', 'value' => 'Optional style override for this block translation.'],
+                        ['key' => 'template_body (Ace)', 'value' => 'Primary rendering template for this exact block instance.'],
                     ],
                 ],
                 [
-                    'title' => 'Do / Avoid',
-                    'items' => [
-                        'Do keep copy concise and type-consistent.',
-                        'Do keep code immutable once used in templates.',
-                        'Avoid storing relational IDs in payload when slot refs can do it.',
-                        'Avoid massive inline CSS in block HTML.',
+                    'title' => 'Template Editing (Ace)',
+                    'subtitle' => 'Use this as your main editing surface.',
+                    'explanation' => [
+                        'Each block has its own Blade instance file at resources/views/front/content-blocks/instances/{code}.blade.php.',
+                        'Edits in this file affect only that block instance and are safe for one-off design tweaks.',
+                        'Common variables available in template: $block, $translation, $slot, $products, $categories, $manufacturers, $blogs.',
+                    ],
+                ],
+                [
+                    'title' => 'When Block Is Not Visible',
+                    'subtitle' => 'Run this checklist before deeper debugging.',
+                    'explanation' => [
+                        'Confirm Block Active = ON and Slot Active = ON.',
+                        'Confirm placement is correct for the page section you are testing.',
+                        'Confirm start/end dates are valid for current time.',
+                        'For global blocks, target type/ref should be empty.',
+                        'If output looks stale after template changes, clear cache.',
+                    ],
+                ],
+                [
+                    'title' => 'Good Practice',
+                    'subtitle' => 'Keep it maintainable for future editors.',
+                    'explanation' => [
+                        'Use clear block names and one purpose per block.',
+                        'Keep code stable to preserve template mapping.',
+                        'Prefer item picker UI over hardcoded IDs in templates.',
+                        'Use short template comments for non-obvious custom logic.',
                     ],
                 ],
             ],
@@ -542,7 +570,7 @@ return [
         ],
         'admin.content.slots*' => [
             'title' => 'Content Slots',
-            'summary' => 'Placement manager: binds one block to one display position and optional target references (page/category/product/etc).',
+            'summary' => 'Legacy placement manager. Primary workflow is now Content Blocks form, where block + primary slot are configured together.',
             'sections' => [
                 [
                     'title' => 'What This Is',

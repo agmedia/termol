@@ -11,6 +11,11 @@ return [
     |
     */
     'types' => [
+        'banner' => 'Banner (Static)',
+        'products' => 'Products Block (Selected)',
+        'categories' => 'Categories Block (Selected)',
+        'manufacturers' => 'Manufacturers Block (Selected)',
+        'blogs' => 'Blogs Block (Selected)',
         'hero_single' => 'Hero Single Banner',
         'hero_slider' => 'Hero Slider (multi banner)',
         'products_carousel' => 'Products Carousel',
@@ -21,6 +26,9 @@ return [
         'cards_3' => 'Cards (3 Col)',
         'rich_text' => 'Rich Text',
         'cta_banner' => 'CTA Banner',
+        'featured_drop_panel' => 'Featured Drop Panel',
+        'desktop_hero_banner' => 'Desktop Hero Banner',
+        'hero_highlights_strip' => 'Hero Highlights Strip',
         'dev_polishing' => 'Dev Polishing (RTE)',
         'custom' => 'Custom',
     ],
@@ -38,7 +46,9 @@ return [
     */
     'placements' => [
         'home.hero' => 'Home Hero',
+        'home.hero_benefits' => 'Home Hero Benefits',
         'home.before_products' => 'Home Before Products',
+        'home.categories' => 'Home Categories',
         'home.after_products' => 'Home After Products',
         'home.bottom' => 'Home Bottom',
         'category.top' => 'Category Top',
@@ -59,5 +69,39 @@ return [
     'cache' => [
         'ttl_seconds' => 3600,
         'version_key' => 'content_blocks:version',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Safe Front Route Resolution
+    |--------------------------------------------------------------------------
+    |
+    | Route names allowed in block payloads for CTA generation.
+    | If empty, all existing named routes are allowed.
+    |
+    */
+    'route_whitelist' => [
+        'home',
+        'login',
+        'register',
+        'dashboard',
+        'admin.*',
+        'profile',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Per-Block View Overrides
+    |--------------------------------------------------------------------------
+    |
+    | Block payload may set:
+    | - view_override: "front.content-blocks.instances.some-file"
+    |
+    | You can also create code-based overrides that are auto-detected:
+    | - front.content-blocks.instances.{block_code}
+    |
+    */
+    'view_overrides' => [
+        'prefix' => 'front.content-blocks.instances.',
     ],
 ];

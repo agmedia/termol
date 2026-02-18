@@ -4,6 +4,7 @@ use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Product\Product;
 use App\Models\Content\Blog\BlogPost;
+use App\Models\Content\ContentBlock;
 
 return [
     /*
@@ -137,6 +138,19 @@ return [
                 ],
                 'manufacturer_banner' => [
                     'label' => 'Banner Image',
+                    'single_file' => true,
+                    'max_upload_kb' => 8192,
+                    'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
+                    'conversions' => ['card_360x240', 'hero_1440x480'],
+                    'preview_conversion' => 'card_360x240',
+                ],
+            ],
+        ],
+        ContentBlock::class => [
+            'label' => 'Content Block',
+            'collections' => [
+                'block_background' => [
+                    'label' => 'Block Background',
                     'single_file' => true,
                     'max_upload_kb' => 8192,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],

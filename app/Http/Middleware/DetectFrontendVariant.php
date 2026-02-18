@@ -19,6 +19,14 @@ class DetectFrontendVariant
     {
         $variant = $this->deviceViewResolver->variant($request->userAgent());
 
+        $requestedVariant = (string) $request->query('frontend_variant', '');
+        $user = $request->user();
+        $canForceVariant = $user && ($user->isA('superadmin') || $user->can('content.blocks'));
+
+        if ($canForceVariant && in_array($requestedVariant, ['desktop', 'mobile'], true)) {
+            $variant = $requestedVariant;
+        }
+
         $request->attributes->set('frontend_variant', $variant);
         View::share('frontendVariant', $variant);
 
@@ -38,4 +46,3 @@ class DetectFrontendVariant
         return $response;
     }
 }
-

@@ -2,12 +2,16 @@
 
 namespace App\Models\Content;
 
+use App\Models\Concerns\HasConfiguredMedia;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Spatie\MediaLibrary\HasMedia;
 
-class ContentBlock extends Model
+class ContentBlock extends Model implements HasMedia
 {
+    use HasConfiguredMedia;
+
     protected $fillable = [
         'code',
         'name',
@@ -33,9 +37,15 @@ class ContentBlock extends Model
         return $this->hasMany(ContentBlockSlot::class);
     }
 
+    public function items(): HasMany
+    {
+        return $this->hasMany(ContentBlockItem::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
     public function translation(string $locale): HasOne
     {
         return $this->hasOne(ContentBlockTranslation::class)->where('locale', $locale);
     }
 }
-

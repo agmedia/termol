@@ -3,7 +3,9 @@
 namespace App\Livewire\Admin\Content\Block;
 
 use App\Models\Content\ContentBlock;
+use App\Services\Content\ContentBlockResolver;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Support\Facades\File;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -41,15 +43,18 @@ class Index extends Component
     public function delete(int $id): void
     {
         $block = ContentBlock::query()->findOrFail($id);
+        $code = (string) $block->code;
 
         activity('content_blocks')
             ->performedOn($block)
             ->causedBy(auth()->user())
             ->event('deleted')
-            ->withProperties(['code' => $block->code])
+            ->withProperties(['code' => $code])
             ->log('Content block deleted');
 
         $block->delete();
+        $this->deleteTemplateFile($code);
+        ContentBlockResolver::bumpCacheVersion();
 
         $this->dispatch('notify', type: 'success', message: 'Content block deleted.');
     }
@@ -64,8 +69,11 @@ class Index extends Component
         );
 
         $rows = ContentBlock::query()
-            ->withCount('slots')
-            ->with(['translations' => fn ($q) => $q->where('locale', $this->locale)])
+            ->withCount(['slots', 'items'])
+            ->with([
+                'translations' => fn ($q) => $q->where('locale', $this->locale),
+                'slots' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
+            ])
             ->when($this->search !== '', function ($query): void {
                 $query->where(function ($q): void {
                     $q->where('name', 'like', '%'.$this->search.'%')
@@ -82,8 +90,11 @@ class Index extends Component
         $previewBlock = null;
         if ($this->previewBlockId) {
             $previewBlock = ContentBlock::query()
-                ->withCount('slots')
-                ->with(['translations' => fn ($q) => $q->whereIn('locale', [$this->locale, config('app.locale')])])
+                ->withCount(['slots', 'items'])
+                ->with([
+                    'translations' => fn ($q) => $q->whereIn('locale', [$this->locale, config('app.locale')]),
+                    'slots' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
+                ])
                 ->find($this->previewBlockId);
         }
 
@@ -92,5 +103,13 @@ class Index extends Component
             'perPage' => $perPage,
             'previewBlock' => $previewBlock,
         ]);
+    }
+
+    private function deleteTemplateFile(string $code): void
+    {
+        $path = resource_path('views/front/content-blocks/instances/'.$code.'.blade.php');
+        if (File::exists($path)) {
+            File::delete($path);
+        }
     }
 }

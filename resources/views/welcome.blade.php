@@ -43,17 +43,78 @@
         ['name' => 'Accessories', 'description' => 'Compact essentials and utility add-ons.'],
     ];
 
-    $highlights = [
-        ['title' => 'Fast Dispatch', 'text' => 'Orders before 14:00 ship same day.'],
-        ['title' => 'Easy Returns', 'text' => '30-day return flow with no paperwork.'],
-        ['title' => 'Secure Checkout', 'text' => 'Card, Apple Pay, and Google Pay support.'],
-    ];
-
     $products = [
         ['name' => 'Transit Pro Backpack', 'price' => 'EUR 89', 'tag' => 'Best seller'],
         ['name' => 'Storm Utility Jacket', 'price' => 'EUR 129', 'tag' => 'New drop'],
         ['name' => 'Weekend Duffel 32L', 'price' => 'EUR 109', 'tag' => 'Limited'],
     ];
+
+    $homeBeforeProductsBlocks = app(\App\Services\Content\ContentBlockResolver::class)->forPlacement(
+        'home.before_products',
+        app()->getLocale()
+    );
+    $homeCategoriesBlocks = app(\App\Services\Content\ContentBlockResolver::class)->forPlacement(
+        'home.categories',
+        app()->getLocale()
+    );
+
+    $homeHeroBlocks = app(\App\Services\Content\ContentBlockResolver::class)->forPlacement(
+        'home.hero',
+        app()->getLocale()
+    );
+
+    $homeHeroBenefitsBlocks = app(\App\Services\Content\ContentBlockResolver::class)->forPlacement(
+        'home.hero_benefits',
+        app()->getLocale()
+    );
+
+    $isFrontPreview = false;
+    $frontPreviewBlock = null;
+    $frontPreviewPlacement = null;
+
+    $viewer = auth()->user();
+    $canPreviewBlock = $viewer && ($viewer->isA('superadmin') || $viewer->can('content.blocks'));
+    $previewBlockId = $canPreviewBlock ? (int) request()->query('preview_block', 0) : 0;
+    $requestedPreviewPlacement = $canPreviewBlock ? (string) request()->query('preview_placement', '') : '';
+
+    if ($previewBlockId > 0) {
+        $frontPreviewBlock = \App\Models\Content\ContentBlock::query()
+            ->with([
+                'translations' => fn ($q) => $q->whereIn('locale', [app()->getLocale(), config('app.locale')]),
+                'slots' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
+            ])
+            ->find($previewBlockId);
+
+        if ($frontPreviewBlock) {
+            $frontPreviewPlacement = $requestedPreviewPlacement !== ''
+                ? $requestedPreviewPlacement
+                : (string) ($frontPreviewBlock->slots->first()?->placement ?? 'home.hero');
+
+            $frontPreviewTranslation = $frontPreviewBlock->translations->firstWhere('locale', app()->getLocale())
+                ?? $frontPreviewBlock->translations->firstWhere('locale', config('app.locale'));
+            $frontPreviewSlot = $frontPreviewBlock->slots->firstWhere('placement', $frontPreviewPlacement)
+                ?? new \App\Models\Content\ContentBlockSlot(['placement' => $frontPreviewPlacement]);
+            $frontPreviewItem = collect([[
+                'slot' => $frontPreviewSlot,
+                'block' => $frontPreviewBlock,
+                'translation' => $frontPreviewTranslation,
+            ]]);
+
+            if ($frontPreviewPlacement === 'home.hero') {
+                $homeHeroBlocks = $frontPreviewItem;
+                $isFrontPreview = true;
+            } elseif ($frontPreviewPlacement === 'home.hero_benefits') {
+                $homeHeroBenefitsBlocks = $frontPreviewItem;
+                $isFrontPreview = true;
+            } elseif ($frontPreviewPlacement === 'home.before_products') {
+                $homeBeforeProductsBlocks = $frontPreviewItem;
+                $isFrontPreview = true;
+            } elseif ($frontPreviewPlacement === 'home.categories') {
+                $homeCategoriesBlocks = $frontPreviewItem;
+                $isFrontPreview = true;
+            }
+        }
+    }
 @endphp
 
 <header id="site-header" class="sticky top-0 z-50">
@@ -88,109 +149,127 @@
 </header>
 
 <main>
+    @if ($isFrontPreview)
+        <section class="border-b border-amber-200 bg-amber-50">
+            <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-6 py-3">
+                <p class="text-sm font-medium text-amber-900">
+                    Front preview mode:
+                    <span class="font-semibold">{{ $frontPreviewBlock?->name }}</span>
+                    <span class="text-amber-700">({{ $frontPreviewPlacement }})</span>
+                </p>
+                <a href="{{ route('home') }}" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100">
+                    Exit Preview
+                </a>
+            </div>
+        </section>
+    @endif
+
     <section class="relative overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-br from-blue-700 via-indigo-700 to-sky-600"></div>
         <div class="absolute -top-24 -right-24 h-96 w-96 rounded-full bg-white/10 blur-3xl"></div>
         <div class="absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-white/10 blur-3xl"></div>
 
-        <div class="relative mx-auto grid max-w-7xl items-start gap-x-12 gap-y-14 px-6 pb-14 pt-24 lg:grid-cols-12 lg:pt-28">
-            <div class="text-white lg:col-span-6">
-                <p class="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm">
-                    <span class="h-2 w-2 rounded-full bg-emerald-300"></span>
-                    New season collection live now
-                </p>
+        <div class="relative mx-auto max-w-7xl px-6 pb-14 pt-14 lg:pt-16">
+            @if ($homeHeroBlocks->isNotEmpty())
+                @include('components.content-placement', ['items' => $homeHeroBlocks])
+            @else
+                <div class="max-w-3xl text-white">
+                    <p class="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm">
+                        <span class="h-2 w-2 rounded-full bg-emerald-300"></span>
+                        New season collection live now
+                    </p>
 
-                <h1 class="mt-6 text-4xl font-extrabold leading-tight tracking-tight lg:text-6xl">
-                    Modern essentials,
-                    <br class="hidden sm:block">
-                    built for everyday carry.
-                </h1>
+                    <h1 class="mt-6 text-4xl font-extrabold leading-tight tracking-tight lg:text-6xl">
+                        Modern essentials,
+                        <br class="hidden sm:block">
+                        built for everyday carry.
+                    </h1>
 
-                <p class="mt-6 max-w-xl text-lg text-white/90">
-                    AGShop combines durable materials, clean silhouettes and practical storage to keep your daily setup lightweight and ready.
-                </p>
+                    <p class="mt-6 max-w-xl text-lg text-white/90">
+                        AGShop combines durable materials, clean silhouettes and practical storage to keep your daily setup lightweight and ready.
+                    </p>
 
-                <div class="mt-10 flex flex-wrap items-center gap-4">
-                    <a href="#featured" class="rounded-xl bg-white px-6 py-3 font-semibold text-blue-700 hover:bg-slate-100">Shop featured</a>
-                    <a href="#categories" class="rounded-xl border border-white/30 px-6 py-3 text-white hover:bg-white/10">Browse categories</a>
-                </div>
-            </div>
-
-            <div class="lg:col-span-6">
-                <div class="mx-auto max-w-xl">
-                    <div class="overflow-hidden rounded-3xl border border-white/20 bg-white/10 shadow-2xl">
-                        <div class="p-8">
-                            <div class="flex items-center justify-between">
-                                <div class="font-semibold text-white">Featured drop</div>
-                                <div class="text-sm text-white/70">In stock</div>
-                            </div>
-
-                            <div class="mt-6 grid grid-cols-2 gap-4">
-                                <div class="rounded-2xl bg-white/10 p-4">
-                                    <div class="text-sm text-white/70">Product</div>
-                                    <div class="mt-1 font-semibold text-white">Transit Pro Backpack</div>
-                                </div>
-
-                                <div class="rounded-2xl bg-white/10 p-4">
-                                    <div class="text-sm text-white/70">Price</div>
-                                    <div class="mt-1 font-semibold text-white">EUR 89</div>
-                                </div>
-
-                                <div class="col-span-2 rounded-2xl bg-white/10 p-4">
-                                    <div class="text-sm text-white/70">Top specs</div>
-                                    <div class="mt-2 font-semibold text-white">Water-resistant shell, 25L capacity, padded laptop sleeve.</div>
-                                </div>
-                            </div>
-
-                            <div class="mt-6 flex gap-3">
-                                <button class="w-full rounded-xl bg-white py-3 font-semibold text-blue-700 hover:bg-slate-100">Add to cart</button>
-                                <button class="w-full rounded-xl border border-white/30 py-3 text-white hover:bg-white/10">Details</button>
-                            </div>
-                        </div>
+                    <div class="mt-10 flex flex-wrap items-center gap-4">
+                        <a href="#featured" class="rounded-xl bg-white px-6 py-3 font-semibold text-blue-700 hover:bg-slate-100">Shop featured</a>
+                        <a href="#categories" class="rounded-xl border border-white/30 px-6 py-3 text-white hover:bg-white/10">Browse categories</a>
                     </div>
                 </div>
-            </div>
+            @endif
         </div>
 
         <div class="relative border-t border-white/10">
             <div class="absolute inset-0 bg-white/5 backdrop-blur-sm"></div>
             <div class="relative w-full px-6 py-10">
-                <div class="mx-auto grid max-w-7xl gap-8 text-white md:grid-cols-3">
-                    @foreach ($highlights as $highlight)
+                @if ($homeHeroBenefitsBlocks->isNotEmpty())
+                    @include('components.content-placement', ['items' => $homeHeroBenefitsBlocks])
+                @else
+                    <div class="mx-auto grid max-w-7xl gap-8 text-white md:grid-cols-3">
                         <div class="flex items-center gap-4">
                             <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15">
                                 <span class="text-xl font-bold">+</span>
                             </div>
                             <div>
-                                <div class="text-2xl font-bold leading-none">{{ $highlight['title'] }}</div>
-                                <div class="mt-1 text-sm leading-tight text-white/80">{{ $highlight['text'] }}</div>
+                                <div class="text-2xl font-bold leading-none">Fast Dispatch</div>
+                                <div class="mt-1 text-sm leading-tight text-white/80">Orders before 14:00 ship same day.</div>
                             </div>
                         </div>
+
+                        <div class="flex items-center gap-4">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15">
+                                <span class="text-xl font-bold">+</span>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold leading-none">Easy Returns</div>
+                                <div class="mt-1 text-sm leading-tight text-white/80">30-day return flow with no paperwork.</div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-4">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15">
+                                <span class="text-xl font-bold">+</span>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold leading-none">Secure Checkout</div>
+                                <div class="mt-1 text-sm leading-tight text-white/80">Card, Apple Pay, and Google Pay support.</div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </section>
+
+    @if ($homeBeforeProductsBlocks->isNotEmpty())
+        <section class="bg-slate-50 py-16">
+            <div class="mx-auto max-w-7xl px-6">
+                @include('components.content-placement', ['items' => $homeBeforeProductsBlocks])
+            </div>
+        </section>
+    @endif
+
+    @if ($homeCategoriesBlocks->isNotEmpty())
+        @include('components.content-placement', ['items' => $homeCategoriesBlocks])
+    @else
+        <section id="categories" class="border-y border-slate-200/60 bg-slate-100/70 py-24">
+            <div class="mx-auto max-w-7xl px-6">
+                <div class="mb-10">
+                    <h2 class="text-4xl font-extrabold tracking-tight text-slate-900">Shop by category</h2>
+                    <p class="mt-4 max-w-2xl text-lg text-slate-600">Locker-like layout rhythm with a cleaner ecommerce direction for AGShop.</p>
+                </div>
+
+                <div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+                    @foreach ($categories as $category)
+                        <article class="rounded-3xl border border-slate-200/60 bg-white p-7 shadow-sm transition hover:shadow-md">
+                            <div class="h-32 rounded-2xl bg-gradient-to-br from-slate-200 to-blue-100"></div>
+                            <h3 class="mt-5 text-xl font-semibold text-slate-900">{{ $category['name'] }}</h3>
+                            <p class="mt-3 text-slate-600">{{ $category['description'] }}</p>
+                            <a href="#" class="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800">Explore collection</a>
+                        </article>
                     @endforeach
                 </div>
             </div>
-        </div>
-    </section>
-
-    <section id="categories" class="border-y border-slate-200/60 bg-slate-100/70 py-24">
-        <div class="mx-auto max-w-7xl px-6">
-            <div class="mb-10">
-                <h2 class="text-4xl font-extrabold tracking-tight text-slate-900">Shop by category</h2>
-                <p class="mt-4 max-w-2xl text-lg text-slate-600">Locker-like layout rhythm with a cleaner ecommerce direction for AGShop.</p>
-            </div>
-
-            <div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-                @foreach ($categories as $category)
-                    <article class="rounded-3xl border border-slate-200/60 bg-white p-7 shadow-sm transition hover:shadow-md">
-                        <div class="h-32 rounded-2xl bg-gradient-to-br from-slate-200 to-blue-100"></div>
-                        <h3 class="mt-5 text-xl font-semibold text-slate-900">{{ $category['name'] }}</h3>
-                        <p class="mt-3 text-slate-600">{{ $category['description'] }}</p>
-                        <a href="#" class="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800">Explore collection</a>
-                    </article>
-                @endforeach
-            </div>
-        </div>
-    </section>
+        </section>
+    @endif
 
     <section id="featured" class="bg-slate-50 py-24">
         <div class="mx-auto max-w-7xl px-6">

@@ -35,6 +35,7 @@ class ContentBlockResolver
                 $slots = ContentBlockSlot::query()
                     ->with([
                         'block',
+                        'block.items',
                         'block.translations' => fn ($q) => $q->whereIn('locale', [$locale, config('app.locale')]),
                     ])
                     ->where('placement', $placement)

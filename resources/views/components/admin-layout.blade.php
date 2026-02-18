@@ -524,42 +524,81 @@
             }
             .admin-help-sections {
                 margin-top: 0.9rem;
-                display: grid;
+                display: flex;
+                flex-direction: column;
                 gap: 0.85rem;
             }
-            @media (min-width: 900px) {
-                .admin-help-sections {
-                    grid-template-columns: repeat(2, minmax(0, 1fr));
-                }
-            }
             .admin-help-section {
-                border: 1px solid #e2e8f0;
-                background: #f8fafc;
+                border-bottom: 1px solid #e2e8f0;
+                background: #ffffff;
                 border-radius: 0.8rem;
-                padding: 0.65rem 0.75rem;
+                padding: 0.35rem 0.1rem 0.85rem;
             }
             .admin-help-section-title {
-                margin: 0 0 0.5rem 0;
-                font-size: 0.74rem;
-                line-height: 1.2;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                color: #475569;
+                margin: 0 0 0.3rem 0;
+                font-size: 0.9rem;
+                line-height: 1.35;
+                color: #0f172a;
                 font-weight: 700;
+            }
+            .admin-help-section-subtitle {
+                margin: 0 0 0.5rem 0;
+                font-size: 0.8rem;
+                color: #64748b;
+            }
+            .admin-help-paragraph {
+                margin: 0.45rem 0 0;
+                font-size: 0.84rem;
+                line-height: 1.5;
+                color: #334155;
+            }
+            .admin-help-params {
+                margin-top: 0.65rem;
+                border: 1px solid #e2e8f0;
+                border-radius: 0.7rem;
+                overflow: hidden;
+                background: #f8fafc;
+            }
+            .admin-help-param-row {
+                display: grid;
+                grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
+                gap: 0.7rem;
+                padding: 0.5rem 0.65rem;
+                border-top: 1px solid #e2e8f0;
+                font-size: 0.8rem;
+            }
+            .admin-help-param-row:first-child {
+                border-top: none;
+            }
+            .admin-help-param-key {
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+                font-weight: 700;
+                color: #0f172a;
+            }
+            .admin-help-param-value {
+                color: #334155;
             }
             .admin-help-list {
                 margin-top: 0.6rem;
                 display: grid;
                 gap: 0.35rem;
+                list-style: disc;
+                padding-left: 1.2rem;
+            }
+            .admin-help-list.admin-help-list-flat {
                 list-style: none;
                 padding: 0;
             }
             .admin-help-list li {
+                font-size: 0.82rem;
+                color: #334155;
+                line-height: 1.45;
+            }
+            .admin-help-list.admin-help-list-flat li {
                 border: 1px solid #e2e8f0;
                 background: #f8fafc;
                 border-radius: 0.7rem;
                 padding: 0.48rem 0.6rem;
-                font-size: 0.82rem;
             }
             .admin-ai-overlay {
                 position: fixed;
@@ -1024,6 +1063,107 @@
                             'When JSON settings are used, keep structure minimal and explicit.',
                         ];
                     }
+
+                    $normalizeHelpEntry = static function (array $entry): array {
+                        $normalized = [
+                            'title' => trim((string) ($entry['title'] ?? 'Page Help')),
+                            'summary' => trim((string) ($entry['summary'] ?? 'Use this panel to manage the current section.')),
+                            'sections' => [],
+                            'bullets' => [],
+                            'manual_url' => $entry['manual_url'] ?? null,
+                        ];
+
+                        $rawSections = is_array($entry['sections'] ?? null) ? $entry['sections'] : [];
+                        foreach ($rawSections as $index => $section) {
+                            if (! is_array($section)) {
+                                continue;
+                            }
+
+                            $sectionTitle = trim((string) ($section['title'] ?? ('Section '.($index + 1))));
+                            if ($sectionTitle === '') {
+                                $sectionTitle = 'Section '.($index + 1);
+                            }
+
+                            $sectionSubtitle = trim((string) ($section['subtitle'] ?? 'Practical guidance for this part of the page.'));
+                            $explanation = [];
+
+                            if (is_string($section['explanation'] ?? null)) {
+                                $paragraph = trim((string) $section['explanation']);
+                                if ($paragraph !== '') {
+                                    $explanation[] = $paragraph;
+                                }
+                            } elseif (is_array($section['explanation'] ?? null)) {
+                                foreach ((array) $section['explanation'] as $paragraph) {
+                                    $text = trim((string) $paragraph);
+                                    if ($text !== '') {
+                                        $explanation[] = $text;
+                                    }
+                                }
+                            }
+
+                            if (is_array($section['items'] ?? null)) {
+                                foreach ((array) $section['items'] as $item) {
+                                    $text = trim((string) $item);
+                                    if ($text !== '') {
+                                        $explanation[] = $text;
+                                    }
+                                }
+                            }
+
+                            $params = [];
+                            if (is_array($section['params'] ?? null)) {
+                                foreach ((array) $section['params'] as $row) {
+                                    if (! is_array($row)) {
+                                        continue;
+                                    }
+                                    $key = trim((string) ($row['key'] ?? $row['name'] ?? ''));
+                                    $value = trim((string) ($row['value'] ?? $row['description'] ?? ''));
+                                    if ($key === '' && $value === '') {
+                                        continue;
+                                    }
+                                    $params[] = ['key' => $key, 'value' => $value];
+                                }
+                            }
+
+                            if ($explanation === [] && $params === []) {
+                                continue;
+                            }
+
+                            $normalized['sections'][] = [
+                                'title' => $sectionTitle,
+                                'subtitle' => $sectionSubtitle,
+                                'explanation' => $explanation,
+                                'params' => $params,
+                                'items' => [],
+                            ];
+                        }
+
+                        if ($normalized['sections'] === []) {
+                            $bulletParagraphs = [];
+                            if (is_array($entry['bullets'] ?? null)) {
+                                foreach ((array) $entry['bullets'] as $bullet) {
+                                    $text = trim((string) $bullet);
+                                    if ($text !== '') {
+                                        $bulletParagraphs[] = $text;
+                                    }
+                                }
+                            }
+
+                            if ($bulletParagraphs !== []) {
+                                $normalized['sections'][] = [
+                                    'title' => 'Quick Guide',
+                                    'subtitle' => 'Core operational notes for this page.',
+                                    'explanation' => $bulletParagraphs,
+                                    'params' => [],
+                                    'items' => [],
+                                ];
+                            }
+                        }
+
+                        return $normalized;
+                    };
+
+                    $helpEntry = $normalizeHelpEntry(is_array($helpEntry) ? $helpEntry : []);
                 @endphp
 
                 <nav class="space-y-1 p-4">
@@ -1197,15 +1337,6 @@
                                 <span class="flex items-center gap-2">
                                     <span class="sidebar-dot"></span>
                                     <span>Blocks</span>
-                                </span>
-                            </a>
-                            <a
-                                href="{{ route('admin.content.slots') }}"
-                                class="sidebar-dropdown-link block rounded-lg font-medium {{ $contentSlotsActive ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
-                            >
-                                <span class="flex items-center gap-2">
-                                    <span class="sidebar-dot"></span>
-                                    <span>Slots</span>
                                 </span>
                             </a>
                         </div>
@@ -1671,7 +1802,14 @@
                     if (!sectionPayload || typeof sectionPayload !== 'object') return;
 
                     const items = Array.isArray(sectionPayload.items) ? sectionPayload.items : [];
-                    if (!items.length) return;
+                    const subtitle = typeof sectionPayload.subtitle === 'string' ? sectionPayload.subtitle.trim() : '';
+                    const explanationRaw = sectionPayload.explanation;
+                    const explanation = Array.isArray(explanationRaw)
+                        ? explanationRaw.map((value) => String(value)).filter((value) => value.trim() !== '')
+                        : (typeof explanationRaw === 'string' && explanationRaw.trim() !== '' ? [explanationRaw] : []);
+                    const params = Array.isArray(sectionPayload.params) ? sectionPayload.params : [];
+
+                    if (!items.length && subtitle === '' && explanation.length === 0 && params.length === 0) return;
 
                     const section = document.createElement('section');
                     section.className = 'admin-help-section';
@@ -1679,17 +1817,65 @@
                     const sectionTitle = document.createElement('h3');
                     sectionTitle.className = 'admin-help-section-title';
                     sectionTitle.textContent = String(sectionPayload.title || 'Notes');
+                    section.appendChild(sectionTitle);
 
-                    const sectionList = document.createElement('ul');
-                    sectionList.className = 'admin-help-list';
+                    if (subtitle !== '') {
+                        const subtitleEl = document.createElement('p');
+                        subtitleEl.className = 'admin-help-section-subtitle';
+                        subtitleEl.textContent = subtitle;
+                        section.appendChild(subtitleEl);
+                    }
 
-                    items.forEach((item) => {
-                        const li = document.createElement('li');
-                        li.textContent = String(item);
-                        sectionList.appendChild(li);
+                    explanation.forEach((paragraph) => {
+                        const paragraphEl = document.createElement('p');
+                        paragraphEl.className = 'admin-help-paragraph';
+                        paragraphEl.textContent = paragraph;
+                        section.appendChild(paragraphEl);
                     });
 
-                    section.append(sectionTitle, sectionList);
+                    if (params.length > 0) {
+                        const paramsWrap = document.createElement('div');
+                        paramsWrap.className = 'admin-help-params';
+
+                        params.forEach((row) => {
+                            if (!row || typeof row !== 'object') return;
+                            const key = String(row.key ?? row.name ?? '').trim();
+                            const value = String(row.value ?? row.description ?? '').trim();
+                            if (key === '' && value === '') return;
+
+                            const rowEl = document.createElement('div');
+                            rowEl.className = 'admin-help-param-row';
+
+                            const keyEl = document.createElement('div');
+                            keyEl.className = 'admin-help-param-key';
+                            keyEl.textContent = key || 'Parameter';
+
+                            const valueEl = document.createElement('div');
+                            valueEl.className = 'admin-help-param-value';
+                            valueEl.textContent = value;
+
+                            rowEl.append(keyEl, valueEl);
+                            paramsWrap.appendChild(rowEl);
+                        });
+
+                        if (paramsWrap.childElementCount > 0) {
+                            section.appendChild(paramsWrap);
+                        }
+                    }
+
+                    if (items.length > 0) {
+                        const sectionList = document.createElement('ul');
+                        sectionList.className = 'admin-help-list';
+
+                        items.forEach((item) => {
+                            const li = document.createElement('li');
+                            li.textContent = String(item);
+                            sectionList.appendChild(li);
+                        });
+
+                        section.appendChild(sectionList);
+                    }
+
                     sectionsEl.appendChild(section);
                 });
 
@@ -1702,7 +1888,11 @@
                         li.textContent = String(item);
                         listEl.appendChild(li);
                     });
+                    listEl.classList.add('admin-help-list-flat');
                     listEl.classList.remove('hidden');
+                }
+                if (sectionsEl.childElementCount > 0) {
+                    listEl.classList.remove('admin-help-list-flat');
                 }
 
                 if (payload.manual_url) {

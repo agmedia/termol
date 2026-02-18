@@ -8,6 +8,31 @@
     $sort = (string) ($payload['sort'] ?? 'newest');
     $locale = app()->getLocale();
     $fallbackLocale = config('app.locale');
+    $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
+    $mergedPayload = is_array($payload) ? array_merge($payload, $translationPayload) : $translationPayload;
+    $allowedRoutes = config('content_blocks.route_whitelist', []);
+
+    $resolveRouteUrl = function (?string $routeName, mixed $routeParams, string $fallbackUrl = '#') use ($allowedRoutes): string {
+        $name = trim((string) $routeName);
+        if ($name === '') {
+            return $fallbackUrl;
+        }
+
+        $isAllowed = $allowedRoutes === []
+            || collect($allowedRoutes)->contains(fn ($pattern) => \Illuminate\Support\Str::is((string) $pattern, $name));
+
+        if (! $isAllowed || !\Illuminate\Support\Facades\Route::has($name)) {
+            return $fallbackUrl;
+        }
+
+        $params = is_array($routeParams) ? $routeParams : [];
+
+        try {
+            return route($name, $params);
+        } catch (\Throwable) {
+            return $fallbackUrl;
+        }
+    };
 
     $manualIds = collect($payload['manual_blog_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values()->all();
     $categoryIds = collect($payload['category_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values()->all();
@@ -46,6 +71,12 @@
         $rank = array_flip($manualIds);
         $posts = $posts->sortBy(fn ($item) => $rank[$item->id] ?? PHP_INT_MAX)->values();
     }
+
+    $ctaLabel = (string) ($translation?->cta_label ?? '');
+    $ctaFallbackUrl = (string) ($translation?->cta_url ?? '#');
+    $ctaRoute = (string) ($mergedPayload['cta_route'] ?? '');
+    $ctaRouteParams = $mergedPayload['cta_route_params'] ?? [];
+    $ctaUrl = $resolveRouteUrl($ctaRoute, $ctaRouteParams, $ctaFallbackUrl);
 @endphp
 
 <section class="rounded-2xl border border-slate-200 bg-white p-6">
@@ -56,8 +87,8 @@
                 <p class="mt-1 text-sm text-slate-600">{{ $translation->subtitle }}</p>
             @endif
         </div>
-        @if (!empty($translation?->cta_label) && !empty($translation?->cta_url))
-            <a href="{{ $translation->cta_url }}" class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ $translation->cta_label }}</a>
+        @if ($ctaLabel !== '' && $ctaUrl !== '')
+            <a href="{{ $ctaUrl }}" class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ $ctaLabel }}</a>
         @endif
     </div>
 
@@ -82,4 +113,3 @@
         @endforelse
     </div>
 </section>
-
