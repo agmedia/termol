@@ -15,8 +15,8 @@ class StorefrontDeviceTemplateTest extends TestCase
             ->get('/');
 
         $response->assertOk();
-        $response->assertSeeText('Desktop Storefront');
-        $response->assertDontSeeText('Mobile Storefront');
+        $response->assertSee('id="site-header"', false);
+        $response->assertDontSee('front-theme/styles/bootstrap.css', false);
     }
 
     public function test_mobile_user_agent_gets_mobile_storefront_template(): void
@@ -28,8 +28,8 @@ class StorefrontDeviceTemplateTest extends TestCase
             ->get('/');
 
         $response->assertOk();
-        $response->assertSeeText('Mobile Storefront');
-        $response->assertDontSeeText('Desktop Storefront');
+        $response->assertSee('front-theme/styles/bootstrap.css', false);
+        $response->assertDontSee('id="site-header"', false);
     }
 
     public function test_storefront_responses_include_vary_user_agent_header(): void
@@ -41,4 +41,3 @@ class StorefrontDeviceTemplateTest extends TestCase
         $this->assertStringContainsStringIgnoringCase('User-Agent', (string) $response->headers->get('Vary'));
     }
 }
-

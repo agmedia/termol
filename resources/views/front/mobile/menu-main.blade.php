@@ -10,19 +10,43 @@
 <div class="divider divider-margins mt-3 mb-3"></div>
 
 <div class="list-group list-custom-small list-menu">
-    <a href="/" class="close-menu">
+    <a href="{{ route('home') }}" class="close-menu">
         <i class="fa fa-home color-highlight"></i>
         <span>Home</span>
         <i class="fa fa-angle-right"></i>
     </a>
 
-    <a href="/" class="close-menu">
+    <a href="{{ route('home', ['frontend_variant' => 'desktop']) }}" class="close-menu">
         <i class="fa fa-globe color-blue-dark"></i>
         <span>Desktop storefront</span>
         <i class="fa fa-angle-right"></i>
     </a>
 
+    <a href="{{ route('shop.index') }}" class="close-menu">
+        <i class="fa fa-bag-shopping color-green-dark"></i>
+        <span>Shop</span>
+        <i class="fa fa-angle-right"></i>
+    </a>
+
+    <a href="{{ route('categories.index') }}" class="close-menu">
+        <i class="fa fa-th-large color-highlight"></i>
+        <span>Categories</span>
+        <i class="fa fa-angle-right"></i>
+    </a>
+
+    <a href="{{ route('contact.create') }}" class="close-menu">
+        <i class="fa fa-envelope color-orange-dark"></i>
+        <span>Contact</span>
+        <i class="fa fa-angle-right"></i>
+    </a>
+
     @auth
+        <a href="{{ route('account.dashboard') }}" class="close-menu">
+            <i class="fa fa-user color-highlight"></i>
+            <span>My account</span>
+            <i class="fa fa-angle-right"></i>
+        </a>
+
         <a href="{{ route('admin.dashboard') }}" class="close-menu">
             <i class="fa fa-shield-halved color-gray-dark"></i>
             <span>Admin dashboard</span>

@@ -85,10 +85,10 @@
     </div>
 
     <div id="footer-bar" class="footer-bar-5">
-        <a href="/" class="active-nav"><i class="fa fa-home"></i><span>Home</span></a>
-        <a href="#categories"><i class="fa fa-th-large"></i><span>Categories</span></a>
-        <a href="#featured" class="circle-nav"><i class="fa fa-star"></i><span>Featured</span></a>
-        <a href="#" data-menu="menu-cart"><i class="fa fa-shopping-bag"></i><span>Cart</span></a>
+        <a href="{{ route('home') }}" class="active-nav"><i class="fa fa-home"></i><span>Home</span></a>
+        <a href="{{ route('categories.index') }}"><i class="fa fa-th-large"></i><span>Categories</span></a>
+        <a href="{{ route('shop.index') }}" class="circle-nav"><i class="fa fa-star"></i><span>Featured</span></a>
+        <a href="{{ route('cart.index') }}"><i class="fa fa-shopping-bag"></i><span>Cart</span></a>
         <a href="#" data-menu="menu-main"><i class="fa fa-bars"></i><span>Menu</span></a>
     </div>
 

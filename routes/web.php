@@ -2,6 +2,15 @@
 
 use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Admin\AdminAiController;
+use App\Http\Controllers\Front\AccountController;
+use App\Http\Controllers\Front\BlogController;
+use App\Http\Controllers\Front\CartController;
+use App\Http\Controllers\Front\CatalogController;
+use App\Http\Controllers\Front\CheckoutController;
+use App\Http\Controllers\Front\ContactController;
+use App\Http\Controllers\Front\ManufacturerController;
+use App\Http\Controllers\Front\PageController;
+use App\Http\Controllers\Front\ProductController;
 use App\Http\Controllers\Front\StorefrontController;
 use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Attribute\Attribute as CatalogAttribute;
@@ -25,8 +34,55 @@ use Illuminate\Support\Facades\Route;
 use Spatie\Activitylog\Models\Activity;
 
 Route::middleware('front.device')
-    ->get('/', [StorefrontController::class, 'home'])
-    ->name('home');
+    ->group(function (): void {
+        Route::get('/', [StorefrontController::class, 'home'])->name('home');
+
+        Route::get('shop', [CatalogController::class, 'index'])->name('shop.index');
+        Route::get('categories', [CatalogController::class, 'categories'])->name('categories.index');
+        Route::get('category/{slug}', [CatalogController::class, 'showCategory'])->name('categories.show');
+        Route::get('product/{slug}', [ProductController::class, 'show'])->name('products.show');
+
+        Route::get('manufacturers', [ManufacturerController::class, 'index'])->name('manufacturers.index');
+        Route::get('manufacturer/{slug}', [ManufacturerController::class, 'show'])->name('manufacturers.show');
+
+        Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
+        Route::get('blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
+
+        Route::get('page/{slug}', [PageController::class, 'show'])->name('pages.show');
+
+        Route::get('contact', [ContactController::class, 'create'])->name('contact.create');
+        Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
+
+        Route::get('cart', [CartController::class, 'index'])->name('cart.index');
+        Route::post('cart/items', [CartController::class, 'store'])->name('cart.items.store');
+        Route::patch('cart/items/{product}', [CartController::class, 'update'])->name('cart.items.update');
+        Route::delete('cart/items/{product}', [CartController::class, 'destroy'])->name('cart.items.destroy');
+        Route::delete('cart', [CartController::class, 'clear'])->name('cart.clear');
+
+        Route::get('checkout', [CheckoutController::class, 'create'])->name('checkout.create');
+        Route::post('checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+        Route::get('checkout/success/{orderNumber}', [CheckoutController::class, 'success'])
+            ->where('orderNumber', '[A-Za-z0-9\-]+')
+            ->name('checkout.success');
+
+        Route::middleware(['auth', 'verified'])
+            ->prefix('account')
+            ->as('account.')
+            ->group(function (): void {
+                Route::get('/', [AccountController::class, 'dashboard'])->name('dashboard');
+                Route::get('orders', [AccountController::class, 'orders'])->name('orders');
+                Route::get('orders/{orderNumber}', [AccountController::class, 'showOrder'])
+                    ->where('orderNumber', '[A-Za-z0-9\-]+')
+                    ->name('orders.show');
+
+                Route::get('profile', [AccountController::class, 'profile'])->name('profile');
+                Route::put('profile', [AccountController::class, 'updateProfile'])->name('profile.update');
+                Route::put('preferences', [AccountController::class, 'updatePreferences'])->name('preferences.update');
+                Route::put('addresses/{type}', [AccountController::class, 'updateAddress'])
+                    ->where('type', 'billing|shipping')
+                    ->name('addresses.update');
+            });
+    });
 
 Route::get('dashboard', function (Request $request) {
     $user = $request->user();
