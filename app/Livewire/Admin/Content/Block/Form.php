@@ -19,6 +19,7 @@ class Form extends Component
     private const ITEM_TYPE_MAP = [
         'products' => 'product',
         'categories' => 'category',
+        'mobile_hero_banner' => 'category',
         'manufacturers' => 'manufacturer',
         'blogs' => 'blog',
     ];
@@ -47,6 +48,15 @@ class Form extends Component
         'blog_post' => 'Blog Post',
         'page' => 'Static Page',
         'custom' => 'Custom',
+    ];
+
+    /**
+     * @var array<string, string>
+     */
+    public array $frontendVariants = [
+        'all' => 'All Devices',
+        'desktop' => 'Desktop Only',
+        'mobile' => 'Mobile Only',
     ];
 
     public ?int $pickerItemId = null;
@@ -119,6 +129,11 @@ class Form extends Component
     {
         if (!array_key_exists($type, $this->types)) {
             return;
+        }
+
+        $suggestedSurface = $this->suggestedFrontendVariantForType($type);
+        if ($suggestedSurface !== null) {
+            $this->form['slot_frontend_variant'] = $suggestedSurface;
         }
 
         $currentItemType = $this->itemTypeForBlockType($type);
@@ -332,6 +347,7 @@ class Form extends Component
                     'code' => $block->code,
                     'type' => $block->type,
                     'placement' => $validated['form']['slot_placement'],
+                    'frontend_variant' => $validated['form']['slot_frontend_variant'],
                     'item_type' => $itemType,
                     'item_count' => count($selectedIds),
                     'template_file' => $this->templateViewName((string) $block->code),
@@ -378,6 +394,7 @@ class Form extends Component
             'form.template_body' => ['nullable', 'string'],
 
             'form.slot_placement' => ['required', 'string', 'max:120'],
+            'form.slot_frontend_variant' => ['required', Rule::in(array_keys($this->frontendVariants))],
             'form.slot_target_type' => ['nullable', 'string', 'max:80'],
             'form.slot_target_ref' => ['nullable', 'string', 'max:191'],
             'form.slot_sort_order' => ['nullable', 'integer', 'min:0'],
@@ -412,6 +429,7 @@ class Form extends Component
             'template_body' => $this->defaultTemplateForType($defaultType),
 
             'slot_placement' => array_key_first($this->placements) ?: 'home.hero',
+            'slot_frontend_variant' => 'all',
             'slot_target_type' => '',
             'slot_target_ref' => '',
             'slot_sort_order' => 0,
@@ -464,6 +482,8 @@ class Form extends Component
         $this->form['custom_classes'] = (string) ($translationPayload['custom_classes'] ?? '');
 
         $this->form['slot_placement'] = (string) ($slot?->placement ?? (array_key_first($this->placements) ?: 'home.hero'));
+        $loadedVariant = (string) ($slot?->frontend_variant ?? 'all');
+        $this->form['slot_frontend_variant'] = in_array($loadedVariant, ['all', 'desktop', 'mobile'], true) ? $loadedVariant : 'all';
         $this->form['slot_target_type'] = (string) ($slot?->target_type ?? '');
         $this->form['slot_target_ref'] = (string) ($slot?->target_ref ?? '');
         $this->form['slot_sort_order'] = (int) ($slot?->sort_order ?? 0);
@@ -644,6 +664,7 @@ class Form extends Component
     {
         $slotData = [
             'placement' => (string) $validated['form']['slot_placement'],
+            'frontend_variant' => (string) ($validated['form']['slot_frontend_variant'] ?? 'all'),
             'target_type' => $validated['form']['slot_target_type'] ?: null,
             'target_ref' => $validated['form']['slot_target_ref'] ?: null,
             'sort_order' => (int) $validated['form']['slot_sort_order'],
@@ -691,7 +712,16 @@ class Form extends Component
      */
     private function orderedTypes(array $types): array
     {
-        $priority = ['banner', 'products', 'categories', 'manufacturers', 'blogs'];
+        $priority = [
+            'banner',
+            'desktop_hero_banner',
+            'mobile_hero_banner',
+            'hero_highlights_strip',
+            'products',
+            'categories',
+            'manufacturers',
+            'blogs',
+        ];
         $ordered = [];
 
         foreach ($priority as $key) {
@@ -706,6 +736,16 @@ class Form extends Component
         }
 
         return $ordered;
+    }
+
+    private function suggestedFrontendVariantForType(string $type): ?string
+    {
+        return match ($type) {
+            'mobile_hero_banner' => 'mobile',
+            'desktop_hero_banner',
+            'hero_highlights_strip' => 'desktop',
+            default => null,
+        };
     }
 
     private function defaultTemplateForType(string $type): string
@@ -857,6 +897,63 @@ BLADE,
         </a>
     </div>
 </div>
+BLADE,
+            'mobile_hero_banner' => <<<'BLADE'
+@php
+    $basePayload = is_array($block->payload ?? null) ? $block->payload : [];
+    $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
+    $payload = array_merge($basePayload, $translationPayload);
+
+    $title = $translation?->title ?: 'Modern essentials';
+    $subtitle = $translation?->subtitle ?: 'Browse category picks and essentials.';
+    $ctaLabel = $translation?->cta_label ?: 'Shop';
+    $ctaUrl = $translation?->cta_url ?: '#categories';
+    $sliderId = 'mobile-hero-slider-'.$block->id;
+
+    $slideClassList = ['bg-19', 'bg-18', 'bg-17', 'bg-20'];
+    $customClasses = trim((string) ($payload['custom_classes'] ?? ''));
+    if ($customClasses !== '') {
+        $slideClassList = preg_split('/\s+/', $customClasses) ?: $slideClassList;
+    }
+@endphp
+
+@if ($categories->isNotEmpty())
+    <div class="splide single-slider slider-no-arrows slider-no-dots" id="{{ $sliderId }}">
+        <div class="splide__track">
+            <div class="splide__list">
+                @foreach ($categories as $index => $category)
+                    @php
+                        $ct = $category->translations->firstWhere('locale', app()->getLocale())
+                            ?? $category->translations->firstWhere('locale', config('app.locale'));
+                        $categoryName = $ct?->name ?: $category->code;
+                        $slideClass = $slideClassList[$index % max(count($slideClassList), 1)] ?? 'bg-19';
+                    @endphp
+                    <div class="splide__slide">
+                        <div class="card card-style mb-3 {{ $slideClass }}" data-card-height="300">
+                            <div class="card-bottom mb-3 ms-3 me-3">
+                                <h1 class="color-white font-800 mb-n2">{{ $categoryName }}</h1>
+                                <p class="color-white font-14 mb-2 opacity-60">{{ $subtitle }}</p>
+                                <a href="{{ $ctaUrl }}" class="btn btn-xxs rounded-xs bg-white color-black font-700 mt-2">
+                                    {{ trim($ctaLabel.' '.$categoryName) }}
+                                </a>
+                            </div>
+                            <div class="card-overlay bg-black opacity-60"></div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+@else
+    <div class="card card-style mb-3 bg-19" data-card-height="300">
+        <div class="card-bottom mb-3 ms-3 me-3">
+            <h1 class="color-white font-800 mb-n2">{{ $title }}</h1>
+            <p class="color-white font-14 mb-2 opacity-60">{{ $subtitle }}</p>
+            <a href="{{ $ctaUrl }}" class="btn btn-xxs rounded-xs bg-white color-black font-700 mt-2">{{ $ctaLabel }}</a>
+        </div>
+        <div class="card-overlay bg-black opacity-60"></div>
+    </div>
+@endif
 BLADE,
             'hero_highlights_strip' => <<<'BLADE'
 <div class="mx-auto grid max-w-7xl gap-8 text-white md:grid-cols-3">

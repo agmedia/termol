@@ -14,6 +14,55 @@
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('front-theme/app/icons/icon-192x192.png') }}">
 </head>
 <body class="theme-light" data-highlight="highlight-red">
+@php
+    $mobileHeroBlocks = app(\App\Services\Content\ContentBlockResolver::class)->forPlacement(
+        'home.hero',
+        app()->getLocale(),
+        null,
+        null,
+        'mobile',
+        true
+    );
+
+    $isFrontPreview = false;
+    $frontPreviewBlock = null;
+    $frontPreviewPlacement = null;
+
+    $viewer = auth()->user();
+    $canPreviewBlock = $viewer && ($viewer->isA('superadmin') || $viewer->can('content.blocks'));
+    $previewBlockId = $canPreviewBlock ? (int) request()->query('preview_block', 0) : 0;
+    $requestedPreviewPlacement = $canPreviewBlock ? (string) request()->query('preview_placement', '') : '';
+
+    if ($previewBlockId > 0) {
+        $frontPreviewBlock = \App\Models\Content\ContentBlock::query()
+            ->with([
+                'translations' => fn ($q) => $q->whereIn('locale', [app()->getLocale(), config('app.locale')]),
+                'slots' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
+            ])
+            ->find($previewBlockId);
+
+        if ($frontPreviewBlock) {
+            $frontPreviewPlacement = $requestedPreviewPlacement !== ''
+                ? $requestedPreviewPlacement
+                : (string) ($frontPreviewBlock->slots->first()?->placement ?? 'home.hero');
+
+            $frontPreviewTranslation = $frontPreviewBlock->translations->firstWhere('locale', app()->getLocale())
+                ?? $frontPreviewBlock->translations->firstWhere('locale', config('app.locale'));
+            $frontPreviewSlot = $frontPreviewBlock->slots->firstWhere('placement', $frontPreviewPlacement)
+                ?? new \App\Models\Content\ContentBlockSlot(['placement' => $frontPreviewPlacement]);
+            $frontPreviewItem = collect([[
+                'slot' => $frontPreviewSlot,
+                'block' => $frontPreviewBlock,
+                'translation' => $frontPreviewTranslation,
+            ]]);
+
+            if ($frontPreviewPlacement === 'home.hero') {
+                $mobileHeroBlocks = $frontPreviewItem;
+                $isFrontPreview = true;
+            }
+        }
+    }
+@endphp
 <div id="preloader">
     <div class="spinner-border color-highlight" role="status"></div>
 </div>
@@ -61,51 +110,67 @@
     <div class="page-title-clear"></div>
 
     <div class="page-content footer-bar-clear">
-        <div class="splide single-slider slider-no-arrows slider-no-dots" id="single-slider-1">
-            <div class="splide__track">
-                <div class="splide__list">
-                    <div class="splide__slide">
-                        <div class="card card-style mb-3 bg-19" data-card-height="300">
-                            <div class="card-top">
-                                <a href="#" data-menu="menu-heart" class="icon icon-s bg-white color-red-dark rounded-xl mt-3 me-3 float-end"><i class="fa fa-heart"></i></a>
-                                <a href="#" data-menu="menu-cart" class="icon icon-s bg-white color-black rounded-xl mt-3 me-2 float-end"><i class="fa fa-shopping-bag"></i></a>
+        @if ($isFrontPreview)
+            <div class="card card-style bg-yellow-light mb-3">
+                <div class="content py-2">
+                    <p class="mb-0 font-600 color-black">
+                        Front preview:
+                        <span class="font-700">{{ $frontPreviewBlock?->name }}</span>
+                        <span class="opacity-60">({{ $frontPreviewPlacement }})</span>
+                    </p>
+                </div>
+            </div>
+        @endif
+
+        @if ($mobileHeroBlocks->isNotEmpty())
+            @include('components.content-placement', ['items' => $mobileHeroBlocks])
+        @else
+            <div class="splide single-slider slider-no-arrows slider-no-dots" id="single-slider-1">
+                <div class="splide__track">
+                    <div class="splide__list">
+                        <div class="splide__slide">
+                            <div class="card card-style mb-3 bg-19" data-card-height="300">
+                                <div class="card-top">
+                                    <a href="#" data-menu="menu-heart" class="icon icon-s bg-white color-red-dark rounded-xl mt-3 me-3 float-end"><i class="fa fa-heart"></i></a>
+                                    <a href="#" data-menu="menu-cart" class="icon icon-s bg-white color-black rounded-xl mt-3 me-2 float-end"><i class="fa fa-shopping-bag"></i></a>
+                                </div>
+                                <div class="card-bottom mb-3 ms-3 me-3">
+                                    <h1 class="color-white font-800 mb-n2">Transit Pro Pack</h1>
+                                    <p class="color-white font-14 mb-2 opacity-60">Lightweight daypack with modular straps and weather shield.</p>
+                                </div>
+                                <div class="card-overlay bg-black opacity-60"></div>
                             </div>
-                            <div class="card-bottom mb-3 ms-3 me-3">
-                                <h1 class="color-white font-800 mb-n2">Transit Pro Pack</h1>
-                                <p class="color-white font-14 mb-2 opacity-60">Lightweight daypack with modular straps and weather shield.</p>
-                            </div>
-                            <div class="card-overlay bg-black opacity-60"></div>
                         </div>
-                    </div>
-                    <div class="splide__slide">
-                        <div class="card card-style mb-3 bg-18" data-card-height="300">
-                            <div class="card-top">
-                                <a href="#" data-menu="menu-heart" class="icon icon-s bg-white color-red-dark rounded-xl mt-3 me-3 float-end"><i class="fa fa-heart"></i></a>
-                                <a href="#" data-menu="menu-cart" class="icon icon-s bg-white color-black rounded-xl mt-3 me-2 float-end"><i class="fa fa-shopping-bag"></i></a>
+                        <div class="splide__slide">
+                            <div class="card card-style mb-3 bg-18" data-card-height="300">
+                                <div class="card-top">
+                                    <a href="#" data-menu="menu-heart" class="icon icon-s bg-white color-red-dark rounded-xl mt-3 me-3 float-end"><i class="fa fa-heart"></i></a>
+                                    <a href="#" data-menu="menu-cart" class="icon icon-s bg-white color-black rounded-xl mt-3 me-2 float-end"><i class="fa fa-shopping-bag"></i></a>
+                                </div>
+                                <div class="card-bottom mb-3 ms-3 me-3">
+                                    <h1 class="color-white font-800 mb-n2">Wireless Audio Kit</h1>
+                                    <p class="color-white font-14 mb-2 opacity-60">Noise isolation with USB-C fast charging and compact case.</p>
+                                </div>
+                                <div class="card-overlay bg-black opacity-60"></div>
                             </div>
-                            <div class="card-bottom mb-3 ms-3 me-3">
-                                <h1 class="color-white font-800 mb-n2">Wireless Audio Kit</h1>
-                                <p class="color-white font-14 mb-2 opacity-60">Noise isolation with USB-C fast charging and compact case.</p>
-                            </div>
-                            <div class="card-overlay bg-black opacity-60"></div>
                         </div>
-                    </div>
-                    <div class="splide__slide">
-                        <div class="card card-style mb-3 bg-17" data-card-height="300">
-                            <div class="card-top">
-                                <a href="#" data-menu="menu-heart" class="icon icon-s bg-white color-red-dark rounded-xl mt-3 me-3 float-end"><i class="fa fa-heart"></i></a>
-                                <a href="#" data-menu="menu-cart" class="icon icon-s bg-white color-black rounded-xl mt-3 me-2 float-end"><i class="fa fa-shopping-bag"></i></a>
+                        <div class="splide__slide">
+                            <div class="card card-style mb-3 bg-17" data-card-height="300">
+                                <div class="card-top">
+                                    <a href="#" data-menu="menu-heart" class="icon icon-s bg-white color-red-dark rounded-xl mt-3 me-3 float-end"><i class="fa fa-heart"></i></a>
+                                    <a href="#" data-menu="menu-cart" class="icon icon-s bg-white color-black rounded-xl mt-3 me-2 float-end"><i class="fa fa-shopping-bag"></i></a>
+                                </div>
+                                <div class="card-bottom mb-3 ms-3 me-3">
+                                    <h1 class="color-white font-800 mb-n2">Weekend Duffel 32L</h1>
+                                    <p class="color-white font-14 mb-2 opacity-60">Durable nylon shell, reinforced base and clean carry profile.</p>
+                                </div>
+                                <div class="card-overlay bg-black opacity-60"></div>
                             </div>
-                            <div class="card-bottom mb-3 ms-3 me-3">
-                                <h1 class="color-white font-800 mb-n2">Weekend Duffel 32L</h1>
-                                <p class="color-white font-14 mb-2 opacity-60">Durable nylon shell, reinforced base and clean carry profile.</p>
-                            </div>
-                            <div class="card-overlay bg-black opacity-60"></div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        @endif
 
         <div class="splide topic-slider slider-no-arrows slider-no-dots pb-2" id="topic-slider-1">
             <div class="splide__track">

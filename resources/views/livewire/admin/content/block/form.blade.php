@@ -32,7 +32,7 @@
 
                 <div>
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Type</label>
-                    <select wire:model.live="form.type" data-tom-select data-tom-no-search="1" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                    <select wire:model.live="form.type" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
                         @foreach ($types as $typeKey => $typeLabel)
                             <option value="{{ $typeKey }}" @selected(($form['type'] ?? '') === $typeKey)>{{ $typeLabel }}</option>
                         @endforeach
@@ -72,10 +72,10 @@
         <div class="admin-panel admin-form-panel p-6">
             <p class="admin-section-title">Slot (Placement)</p>
 
-            <div class="mt-4 grid gap-3 md:grid-cols-4">
+            <div class="mt-4 grid gap-3 md:grid-cols-5">
                 <div>
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Placement</label>
-                    <select wire:model="form.slot_placement" data-tom-select data-tom-no-search="1" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                    <select wire:model="form.slot_placement" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
                         @foreach ($placements as $placementKey => $placementLabel)
                             <option value="{{ $placementKey }}" @selected(($form['slot_placement'] ?? '') === $placementKey)>{{ $placementLabel }}</option>
                         @endforeach
@@ -83,8 +83,18 @@
                 </div>
 
                 <div>
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Surface</label>
+                    <select wire:model="form.slot_frontend_variant" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                        @foreach ($frontendVariants as $frontendVariantKey => $frontendVariantLabel)
+                            <option value="{{ $frontendVariantKey }}" @selected(($form['slot_frontend_variant'] ?? 'all') === $frontendVariantKey)>{{ $frontendVariantLabel }}</option>
+                        @endforeach
+                    </select>
+                    @error('form.slot_frontend_variant') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Target Type</label>
-                    <select wire:model="form.slot_target_type" data-tom-select data-tom-no-search="1" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                    <select wire:model="form.slot_target_type" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
                         @foreach ($targetTypes as $targetTypeKey => $targetTypeLabel)
                             <option value="{{ $targetTypeKey }}" @selected((string) ($form['slot_target_type'] ?? '') === (string) $targetTypeKey)>{{ $targetTypeLabel }}</option>
                         @endforeach
@@ -181,7 +191,7 @@
                 <div class="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                     <div>
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Available</label>
-                        <select wire:model="pickerItemId" data-tom-select class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                        <select wire:model="pickerItemId" data-tom-select class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
                             <option value="">Select item...</option>
                             @foreach ($this->itemOptions as $option)
                                 <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>

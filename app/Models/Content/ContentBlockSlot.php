@@ -12,6 +12,7 @@ class ContentBlockSlot extends Model
     protected $fillable = [
         'content_block_id',
         'placement',
+        'frontend_variant',
         'target_type',
         'target_ref',
         'sort_order',
@@ -47,4 +48,3 @@ class ContentBlockSlot extends Model
             });
     }
 }
-

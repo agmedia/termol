@@ -65,6 +65,11 @@
             <div class="cb-pill cb-w-35"></div>
             <div class="cb-pill cb-w-40"></div>
         </div>
+    @elseif ($typeKey === 'mobile_hero_banner')
+        <div class="cb-box cb-hero-media"></div>
+        <div class="cb-line cb-w-75"></div>
+        <div class="cb-line cb-w-60"></div>
+        <div class="cb-pill cb-w-30"></div>
     @elseif ($typeKey === 'hero_highlights_strip')
         <div class="cb-cards3">
             @for ($i = 0; $i < 3; $i++)

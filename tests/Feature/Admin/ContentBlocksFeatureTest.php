@@ -74,6 +74,7 @@ class ContentBlocksFeatureTest extends TestCase
 
         $block->slots()->create([
             'placement' => 'home.categories',
+            'frontend_variant' => 'mobile',
             'target_type' => null,
             'target_ref' => null,
             'sort_order' => 0,
@@ -97,13 +98,30 @@ class ContentBlocksFeatureTest extends TestCase
             ->test(BlockForm::class, ['blockId' => $block->id])
             ->assertSet('form.type', 'categories')
             ->assertSet('form.slot_placement', 'home.categories')
+            ->assertSet('form.slot_frontend_variant', 'mobile')
             ->assertSet('form.slot_target_type', '')
             ->assertSet('form.slot_target_ref', '')
             ->assertSet('form.selected_item_ids', [$categoryA->id, $categoryB->id])
             ->assertSee('value="categories" selected', false)
+            ->assertSee('value="mobile" selected', false)
             ->assertSee('value="" selected', false)
             ->assertSee('Category A')
             ->assertSee('Category B');
+    }
+
+    public function test_type_switch_auto_sets_surface_for_mobile_and_desktop_hero_types(): void
+    {
+        $user = $this->makeAdminUser();
+
+        Livewire::actingAs($user)
+            ->test(BlockForm::class)
+            ->assertSet('form.slot_frontend_variant', 'all')
+            ->assertDontSee('No items selected.')
+            ->set('form.type', 'mobile_hero_banner')
+            ->assertSet('form.slot_frontend_variant', 'mobile')
+            ->assertSee('No items selected.')
+            ->set('form.type', 'desktop_hero_banner')
+            ->assertSet('form.slot_frontend_variant', 'desktop');
     }
 
     private function makeAdminUser(): User
@@ -116,4 +134,3 @@ class ContentBlocksFeatureTest extends TestCase
         return $user;
     }
 }
-

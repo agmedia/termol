@@ -51,21 +51,33 @@
 
     $homeBeforeProductsBlocks = app(\App\Services\Content\ContentBlockResolver::class)->forPlacement(
         'home.before_products',
-        app()->getLocale()
+        app()->getLocale(),
+        null,
+        null,
+        'desktop'
     );
     $homeCategoriesBlocks = app(\App\Services\Content\ContentBlockResolver::class)->forPlacement(
         'home.categories',
-        app()->getLocale()
+        app()->getLocale(),
+        null,
+        null,
+        'desktop'
     );
 
     $homeHeroBlocks = app(\App\Services\Content\ContentBlockResolver::class)->forPlacement(
         'home.hero',
-        app()->getLocale()
+        app()->getLocale(),
+        null,
+        null,
+        'desktop'
     );
 
     $homeHeroBenefitsBlocks = app(\App\Services\Content\ContentBlockResolver::class)->forPlacement(
         'home.hero_benefits',
-        app()->getLocale()
+        app()->getLocale(),
+        null,
+        null,
+        'desktop'
     );
 
     $isFrontPreview = false;

@@ -16,15 +16,22 @@ class Index extends Component
     private const PAGE_NAME = 'contentBlocksPage';
 
     public string $search = '';
+    public string $surface = 'all';
     public ?int $previewBlockId = null;
     public string $locale;
 
     public function mount(): void
     {
+        $this->surface = 'all';
         $this->locale = (string) (request()->query('locale') ?: config('app.locale'));
     }
 
     public function updatedSearch(): void
+    {
+        $this->resetPage(pageName: self::PAGE_NAME);
+    }
+
+    public function updatedSurface(): void
     {
         $this->resetPage(pageName: self::PAGE_NAME);
     }
@@ -82,6 +89,19 @@ class Index extends Component
                         ->orWhereHas('translations', function ($tq): void {
                             $tq->where('title', 'like', '%'.$this->search.'%');
                         });
+                });
+            })
+            ->when(in_array($this->surface, ['desktop', 'mobile', 'all'], true), function ($query): void {
+                if ($this->surface === 'all') {
+                    return;
+                }
+
+                $query->whereHas('slots', function ($slotQuery): void {
+                    $slotQuery->where(function ($variantQuery): void {
+                        $variantQuery->whereNull('frontend_variant')
+                            ->orWhere('frontend_variant', 'all')
+                            ->orWhere('frontend_variant', $this->surface);
+                    });
                 });
             })
             ->orderByDesc('id')

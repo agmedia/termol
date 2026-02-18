@@ -12,27 +12,32 @@ class ContentBlockResolver
         string $placement,
         ?string $locale = null,
         ?string $targetType = null,
-        ?string $targetRef = null
+        ?string $targetRef = null,
+        ?string $frontendVariant = null,
+        bool $strictVariant = false
     ): Collection {
         $locale = $locale ?: app()->getLocale();
         $targetType = $targetType !== '' ? $targetType : null;
         $targetRef = $targetRef !== '' ? $targetRef : null;
+        $frontendVariant = in_array($frontendVariant, ['desktop', 'mobile'], true) ? $frontendVariant : null;
         $version = (int) Cache::get($this->versionKey(), 1);
 
         $cacheKey = sprintf(
-            'content_blocks:v%s:%s:%s:%s:%s',
+            'content_blocks:v%s:%s:%s:%s:%s:%s:%s',
             $version,
             $placement,
             $locale,
             $targetType ?: 'global',
-            $targetRef ?: 'global'
+            $targetRef ?: 'global',
+            $frontendVariant ?: 'all',
+            $strictVariant ? 'strict' : 'fallback'
         );
 
         return Cache::remember(
             $cacheKey,
             (int) config('content_blocks.cache.ttl_seconds', 3600),
-            function () use ($placement, $locale, $targetType, $targetRef): Collection {
-                $slots = ContentBlockSlot::query()
+            function () use ($placement, $locale, $targetType, $targetRef, $frontendVariant, $strictVariant): Collection {
+                $baseQuery = ContentBlockSlot::query()
                     ->with([
                         'block',
                         'block.items',
@@ -56,10 +61,37 @@ class ContentBlockResolver
                         });
                     }, function ($query): void {
                         $query->whereNull('target_type');
-                    })
-                    ->orderBy('sort_order')
-                    ->orderBy('id')
-                    ->get();
+                    });
+
+                if ($frontendVariant !== null) {
+                    $specificSlots = (clone $baseQuery)
+                        ->where('frontend_variant', $frontendVariant)
+                        ->orderBy('sort_order')
+                        ->orderBy('id')
+                        ->get();
+
+                    if ($specificSlots->isNotEmpty() || $strictVariant) {
+                        $slots = $specificSlots;
+                    } else {
+                        $slots = (clone $baseQuery)
+                            ->where(function ($q): void {
+                                $q->whereNull('frontend_variant')
+                                    ->orWhere('frontend_variant', 'all');
+                            })
+                            ->orderBy('sort_order')
+                            ->orderBy('id')
+                            ->get();
+                    }
+                } else {
+                    $slots = (clone $baseQuery)
+                        ->where(function ($q): void {
+                            $q->whereNull('frontend_variant')
+                                ->orWhere('frontend_variant', 'all');
+                        })
+                        ->orderBy('sort_order')
+                        ->orderBy('id')
+                        ->get();
+                }
 
                 return $slots->map(function (ContentBlockSlot $slot) use ($locale) {
                     $block = $slot->block;

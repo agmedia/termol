@@ -17,6 +17,14 @@
                         class="admin-search-input w-full rounded-xl border px-3 py-2 text-sm"
                     />
                 </div>
+                <div class="w-full sm:w-44">
+                    <label for="content-block-surface" class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Surface</label>
+                    <select id="content-block-surface" wire:model="surface" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border px-3 py-2 text-sm">
+                        <option value="all">All</option>
+                        <option value="desktop">Desktop</option>
+                        <option value="mobile">Mobile</option>
+                    </select>
+                </div>
                 <a href="{{ route('admin.content.blocks.create') }}" class="inline-flex h-10 items-center rounded-xl bg-cyan-700 px-4 text-sm font-semibold text-white hover:bg-cyan-800">Create</a>
             </div>
         </div>
@@ -33,6 +41,7 @@
                         <th class="px-3 py-2 text-left font-semibold">Name</th>
                         <th class="px-3 py-2 text-left font-semibold">Type</th>
                         <th class="px-3 py-2 text-left font-semibold">Placement</th>
+                        <th class="px-3 py-2 text-left font-semibold">Surface</th>
                         <th class="px-3 py-2 text-left font-semibold">Preview</th>
                         <th class="px-3 py-2 text-center font-semibold">Items</th>
                         <th class="px-3 py-2 text-center font-semibold">Slots</th>
@@ -61,6 +70,18 @@
                                     <div class="mt-1 text-slate-500">{{ $primarySlot->target_type }}: {{ $primarySlot->target_ref ?: '*' }}</div>
                                 @endif
                             </td>
+                            <td class="px-3 py-2 text-xs text-slate-700">
+                                @php
+                                    $surface = (string) ($primarySlot?->frontend_variant ?? 'all');
+                                @endphp
+                                @if ($surface === 'desktop')
+                                    Desktop
+                                @elseif ($surface === 'mobile')
+                                    Mobile
+                                @else
+                                    All
+                                @endif
+                            </td>
                             <td class="px-3 py-2">
                                 @include('admin.content.partials.block-type-preview', ['type' => $row->type, 'size' => 'xs'])
                             </td>
@@ -81,7 +102,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-3 py-8 text-center text-sm text-slate-500">No content blocks yet.</td>
+                            <td colspan="10" class="px-3 py-8 text-center text-sm text-slate-500">No content blocks yet.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -98,10 +119,12 @@
             $previewTranslation = $previewBlock->translations->firstWhere('locale', $locale)
                 ?? $previewBlock->translations->firstWhere('locale', config('app.locale'));
             $previewPlacement = (string) ($previewBlock->slots->first()?->placement ?? 'home.hero');
+            $previewVariant = (string) ($previewBlock->slots->first()?->frontend_variant ?? 'all');
+            $frontVariant = in_array($previewVariant, ['desktop', 'mobile'], true) ? $previewVariant : 'desktop';
             $frontPreviewUrl = route('home', [
                 'preview_block' => $previewBlock->id,
                 'preview_placement' => $previewPlacement,
-                'frontend_variant' => 'desktop',
+                'frontend_variant' => $frontVariant,
             ]);
         @endphp
         <div wire:click="closePreview" class="fixed inset-0 z-[72] bg-slate-900/45 p-4 md:p-6">
@@ -157,6 +180,7 @@
 
                         <div class="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
                             <p>Placement: <span class="font-semibold text-slate-800">{{ $previewPlacement }}</span></p>
+                            <p class="mt-1">Surface: <span class="font-semibold text-slate-800">{{ $frontVariant }}</span></p>
                             <p class="mt-1">Selected items: <span class="font-semibold text-slate-800">{{ $previewBlock->items_count }}</span></p>
                         </div>
                     </div>

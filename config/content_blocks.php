@@ -28,6 +28,7 @@ return [
         'cta_banner' => 'CTA Banner',
         'featured_drop_panel' => 'Featured Drop Panel',
         'desktop_hero_banner' => 'Desktop Hero Banner',
+        'mobile_hero_banner' => 'Mobile Hero Banner',
         'hero_highlights_strip' => 'Hero Highlights Strip',
         'dev_polishing' => 'Dev Polishing (RTE)',
         'custom' => 'Custom',

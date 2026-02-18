@@ -193,13 +193,9 @@ const initAceLauncher = () => {
 };
 
 const initTomSelect = () => {
-    if (document.body?.dataset.tomSelectReady === '1') {
-        return;
-    }
     if (!document.body) {
         return;
     }
-    document.body.dataset.tomSelectReady = '1';
 
     const buildTypeRender = () => ({
         option(data, escape) {
@@ -218,9 +214,28 @@ const initTomSelect = () => {
         if (!(element instanceof HTMLSelectElement)) {
             return;
         }
-        if (element.tomselect) {
-            return;
+        const tom = element.tomselect;
+        if (tom) {
+            const wrapperConnected = Boolean(tom.wrapper?.isConnected);
+            const controlConnected = Boolean(tom.control?.isConnected);
+            if (wrapperConnected && controlConnected) {
+                return;
+            }
+
+            try {
+                tom.destroy();
+            } catch (_error) {
+                // Ignore stale instance destroy errors.
+            }
+
+            delete element.tomselect;
+            delete element.dataset.tomSelectBound;
         }
+
+        if (element.dataset.tomSelectBound === '1' && !element.tomselect) {
+            delete element.dataset.tomSelectBound;
+        }
+
         if (element.dataset.tomSelectBound === '1') {
             return;
         }
@@ -249,7 +264,6 @@ const initTomSelect = () => {
             sortField: [{ field: 'text', direction: 'asc' }],
             placeholder,
             onChange() {
-                element.dispatchEvent(new Event('input', { bubbles: true }));
                 element.dispatchEvent(new Event('change', { bubbles: true }));
             },
         };
@@ -277,20 +291,34 @@ const initTomSelect = () => {
 
     bindAll(document);
 
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            mutation.addedNodes.forEach((node) => {
-                if (node instanceof HTMLElement || node instanceof HTMLSelectElement) {
-                    bindAll(node);
+    if (!window.__tomSelectObserver) {
+        window.__tomSelectObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.target instanceof HTMLElement || mutation.target instanceof HTMLSelectElement) {
+                    bindAll(mutation.target);
+                }
+
+                mutation.addedNodes.forEach((node) => {
+                    if (node instanceof HTMLElement || node instanceof HTMLSelectElement) {
+                        bindAll(node);
+                    }
+                });
+
+                if (mutation.removedNodes.length > 0 && mutation.target instanceof HTMLElement) {
+                    bindAll(mutation.target);
                 }
             });
         });
-    });
+    }
 
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-    });
+    if (window.__tomSelectObserverBody !== document.body) {
+        window.__tomSelectObserver.disconnect();
+        window.__tomSelectObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+        window.__tomSelectObserverBody = document.body;
+    }
 };
 
 const initQuillEditors = () => {
@@ -1139,3 +1167,7 @@ if (document.readyState === 'loading') {
     initTomSelect();
     initDashboardCharts();
 }
+
+document.addEventListener('livewire:navigated', () => {
+    initTomSelect();
+});
