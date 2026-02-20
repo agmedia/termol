@@ -58,12 +58,52 @@
                 @csrf
                 <input type="hidden" name="product_id" value="{{ $product->id }}">
 
+                @if ($product->optionValues->where('is_active', true)->isNotEmpty())
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Option</label>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach ($product->optionValues->where('is_active', true)->values() as $row)
+                                @php
+                                    $valueTranslation = $row->optionValue?->translations?->firstWhere('locale', $locale)
+                                        ?? $row->optionValue?->translations?->firstWhere('locale', $fallbackLocale)
+                                        ?? $row->optionValue?->translations?->first();
+                                    $parentTranslation = $row->parentOptionValue?->translations?->firstWhere('locale', $locale)
+                                        ?? $row->parentOptionValue?->translations?->firstWhere('locale', $fallbackLocale)
+                                        ?? $row->parentOptionValue?->translations?->first();
+                                    $valueLabel = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
+                                    $parentLabel = trim((string) ($parentTranslation?->name ?? $row->parentOptionValue?->code ?? ''));
+                                    $label = $parentLabel !== '' && $valueLabel !== '' ? $parentLabel.' / '.$valueLabel : ($valueLabel !== '' ? $valueLabel : $parentLabel);
+                                    $inputId = 'product-pov-'.$product->id.'-'.$row->id;
+                                @endphp
+                                <label for="{{ $inputId }}" class="inline-flex items-center gap-2 border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700">
+                                    <input
+                                        id="{{ $inputId }}"
+                                        type="radio"
+                                        name="product_option_value_id"
+                                        value="{{ $row->id }}"
+                                        class="h-4 w-4 appearance-none border border-slate-400 bg-white checked:border-slate-900 checked:bg-slate-900"
+                                        @checked($loop->first)
+                                        required
+                                    >
+                                    <span>{{ $label }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <div>
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Quantity</label>
                     <input type="number" name="quantity" min="1" max="99" value="1" class="w-full rounded-lg border-slate-300 text-sm">
                 </div>
 
-                <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">Add to cart</button>
+                <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 9h10l-1 10H8L7 9Z"></path>
+                        <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
+                    </svg>
+                    Add to cart
+                </button>
                 <a href="{{ route('checkout.create') }}" class="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100">Go to checkout</a>
             </form>
         </aside>

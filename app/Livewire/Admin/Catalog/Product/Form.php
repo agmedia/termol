@@ -157,13 +157,20 @@ class Form extends Component
                 ->log('Product saved');
         });
 
-        $message = $wasEditing ? 'Product updated.' : 'Product created.';
+        if ($wasEditing) {
+            return redirect()
+                ->route('admin.products.edit', ['product' => $this->productId, 'locale' => $this->form['locale']])
+                ->with('notify', [
+                    'type' => 'success',
+                    'message' => 'Product updated.',
+                ]);
+        }
 
         return redirect()
-            ->route('admin.products', ['locale' => $this->form['locale']])
+            ->route('admin.products.edit', ['product' => $this->productId, 'locale' => $this->form['locale']])
             ->with('notify', [
                 'type' => 'success',
-                'message' => $message,
+                'message' => 'Product created. Now upload product images.',
             ]);
     }
 

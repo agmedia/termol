@@ -3,6 +3,7 @@
 namespace App\Services\Front;
 
 use App\Models\Catalog\Product\Product;
+use App\Models\Catalog\Product\ProductOptionValue;
 use App\Models\Sales\Order\Order;
 use App\Models\Sales\Order\OrderHistory;
 use App\Models\Sales\Order\OrderItem;
@@ -194,12 +195,16 @@ class CheckoutService
                 $quantity = (int) $line['quantity'];
                 $unitPrice = (float) $line['unit_price'];
                 $lineTotal = (float) $line['line_total'];
+                $productOptionValueId = isset($line['product_option_value_id']) ? (int) $line['product_option_value_id'] : null;
+                $optionRow = $productOptionValueId
+                    ? ProductOptionValue::query()->find($productOptionValueId)
+                    : null;
 
                 OrderItem::query()->create([
                     'order_id' => $order->id,
                     'product_id' => $product->id,
-                    'product_option_value_id' => null,
-                    'sku' => $product->sku,
+                    'product_option_value_id' => $productOptionValueId,
+                    'sku' => (string) ($optionRow?->sku ?: $product->sku),
                     'code' => $product->code,
                     'name' => (string) ($translation?->name ?? $product->code),
                     'unit_price' => $unitPrice,
@@ -214,7 +219,13 @@ class CheckoutService
                     ],
                 ]);
 
-                if ((int) $product->stock_qty > 0) {
+                if ($optionRow) {
+                    if ((int) $optionRow->stock_qty > 0) {
+                        $optionRow->forceFill([
+                            'stock_qty' => max(0, ((int) $optionRow->stock_qty) - $quantity),
+                        ])->save();
+                    }
+                } elseif ((int) $product->stock_qty > 0) {
                     $nextStock = max(0, ((int) $product->stock_qty) - $quantity);
                     $product->forceFill(['stock_qty' => $nextStock])->save();
                 }

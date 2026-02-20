@@ -15,7 +15,7 @@ class StorefrontDeviceTemplateTest extends TestCase
             ->get('/');
 
         $response->assertOk();
-        $response->assertSee('id="site-header"', false);
+        $response->assertSee('front-theme/scripts/desktop-header-menu.js', false);
         $response->assertDontSee('front-theme/styles/bootstrap.css', false);
     }
 
@@ -29,7 +29,7 @@ class StorefrontDeviceTemplateTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('front-theme/styles/bootstrap.css', false);
-        $response->assertDontSee('id="site-header"', false);
+        $response->assertDontSee('front-theme/scripts/desktop-header-menu.js', false);
     }
 
     public function test_storefront_responses_include_vary_user_agent_header(): void
@@ -39,5 +39,20 @@ class StorefrontDeviceTemplateTest extends TestCase
         $response->assertOk();
         $response->assertHeader('Vary');
         $this->assertStringContainsStringIgnoringCase('User-Agent', (string) $response->headers->get('Vary'));
+    }
+
+    public function test_mobile_user_agent_gets_desktop_template_when_mobile_pwa_feature_is_disabled(): void
+    {
+        config(['catalog_features.flags.catalog_use_mobile_pwa' => false]);
+
+        $response = $this
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            ])
+            ->get('/');
+
+        $response->assertOk();
+        $response->assertSee('front-theme/scripts/desktop-header-menu.js', false);
+        $response->assertDontSee('front-theme/styles/bootstrap.css', false);
     }
 }

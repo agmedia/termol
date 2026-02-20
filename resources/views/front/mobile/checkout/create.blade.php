@@ -17,6 +17,9 @@
                     <div class="d-flex mb-3">
                         <div class="w-100">
                             <h6 class="font-500 font-14 pb-1">{{ $translation?->name ?? $line['product']->code }}</h6>
+                            @if (!empty($line['option_label']))
+                                <p class="font-11 opacity-60 mb-1">{{ $line['option_label'] }}</p>
+                            @endif
                             <p class="font-11 opacity-60 mb-1">Qty {{ $line['quantity'] }}</p>
                             <h4 class="font-700 mb-0">EUR {{ number_format((float) $line['line_total'], 2) }}</h4>
                         </div>

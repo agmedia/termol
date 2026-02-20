@@ -25,11 +25,16 @@
         <a href="#" data-toggle-theme class="header-icon header-icon-3 show-on-theme-light" aria-label="Dark mode"><i class="fas fa-moon"></i></a>
     </div>
 
-    <div id="footer-bar" class="footer-bar-5">
+    <div id="footer-bar" class="footer-bar-6">
         <a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? 'active-nav' : '' }}"><i class="fa fa-home"></i><span>Home</span></a>
         <a href="{{ route('categories.index') }}" class="{{ request()->routeIs('categories.*') ? 'active-nav' : '' }}"><i class="fa fa-th-large"></i><span>Categories</span></a>
         <a href="{{ route('shop.index') }}" class="{{ request()->routeIs('shop.*') ? 'active-nav circle-nav' : 'circle-nav' }}"><i class="fa fa-star"></i><span>Shop</span></a>
-        <a href="{{ route('cart.index') }}" class="{{ request()->routeIs('cart.*') ? 'active-nav' : '' }}"><i class="fa fa-shopping-bag"></i><span>Cart</span></a>
+        <a href="{{ route('cart.index') }}" class="{{ request()->routeIs('cart.*') ? 'active-nav' : '' }}"><i class="fa fa-bag-shopping"></i><span>Cart</span></a>
+        <a href="{{ route('wishlist.index') }}" class="{{ request()->routeIs('wishlist.*') ? 'active-nav' : '' }}">
+            <i class="fa fa-heart"></i>
+            <span>{{ __('ui.front.desktop.favorites') }}</span>
+            <u data-wishlist-count>{{ (int) ($wishlistSummary['item_count'] ?? 0) }}</u>
+        </a>
         <a href="#" data-menu="menu-main"><i class="fa fa-bars"></i><span>Menu</span></a>
     </div>
 

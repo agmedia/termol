@@ -18,6 +18,9 @@
                     <div class="d-flex">
                         <div class="w-100 me-2">
                             <h6 class="font-500 font-14 pb-1">{{ $translation?->name ?? $product->code }}</h6>
+                            @if (!empty($line['option_label']))
+                                <p class="font-11 opacity-60 mb-1">{{ $line['option_label'] }}</p>
+                            @endif
                             <h4 class="font-700 mb-1">EUR {{ number_format((float) $line['line_total'], 2) }}</h4>
                             <p class="font-11 opacity-60 mb-0">Unit EUR {{ number_format((float) $line['unit_price'], 2) }}</p>
                         </div>
@@ -25,12 +28,18 @@
                             <form method="POST" action="{{ route('cart.items.update', ['product' => $product->id]) }}" class="mb-2">
                                 @csrf
                                 @method('PATCH')
+                                @if (!empty($line['product_option_value_id']))
+                                    <input type="hidden" name="product_option_value_id" value="{{ (int) $line['product_option_value_id'] }}">
+                                @endif
                                 <input type="number" name="quantity" value="{{ (int) $line['quantity'] }}" min="0" max="999" class="form-control mb-1" style="height:32px;">
                                 <button type="submit" class="btn btn-3d btn-xs font-600 bg-highlight">Save</button>
                             </form>
                             <form method="POST" action="{{ route('cart.items.destroy', ['product' => $product->id]) }}">
                                 @csrf
                                 @method('DELETE')
+                                @if (!empty($line['product_option_value_id']))
+                                    <input type="hidden" name="product_option_value_id" value="{{ (int) $line['product_option_value_id'] }}">
+                                @endif
                                 <button type="submit" class="btn btn-xs bg-red-dark font-600">Remove</button>
                             </form>
                         </div>

@@ -40,6 +40,28 @@
             <form method="POST" action="{{ route('cart.items.store') }}">
                 @csrf
                 <input type="hidden" name="product_id" value="{{ $product->id }}">
+                @if ($product->optionValues->where('is_active', true)->isNotEmpty())
+                    <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                        <label for="product-option" class="color-highlight">Option</label>
+                        <select id="product-option" name="product_option_value_id" required>
+                            @foreach ($product->optionValues->where('is_active', true)->values() as $row)
+                                @php
+                                    $valueTranslation = $row->optionValue?->translations?->firstWhere('locale', $locale)
+                                        ?? $row->optionValue?->translations?->firstWhere('locale', $fallbackLocale)
+                                        ?? $row->optionValue?->translations?->first();
+                                    $parentTranslation = $row->parentOptionValue?->translations?->firstWhere('locale', $locale)
+                                        ?? $row->parentOptionValue?->translations?->firstWhere('locale', $fallbackLocale)
+                                        ?? $row->parentOptionValue?->translations?->first();
+                                    $valueLabel = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
+                                    $parentLabel = trim((string) ($parentTranslation?->name ?? $row->parentOptionValue?->code ?? ''));
+                                    $label = $parentLabel !== '' && $valueLabel !== '' ? $parentLabel.' / '.$valueLabel : ($valueLabel !== '' ? $valueLabel : $parentLabel);
+                                @endphp
+                                <option value="{{ $row->id }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <span><i class="fa fa-chevron-down"></i></span>
+                    </div>
+                @endif
                 <div class="row mb-2">
                     <div class="col-5">
                         <div class="input-style has-borders no-icon input-style-always-active mb-3">
@@ -48,7 +70,13 @@
                         </div>
                     </div>
                     <div class="col-7">
-                        <button type="submit" class="btn btn-full gradient-highlight font-600 rounded-s mt-1">Add to cart</button>
+                        <button type="submit" class="btn btn-full gradient-highlight font-600 rounded-s mt-1 d-inline-flex align-items-center justify-content-center gap-2">
+                            <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" aria-hidden="true">
+                                <path d="M7 9h10l-1 10H8L7 9Z"></path>
+                                <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
+                            </svg>
+                            Add to cart
+                        </button>
                     </div>
                 </div>
             </form>

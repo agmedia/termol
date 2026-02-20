@@ -67,6 +67,12 @@
         <i class="fa fa-angle-right"></i>
     </a>
 
+    <a href="{{ route('wishlist.index') }}" class="close-menu">
+        <i class="fa fa-heart color-red-dark"></i>
+        <span>{{ __('ui.front.desktop.favorites') }}</span>
+        <i class="fa fa-angle-right"></i>
+    </a>
+
     <a href="{{ route('contact.create') }}" class="close-menu">
         <i class="fa fa-envelope color-orange-dark"></i>
         <span>Contact</span>

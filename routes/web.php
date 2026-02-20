@@ -12,6 +12,7 @@ use App\Http\Controllers\Front\ManufacturerController;
 use App\Http\Controllers\Front\PageController;
 use App\Http\Controllers\Front\ProductController;
 use App\Http\Controllers\Front\StorefrontController;
+use App\Http\Controllers\Front\WishlistController;
 use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Attribute\Attribute as CatalogAttribute;
 use App\Models\Catalog\Category\Category;
@@ -32,9 +33,34 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Spatie\Activitylog\Models\Activity;
+use App\Models\Settings\Local\Language;
 
-Route::middleware('front.device')
+Route::middleware(['front.locale', 'front.device'])
     ->group(function (): void {
+        Route::get('locale/{code}', function (string $code, Request $request) {
+            $fallback = strtolower((string) config('app.locale', 'en'));
+            $target = strtolower(trim($code));
+
+            try {
+                $available = Language::query()
+                    ->where('is_active', true)
+                    ->pluck('code')
+                    ->map(static fn ($item) => strtolower((string) $item))
+                    ->values()
+                    ->all();
+            } catch (\Throwable) {
+                $available = [$fallback];
+            }
+
+            if (! in_array($target, $available, true)) {
+                $target = in_array($fallback, $available, true) ? $fallback : (string) ($available[0] ?? $fallback);
+            }
+
+            $request->session()->put('front_locale', $target);
+
+            return redirect()->back();
+        })->name('front.locale.switch');
+
         Route::get('/', [StorefrontController::class, 'home'])->name('home');
 
         Route::get('shop', [CatalogController::class, 'index'])->name('shop.index');
@@ -58,6 +84,11 @@ Route::middleware('front.device')
         Route::patch('cart/items/{product}', [CartController::class, 'update'])->name('cart.items.update');
         Route::delete('cart/items/{product}', [CartController::class, 'destroy'])->name('cart.items.destroy');
         Route::delete('cart', [CartController::class, 'clear'])->name('cart.clear');
+
+        Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
+        Route::post('wishlist/toggle/{product}', [WishlistController::class, 'toggle'])->name('wishlist.items.toggle');
+        Route::post('wishlist/items/{product}', [WishlistController::class, 'store'])->name('wishlist.items.store');
+        Route::delete('wishlist/items/{product}', [WishlistController::class, 'destroy'])->name('wishlist.items.destroy');
 
         Route::get('checkout', [CheckoutController::class, 'create'])->name('checkout.create');
         Route::post('checkout', [CheckoutController::class, 'store'])->name('checkout.store');

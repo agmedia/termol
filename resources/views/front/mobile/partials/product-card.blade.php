@@ -18,7 +18,13 @@
                 @csrf
                 <input type="hidden" name="product_id" value="{{ $product->id }}">
                 <input type="number" name="quantity" min="1" max="99" value="1" class="form-control mb-2" style="height:32px;">
-                <button type="submit" class="btn btn-3d btn-xs font-600 bg-highlight">Add</button>
+                <button type="submit" class="btn btn-3d btn-xs font-600 bg-highlight d-inline-flex align-items-center justify-content-center gap-1">
+                    <svg class="me-1" style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" aria-hidden="true">
+                        <path d="M7 9h10l-1 10H8L7 9Z"></path>
+                        <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
+                    </svg>
+                    Add
+                </button>
             </form>
         </div>
     </div>

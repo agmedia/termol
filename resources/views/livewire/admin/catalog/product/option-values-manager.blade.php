@@ -79,7 +79,7 @@
                         @if ($mode === 'single')
                             <div style="grid-column: span 6;">
                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Option Group</label>
-                                <select wire:model.live.number="singleOptionId" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                <select wire:model.live.number="singleOptionId" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
                                     @foreach ($assignedOptions as $option)
                                         <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>
                                     @endforeach
@@ -89,7 +89,7 @@
                         @else
                             <div style="grid-column: span 4;">
                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Primary Option</label>
-                                <select wire:model.live.number="primaryOptionId" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                <select wire:model.live.number="primaryOptionId" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
                                     <option value="">Select...</option>
                                     @foreach ($assignedOptions as $option)
                                         <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>
@@ -99,7 +99,7 @@
                             </div>
                             <div style="grid-column: span 4;">
                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Secondary Option</label>
-                                <select wire:model.live.number="secondaryOptionId" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                <select wire:model.live.number="secondaryOptionId" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
                                     <option value="">Select...</option>
                                     @foreach ($assignedOptions as $option)
                                         <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>
@@ -129,8 +129,8 @@
                     </div>
                 </div>
 
-                <div class="mt-5 overflow-x-auto">
-                    <table class="admin-items-table min-w-full text-sm">
+                <div class="mt-5 overflow-x-auto overflow-y-visible">
+                    <table class="admin-items-table min-w-full text-sm" style="overflow: visible;">
                         <thead class="text-slate-600">
                             <tr>
                                 @if ($mode === 'linked')
@@ -148,8 +148,8 @@
                             @forelse ($rows as $index => $row)
                                 <tr>
                                     @if ($mode === 'linked')
-                                        <td class="px-3 py-2 align-top">
-                                            <select wire:model.number="rows.{{ $index }}.parent_option_value_id" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                        <td class="overflow-visible px-3 py-2 align-top">
+                                            <select wire:model.number="rows.{{ $index }}.parent_option_value_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
                                                 <option value="">Select...</option>
                                                 @foreach ($primaryValues as $value)
                                                     <option value="{{ $value['id'] }}" @disabled(!$value['is_active'])>{{ $value['label'] }}</option>
@@ -158,8 +158,8 @@
                                             @error('rows.'.$index.'.parent_option_value_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                         </td>
                                     @endif
-                                    <td class="px-3 py-2 align-top">
-                                        <select wire:model.number="rows.{{ $index }}.option_value_id" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                    <td class="overflow-visible px-3 py-2 align-top">
+                                        <select wire:model.number="rows.{{ $index }}.option_value_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
                                             <option value="">Select...</option>
                                             @foreach ($mode === 'linked' ? $secondaryValues : $singleValues as $value)
                                                 <option value="{{ $value['id'] }}" @disabled(!$value['is_active'])>{{ $value['label'] }}</option>

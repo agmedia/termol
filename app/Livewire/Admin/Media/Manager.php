@@ -52,7 +52,7 @@ class Manager extends Component
         $this->locale = trim($locale) !== '' ? $locale : (string) config('app.locale', 'en');
     }
 
-    public function upload(string $collectionName): void
+    public function uploadCollection(string $collectionName): void
     {
         $record = $this->record;
         if (! $record) {
@@ -100,6 +100,14 @@ class Manager extends Component
                 ->usingName($originalName !== '' ? $originalName : $safeBaseName)
                 ->usingFileName($fileName)
                 ->toMediaCollection($collectionName);
+        }
+
+        $mainCollection = (string) ($this->modelProfile['main_collection'] ?? '');
+        if ($mainCollection !== '' && $collectionName !== $mainCollection && ! $record->getFirstMedia($mainCollection)) {
+            $firstUploaded = $record->getMedia($collectionName)->first();
+            if ($firstUploaded) {
+                $firstUploaded->copy($record, $mainCollection);
+            }
         }
 
         unset($this->uploads[$collectionName]);

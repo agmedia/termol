@@ -120,7 +120,13 @@
                         $translation = $line['translation'];
                     @endphp
                     <li class="flex items-start justify-between gap-3">
-                        <span>{{ $translation?->name ?? $line['product']->code }} × {{ $line['quantity'] }}</span>
+                        <span>
+                            {{ $translation?->name ?? $line['product']->code }}
+                            @if (!empty($line['option_label']))
+                                <span class="block text-xs text-slate-500">{{ $line['option_label'] }}</span>
+                            @endif
+                            × {{ $line['quantity'] }}
+                        </span>
                         <span class="font-semibold">EUR {{ number_format((float) $line['line_total'], 2) }}</span>
                     </li>
                 @endforeach

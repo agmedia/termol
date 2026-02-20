@@ -29,6 +29,14 @@ class ProductController extends Controller
                 'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'categories.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'optionValues' => fn ($q) => $q
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->with([
+                        'optionValue.translations' => fn ($tq) => $tq->whereIn('locale', [$locale, $fallbackLocale]),
+                        'parentOptionValue.translations' => fn ($tq) => $tq->whereIn('locale', [$locale, $fallbackLocale]),
+                    ]),
             ])
             ->firstOrFail();
 
@@ -38,7 +46,17 @@ class ProductController extends Controller
             ->where('is_active', true)
             ->where('id', '!=', $product->id)
             ->when($categoryIds !== [], fn ($q) => $q->whereHas('categories', fn ($categoryQuery) => $categoryQuery->whereIn('categories.id', $categoryIds)))
-            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+            ->with([
+                'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'optionValues' => fn ($q) => $q
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->with([
+                        'optionValue.translations' => fn ($tq) => $tq->whereIn('locale', [$locale, $fallbackLocale]),
+                        'parentOptionValue.translations' => fn ($tq) => $tq->whereIn('locale', [$locale, $fallbackLocale]),
+                    ]),
+            ])
             ->orderByDesc('id')
             ->limit(4)
             ->get();

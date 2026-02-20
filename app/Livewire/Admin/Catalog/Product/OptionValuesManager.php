@@ -425,6 +425,9 @@ class OptionValuesManager extends Component
 
         if ($this->mode === 'single') {
             $this->singleOptionId = $this->optionIdForValue((int) $existing->first()->option_value_id);
+            if (!$this->singleOptionId) {
+                $this->singleOptionId = isset($this->assignedOptions[0]['id']) ? (int) $this->assignedOptions[0]['id'] : null;
+            }
             $this->primaryOptionId = null;
             $this->secondaryOptionId = null;
         } else {
@@ -449,6 +452,8 @@ class OptionValuesManager extends Component
             })
             ->values()
             ->all();
+
+        $this->sanitizeRowsForCurrentMode();
     }
 
     private function applyModeDefaults(): void
@@ -582,6 +587,45 @@ class OptionValuesManager extends Component
                 break;
             }
         }
+    }
+
+    private function sanitizeRowsForCurrentMode(): void
+    {
+        if (empty($this->rows)) {
+            return;
+        }
+
+        if ($this->mode === 'single') {
+            $validValueIds = array_flip($this->valueIdsForOption($this->singleOptionId));
+            $this->rows = array_map(function (array $row) use ($validValueIds): array {
+                $valueId = (int) ($row['option_value_id'] ?? 0);
+                if ($valueId <= 0 || !isset($validValueIds[$valueId])) {
+                    $row['option_value_id'] = null;
+                }
+
+                return $row;
+            }, $this->rows);
+
+            return;
+        }
+
+        $validParentIds = array_flip($this->valueIdsForOption($this->primaryOptionId));
+        $validValueIds = array_flip($this->valueIdsForOption($this->secondaryOptionId));
+
+        $this->rows = array_map(function (array $row) use ($validParentIds, $validValueIds): array {
+            $parentId = (int) ($row['parent_option_value_id'] ?? 0);
+            $valueId = (int) ($row['option_value_id'] ?? 0);
+
+            if ($parentId <= 0 || !isset($validParentIds[$parentId])) {
+                $row['parent_option_value_id'] = null;
+            }
+
+            if ($valueId <= 0 || !isset($validValueIds[$valueId])) {
+                $row['option_value_id'] = null;
+            }
+
+            return $row;
+        }, $this->rows);
     }
 
     private function rowTemplate(?int $valueId, ?int $parentValueId): array

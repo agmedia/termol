@@ -17,6 +17,7 @@ use App\Observers\Content\ContentCacheObserver;
 use App\Observers\Settings\LocalSettingObserver;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
+use App\Services\Front\WishlistService;
 use App\Services\Loyalty\LoyaltyService;
 use App\Services\Settings\LocalSettingsService;
 use App\Services\Settings\SystemSettingsService;
@@ -87,6 +88,33 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $view->with('adminLocaleOptions', $localeOptions);
+        });
+
+        View::composer('front.*', static function ($view): void {
+            static $shared = null;
+
+            if ($shared !== null) {
+                $view->with('wishlistProductMap', $shared['wishlistProductMap']);
+                $view->with('wishlistSummary', $shared['wishlistSummary']);
+
+                return;
+            }
+
+            try {
+                $wishlist = app(WishlistService::class);
+                $shared = [
+                    'wishlistProductMap' => $wishlist->map(),
+                    'wishlistSummary' => $wishlist->summary(),
+                ];
+            } catch (\Throwable) {
+                $shared = [
+                    'wishlistProductMap' => [],
+                    'wishlistSummary' => ['item_count' => 0],
+                ];
+            }
+
+            $view->with('wishlistProductMap', $shared['wishlistProductMap']);
+            $view->with('wishlistSummary', $shared['wishlistSummary']);
         });
 
         PaymentMethod::observe(LocalSettingObserver::class);

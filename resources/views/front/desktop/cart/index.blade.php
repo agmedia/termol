@@ -37,12 +37,18 @@
                                 <a href="{{ route('products.show', ['slug' => $translation?->slug ?? $product->id]) }}" class="font-semibold text-slate-900 hover:text-blue-700">
                                     {{ $translation?->name ?? $product->code }}
                                 </a>
+                                @if (!empty($line['option_label']))
+                                    <p class="mt-1 text-xs text-slate-500">{{ $line['option_label'] }}</p>
+                                @endif
                             </td>
                             <td class="px-4 py-4">EUR {{ number_format((float) $line['unit_price'], 2) }}</td>
                             <td class="px-4 py-4">
                                 <form method="POST" action="{{ route('cart.items.update', ['product' => $product->id]) }}" class="flex items-center gap-2">
                                     @csrf
                                     @method('PATCH')
+                                    @if (!empty($line['product_option_value_id']))
+                                        <input type="hidden" name="product_option_value_id" value="{{ (int) $line['product_option_value_id'] }}">
+                                    @endif
                                     <input type="number" name="quantity" value="{{ (int) $line['quantity'] }}" min="0" max="999" class="w-20 rounded-lg border-slate-300 text-sm">
                                     <button type="submit" class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Save</button>
                                 </form>
@@ -52,6 +58,9 @@
                                 <form method="POST" action="{{ route('cart.items.destroy', ['product' => $product->id]) }}">
                                     @csrf
                                     @method('DELETE')
+                                    @if (!empty($line['product_option_value_id']))
+                                        <input type="hidden" name="product_option_value_id" value="{{ (int) $line['product_option_value_id'] }}">
+                                    @endif
                                     <button type="submit" class="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50">Remove</button>
                                 </form>
                             </td>

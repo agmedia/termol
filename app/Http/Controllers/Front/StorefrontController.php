@@ -12,7 +12,6 @@ class StorefrontController extends Controller
     {
         $variant = (string) $request->attributes->get('frontend_variant', 'desktop');
 
-        return view($variant === 'mobile' ? 'welcome-mobile' : 'welcome');
+        return view($variant === 'mobile' ? 'welcome-mobile' : 'front.desktop.home.index');
     }
 }
-

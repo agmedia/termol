@@ -57,7 +57,7 @@
                         <div class="flex items-start">
                             <button
                                 type="button"
-                                wire:click="upload('{{ $collectionName }}')"
+                                wire:click="uploadCollection('{{ $collectionName }}')"
                                 class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
                             >
                                 Upload
