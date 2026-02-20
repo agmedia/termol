@@ -30,6 +30,13 @@ return [
         ],
         'empty' => 'Nema proizvoda za trenutne filtere.',
     ],
+    'category' => [
+        'fallback_name' => 'Kategorija',
+        'products_suffix' => 'proizvodi',
+        'back_to_categories' => 'Natrag na kategorije',
+        'default_description' => 'Proizvodi dodijeljeni ovoj kategoriji.',
+        'empty' => 'Nema proizvoda u ovoj kategoriji.',
+    ],
     'wishlist' => [
         'page_title' => 'Favoriti',
         'title' => 'Favoriti',

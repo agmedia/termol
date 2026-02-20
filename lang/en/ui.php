@@ -30,6 +30,13 @@ return [
         ],
         'empty' => 'No products found for current filters.',
     ],
+    'category' => [
+        'fallback_name' => 'Category',
+        'products_suffix' => 'products',
+        'back_to_categories' => 'Back to categories',
+        'default_description' => 'Products assigned to this category.',
+        'empty' => 'No products in this category yet.',
+    ],
     'wishlist' => [
         'page_title' => 'Wishlist',
         'title' => 'Wishlist',

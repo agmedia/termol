@@ -199,36 +199,144 @@ class CatalogController extends Controller
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
         $variant = $this->frontendVariant($request);
+        $search = trim((string) $request->query('q', ''));
+        $categorySlug = $slug;
+        $manufacturerSlug = trim((string) $request->query('manufacturer', ''));
+        $sizeId = (int) $request->query('size', 0);
+        $sort = (string) $request->query('sort', 'newest');
+        $gridCols = (int) $request->query('cols', 4);
+        if (! in_array($gridCols, [1, 2, 3, 4, 5], true)) {
+            $gridCols = 4;
+        }
 
         $category = Category::query()
             ->where('scope', Category::SCOPE_CATALOG)
             ->where('is_active', true)
-            ->whereHas('translations', function ($q) use ($locale, $fallbackLocale, $slug): void {
+            ->whereHas('translations', function ($q) use ($locale, $fallbackLocale, $categorySlug): void {
                 $q->where('scope', Category::SCOPE_CATALOG)
                     ->whereIn('locale', [$locale, $fallbackLocale])
-                    ->where('slug', $slug);
+                    ->where('slug', $categorySlug);
             })
             ->with([
                 'translations' => fn ($q) => $q->where('scope', Category::SCOPE_CATALOG)->whereIn('locale', [$locale, $fallbackLocale]),
             ])
             ->firstOrFail();
 
-        $products = $category->products()
+        $productsQuery = Product::query()
             ->where('is_active', true)
             ->with([
                 'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'categories.translations' => fn ($q) => $q
+                    ->where('scope', Category::SCOPE_CATALOG)
+                    ->whereIn('locale', [$locale, $fallbackLocale]),
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'media' => fn ($q) => $q
+                    ->whereIn('collection_name', ['product_main', 'product_gallery'])
+                    ->orderBy('order_column')
+                    ->orderBy('id'),
+                'optionValues' => fn ($q) => $q
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->with([
+                        'optionValue.translations' => fn ($tq) => $tq->whereIn('locale', [$locale, $fallbackLocale]),
+                        'parentOptionValue.translations' => fn ($tq) => $tq->whereIn('locale', [$locale, $fallbackLocale]),
+                    ]),
             ])
-            ->orderBy('category_product.sort_order')
-            ->orderByDesc('products.id')
-            ->paginate($this->productPerPage($request, false))
+            ->whereHas('categories', function ($categoryQuery) use ($locale, $fallbackLocale, $categorySlug): void {
+                $categoryQuery
+                    ->where('scope', Category::SCOPE_CATALOG)
+                    ->where('is_active', true)
+                    ->whereHas('translations', function ($translationQuery) use ($locale, $fallbackLocale, $categorySlug): void {
+                        $translationQuery
+                            ->where('scope', Category::SCOPE_CATALOG)
+                            ->whereIn('locale', [$locale, $fallbackLocale])
+                            ->where('slug', $categorySlug);
+                    });
+            });
+
+        if ($search !== '') {
+            $productsQuery->whereHas('translations', function ($q) use ($locale, $fallbackLocale, $search): void {
+                $q->whereIn('locale', [$locale, $fallbackLocale])
+                    ->where(function ($searchQuery) use ($search): void {
+                        $searchQuery->where('name', 'like', '%'.$search.'%')
+                            ->orWhere('excerpt', 'like', '%'.$search.'%')
+                            ->orWhere('description', 'like', '%'.$search.'%');
+                    });
+            });
+        }
+
+        if ($manufacturerSlug !== '') {
+            $productsQuery->whereHas('manufacturer', function ($manufacturerQuery) use ($locale, $fallbackLocale, $manufacturerSlug): void {
+                $manufacturerQuery
+                    ->where('is_active', true)
+                    ->whereHas('translations', function ($translationQuery) use ($locale, $fallbackLocale, $manufacturerSlug): void {
+                        $translationQuery
+                            ->whereIn('locale', [$locale, $fallbackLocale])
+                            ->where('slug', $manufacturerSlug);
+                    });
+            });
+        }
+
+        if ($sizeId > 0) {
+            $productsQuery->whereHas('optionValues', function ($optionQuery) use ($sizeId): void {
+                $optionQuery
+                    ->where('is_active', true)
+                    ->where(function ($sizeQuery) use ($sizeId): void {
+                        $sizeQuery
+                            ->where('option_value_id', $sizeId)
+                            ->orWhere('parent_option_value_id', $sizeId);
+                    });
+            });
+        }
+
+        match ($sort) {
+            'price_low' => $productsQuery->orderBy('base_price'),
+            'price_high' => $productsQuery->orderByDesc('base_price'),
+            'stock_high' => $productsQuery->orderByDesc('stock_qty')->orderByDesc('id'),
+            'oldest' => $productsQuery->orderBy('id'),
+            default => $productsQuery->orderByDesc('id'),
+        };
+
+        $products = $productsQuery
+            ->paginate($this->shopPerPage($request, $gridCols))
             ->withQueryString();
+
+        $categories = Category::query()
+            ->where('scope', Category::SCOPE_CATALOG)
+            ->where('is_active', true)
+            ->with(['translations' => fn ($q) => $q
+                ->where('scope', Category::SCOPE_CATALOG)
+                ->whereIn('locale', [$locale, $fallbackLocale])])
+            ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        $manufacturers = Manufacturer::query()
+            ->where('is_active', true)
+            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+            ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        $sizes = OptionValue::query()
+            ->where('is_active', true)
+            ->whereHas('productOptionValues', function ($q): void {
+                $q->where('is_active', true)
+                    ->whereHas('product', fn ($productQuery) => $productQuery->where('is_active', true));
+            })
+            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
 
         $topBlocks = app(ContentBlockResolver::class)->forPlacement(
             placement: 'category.top',
             locale: $locale,
             targetType: 'category',
-            targetRef: $slug,
+            targetRef: $categorySlug,
             frontendVariant: $variant
         );
 
@@ -236,15 +344,25 @@ class CatalogController extends Controller
             placement: 'category.bottom',
             locale: $locale,
             targetType: 'category',
-            targetRef: $slug,
+            targetRef: $categorySlug,
             frontendVariant: $variant
         );
 
         return view($this->frontendView($request, 'categories.show'), [
             'category' => $category,
             'products' => $products,
+            'categories' => $categories,
+            'manufacturers' => $manufacturers,
+            'sizes' => $sizes,
             'topBlocks' => $topBlocks,
             'bottomBlocks' => $bottomBlocks,
+            'filters' => [
+                'q' => $search,
+                'manufacturer' => $manufacturerSlug,
+                'size' => $sizeId > 0 ? $sizeId : '',
+                'sort' => $sort,
+                'cols' => $gridCols,
+            ],
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
         ]);
