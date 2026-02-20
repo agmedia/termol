@@ -39,7 +39,11 @@
 
     $query = Product::query()
         ->where('is_active', true)
-        ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])]);
+        ->with([
+            'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+            'taxRate',
+        ]);
+    $taxPricing = app(\App\Services\Pricing\TaxPricingService::class);
 
     if ($source === 'manual' && $manualIds !== []) {
         $query->whereIn('id', $manualIds);
@@ -97,6 +101,7 @@
                 $pt = $product->translations->firstWhere('locale', $locale)
                     ?? $product->translations->firstWhere('locale', $fallbackLocale);
                 $excerpt = $pt?->meta_description ?: $pt?->excerpt;
+                $displayPrice = $taxPricing->grossFromNet((float) $product->base_price, $product);
             @endphp
             <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div class="h-28 rounded-lg bg-gradient-to-br from-slate-200 to-slate-100"></div>
@@ -104,7 +109,7 @@
                 @if (!empty($excerpt))
                     <p class="mt-1 text-xs text-slate-600">{{ \Illuminate\Support\Str::limit((string) $excerpt, 80) }}</p>
                 @endif
-                <p class="mt-2 text-sm font-semibold text-slate-800">{{ number_format((float) $product->base_price, 2) }} €</p>
+                <p class="mt-2 text-sm font-semibold text-slate-800">{{ number_format($displayPrice, 2) }} €</p>
             </article>
         @empty
             <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-xs text-slate-500 sm:col-span-2 xl:col-span-5">

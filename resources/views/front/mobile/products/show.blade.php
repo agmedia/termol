@@ -6,6 +6,7 @@
     $manufacturerTranslation = $product->manufacturer?->translations?->firstWhere('locale', $locale)
         ?? $product->manufacturer?->translations?->firstWhere('locale', $fallbackLocale);
     $manufacturerEnabled = app(\App\Services\Catalog\CatalogFeatureService::class)->useManufacturers();
+    $displayBasePrice = app(\App\Services\Pricing\TaxPricingService::class)->grossFromNet((float) $product->base_price, $product);
 @endphp
 
 @section('title', $translation?->name ?? 'Product')
@@ -27,7 +28,7 @@
 
     <div class="card card-style">
         <div class="content">
-            <h2 class="mb-0">EUR {{ number_format((float) $product->base_price, 2) }}</h2>
+            <h2 class="mb-0">{{ number_format($displayBasePrice, 2) }} €</h2>
             <p class="font-12 opacity-60 mb-2">SKU {{ $product->sku ?: 'n/a' }} • Stock {{ (int) $product->stock_qty }}</p>
 
             @if ($manufacturerTranslation && $manufacturerEnabled)

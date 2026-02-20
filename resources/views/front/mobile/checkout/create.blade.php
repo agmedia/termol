@@ -17,11 +17,14 @@
                     <div class="d-flex mb-3">
                         <div class="w-100">
                             <h6 class="font-500 font-14 pb-1">{{ $translation?->name ?? $line['product']->code }}</h6>
+                            @if (!empty($line['sku']))
+                                <p class="font-11 opacity-60 mb-1">SKU: {{ $line['sku'] }}</p>
+                            @endif
                             @if (!empty($line['option_label']))
                                 <p class="font-11 opacity-60 mb-1">{{ $line['option_label'] }}</p>
                             @endif
                             <p class="font-11 opacity-60 mb-1">Qty {{ $line['quantity'] }}</p>
-                            <h4 class="font-700 mb-0">EUR {{ number_format((float) $line['line_total'], 2) }}</h4>
+                            <h4 class="font-700 mb-0">EUR {{ number_format((float) ($line['display_line_total'] ?? $line['line_total']), 2) }}</h4>
                         </div>
                     </div>
                     @if (!$loop->last)<div class="divider"></div>@endif
@@ -33,8 +36,8 @@
             <div class="content mb-2 mt-3">
                 <div class="d-flex">
                     <div class="pe-4 w-60">
-                        <p class="font-600 color-highlight mb-0 font-13">Subtotal</p>
-                        <h2>EUR {{ number_format((float) $summary['subtotal'], 2) }}</h2>
+                        <p class="font-600 color-highlight mb-0 font-13">Total</p>
+                        <h2>EUR {{ number_format((float) ($summary['grand_total'] ?? $summary['subtotal']), 2) }}</h2>
                     </div>
                     <div class="w-100 pt-1">
                         <h6 class="font-14 font-700">Items <span class="float-end color-theme">{{ $summary['item_qty'] }}</span></h6>

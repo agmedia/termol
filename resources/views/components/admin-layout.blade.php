@@ -116,16 +116,20 @@
                 border-radius: 0.75rem;
                 background: rgba(248, 250, 252, 0.84);
             }
-            .admin-form :is(input, select, textarea) {
+            .admin-form :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
                 background: #ffffff;
                 border-color: #cbd5e1;
                 transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
             }
-            .admin-form :is(input, select, textarea):focus {
+            .admin-form :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
                 border-color: #0891b2;
                 box-shadow: 0 0 0 2px rgba(8, 145, 178, 0.14);
                 background: #f8fcff;
                 outline: none;
+            }
+            .admin-form input[type="checkbox"],
+            .admin-form input[type="radio"] {
+                accent-color: #0e7490;
             }
             .admin-select {
                 appearance: none;

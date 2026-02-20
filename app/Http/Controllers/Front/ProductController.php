@@ -26,6 +26,7 @@ class ProductController extends Controller
                     ->where('slug', $slug);
             })
             ->with([
+                'taxRate',
                 'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'categories.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
@@ -47,6 +48,7 @@ class ProductController extends Controller
             ->where('id', '!=', $product->id)
             ->when($categoryIds !== [], fn ($q) => $q->whereHas('categories', fn ($categoryQuery) => $categoryQuery->whereIn('categories.id', $categoryIds)))
             ->with([
+                'taxRate',
                 'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'optionValues' => fn ($q) => $q
                     ->where('is_active', true)

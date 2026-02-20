@@ -83,6 +83,8 @@ Route::middleware(['front.locale', 'front.device'])
         Route::post('cart/items', [CartController::class, 'store'])->name('cart.items.store');
         Route::patch('cart/items/{product}', [CartController::class, 'update'])->name('cart.items.update');
         Route::delete('cart/items/{product}', [CartController::class, 'destroy'])->name('cart.items.destroy');
+        Route::post('cart/coupon', [CartController::class, 'applyCoupon'])->name('cart.coupon.apply');
+        Route::delete('cart/coupon', [CartController::class, 'removeCoupon'])->name('cart.coupon.remove');
         Route::delete('cart', [CartController::class, 'clear'])->name('cart.clear');
 
         Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist.index');

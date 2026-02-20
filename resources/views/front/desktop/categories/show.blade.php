@@ -8,7 +8,7 @@
         2 => 'grid grid-cols-2 gap-4',
         3 => 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3',
         5 => 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5',
-        default => 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4',
+        default => 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
     };
 @endphp
 
@@ -152,7 +152,7 @@
                     @foreach ([3, 4, 5] as $cols)
                         <a
                             href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id] + array_merge(request()->query(), ['cols' => $cols])) }}"
-                            class="inline-flex h-full w-11 items-center justify-center border border-slate-300 {{ (int) ($filters['cols'] ?? 4) === $cols ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-100' }}"
+                            class="{{ $cols === 5 ? 'hidden 2xl:inline-flex' : 'inline-flex' }} h-full w-11 items-center justify-center border border-slate-300 {{ (int) ($filters['cols'] ?? 4) === $cols ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-100' }}"
                             aria-label="{{ __('ui.shop.filters.grid') }} {{ $cols }}"
                         >
                             <span class="flex h-4 items-stretch gap-[1px]">
@@ -182,7 +182,7 @@
                 @endforeach
             </div>
 
-            <div class="mt-6">
+            <div class="mt-14">
                 {{ $products->links() }}
             </div>
         @endif

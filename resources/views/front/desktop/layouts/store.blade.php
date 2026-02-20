@@ -6,13 +6,14 @@
     <title>@yield('title', config('app.name', 'AG Shop').' '.__('ui.front.desktop.store'))</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/rising-sun-font.css') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 @php
     $cartSummary = app(\App\Services\Front\CartService::class)->summary();
     $catalogFeatures = app(\App\Services\Catalog\CatalogFeatureService::class);
 @endphp
-<body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+<body class="font-risingsun min-h-screen bg-white text-slate-900 antialiased">
 <header class="sticky top-0 z-40 bg-white">
     <div class="bg-black py-2 text-center text-xs font-semibold uppercase tracking-wide text-white">
         {{ __('ui.front.desktop.promo_bar') }}
@@ -40,14 +41,14 @@
             </nav>
 
             <div class="hidden min-h-[76px] items-stretch border-l border-slate-200 xl:flex">
-                <div class="inline-flex w-[76px] items-center justify-center border-r border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-700">
-                    @php
-                        $activeLocale = (string) ($frontLocale ?? app()->getLocale());
-                        $switchLanguage = collect($frontLanguages ?? [])->first(
-                            static fn (array $language): bool => (string) ($language['code'] ?? '') !== $activeLocale
-                        );
-                    @endphp
-                    @if ($switchLanguage)
+                @php
+                    $activeLocale = (string) ($frontLocale ?? app()->getLocale());
+                    $switchLanguage = collect($frontLanguages ?? [])->first(
+                        static fn (array $language): bool => (string) ($language['code'] ?? '') !== $activeLocale
+                    );
+                @endphp
+                @if ($switchLanguage)
+                    <div class="inline-flex w-[76px] items-center justify-center border-r border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-700">
                         <a
                             href="{{ route('front.locale.switch', ['code' => $switchLanguage['code']]) }}"
                             class="text-slate-500 hover:text-black"
@@ -55,8 +56,8 @@
                         >
                             {{ strtoupper((string) $switchLanguage['code']) }}
                         </a>
-                    @endif
-                </div>
+                    </div>
+                @endif
 
                 <button type="button" class="inline-flex w-[76px] items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.search') }}" data-header-search-toggle>
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
@@ -66,7 +67,7 @@
                 </button>
 
                 @auth
-                    <a href="{{ route('account.dashboard') }}" class="inline-flex w-[172px] items-center justify-center gap-2.5 border-r border-slate-200 px-0 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-black">
+                    <a href="{{ route('account.dashboard') }}" class="inline-flex min-w-[136px] items-center justify-center gap-2 border-r border-slate-200 px-4 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-black">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="12" cy="8" r="4"></circle>
                             <path d="M4 20c1.6-3.2 4.3-5 8-5s6.4 1.8 8 5"></path>
@@ -74,7 +75,7 @@
                         {{ __('ui.front.desktop.account') }}
                     </a>
                 @else
-                    <a href="{{ route('login') }}" class="inline-flex w-[172px] items-center justify-center gap-2.5 border-r border-slate-200 px-0 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-black">
+                    <a href="{{ route('login') }}" class="inline-flex min-w-[136px] items-center justify-center gap-2 border-r border-slate-200 px-4 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-black">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="12" cy="8" r="4"></circle>
                             <path d="M4 20c1.6-3.2 4.3-5 8-5s6.4 1.8 8 5"></path>
@@ -213,8 +214,8 @@
 </main>
 
 <footer class="mt-20 border-t border-slate-200 bg-white">
-    <div class="w-full px-4 py-10 sm:px-6 lg:px-8">
-        <section class="border border-slate-200 px-7 py-5">
+    <div class="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <section class="px-0 py-5">
             <div class="grid gap-4 lg:grid-cols-[1.2fr_1fr] lg:items-center">
                 <div>
                     <p class="text-[11px] uppercase tracking-[0.2em] text-slate-500">{{ __('ui.front.desktop.newsletter.club') }}</p>
@@ -266,7 +267,73 @@
             </div>
         </div>
 
-        <div class="mt-12 grid gap-12 border-b border-slate-200 pb-10 lg:grid-cols-[1fr_1fr_1fr_1.15fr]">
+        <div class="mt-10 border-y border-slate-200 lg:hidden">
+            <details class="group border-b border-slate-200">
+                <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
+                    {{ __('ui.front.desktop.footer.shop') }}
+                    <span class="text-2xl leading-none group-open:hidden">+</span>
+                    <span class="hidden text-2xl leading-none group-open:inline">−</span>
+                </summary>
+                <ul class="space-y-2.5 px-4 pb-4 text-sm text-slate-600">
+                    <li><a href="{{ route('shop.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.new') }}</a></li>
+                    <li><a href="{{ route('shop.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.men') }}</a></li>
+                    <li><a href="{{ route('shop.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.women') }}</a></li>
+                    <li><a href="{{ route('shop.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.special') }}</a></li>
+                    <li><a href="{{ route('categories.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.all_categories') }}</a></li>
+                </ul>
+            </details>
+
+            <details class="group border-b border-slate-200">
+                <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
+                    {{ __('ui.front.desktop.footer.help') }}
+                    <span class="text-2xl leading-none group-open:hidden">+</span>
+                    <span class="hidden text-2xl leading-none group-open:inline">−</span>
+                </summary>
+                <ul class="space-y-2.5 px-4 pb-4 text-sm text-slate-600">
+                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.shipping_delivery') }}</a></li>
+                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.returns_claims') }}</a></li>
+                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.payment_methods') }}</a></li>
+                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.faq') }}</a></li>
+                    <li><a href="{{ route('contact.create') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.contact') }}</a></li>
+                </ul>
+            </details>
+
+            <details class="group border-b border-slate-200">
+                <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
+                    {{ __('ui.front.desktop.footer.info') }}
+                    <span class="text-2xl leading-none group-open:hidden">+</span>
+                    <span class="hidden text-2xl leading-none group-open:inline">−</span>
+                </summary>
+                <ul class="space-y-2.5 px-4 pb-4 text-sm text-slate-600">
+                    <li><a href="{{ route('home') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.home') }}</a></li>
+                    @if ($catalogFeatures->useBlog())
+                        <li><a href="{{ route('blog.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.blog') }}</a></li>
+                    @else
+                        <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.blog') }}</a></li>
+                    @endif
+                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.about') }}</a></li>
+                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.stores') }}</a></li>
+                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.career') }}</a></li>
+                </ul>
+            </details>
+
+            <details class="group">
+                <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
+                    {{ __('ui.front.desktop.footer.support') }}
+                    <span class="text-2xl leading-none group-open:hidden">+</span>
+                    <span class="hidden text-2xl leading-none group-open:inline">−</span>
+                </summary>
+                <div class="space-y-2 px-4 pb-4 text-sm text-slate-600">
+                    <p class="text-slate-500">{{ __('ui.front.desktop.footer.webshop_queries') }}</p>
+                    <p><a href="tel:+385916651808" class="text-base font-medium text-slate-900 transition hover:text-slate-700">091 665 18 08</a></p>
+                    <p><a href="mailto:webshop@amds.hr" class="transition hover:text-slate-900">webshop@amds.hr</a></p>
+                    <p><a href="mailto:kontakt@amds.hr" class="transition hover:text-slate-900">kontakt@amds.hr</a></p>
+                    <p>{{ __('ui.front.desktop.footer.work_hours') }}</p>
+                </div>
+            </details>
+        </div>
+
+        <div class="mt-12 hidden gap-12 border-b border-slate-200 pb-10 lg:grid lg:grid-cols-[1fr_1fr_1fr_1.15fr]">
             <div class="space-y-5">
                 <h3 class="text-sm font-extrabold uppercase tracking-[0.16em] text-slate-900">{{ __('ui.front.desktop.footer.shop') }}</h3>
                 <ul class="space-y-2.5 text-sm text-slate-600">
@@ -340,33 +407,43 @@
             </div>
         </div>
 
-        <div class="flex flex-col gap-5 py-7 lg:flex-row lg:items-center lg:justify-between">
-            <div class="flex flex-wrap items-center gap-2.5">
-                <span class="inline-flex h-10 items-center border border-slate-200 bg-slate-50 px-4 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">WSPay</span>
-                <span class="inline-flex h-10 items-center border border-slate-200 bg-slate-50 px-4">
-                    <img src="{{ asset('assets/payments/visa-brand.svg') }}" alt="Visa" class="h-5 w-auto" loading="lazy">
+        <div class="py-7">
+            <div class="flex flex-wrap items-center justify-center gap-2.5">
+                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                    <img src="{{ asset('assets/payments/wspay.svg') }}" alt="WSPay" class="block h-6 w-auto object-contain" loading="lazy">
                 </span>
-                <span class="inline-flex h-10 items-center border border-slate-200 bg-slate-50 px-4">
-                    <img src="{{ asset('assets/payments/mastercard-brand.svg') }}" alt="Mastercard" class="h-5 w-auto" loading="lazy">
+                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                    <img src="{{ asset('assets/payments/visa-brand.svg') }}" alt="Visa" class="block h-6 w-auto object-contain" loading="lazy">
                 </span>
-                <span class="inline-flex h-10 items-center border border-slate-200 bg-slate-50 px-4">
-                    <img src="{{ asset('assets/payments/diners-brand.svg') }}" alt="Diners Club" class="h-5 w-auto" loading="lazy">
+                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                    <img src="{{ asset('assets/payments/mastercard-brand.svg') }}" alt="Mastercard" class="block h-6 w-auto object-contain" loading="lazy">
                 </span>
-                <span class="inline-flex h-10 items-center border border-slate-200 bg-slate-50 px-4">
-                    <img src="{{ asset('assets/payments/maestro-brand.svg') }}" alt="Maestro" class="h-5 w-auto" loading="lazy">
+                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                    <img src="{{ asset('assets/payments/diners-brand.svg') }}" alt="Diners Club" class="block h-6 w-auto object-contain" loading="lazy">
+                </span>
+                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                    <img src="{{ asset('assets/payments/maestro-brand.svg') }}" alt="Maestro" class="block h-6 w-auto object-contain" loading="lazy">
+                </span>
+                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                    <img src="{{ asset('assets/payments/applepay.svg') }}" alt="Apple Pay" class="block h-6 w-auto object-contain" loading="lazy">
+                </span>
+                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                    <img src="{{ asset('assets/payments/googlepay.svg') }}" alt="Google Pay" class="block h-6 w-auto object-contain" loading="lazy">
                 </span>
             </div>
-            <div class="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-500">
+        </div>
+
+        <div class="flex flex-col gap-3 border-t border-slate-200 pt-5 text-xs text-slate-500 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                © {{ now()->year }} AMDS Jeans. {{ __('ui.front.desktop.footer.copyright') }}
+            </div>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.terms') }}</a>
                 <a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.privacy') }}</a>
                 <a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.cookies') }}</a>
                 <a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.shipping_returns') }}</a>
                 <a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.secure_checkout') }}</a>
             </div>
-        </div>
-
-        <div class="border-t border-slate-200 pt-5 text-xs text-slate-500">
-            © {{ now()->year }} AMDS Jeans. {{ __('ui.front.desktop.footer.copyright') }}
         </div>
     </div>
 </footer>

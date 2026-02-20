@@ -7,6 +7,7 @@ use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Product\Product;
 use App\Models\Catalog\Product\ProductTranslation;
+use App\Models\Settings\Local\TaxRate;
 use App\Services\Catalog\CatalogFeatureService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,7 @@ class Form extends Component
         'sku' => '',
         'is_active' => true,
         'manufacturer_id' => null,
+        'tax_rate_id' => null,
         'base_price' => 0,
         'stock_qty' => 0,
         'payload_text' => '',
@@ -48,6 +50,8 @@ class Form extends Component
         if ($productId) {
             $this->productId = $productId;
             $this->loadProduct();
+        } else {
+            $this->form['tax_rate_id'] = $this->defaultTaxRateId();
         }
     }
 
@@ -95,6 +99,7 @@ class Form extends Component
                 'code' => trim((string) $validated['form']['code']),
                 'sku' => trim((string) $validated['form']['sku']) !== '' ? trim((string) $validated['form']['sku']) : null,
                 'is_active' => (bool) $validated['form']['is_active'],
+                'tax_rate_id' => (int) (($validated['form']['tax_rate_id'] ?? null) ?: $this->defaultTaxRateId()),
                 'base_price' => (float) $validated['form']['base_price'],
                 'stock_qty' => (int) $validated['form']['stock_qty'],
                 'payload' => $payload,
@@ -222,6 +227,7 @@ class Form extends Component
                 Rule::unique('products', 'sku')->ignore($this->productId),
             ],
             'form.is_active' => ['boolean'],
+            'form.tax_rate_id' => ['nullable', 'integer', Rule::exists('tax_rates', 'id')],
             'form.base_price' => ['required', 'numeric', 'min:0'],
             'form.stock_qty' => ['required', 'integer', 'min:0'],
             'form.payload_text' => ['nullable', 'string'],
@@ -294,6 +300,7 @@ class Form extends Component
         $this->form['code'] = $product->code;
         $this->form['sku'] = $product->sku ?? '';
         $this->form['is_active'] = (bool) $product->is_active;
+        $this->form['tax_rate_id'] = $product->tax_rate_id ? (int) $product->tax_rate_id : $this->defaultTaxRateId();
         $this->form['base_price'] = (float) $product->base_price;
         $this->form['stock_qty'] = (int) $product->stock_qty;
         if ($this->useManufacturers()) {
@@ -333,6 +340,16 @@ class Form extends Component
             ->with([
                 'translations' => fn ($q) => $q->where('locale', $this->form['locale']),
             ])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+    }
+
+    public function getTaxRateOptionsProperty(): Collection
+    {
+        return TaxRate::query()
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
@@ -549,6 +566,16 @@ class Form extends Component
         }
 
         return $ids;
+    }
+
+    private function defaultTaxRateId(): ?int
+    {
+        return TaxRate::query()
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->value('id');
     }
 
     /**

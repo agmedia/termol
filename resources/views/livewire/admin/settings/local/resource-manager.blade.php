@@ -232,7 +232,13 @@
                     @foreach (['is_active' => 'Active', 'is_default' => 'Default', 'is_paid' => 'Paid', 'is_cancelled' => 'Cancelled'] as $key => $label)
                         @if (in_array($key, $resources[$resource]['fields'], true))
                             <label class="inline-flex items-center gap-2 text-sm text-slate-700">
-                                <input type="checkbox" wire:model="{{ 'form.'.$key }}" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                <input
+                                    type="checkbox"
+                                    value="1"
+                                    wire:model.live="{{ 'form.'.$key }}"
+                                    @checked((bool) ($form[$key] ?? false))
+                                    class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500"
+                                />
                                 <span>{{ $label }}</span>
                             </label>
                         @endif

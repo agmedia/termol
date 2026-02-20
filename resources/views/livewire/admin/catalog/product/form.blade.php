@@ -47,6 +47,17 @@
                     @error('form.stock_qty') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
             </div>
+            <div class="mt-3 grid gap-3" style="grid-template-columns: repeat(12, minmax(0, 1fr));">
+                <div style="grid-column: span 4;">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tax Class</label>
+                    <select wire:model="form.tax_rate_id" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                        @foreach ($this->taxRateOptions as $taxRate)
+                            <option value="{{ $taxRate->id }}">{{ $taxRate->name }} ({{ rtrim(rtrim(number_format((float) $taxRate->rate, 2), '0'), '.') }}{{ $taxRate->rate_type === 'percent' ? '%' : '' }})</option>
+                        @endforeach
+                    </select>
+                    @error('form.tax_rate_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+            </div>
             @if ($useManufacturers)
                 <div class="mt-3 grid gap-3" style="grid-template-columns: repeat(12, minmax(0, 1fr));">
                     <div style="grid-column: span 5;">

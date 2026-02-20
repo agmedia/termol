@@ -3,6 +3,7 @@
 namespace App\View\Components\Front\Desktop;
 
 use App\Models\Catalog\Product\Product;
+use App\Services\Pricing\TaxPricingService;
 use App\Services\Front\WishlistService;
 use Illuminate\View\Component;
 use Illuminate\View\View;
@@ -80,7 +81,10 @@ class ProductCard extends Component
             'hoverImageUrl' => $hoverImageUrl,
             'optionRows' => $optionRows,
             'isWishlisted' => app(WishlistService::class)->has((int) $this->product->id),
-            'price' => number_format((float) $this->product->base_price, 2).' €',
+            'price' => number_format(
+                app(TaxPricingService::class)->grossFromNet((float) $this->product->base_price, $this->product),
+                2
+            ).' €',
             'flat' => $this->flat,
         ]);
     }

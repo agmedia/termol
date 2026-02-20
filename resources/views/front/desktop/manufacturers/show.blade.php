@@ -27,7 +27,7 @@
             @endforeach
         </div>
 
-        <div class="mt-6">{{ $products->links() }}</div>
+        <div class="mt-14">{{ $products->links() }}</div>
     @endif
 
     @if ($bottomBlocks->isNotEmpty())

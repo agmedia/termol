@@ -94,6 +94,16 @@ class ResourceManager extends Component
         $validated = $this->validate($this->rules());
 
         $data = $validated['form'];
+        foreach ($this->booleanFields() as $field) {
+            if ($this->hasColumn($field)) {
+                $data[$field] = (bool) ($data[$field] ?? false);
+            }
+        }
+
+        if ($this->hasColumn('is_default') && $this->hasColumn('is_active') && !empty($data['is_default'])) {
+            // Default value must remain active.
+            $data['is_active'] = true;
+        }
 
         if ($this->hasColumn('settings') && !empty($data['settings_text'])) {
             $decoded = json_decode((string) $data['settings_text'], true);
@@ -139,6 +149,11 @@ class ResourceManager extends Component
                 $this->form[$key] = $this->hasColumn('settings')
                     ? json_encode($record->settings ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
                     : '';
+                continue;
+            }
+
+            if (in_array($key, $this->booleanFields(), true)) {
+                $this->form[$key] = (bool) ($record->{$key} ?? false);
                 continue;
             }
 
@@ -306,6 +321,14 @@ class ResourceManager extends Component
         return collect($rules)
             ->filter(fn ($v, $k) => in_array(str_replace('form.', '', $k), $allowed, true))
             ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function booleanFields(): array
+    {
+        return ['is_default', 'is_paid', 'is_cancelled', 'is_active'];
     }
 
     public function render()

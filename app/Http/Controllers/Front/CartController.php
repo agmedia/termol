@@ -142,4 +142,26 @@ class CartController extends Controller
 
         return redirect()->route('cart.index')->with('status', __('ui.cart.status.cleared'));
     }
+
+    public function applyCoupon(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'coupon_code' => ['required', 'string', 'max:60'],
+        ]);
+
+        $applied = $this->cart->applyCoupon((string) $validated['coupon_code']);
+
+        return redirect()
+            ->route('cart.index')
+            ->with('status', $applied ? __('ui.cart.status.coupon_applied') : __('ui.cart.status.coupon_invalid'));
+    }
+
+    public function removeCoupon(): RedirectResponse
+    {
+        $this->cart->clearCoupon();
+
+        return redirect()
+            ->route('cart.index')
+            ->with('status', __('ui.cart.status.coupon_removed'));
+    }
 }

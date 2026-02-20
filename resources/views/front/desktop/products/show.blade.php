@@ -6,6 +6,8 @@
     $manufacturerTranslation = $product->manufacturer?->translations?->firstWhere('locale', $locale)
         ?? $product->manufacturer?->translations?->firstWhere('locale', $fallbackLocale);
     $manufacturerEnabled = app(\App\Services\Catalog\CatalogFeatureService::class)->useManufacturers();
+    $taxPricing = app(\App\Services\Pricing\TaxPricingService::class);
+    $displayBasePrice = $taxPricing->grossFromNet((float) $product->base_price, $product);
 @endphp
 
 @section('title', $translation?->name ?? 'Product')
@@ -51,7 +53,7 @@
         </div>
 
         <aside class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p class="text-3xl font-extrabold text-slate-900">EUR {{ number_format((float) $product->base_price, 2) }}</p>
+            <p class="text-3xl font-extrabold text-slate-900">{{ number_format($displayBasePrice, 2) }} €</p>
             <p class="mt-2 text-sm text-slate-600">Available stock: <span class="font-semibold text-slate-900">{{ (int) $product->stock_qty }}</span></p>
 
             <form method="POST" action="{{ route('cart.items.store') }}" class="mt-5 space-y-3">

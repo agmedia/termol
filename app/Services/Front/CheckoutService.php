@@ -58,6 +58,7 @@ class CheckoutService
     public function placeOrder(array $payload, ?User $user = null): Order
     {
         $lines = $this->cart->lines();
+        $summary = $this->cart->summary();
 
         if ($lines->isEmpty()) {
             throw ValidationException::withMessages([
@@ -65,14 +66,18 @@ class CheckoutService
             ]);
         }
 
-        $subtotal = round((float) $lines->sum('line_total'), 2);
+        $subtotal = round((float) ($summary['subtotal'] ?? 0), 2);
+        $discountTotal = round((float) ($summary['discount_total'] ?? 0), 2);
+        $subtotalAfterDiscount = round((float) ($summary['subtotal_after_discount'] ?? $subtotal), 2);
+        $taxTotal = round((float) ($summary['tax_total'] ?? 0), 2);
+        $defaultTaxRate = round((float) ($summary['tax_rate'] ?? 0), 4);
 
         /** @var ShippingMethod|null $shippingMethod */
-        $shippingMethod = $this->availableShippingMethods($subtotal)
+        $shippingMethod = $this->availableShippingMethods($subtotalAfterDiscount)
             ->firstWhere('code', (string) ($payload['shipping_method_code'] ?? ''));
 
         /** @var PaymentMethod|null $paymentMethod */
-        $paymentMethod = $this->availablePaymentMethods($subtotal)
+        $paymentMethod = $this->availablePaymentMethods($subtotalAfterDiscount)
             ->firstWhere('code', (string) ($payload['payment_method_code'] ?? ''));
 
         if (! $shippingMethod) {
@@ -87,9 +92,9 @@ class CheckoutService
             ]);
         }
 
-        $shippingTotal = $this->resolveShippingTotal($shippingMethod, $subtotal);
-        $paymentFeeTotal = $this->resolvePaymentFeeTotal($paymentMethod, $subtotal);
-        $grandTotal = round($subtotal + $shippingTotal + $paymentFeeTotal, 2);
+        $shippingTotal = $this->resolveShippingTotal($shippingMethod, $subtotalAfterDiscount);
+        $paymentFeeTotal = $this->resolvePaymentFeeTotal($paymentMethod, $subtotalAfterDiscount);
+        $grandTotal = round($subtotalAfterDiscount + $shippingTotal + $paymentFeeTotal + $taxTotal, 2);
 
         /** @var Currency|null $currency */
         $currency = Currency::query()
@@ -113,7 +118,11 @@ class CheckoutService
             $payload,
             $user,
             $lines,
+            $summary,
             $subtotal,
+            $discountTotal,
+            $taxTotal,
+            $defaultTaxRate,
             $shippingMethod,
             $shippingTotal,
             $paymentMethod,
@@ -173,13 +182,14 @@ class CheckoutService
                 'subtotal' => $subtotal,
                 'shipping_total' => $shippingTotal,
                 'payment_fee_total' => $paymentFeeTotal,
-                'discount_total' => 0,
-                'tax_total' => 0,
+                'discount_total' => $discountTotal,
+                'tax_total' => $taxTotal,
                 'grand_total' => $grandTotal,
 
                 'customer_note' => (string) ($payload['customer_note'] ?? ''),
                 'payload' => [
                     'placed_from' => 'frontend_checkout',
+                    'coupon_code' => (string) ($summary['coupon_code'] ?? ''),
                 ],
                 'placed_at' => now(),
                 'created_by' => $user?->id,
@@ -193,8 +203,12 @@ class CheckoutService
                 $translation = $line['translation'];
 
                 $quantity = (int) $line['quantity'];
+                $baseUnitPrice = (float) ($line['base_unit_price'] ?? $line['unit_price']);
                 $unitPrice = (float) $line['unit_price'];
+                $lineDiscountTotal = (float) ($line['line_discount_total'] ?? 0);
                 $lineTotal = (float) $line['line_total'];
+                $lineTaxAmount = round((float) ($line['line_tax_total'] ?? 0), 2);
+                $lineTaxRate = round((float) ($line['tax_rate'] ?? $defaultTaxRate), 4);
                 $productOptionValueId = isset($line['product_option_value_id']) ? (int) $line['product_option_value_id'] : null;
                 $optionRow = $productOptionValueId
                     ? ProductOptionValue::query()->find($productOptionValueId)
@@ -207,10 +221,10 @@ class CheckoutService
                     'sku' => (string) ($optionRow?->sku ?: $product->sku),
                     'code' => $product->code,
                     'name' => (string) ($translation?->name ?? $product->code),
-                    'unit_price' => $unitPrice,
-                    'discount_amount' => 0,
-                    'tax_rate' => 0,
-                    'tax_amount' => 0,
+                    'unit_price' => $baseUnitPrice,
+                    'discount_amount' => $lineDiscountTotal,
+                    'tax_rate' => $lineTaxRate,
+                    'tax_amount' => $lineTaxAmount,
                     'quantity' => $quantity,
                     'line_total' => $lineTotal,
                     'sort_order' => $index++,
@@ -239,6 +253,16 @@ class CheckoutService
                 'sort_order' => 100,
             ]);
 
+            if ($discountTotal > 0) {
+                OrderTotal::query()->create([
+                    'order_id' => $order->id,
+                    'code' => 'discount',
+                    'title' => 'Discount',
+                    'value' => -1 * $discountTotal,
+                    'sort_order' => 150,
+                ]);
+            }
+
             OrderTotal::query()->create([
                 'order_id' => $order->id,
                 'code' => 'shipping',
@@ -254,6 +278,16 @@ class CheckoutService
                 'value' => $paymentFeeTotal,
                 'sort_order' => 300,
             ]);
+
+            if ($taxTotal > 0) {
+                OrderTotal::query()->create([
+                    'order_id' => $order->id,
+                    'code' => 'tax',
+                    'title' => 'Tax',
+                    'value' => $taxTotal,
+                    'sort_order' => 400,
+                ]);
+            }
 
             OrderTotal::query()->create([
                 'order_id' => $order->id,

@@ -73,6 +73,8 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const showModal = function (form) {
+        document.dispatchEvent(new CustomEvent('product-card-overlay:close-all'));
+
         const popup = ensureModal();
         const image = popup.querySelector('[data-cart-modal-image]');
         const name = popup.querySelector('[data-cart-modal-name]');

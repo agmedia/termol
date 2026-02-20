@@ -10,7 +10,7 @@
             2 => 'grid grid-cols-2 gap-4',
             3 => 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3',
             5 => 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5',
-            default => 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4',
+            default => 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
         };
     @endphp
 
@@ -19,7 +19,7 @@
         <p class="mt-2 text-slate-600">{{ __('ui.shop.subtitle') }}</p>
     </section>
 
-    <section class="mt-6 border-y border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
+    <section class="mt-6 border-y border-slate-200 bg-slate-50 px-4 py-4 sm:px-6 lg:px-8">
         <details class="group md:hidden">
             <summary class="flex h-[42px] w-full list-none cursor-pointer items-center justify-center gap-2 border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -173,7 +173,7 @@
                     @foreach ([3, 4, 5] as $cols)
                         <a
                             href="{{ route('shop.index', array_merge(request()->query(), ['cols' => $cols])) }}"
-                            class="inline-flex h-full w-11 items-center justify-center border border-slate-300 {{ (int) ($filters['cols'] ?? 4) === $cols ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-100' }}"
+                            class="{{ $cols === 5 ? 'hidden 2xl:inline-flex' : 'inline-flex' }} h-full w-11 items-center justify-center border border-slate-300 {{ (int) ($filters['cols'] ?? 4) === $cols ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-100' }}"
                             aria-label="{{ __('ui.shop.filters.grid') }} {{ $cols }}"
                         >
                             <span class="flex h-4 items-stretch gap-[1px]">
@@ -205,7 +205,7 @@
                 @endforeach
             </div>
 
-            <div class="mt-6">
+            <div class="mt-14">
                 {{ $products->links() }}
             </div>
         @endif

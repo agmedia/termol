@@ -9,11 +9,12 @@
 
     <link rel="stylesheet" href="{{ asset('front-theme/styles/bootstrap.css') }}">
     <link rel="stylesheet" href="{{ asset('front-theme/styles/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/rising-sun-font.css') }}">
     <link rel="stylesheet" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}">
     <link rel="manifest" href="{{ asset('front-theme/_manifest.json') }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('front-theme/app/icons/icon-192x192.png') }}">
 </head>
-<body class="theme-light" data-highlight="highlight-red">
+<body class="theme-light font-risingsun" data-highlight="highlight-red">
 <div id="preloader"><div class="spinner-border color-highlight" role="status"></div></div>
 
 <div id="page">

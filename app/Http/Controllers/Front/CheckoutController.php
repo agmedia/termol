@@ -40,8 +40,8 @@ class CheckoutController extends Controller
         return view($this->frontendView($request, 'checkout.create'), [
             'lines' => $this->cart->lines(),
             'summary' => $summary,
-            'shippingMethods' => $this->checkout->availableShippingMethods((float) $summary['subtotal']),
-            'paymentMethods' => $this->checkout->availablePaymentMethods((float) $summary['subtotal']),
+            'shippingMethods' => $this->checkout->availableShippingMethods((float) ($summary['subtotal_after_discount'] ?? $summary['subtotal'])),
+            'paymentMethods' => $this->checkout->availablePaymentMethods((float) ($summary['subtotal_after_discount'] ?? $summary['subtotal'])),
             'prefill' => [
                 'name' => (string) ($user?->name ?? ''),
                 'email' => (string) ($user?->email ?? ''),

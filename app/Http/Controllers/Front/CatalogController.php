@@ -34,6 +34,7 @@ class CatalogController extends Controller
         $query = Product::query()
             ->where('is_active', true)
             ->with([
+                'taxRate',
                 'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'categories.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
@@ -225,6 +226,7 @@ class CatalogController extends Controller
         $productsQuery = Product::query()
             ->where('is_active', true)
             ->with([
+                'taxRate',
                 'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'categories.translations' => fn ($q) => $q
                     ->where('scope', Category::SCOPE_CATALOG)

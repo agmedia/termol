@@ -7,6 +7,7 @@
     $gridClass = (string) ($payload['grid_class'] ?? 'mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4');
     $cardClass = (string) ($payload['card_class'] ?? 'rounded-3xl border border-slate-200 bg-slate-50 p-5');
     $titleClass = (string) ($payload['title_class'] ?? 'text-2xl font-extrabold tracking-tight text-slate-900');
+    $taxPricing = app(\App\Services\Pricing\TaxPricingService::class);
 @endphp
 
 <section class="{{ $sectionClass }}">
@@ -28,6 +29,7 @@
                 if ($imageUrl === '') {
                     $imageUrl = $product->getFirstMediaUrl('product_main');
                 }
+                $displayPrice = $taxPricing->grossFromNet((float) $product->base_price, $product);
             @endphp
             <article class="{{ $cardClass }}">
                 <div class="relative overflow-hidden rounded-2xl bg-slate-100">
@@ -47,7 +49,7 @@
                 <h3 class="mt-1 text-3xl font-semibold leading-tight text-slate-800">{{ $pt?->name ?? $product->code }}</h3>
 
                 <div class="mt-3 flex items-center justify-between gap-3">
-                    <p class="text-4xl font-bold leading-none text-indigo-600">{{ number_format((float) $product->base_price, 2) }} $</p>
+                    <p class="text-4xl font-bold leading-none text-indigo-600">{{ number_format($displayPrice, 2) }} €</p>
                     <div class="flex items-center gap-1 text-orange-400">
                         @for ($i = 0; $i < 5; $i++)
                             <svg viewBox="0 0 20 20" class="h-5 w-5" fill="currentColor" aria-hidden="true">
