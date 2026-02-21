@@ -20,10 +20,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const wrapper = document.createElement('div');
-        wrapper.className = 'fixed inset-0 z-[120] hidden items-center justify-center p-4';
+        wrapper.className = 'fixed inset-0 hidden items-center justify-center p-4';
+        wrapper.style.zIndex = '9999';
         wrapper.innerHTML = [
-            '<div class="absolute inset-0" style="background: rgba(0, 0, 0, 0.6);"></div>',
-            '<div class="relative w-full border border-slate-300 bg-white p-4 shadow-2xl" style="max-width: 460px;">',
+            '<div class="fixed inset-0" style="z-index: 1; background: rgba(0, 0, 0, 0.6);"></div>',
+            '<div class="relative w-full border border-slate-300 bg-white p-4 shadow-2xl" style="z-index: 2; max-width: 460px;">',
             '  <div class="flex gap-4">',
             '    <img src="" alt="" class="h-28 w-20 border border-slate-200 object-cover" data-cart-modal-image>',
             '    <div class="min-w-0 flex-1">',

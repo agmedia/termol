@@ -197,21 +197,22 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const wrapper = document.createElement('div');
-        wrapper.className = 'fixed inset-0 z-[250] hidden items-center justify-center p-4';
+        wrapper.className = 'fixed inset-0 hidden items-center justify-center p-4';
+        wrapper.style.zIndex = '9999';
         wrapper.innerHTML = [
-            '<div class="absolute inset-0 bg-black/85"></div>',
-            '<div class="relative w-full max-w-2xl border border-white/20 bg-black p-5 text-white shadow-2xl">',
+            '<div class="fixed inset-0" style="z-index: 1; background: rgba(0, 0, 0, 0.6);"></div>',
+            '<div class="relative w-full border border-slate-300 bg-white p-4 shadow-2xl" style="z-index: 2; max-width: 460px;">',
             '  <div class="flex gap-4">',
             '    <img src="" alt="" class="h-28 w-20 border border-slate-200 object-cover" data-cart-modal-image>',
             '    <div class="min-w-0 flex-1">',
-            '      <h3 class="text-lg font-semibold text-white" data-cart-modal-name></h3>',
-            '      <p class="mt-2 text-sm text-slate-200" data-cart-modal-option-wrap><span class="font-semibold text-white" data-cart-modal-option-label></span>: <span data-cart-modal-option></span></p>',
-            '      <p class="mt-1 text-sm text-slate-200"><span class="font-semibold text-white" data-cart-modal-qty-label></span>: <span data-cart-modal-qty></span></p>',
+            '      <h3 class="text-lg font-semibold text-slate-900" data-cart-modal-name></h3>',
+            '      <p class="mt-2 text-sm text-slate-600" data-cart-modal-option-wrap><span class="font-semibold text-slate-800" data-cart-modal-option-label></span>: <span data-cart-modal-option></span></p>',
+            '      <p class="mt-1 text-sm text-slate-600"><span class="font-semibold text-slate-800" data-cart-modal-qty-label></span>: <span data-cart-modal-qty></span></p>',
             '    </div>',
             '  </div>',
             '  <div class="mt-5 grid grid-cols-2 gap-2">',
-            '    <button type="button" class="h-11 border border-white/40 bg-black px-3 text-sm font-semibold text-white hover:bg-white/10" data-cart-modal-continue></button>',
-            '    <a href="#" class="inline-flex h-11 items-center justify-center border border-white bg-white px-3 text-sm font-semibold text-black hover:bg-slate-200" data-cart-modal-cart></a>',
+            '    <button type="button" class="h-11 border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100" data-cart-modal-continue></button>',
+            '    <a href="#" class="inline-flex h-11 items-center justify-center border border-slate-900 bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-700" data-cart-modal-cart></a>',
             '  </div>',
             '</div>',
         ].join('');

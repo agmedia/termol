@@ -138,7 +138,7 @@
     @push('scripts')
         <script defer src="{{ asset('front-theme/scripts/product-card-options.js') }}"></script>
         <script defer src="{{ asset('front-theme/scripts/product-card-quantity.js') }}"></script>
-        <script defer src="{{ asset('front-theme/scripts/product-card-cart-modal.js') }}"></script>
+        <script defer src="{{ asset('front-theme/scripts/product-card-cart-modal.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-cart-modal.js')) }}"></script>
         <script defer src="{{ asset('front-theme/scripts/product-card-overlay-cart.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-overlay-cart.js')) }}"></script>
         <script defer src="{{ asset('front-theme/scripts/wishlist-toggle.js') }}"></script>
     @endpush

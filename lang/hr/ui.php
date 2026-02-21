@@ -179,7 +179,7 @@ return [
         ],
         'modal' => [
             'continue' => 'Nastavi s kupnjom',
-            'go_to_cart' => 'U košaricu',
+            'go_to_cart' => 'Dovrši kupnju',
             'option' => 'Opcija',
             'quantity' => 'Količina',
         ],
