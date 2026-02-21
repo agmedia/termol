@@ -14,7 +14,16 @@
         };
     @endphp
 
-    <section class="px-4 sm:px-6 lg:px-8">
+    <section class="px-4 text-center sm:px-6 lg:px-8">
+        <nav aria-label="Breadcrumb" class="mb-3">
+            <ol class="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                <li>
+                    <a href="{{ route('home') }}" class="hover:text-slate-700">{{ __('ui.front.desktop.footer.home') }}</a>
+                </li>
+                <li class="text-slate-400">/</li>
+                <li class="text-slate-700">{{ __('ui.shop.page_title') }}</li>
+            </ol>
+        </nav>
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.shop.title') }}</h1>
         <p class="mt-2 text-slate-600">{{ __('ui.shop.subtitle') }}</p>
     </section>

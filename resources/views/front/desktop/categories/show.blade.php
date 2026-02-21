@@ -16,10 +16,22 @@
 @section('main_class', 'w-full px-0 py-8')
 
 @section('content')
-    <section class="px-4 sm:px-6 lg:px-8">
-        <a href="{{ route('categories.index') }}" class="text-sm font-semibold text-slate-700 hover:text-slate-900">← {{ __('ui.category.back_to_categories') }}</a>
-        <h1 class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $translation?->name ?? $category->code }}</h1>
-        <p class="mt-2 max-w-3xl text-slate-600">{{ $translation?->description ?: __('ui.category.default_description') }}</p>
+    <section class="px-4 text-center sm:px-6 lg:px-8">
+        <nav aria-label="Breadcrumb" class="mb-3">
+            <ol class="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                <li>
+                    <a href="{{ route('home') }}" class="hover:text-slate-700">{{ __('ui.front.desktop.footer.home') }}</a>
+                </li>
+                <li class="text-slate-400">/</li>
+                <li>
+                    <a href="{{ route('shop.index') }}" class="hover:text-slate-700">{{ __('ui.shop.page_title') }}</a>
+                </li>
+                <li class="text-slate-400">/</li>
+                <li class="text-slate-700">{{ $translation?->name ?? $category->code }}</li>
+            </ol>
+        </nav>
+        <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ $translation?->name ?? $category->code }}</h1>
+        <p class="mt-2 text-slate-600">{{ $translation?->description ?: __('ui.category.default_description') }}</p>
     </section>
 
     @if ($topBlocks->isNotEmpty())
@@ -28,7 +40,7 @@
         </section>
     @endif
 
-    <section class="mt-6 border-y border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
+    <section class="mt-6 border-y border-slate-200 bg-slate-50 px-4 py-4 sm:px-6 lg:px-8">
         <details class="group md:hidden">
             <summary class="flex h-[42px] w-full list-none cursor-pointer items-center justify-center gap-2 border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
