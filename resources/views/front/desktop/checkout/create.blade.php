@@ -29,17 +29,23 @@
             <div class="overflow-hidden transition-all duration-300" data-checkout-login-panel style="{{ $showLoginForm ? '' : 'max-height:0;opacity:0;' }}">
                 <div class="mt-4 border-t border-slate-200 pt-4">
                     <h2 class="text-lg font-semibold text-slate-900">{{ __('ui.checkout.login.title') }}</h2>
-                    <form method="POST" action="{{ route('login') }}" class="mt-3 grid gap-3 md:grid-cols-2" novalidate>
+                    <form method="POST" action="{{ route('checkout.login') }}" class="mt-3 grid gap-3 md:grid-cols-2" novalidate>
                         @csrf
                         <input type="hidden" name="checkout_login" value="1">
                         <input type="hidden" name="intended" value="{{ route('checkout.create') }}">
                         <div>
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.login.email') }}</label>
                             <input type="email" name="email" value="{{ old('email') }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required>
+                            @error('email')
+                                <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                         <div>
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.login.password') }}</label>
                             <input type="password" name="password" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required>
+                            @error('password')
+                                <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                         <div class="md:col-span-2 flex items-center justify-between gap-3">
                             <label class="inline-flex items-center gap-2 text-sm text-slate-700">
@@ -54,7 +60,7 @@
         </section>
     @endguest
 
-    <form method="POST" action="{{ route('checkout.store') }}" class="grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(460px,1fr)]" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-form novalidate>
+    <form method="POST" action="{{ route('checkout.store') }}" class="grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(460px,1fr)]" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-form data-success-fallback="{{ route('checkout.success.latest') }}" novalidate>
         @csrf
 
         <div class="space-y-6">
@@ -512,13 +518,16 @@
                 }
 
                 try {
+                    const formData = new FormData(checkoutForm);
+                    formData.append('_ajax', '1');
+
                     const response = await fetch(checkoutForm.action, {
                         method: 'POST',
                         headers: {
                             'Accept': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest',
                         },
-                        body: new FormData(checkoutForm),
+                        body: formData,
                     });
 
                     if (response.status === 422) {
@@ -537,9 +546,33 @@
                         return;
                     }
 
-                    const payload = await response.json();
-                    if (payload.redirect) {
+                    const headerRedirect = response.headers.get('X-Checkout-Redirect');
+                    if (headerRedirect) {
+                        window.location.href = headerRedirect;
+                        return;
+                    }
+
+                    const rawBody = await response.text();
+                    let payload = null;
+                    try {
+                        payload = rawBody ? JSON.parse(rawBody) : null;
+                    } catch (error) {
+                        payload = null;
+                    }
+
+                    if (payload && payload.redirect) {
                         window.location.href = payload.redirect;
+                        return;
+                    }
+
+                    if (response.url && response.url !== window.location.href) {
+                        window.location.href = response.url;
+                        return;
+                    }
+
+                    const successFallbackUrl = checkoutForm.dataset.successFallback;
+                    if (successFallbackUrl) {
+                        window.location.href = successFallbackUrl;
                     }
                 } finally {
                     if (submitBtn) {

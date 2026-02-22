@@ -93,7 +93,9 @@ Route::middleware(['front.locale', 'front.device'])
         Route::delete('wishlist/items/{product}', [WishlistController::class, 'destroy'])->name('wishlist.items.destroy');
 
         Route::get('checkout', [CheckoutController::class, 'create'])->name('checkout.create');
+        Route::post('checkout/login', [CheckoutController::class, 'login'])->middleware('guest')->name('checkout.login');
         Route::post('checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+        Route::get('checkout/success', [CheckoutController::class, 'successLatest'])->name('checkout.success.latest');
         Route::get('checkout/success/{orderNumber}', [CheckoutController::class, 'success'])
             ->where('orderNumber', '[A-Za-z0-9\-]+')
             ->name('checkout.success');

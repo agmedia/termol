@@ -13,6 +13,8 @@ use App\Services\Front\CartService;
 use App\Services\Front\CheckoutService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -88,7 +90,7 @@ class CheckoutController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         if (! $this->cart->hasItems()) {
             return redirect()->route('cart.index')->with('status', 'Your cart is empty.');
@@ -207,16 +209,43 @@ class CheckoutController extends Controller
 
         $successUrl = route('checkout.success', ['orderNumber' => $order->order_number]);
 
-        if ($request->expectsJson()) {
+        if (
+            $request->boolean('_ajax')
+            || $request->expectsJson()
+            || $request->wantsJson()
+            || $request->ajax()
+        ) {
             return response()->json([
                 'redirect' => $successUrl,
                 'status' => 'ok',
-            ]);
+            ])->header('X-Checkout-Redirect', $successUrl);
         }
 
         return redirect()
             ->to($successUrl)
             ->with('status', 'Order created successfully.');
+    }
+
+    public function login(Request $request): RedirectResponse
+    {
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+            'remember' => ['nullable', 'boolean'],
+        ]);
+
+        if (! Auth::attempt([
+            'email' => (string) $credentials['email'],
+            'password' => (string) $credentials['password'],
+        ], (bool) ($credentials['remember'] ?? false))) {
+            throw ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
+        }
+
+        $request->session()->regenerate();
+
+        return redirect()->route('checkout.create');
     }
 
     public function success(Request $request, string $orderNumber): View
@@ -234,6 +263,21 @@ class CheckoutController extends Controller
         return view($this->frontendView($request, 'checkout.success'), [
             'order' => $order,
         ]);
+    }
+
+    public function successLatest(Request $request): RedirectResponse
+    {
+        $orderId = (int) $request->session()->get('front.checkout.last_order_id', 0);
+        if ($orderId <= 0) {
+            return redirect()->route('checkout.create');
+        }
+
+        $order = Order::query()->find($orderId);
+        if (! $order) {
+            return redirect()->route('checkout.create');
+        }
+
+        return redirect()->route('checkout.success', ['orderNumber' => $order->order_number]);
     }
 
     /**
