@@ -65,6 +65,26 @@
             <div class="cb-pill cb-w-35"></div>
             <div class="cb-pill cb-w-40"></div>
         </div>
+    @elseif ($typeKey === 'full_width_image_slider')
+        <div class="cb-box cb-hero-media"></div>
+        <div class="cb-banner">
+            <div class="cb-pill cb-w-20"></div>
+            <div class="cb-pill cb-w-20"></div>
+            <div class="cb-pill cb-w-20"></div>
+        </div>
+    @elseif ($typeKey === 'dual_image_cta')
+        <div class="cb-split">
+            @for ($i = 0; $i < 2; $i++)
+                <div class="cb-card-mini">
+                    <div class="cb-box cb-mini-media"></div>
+                    <div class="cb-line cb-w-60"></div>
+                    <div class="mt-2 flex gap-2">
+                        <div class="cb-pill cb-w-30"></div>
+                        <div class="cb-pill cb-w-30"></div>
+                    </div>
+                </div>
+            @endfor
+        </div>
     @elseif ($typeKey === 'mobile_hero_banner')
         <div class="cb-box cb-hero-media"></div>
         <div class="cb-line cb-w-75"></div>

@@ -1,15 +1,44 @@
 @php
-    use App\Models\Catalog\Product\Product;
-
-    $payload = $block->payload ?? [];
-    $source = ($payload['source'] ?? 'manual') === 'query' ? 'query' : 'manual';
-    $limit = max(1, min(30, (int) ($payload['limit'] ?? 10)));
-    $sort = (string) ($payload['sort'] ?? 'newest');
     $locale = app()->getLocale();
     $fallbackLocale = config('app.locale');
     $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
-    $mergedPayload = is_array($payload) ? array_merge($payload, $translationPayload) : $translationPayload;
+    $blockPayload = is_array($block->payload ?? null) ? $block->payload : [];
+    $mergedPayload = array_merge($blockPayload, $translationPayload);
     $allowedRoutes = config('content_blocks.route_whitelist', []);
+    $displayTitle = trim((string) ($translation?->title ?? ''));
+    $displaySubtitle = trim((string) ($translation?->subtitle ?? ''));
+
+    if ($displayTitle === '' || $displaySubtitle === '') {
+        $allTranslations = $block->translations()->get(['locale', 'title', 'subtitle']);
+
+        if ($displayTitle === '') {
+            $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->title ?? ''));
+            if ($displayTitle === '') {
+                $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->title ?? ''));
+            }
+            if ($displayTitle === '') {
+                $displayTitle = trim((string) ($allTranslations->first(
+                    static fn ($row): bool => trim((string) ($row->title ?? '')) !== ''
+                )?->title ?? ''));
+            }
+        }
+
+        if ($displaySubtitle === '') {
+            $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->subtitle ?? ''));
+            if ($displaySubtitle === '') {
+                $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->subtitle ?? ''));
+            }
+            if ($displaySubtitle === '') {
+                $displaySubtitle = trim((string) ($allTranslations->first(
+                    static fn ($row): bool => trim((string) ($row->subtitle ?? '')) !== ''
+                )?->subtitle ?? ''));
+            }
+        }
+    }
+
+    if ($displayTitle === '') {
+        $displayTitle = (string) $block->name;
+    }
 
     $resolveRouteUrl = function (?string $routeName, mixed $routeParams, string $fallbackUrl = '#') use ($allowedRoutes): string {
         $name = trim((string) $routeName);
@@ -33,88 +62,153 @@
         }
     };
 
-    $manualIds = collect($payload['manual_product_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values()->all();
-    $categoryIds = collect($payload['category_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values()->all();
-    $manufacturerIds = collect($payload['manufacturer_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values()->all();
-
-    $query = Product::query()
-        ->where('is_active', true)
-        ->with([
-            'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
-            'taxRate',
-        ]);
-    $taxPricing = app(\App\Services\Pricing\TaxPricingService::class);
-
-    if ($source === 'manual' && $manualIds !== []) {
-        $query->whereIn('id', $manualIds);
-    } else {
-        if ($categoryIds !== []) {
-            $query->whereHas('categories', fn ($q) => $q->whereIn('categories.id', $categoryIds));
-        }
-        if ($manufacturerIds !== []) {
-            $query->whereIn('manufacturer_id', $manufacturerIds);
-        }
-    }
-
-    if ($sort === 'price_asc') {
-        $query->orderBy('base_price');
-    } elseif ($sort === 'price_desc') {
-        $query->orderByDesc('base_price');
-    } elseif ($sort === 'name') {
-        $query->join('product_translations as pt_sort', function ($join) use ($locale) {
-            $join->on('pt_sort.product_id', '=', 'products.id')->where('pt_sort.locale', '=', $locale);
-        })->orderBy('pt_sort.name')->select('products.*');
-    } else {
-        $query->orderByDesc('id');
-    }
-
-    $products = $query->limit($limit)->get();
-
-    if ($source === 'manual' && $manualIds !== []) {
-        $rank = array_flip($manualIds);
-        $products = $products->sortBy(fn ($item) => $rank[$item->id] ?? PHP_INT_MAX)->values();
-    }
-
-    $ctaLabel = (string) ($translation?->cta_label ?? '');
+    $ctaLabel = trim((string) ($translation?->cta_label ?? ''));
     $ctaFallbackUrl = (string) ($translation?->cta_url ?? '#');
     $ctaRoute = (string) ($mergedPayload['cta_route'] ?? '');
     $ctaRouteParams = $mergedPayload['cta_route_params'] ?? [];
     $ctaUrl = $resolveRouteUrl($ctaRoute, $ctaRouteParams, $ctaFallbackUrl);
 @endphp
 
-<section class="rounded-2xl border border-slate-200 bg-white p-6">
-    <div class="mb-4 flex items-center justify-between gap-3">
-        <div>
-            <h2 class="text-xl font-semibold text-slate-900">{{ $translation->title ?? $block->name }}</h2>
-            @if (!empty($translation?->subtitle))
-                <p class="mt-1 text-sm text-slate-600">{{ $translation->subtitle }}</p>
+<section class="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-8">
+    <div class="w-full px-4 sm:px-6 lg:px-8">
+        <div class="mb-8 text-center">
+            <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
+                <span class="h-px flex-1 bg-slate-300"></span>
+                <h2 class="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">{{ $displayTitle }}</h2>
+                <span class="h-px flex-1 bg-slate-300"></span>
+            </div>
+            @if ($displaySubtitle !== '')
+                <p class="mx-auto mt-2 max-w-2xl text-sm text-slate-600 md:text-base">{{ $displaySubtitle }}</p>
+            @endif
+
+            @if ($ctaLabel !== '' && $ctaUrl !== '')
+                <a href="{{ $ctaUrl }}" class="mt-4 inline-flex h-10 items-center bg-slate-100 px-5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-200">
+                    {{ $ctaLabel }}
+                </a>
             @endif
         </div>
-        @if ($ctaLabel !== '' && $ctaUrl !== '')
-            <a href="{{ $ctaUrl }}" class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ $ctaLabel }}</a>
-        @endif
-    </div>
 
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        @forelse ($products as $product)
-            @php
-                $pt = $product->translations->firstWhere('locale', $locale)
-                    ?? $product->translations->firstWhere('locale', $fallbackLocale);
-                $excerpt = $pt?->meta_description ?: $pt?->excerpt;
-                $displayPrice = $taxPricing->grossFromNet((float) $product->base_price, $product);
-            @endphp
-            <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div class="h-28 rounded-lg bg-gradient-to-br from-slate-200 to-slate-100"></div>
-                <h3 class="mt-3 text-sm font-semibold text-slate-900">{{ $pt?->name ?? $product->code }}</h3>
-                @if (!empty($excerpt))
-                    <p class="mt-1 text-xs text-slate-600">{{ \Illuminate\Support\Str::limit((string) $excerpt, 80) }}</p>
-                @endif
-                <p class="mt-2 text-sm font-semibold text-slate-800">{{ number_format($displayPrice, 2) }} €</p>
-            </article>
-        @empty
-            <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-xs text-slate-500 sm:col-span-2 xl:col-span-5">
-                No products matched this carousel source.
+        @if ($products->isNotEmpty())
+            <style>
+                #products-carousel-{{ $block->id }} .splide__arrow {
+                    opacity: 0;
+                    width: 46px;
+                    height: 46px;
+                    border-radius: 9999px;
+                    border: 1px solid rgba(255, 255, 255, 0.75);
+                    background: rgba(15, 23, 42, 0.35);
+                    backdrop-filter: blur(6px);
+                    transform: translateY(-50%) scale(0.92);
+                    transition: opacity .25s ease, transform .25s ease, background-color .25s ease;
+                }
+
+                #products-carousel-{{ $block->id }}:hover .splide__arrow,
+                #products-carousel-{{ $block->id }}:focus-within .splide__arrow {
+                    opacity: 1;
+                    transform: translateY(-50%) scale(1);
+                }
+
+                #products-carousel-{{ $block->id }} .splide__arrow:hover {
+                    background: rgba(15, 23, 42, 0.55);
+                }
+
+                #products-carousel-{{ $block->id }} .splide__arrow svg {
+                    fill: #fff;
+                }
+
+                @media (hover: none) {
+                    #products-carousel-{{ $block->id }} .splide__arrow {
+                        opacity: 1;
+                        transform: translateY(-50%) scale(1);
+                    }
+                }
+            </style>
+
+            @once
+                @push('scripts')
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">
+                    <script defer src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
+                @endpush
+            @endonce
+
+            <div class="mt-4">
+                <div id="products-carousel-{{ $block->id }}" class="splide" data-products-carousel-splide>
+                    <div class="splide__track">
+                        <ul class="splide__list">
+                            @foreach ($products as $product)
+                                <li class="splide__slide">
+                                    @include('front.desktop.partials.product-card', [
+                                        'product' => $product,
+                                        'locale' => $locale,
+                                        'fallbackLocale' => $fallbackLocale,
+                                        'flat' => true,
+                                    ])
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
             </div>
-        @endforelse
+
+            @once
+                @push('scripts')
+                    <script>
+                        (function () {
+                            const init = function () {
+                                if (typeof window.Splide !== 'function') {
+                                    return false;
+                                }
+
+                                const sliders = document.querySelectorAll('[data-products-carousel-splide]');
+                                sliders.forEach(function (el) {
+                                    if (el.dataset.splideReady === '1') {
+                                        return;
+                                    }
+                                    el.dataset.splideReady = '1';
+
+                                    const count = el.querySelectorAll('.splide__slide').length;
+                                    new window.Splide(el, {
+                                        type: count > 1 ? 'loop' : 'slide',
+                                        perPage: Math.min(4, Math.max(1, count)),
+                                        perMove: 1,
+                                        gap: '1.25rem',
+                                        drag: count > 1,
+                                        snap: true,
+                                        pagination: count > 1,
+                                        arrows: count > 1,
+                                        updateOnMove: true,
+                                        speed: 520,
+                                        breakpoints: {
+                                            1280: { perPage: Math.min(3, Math.max(1, count)) },
+                                            1024: { perPage: Math.min(2, Math.max(1, count)) },
+                                            860: { perPage: 1, gap: '1rem' },
+                                            640: { perPage: 1, gap: '0.8rem' },
+                                        },
+                                    }).mount();
+                                });
+
+                                return true;
+                            };
+
+                            if (init()) {
+                                return;
+                            }
+
+                            let attempts = 0;
+                            const timer = window.setInterval(function () {
+                                attempts += 1;
+                                if (init() || attempts > 40) {
+                                    window.clearInterval(timer);
+                                }
+                            }, 120);
+                        })();
+                    </script>
+                @endpush
+            @endonce
+        @else
+            <div class="bg-slate-50 p-4 text-xs text-slate-500">
+                No selected products for this carousel.
+            </div>
+        @endif
     </div>
 </section>

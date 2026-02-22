@@ -497,6 +497,12 @@ return [
         'close' => 'Zatvori obavijest',
         'review_fields' => 'Molimo provjerite označena polja.',
     ],
+    'content_blocks' => [
+        'dual_image_cta' => [
+            'default_cta_1' => 'Žene',
+            'default_cta_2' => 'Muškarci',
+        ],
+    ],
     'mobile' => [
         'menu' => [
             'subtitle' => 'Mobilna navigacija',

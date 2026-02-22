@@ -18,6 +18,7 @@ class Form extends Component
 {
     private const ITEM_TYPE_MAP = [
         'products' => 'product',
+        'products_carousel' => 'product',
         'categories' => 'category',
         'mobile_hero_banner' => 'category',
         'manufacturers' => 'manufacturer',
@@ -457,10 +458,10 @@ class Form extends Component
             ])
             ->findOrFail($this->blockId);
 
-        $locale = (string) ($this->form['locale'] ?? config('app.locale'));
-        $translation = $block->translations->firstWhere('locale', $locale)
-            ?? $block->translations->firstWhere('locale', config('app.locale'))
-            ?? $block->translations->first();
+        $translation = $this->resolveInitialTranslation(
+            $block->translations,
+            (string) ($this->form['locale'] ?? config('app.locale'))
+        );
 
         $slot = $block->slots->first();
         $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
@@ -543,6 +544,51 @@ class Form extends Component
         $this->form['cta_url'] = $translation->cta_url ?? '';
         $this->form['bg_css'] = (string) ($translationPayload['bg_css'] ?? '');
         $this->form['custom_classes'] = (string) ($translationPayload['custom_classes'] ?? '');
+    }
+
+    private function resolveInitialTranslation(Collection $translations, string $preferredLocale): mixed
+    {
+        $fallbackLocale = (string) config('app.locale');
+
+        $preferredWithContent = $translations->first(
+            fn ($row): bool => (string) ($row->locale ?? '') === $preferredLocale && $this->translationHasContent($row)
+        );
+        if ($preferredWithContent) {
+            return $preferredWithContent;
+        }
+
+        $fallbackWithContent = $translations->first(
+            fn ($row): bool => (string) ($row->locale ?? '') === $fallbackLocale && $this->translationHasContent($row)
+        );
+        if ($fallbackWithContent) {
+            return $fallbackWithContent;
+        }
+
+        $anyWithContent = $translations->first(fn ($row): bool => $this->translationHasContent($row));
+        if ($anyWithContent) {
+            return $anyWithContent;
+        }
+
+        return $translations->firstWhere('locale', $preferredLocale)
+            ?? $translations->firstWhere('locale', $fallbackLocale)
+            ?? $translations->first();
+    }
+
+    private function translationHasContent(mixed $translation): bool
+    {
+        if (! $translation) {
+            return false;
+        }
+
+        $payload = is_array($translation->payload ?? null) ? $translation->payload : [];
+
+        return trim((string) ($translation->title ?? '')) !== ''
+            || trim((string) ($translation->subtitle ?? '')) !== ''
+            || trim((string) ($translation->cta_label ?? '')) !== ''
+            || trim((string) ($translation->cta_url ?? '')) !== ''
+            || trim((string) ($translation->body_html ?? '')) !== ''
+            || trim((string) ($payload['bg_css'] ?? '')) !== ''
+            || trim((string) ($payload['custom_classes'] ?? '')) !== '';
     }
 
     private function clearTranslationFields(): void
@@ -715,9 +761,12 @@ class Form extends Component
         $priority = [
             'banner',
             'desktop_hero_banner',
+            'full_width_image_slider',
+            'dual_image_cta',
             'mobile_hero_banner',
             'hero_highlights_strip',
             'products',
+            'products_carousel',
             'categories',
             'manufacturers',
             'blogs',
@@ -743,6 +792,8 @@ class Form extends Component
         return match ($type) {
             'mobile_hero_banner' => 'mobile',
             'desktop_hero_banner',
+            'full_width_image_slider',
+            'dual_image_cta',
             'hero_highlights_strip' => 'desktop',
             default => null,
         };
@@ -805,6 +856,222 @@ BLADE,
         @empty
             <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 sm:col-span-2 xl:col-span-4">No products selected.</div>
         @endforelse
+    </div>
+</section>
+BLADE,
+            'products_carousel' => <<<'BLADE'
+@php
+    $locale = app()->getLocale();
+    $fallbackLocale = config('app.locale');
+    $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
+    $blockPayload = is_array($block->payload ?? null) ? $block->payload : [];
+    $mergedPayload = array_merge($blockPayload, $translationPayload);
+    $allowedRoutes = config('content_blocks.route_whitelist', []);
+    $displayTitle = trim((string) ($translation?->title ?? ''));
+    $displaySubtitle = trim((string) ($translation?->subtitle ?? ''));
+
+    if ($displayTitle === '' || $displaySubtitle === '') {
+        $allTranslations = $block->translations()->get(['locale', 'title', 'subtitle']);
+
+        if ($displayTitle === '') {
+            $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->title ?? ''));
+            if ($displayTitle === '') {
+                $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->title ?? ''));
+            }
+            if ($displayTitle === '') {
+                $displayTitle = trim((string) ($allTranslations->first(
+                    static fn ($row): bool => trim((string) ($row->title ?? '')) !== ''
+                )?->title ?? ''));
+            }
+        }
+
+        if ($displaySubtitle === '') {
+            $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->subtitle ?? ''));
+            if ($displaySubtitle === '') {
+                $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->subtitle ?? ''));
+            }
+            if ($displaySubtitle === '') {
+                $displaySubtitle = trim((string) ($allTranslations->first(
+                    static fn ($row): bool => trim((string) ($row->subtitle ?? '')) !== ''
+                )?->subtitle ?? ''));
+            }
+        }
+    }
+
+    if ($displayTitle === '') {
+        $displayTitle = (string) $block->name;
+    }
+
+    $resolveRouteUrl = function (?string $routeName, mixed $routeParams, string $fallbackUrl = '#') use ($allowedRoutes): string {
+        $name = trim((string) $routeName);
+        if ($name === '') {
+            return $fallbackUrl;
+        }
+
+        $isAllowed = $allowedRoutes === []
+            || collect($allowedRoutes)->contains(fn ($pattern) => \Illuminate\Support\Str::is((string) $pattern, $name));
+
+        if (! $isAllowed || !\Illuminate\Support\Facades\Route::has($name)) {
+            return $fallbackUrl;
+        }
+
+        $params = is_array($routeParams) ? $routeParams : [];
+
+        try {
+            return route($name, $params);
+        } catch (\Throwable) {
+            return $fallbackUrl;
+        }
+    };
+
+    $ctaLabel = trim((string) ($translation?->cta_label ?? ''));
+    $ctaFallbackUrl = (string) ($translation?->cta_url ?? '#');
+    $ctaRoute = (string) ($mergedPayload['cta_route'] ?? '');
+    $ctaRouteParams = $mergedPayload['cta_route_params'] ?? [];
+    $ctaUrl = $resolveRouteUrl($ctaRoute, $ctaRouteParams, $ctaFallbackUrl);
+@endphp
+
+<section class="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-8">
+    <div class="w-full px-4 sm:px-6 lg:px-8">
+        <div class="mb-8 text-center">
+            <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
+                <span class="h-px flex-1 bg-slate-300"></span>
+                <h2 class="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">{{ $displayTitle }}</h2>
+                <span class="h-px flex-1 bg-slate-300"></span>
+            </div>
+            @if ($displaySubtitle !== '')
+                <p class="mx-auto mt-2 max-w-2xl text-sm text-slate-600 md:text-base">{{ $displaySubtitle }}</p>
+            @endif
+
+            @if ($ctaLabel !== '' && $ctaUrl !== '')
+                <a href="{{ $ctaUrl }}" class="mt-4 inline-flex h-10 items-center bg-slate-100 px-5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-200">
+                    {{ $ctaLabel }}
+                </a>
+            @endif
+        </div>
+
+        @if ($products->isNotEmpty())
+            <style>
+                #products-carousel-{{ $block->id }} .splide__arrow {
+                    opacity: 0;
+                    width: 46px;
+                    height: 46px;
+                    border-radius: 9999px;
+                    border: 1px solid rgba(255, 255, 255, 0.75);
+                    background: rgba(15, 23, 42, 0.35);
+                    backdrop-filter: blur(6px);
+                    transform: translateY(-50%) scale(0.92);
+                    transition: opacity .25s ease, transform .25s ease, background-color .25s ease;
+                }
+
+                #products-carousel-{{ $block->id }}:hover .splide__arrow,
+                #products-carousel-{{ $block->id }}:focus-within .splide__arrow {
+                    opacity: 1;
+                    transform: translateY(-50%) scale(1);
+                }
+
+                #products-carousel-{{ $block->id }} .splide__arrow:hover {
+                    background: rgba(15, 23, 42, 0.55);
+                }
+
+                #products-carousel-{{ $block->id }} .splide__arrow svg {
+                    fill: #fff;
+                }
+
+                @media (hover: none) {
+                    #products-carousel-{{ $block->id }} .splide__arrow {
+                        opacity: 1;
+                        transform: translateY(-50%) scale(1);
+                    }
+                }
+            </style>
+
+            @once
+                @push('scripts')
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">
+                    <script defer src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
+                @endpush
+            @endonce
+
+            <div class="mt-4">
+                <div id="products-carousel-{{ $block->id }}" class="splide" data-products-carousel-splide>
+                    <div class="splide__track">
+                        <ul class="splide__list">
+                            @foreach ($products as $product)
+                                <li class="splide__slide">
+                                    @include('front.desktop.partials.product-card', [
+                                        'product' => $product,
+                                        'locale' => $locale,
+                                        'fallbackLocale' => $fallbackLocale,
+                                        'flat' => true,
+                                    ])
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            @once
+                @push('scripts')
+                    <script>
+                        (function () {
+                            const init = function () {
+                                if (typeof window.Splide !== 'function') {
+                                    return false;
+                                }
+
+                                const sliders = document.querySelectorAll('[data-products-carousel-splide]');
+                                sliders.forEach(function (el) {
+                                    if (el.dataset.splideReady === '1') {
+                                        return;
+                                    }
+                                    el.dataset.splideReady = '1';
+
+                                    const count = el.querySelectorAll('.splide__slide').length;
+                                    new window.Splide(el, {
+                                        type: count > 1 ? 'loop' : 'slide',
+                                        perPage: Math.min(4, Math.max(1, count)),
+                                        perMove: 1,
+                                        gap: '1.25rem',
+                                        drag: count > 1,
+                                        snap: true,
+                                        pagination: count > 1,
+                                        arrows: count > 1,
+                                        updateOnMove: true,
+                                        speed: 520,
+                                        breakpoints: {
+                                            1280: { perPage: Math.min(3, Math.max(1, count)) },
+                                            1024: { perPage: Math.min(2, Math.max(1, count)) },
+                                            860: { perPage: 1, gap: '1rem' },
+                                            640: { perPage: 1, gap: '0.8rem' },
+                                        },
+                                    }).mount();
+                                });
+
+                                return true;
+                            };
+
+                            if (init()) {
+                                return;
+                            }
+
+                            let attempts = 0;
+                            const timer = window.setInterval(function () {
+                                attempts += 1;
+                                if (init() || attempts > 40) {
+                                    window.clearInterval(timer);
+                                }
+                            }, 120);
+                        })();
+                    </script>
+                @endpush
+            @endonce
+        @else
+            <div class="bg-slate-50 p-4 text-xs text-slate-500">
+                No selected products for this carousel.
+            </div>
+        @endif
     </div>
 </section>
 BLADE,
@@ -897,6 +1164,242 @@ BLADE,
         </a>
     </div>
 </div>
+BLADE,
+            'full_width_image_slider' => <<<'BLADE'
+@php
+    $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
+    $customClasses = trim((string) ($translationPayload['custom_classes'] ?? ''));
+    $sliderId = 'full-width-slider-'.$block->id;
+    $slides = $block->getMedia('block_slides');
+
+    if ($slides->isEmpty()) {
+        $fallback = $block->getFirstMedia('block_background');
+        if ($fallback) {
+            $slides = collect([$fallback]);
+        }
+    }
+
+    $autoplayMs = 5000;
+@endphp
+
+@if ($slides->isNotEmpty())
+    @once
+        @push('scripts')
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">
+            <script defer src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
+        @endpush
+    @endonce
+
+    <style>
+        #{{ $sliderId }} .splide__arrow {
+            opacity: 0;
+            width: 46px;
+            height: 46px;
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.75);
+            background: rgba(15, 23, 42, 0.35);
+            backdrop-filter: blur(6px);
+            transform: translateY(-50%) scale(0.92);
+            transition: opacity .25s ease, transform .25s ease, background-color .25s ease;
+        }
+
+        #{{ $sliderId }}:hover .splide__arrow,
+        #{{ $sliderId }}:focus-within .splide__arrow {
+            opacity: 1;
+            transform: translateY(-50%) scale(1);
+        }
+
+        #{{ $sliderId }} .splide__arrow:hover {
+            background: rgba(15, 23, 42, 0.55);
+        }
+
+        #{{ $sliderId }} .splide__arrow svg {
+            fill: #fff;
+        }
+    </style>
+
+    <section class="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen overflow-hidden {{ $customClasses }}">
+        <div id="{{ $sliderId }}" class="splide" data-fullwidth-splide>
+            <div class="splide__track">
+                <ul class="splide__list">
+                    @foreach ($slides as $media)
+                        @php
+                            $slideUrl = $media->hasGeneratedConversion('hero_1440x480')
+                                ? $media->getUrl('hero_1440x480')
+                                : $media->getUrl();
+                            $slideLink = trim((string) (
+                                data_get($media->custom_properties, 'link_url.'.app()->getLocale())
+                                ?: data_get($media->custom_properties, 'link_url.'.config('app.locale'))
+                                ?: data_get($media->custom_properties, 'link_url_value', '')
+                            ));
+                            $hasSlideLink = $slideLink !== '';
+                        @endphp
+                        <li class="splide__slide">
+                            <article class="relative min-w-full">
+                                @if ($hasSlideLink)
+                                    <a href="{{ $slideLink }}" class="block">
+                                @endif
+                                    <img src="{{ $slideUrl }}" alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}" class="h-[36vw] min-h-[320px] max-h-[720px] w-full object-cover">
+                                    <div class="absolute inset-0 bg-black/20"></div>
+                                    @if (($translation?->title ?? '') !== '' || ($translation?->subtitle ?? '') !== '')
+                                        <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-6 pb-10 pt-16 text-white md:px-12">
+                                            @if (($translation?->title ?? '') !== '')
+                                                <h2 class="text-3xl font-extrabold tracking-tight md:text-5xl">{{ $translation->title }}</h2>
+                                            @endif
+                                            @if (($translation?->subtitle ?? '') !== '')
+                                                <p class="mt-3 max-w-3xl text-sm text-white/90 md:text-base">{{ $translation->subtitle }}</p>
+                                            @endif
+                                            @if (($translation?->cta_label ?? '') !== '' && (($translation?->cta_url ?? '') !== '' || $hasSlideLink))
+                                                @if ($hasSlideLink)
+                                                    <span class="mt-6 inline-flex h-11 items-center border border-white bg-white px-6 text-sm font-semibold text-slate-900">
+                                                        {{ $translation->cta_label }}
+                                                    </span>
+                                                @else
+                                                    <a href="{{ $translation->cta_url }}" class="mt-6 inline-flex h-11 items-center border border-white bg-white px-6 text-sm font-semibold text-slate-900 hover:bg-slate-100">
+                                                        {{ $translation->cta_label }}
+                                                    </a>
+                                                @endif
+                                            @endif
+                                        </div>
+                                    @endif
+                                @if ($hasSlideLink)
+                                    </a>
+                                @endif
+                            </article>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    @once
+        @push('scripts')
+            <script>
+                (function () {
+                    const init = function () {
+                        if (typeof window.Splide !== 'function') {
+                            return false;
+                        }
+
+                        const sliders = document.querySelectorAll('[data-fullwidth-splide]');
+                        sliders.forEach(function (el) {
+                            if (el.dataset.splideReady === '1') {
+                                return;
+                            }
+                            el.dataset.splideReady = '1';
+
+                            const count = el.querySelectorAll('.splide__slide').length;
+                            new window.Splide(el, {
+                                type: count > 1 ? 'loop' : 'slide',
+                                perPage: 1,
+                                perMove: 1,
+                                arrows: count > 1,
+                                pagination: count > 1,
+                                autoplay: count > 1,
+                                interval: {{ $autoplayMs }},
+                                pauseOnHover: true,
+                                pauseOnFocus: true,
+                                speed: 700,
+                                easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                            }).mount();
+                        });
+
+                        return true;
+                    };
+
+                    if (init()) {
+                        return;
+                    }
+
+                    let attempts = 0;
+                    const timer = window.setInterval(function () {
+                        attempts += 1;
+                        if (init() || attempts > 40) {
+                            window.clearInterval(timer);
+                        }
+                    }, 120);
+                })();
+            </script>
+        @endpush
+    @endonce
+@endif
+BLADE,
+            'dual_image_cta' => <<<'BLADE'
+@php
+    $locale = app()->getLocale();
+    $fallbackLocale = config('app.locale');
+    $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
+    $customClasses = trim((string) ($translationPayload['custom_classes'] ?? ''));
+    $slides = $block->getMedia('block_slides')->take(2);
+@endphp
+
+@if ($slides->isNotEmpty())
+    <section class="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen {{ $customClasses }}">
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+            @foreach ($slides as $media)
+                @php
+                    $imageUrl = $media->hasGeneratedConversion('hero_1440x480')
+                        ? $media->getUrl('hero_1440x480')
+                        : $media->getUrl();
+                    $props = (array) ($media->custom_properties ?? []);
+                    $slideTitle = trim((string) (
+                        data_get($props, "block_title.$locale")
+                        ?: data_get($props, "block_title.$fallbackLocale")
+                        ?: $media->name
+                    ));
+
+                    $cta1Label = trim((string) (
+                        data_get($props, "cta_1_label.$locale")
+                        ?: data_get($props, "cta_1_label.$fallbackLocale")
+                        ?: __('ui.content_blocks.dual_image_cta.default_cta_1')
+                    ));
+                    $cta1Url = trim((string) (
+                        data_get($props, "cta_1_url.$locale")
+                        ?: data_get($props, "cta_1_url.$fallbackLocale")
+                        ?: '#'
+                    ));
+
+                    $cta2Label = trim((string) (
+                        data_get($props, "cta_2_label.$locale")
+                        ?: data_get($props, "cta_2_label.$fallbackLocale")
+                        ?: __('ui.content_blocks.dual_image_cta.default_cta_2')
+                    ));
+                    $cta2Url = trim((string) (
+                        data_get($props, "cta_2_url.$locale")
+                        ?: data_get($props, "cta_2_url.$fallbackLocale")
+                        ?: '#'
+                    ));
+                @endphp
+
+                <article class="group relative min-h-[360px] overflow-hidden md:min-h-[560px]">
+                    <img src="{{ $imageUrl }}" alt="{{ $slideTitle !== '' ? $slideTitle : $block->name }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/55 via-black/20 to-transparent"></div>
+
+                    <div class="absolute inset-x-0 bottom-12 px-8 text-center text-white md:bottom-16 md:px-10">
+                        @if ($slideTitle !== '')
+                            <h3 class="text-3xl font-black uppercase tracking-[0.02em] md:text-4xl">{{ $slideTitle }}</h3>
+                        @endif
+
+                        <div class="mx-auto mt-5 flex max-w-[460px] flex-col justify-center gap-2.5 sm:flex-row">
+                            @if ($cta1Label !== '')
+                                <a href="{{ $cta1Url !== '' ? $cta1Url : '#' }}" class="inline-flex h-11 min-w-[145px] items-center justify-center border border-white bg-white px-5 text-base font-black uppercase tracking-[0.02em] text-slate-900 transition hover:bg-slate-100">
+                                    {{ $cta1Label }}
+                                </a>
+                            @endif
+
+                            @if ($cta2Label !== '')
+                                <a href="{{ $cta2Url !== '' ? $cta2Url : '#' }}" class="inline-flex h-11 min-w-[145px] items-center justify-center border border-white bg-white px-5 text-base font-black uppercase tracking-[0.02em] text-slate-900 transition hover:bg-slate-100">
+                                    {{ $cta2Label }}
+                                </a>
+                            @endif
+                        </div>
+                    </div>
+                </article>
+            @endforeach
+        </div>
+    </section>
+@endif
 BLADE,
             'mobile_hero_banner' => <<<'BLADE'
 @php

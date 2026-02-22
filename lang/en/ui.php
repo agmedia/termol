@@ -497,6 +497,12 @@ return [
         'close' => 'Close notification',
         'review_fields' => 'Please review the highlighted fields.',
     ],
+    'content_blocks' => [
+        'dual_image_cta' => [
+            'default_cta_1' => 'Women',
+            'default_cta_2' => 'Men',
+        ],
+    ],
     'mobile' => [
         'menu' => [
             'subtitle' => 'Mobile starter navigation',
