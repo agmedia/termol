@@ -21,6 +21,17 @@
                 </div>
             @endfor
         </div>
+    @elseif ($typeKey === 'five_star_reviews_carousel')
+        <div class="cb-cards3">
+            @for ($i = 0; $i < 3; $i++)
+                <div class="cb-card-mini">
+                    <div class="cb-line cb-w-40"></div>
+                    <div class="cb-line cb-w-85"></div>
+                    <div class="cb-line cb-w-75"></div>
+                    <div class="cb-line cb-w-50"></div>
+                </div>
+            @endfor
+        </div>
     @elseif ($typeKey === 'categories' || $typeKey === 'manufacturers' || $typeKey === 'blogs' || $typeKey === 'blog_grid_3')
         <div class="cb-cards3">
             @for ($i = 0; $i < 3; $i++)

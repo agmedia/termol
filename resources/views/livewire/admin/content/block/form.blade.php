@@ -164,6 +164,18 @@
                     </div>
                 </div>
 
+                @if (($form['type'] ?? '') === 'five_star_reviews_carousel')
+                    <div class="mt-3">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Broj komentara za prikaz</label>
+                        <input type="number" min="1" max="50" wire:model="form.items_limit" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm md:max-w-[220px]" />
+                        @error('form.items_limit') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        <label class="inline-flex items-center gap-2">
+                            <input type="checkbox" wire:model="form.reviews_featured_only" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0">
+                            <span class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Samo featured komentari</span>
+                        </label>
+                    </div>
+                @endif
+
                 <p class="mt-3 text-xs text-slate-500">Main markup/content is edited in the Blade Template section below (Ace).</p>
             </div>
 

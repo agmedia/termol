@@ -64,6 +64,31 @@
                 ->sortBy(fn ($row) => array_search((int) $row->id, $blogIds, true))
                 ->values();
         }
+
+        $comments = collect();
+        if ((string) $block->type === 'five_star_reviews_carousel') {
+            $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
+            $blockPayload = is_array($block->payload ?? null) ? $block->payload : [];
+            $mergedPayload = array_merge($blockPayload, $translationPayload);
+            $limit = max(1, (int) ($mergedPayload['items_limit'] ?? 6));
+            $featuredOnly = (bool) ($mergedPayload['reviews_featured_only'] ?? false);
+
+            $commentsQuery = \App\Models\Content\Support\Comment::query()
+                ->where('commentable_type', \App\Models\Catalog\Product\Product::class)
+                ->where('status', \App\Models\Content\Support\Comment::STATUS_APPROVED)
+                ->where('rating', 5)
+                ->whereNull('parent_id')
+                ->whereIn('locale', [$locale, $fallbackLocale])
+                ->orderByDesc('is_featured')
+                ->orderByDesc('reviewed_at')
+                ->orderByDesc('id');
+
+            if ($featuredOnly) {
+                $commentsQuery->where('is_featured', true);
+            }
+
+            $comments = $commentsQuery->limit($limit)->get();
+        }
     @endphp
 
     @if ($overrideView !== '')
@@ -76,6 +101,7 @@
             'categories' => $categories,
             'manufacturers' => $manufacturers,
             'blogs' => $blogs,
+            'comments' => $comments,
         ])
     @elseif (view()->exists($partial))
         @include($partial, [
@@ -87,6 +113,7 @@
             'categories' => $categories,
             'manufacturers' => $manufacturers,
             'blogs' => $blogs,
+            'comments' => $comments,
         ])
     @else
         @include('front.content-blocks.types.custom', [
@@ -98,6 +125,7 @@
             'categories' => $categories,
             'manufacturers' => $manufacturers,
             'blogs' => $blogs,
+            'comments' => $comments,
         ])
     @endif
 @endforeach
