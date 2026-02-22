@@ -176,6 +176,10 @@ return [
             'mutate' => ['content.blocks.update', 'content.blocks.create'],
             'delete' => ['content.blocks.delete'],
         ],
+        'admin.content.navigation*' => [
+            'view' => ['content.navigation.view'],
+            'mutate' => ['content.navigation.update'],
+        ],
 
         'admin.content.slots.create' => [
             'view' => ['content.slots.create'],

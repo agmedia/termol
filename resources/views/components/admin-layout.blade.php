@@ -1009,8 +1009,9 @@
                     $contentFaqsActive = request()->routeIs('admin.content.faqs.*');
                     $contentCommentsActive = request()->routeIs('admin.content.comments.*');
                     $contentBlocksActive = request()->routeIs('admin.content.blocks*');
+                    $contentNavigationActive = request()->routeIs('admin.content.navigation*');
                     $contentSlotsActive = request()->routeIs('admin.content.slots*');
-                    $contentOpen = $contentBlogActive || $contentPagesActive || $contentFaqsActive || $contentCommentsActive || $contentBlocksActive || $contentSlotsActive;
+                    $contentOpen = $contentBlogActive || $contentPagesActive || $contentFaqsActive || $contentCommentsActive || $contentBlocksActive || $contentNavigationActive || $contentSlotsActive;
                     $settingsOpen = request()->routeIs('admin.settings.*');
                     $settingsLocalOpen = request()->routeIs('admin.settings.local.*');
                     $settingsSystemOpen = request()->routeIs('admin.settings.system.*');
@@ -1341,6 +1342,15 @@
                                 <span class="flex items-center gap-2">
                                     <span class="sidebar-dot"></span>
                                     <span>Blocks</span>
+                                </span>
+                            </a>
+                            <a
+                                href="{{ route('admin.content.navigation') }}"
+                                class="sidebar-dropdown-link block rounded-lg font-medium {{ $contentNavigationActive ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
+                            >
+                                <span class="flex items-center gap-2">
+                                    <span class="sidebar-dot"></span>
+                                    <span>Navigation</span>
                                 </span>
                             </a>
                         </div>

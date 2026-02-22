@@ -1,6 +1,7 @@
 @php
     try {
         $catalogFeatures = app(\App\Services\Catalog\CatalogFeatureService::class);
+        $mainNavigation = app(\App\Services\Front\NavigationMenuService::class)->forLocale((string) app()->getLocale());
         $showManufacturers = $catalogFeatures->useManufacturers();
         $showBlog = $catalogFeatures->useBlog();
         $loyaltyEnabled = (bool) app(\App\Services\Settings\SystemSettingsService::class)->get(
@@ -8,11 +9,28 @@
             (bool) config('user_features.flags.user_loyalty_enabled', true)
         );
     } catch (\Throwable $e) {
+        $mainNavigation = [];
         $showManufacturers = (bool) config('catalog_features.flags.catalog_use_manufacturers', true);
         $showBlog = (bool) config('catalog_features.flags.catalog_use_blog', true);
         $loyaltyEnabled = (bool) config('user_features.flags.user_loyalty_enabled', true);
     }
 @endphp
+
+<style>
+    .menu-toggle-minus { display: none; }
+    details[open] > summary .menu-toggle-plus { display: none; }
+    details[open] > summary .menu-toggle-minus { display: inline; }
+    .menu-toggle-sign {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.9rem;
+        height: 1.9rem;
+        font-size: 1.45rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+</style>
 
 <div class="menu-header">
     <a href="/" class="menu-logo text-center">
@@ -38,17 +56,56 @@
         <i class="fa fa-angle-right"></i>
     </a>
 
-    <a href="{{ route('shop.index') }}" class="close-menu">
-        <i class="fa fa-bag-shopping color-green-dark"></i>
-        <span>{{ __('ui.mobile.menu.shop') }}</span>
-        <i class="fa fa-angle-right"></i>
-    </a>
+    @if (!empty($mainNavigation))
+        @foreach ($mainNavigation as $navItem)
+            @php
+                $children = collect($navItem['children'] ?? []);
+                $target = !empty($navItem['open_in_new_tab']) ? '_blank' : null;
+                $rel = !empty($navItem['open_in_new_tab']) ? 'noopener noreferrer' : null;
+            @endphp
 
-    <a href="{{ route('categories.index') }}" class="close-menu">
-        <i class="fa fa-th-large color-highlight"></i>
-        <span>{{ __('ui.mobile.menu.categories') }}</span>
-        <i class="fa fa-angle-right"></i>
-    </a>
+            @if ($children->isNotEmpty())
+                <details class="border-bottom">
+                    <summary class="list-unstyled d-flex align-items-center justify-content-between py-2 px-2 border-bottom">
+                        <span class="d-flex align-items-center">
+                            <i class="fa fa-compass color-green-dark me-2"></i>
+                            <span class="font-600">{{ $navItem['label'] ?? 'Menu' }}</span>
+                        </span>
+                        <span class="opacity-70 menu-toggle-plus menu-toggle-sign">+</span>
+                        <span class="opacity-70 menu-toggle-minus menu-toggle-sign">-</span>
+                    </summary>
+                    <div class="pb-1 border-top">
+                        <a href="{{ $navItem['url'] ?? '#' }}" class="close-menu d-block px-3 py-2 mb-1 border-bottom" @if($target) target="{{ $target }}" rel="{{ $rel }}" @endif>
+                            <span class="font-600">Sve iz: {{ $navItem['label'] ?? 'Menu' }}</span>
+                        </a>
+                    </div>
+                </details>
+                <div class="ps-0 pb-2">
+                    @foreach ($children as $child)
+                        @include('front.mobile.partials.menu-main-child', ['child' => $child, 'level' => 0])
+                    @endforeach
+                </div>
+            @else
+                <a href="{{ $navItem['url'] ?? '#' }}" class="close-menu border-bottom" @if($target) target="{{ $target }}" rel="{{ $rel }}" @endif>
+                    <i class="fa fa-compass color-green-dark"></i>
+                    <span>{{ $navItem['label'] ?? 'Menu' }}</span>
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            @endif
+        @endforeach
+    @else
+        <a href="{{ route('shop.index') }}" class="close-menu">
+            <i class="fa fa-bag-shopping color-green-dark"></i>
+            <span>{{ __('ui.mobile.menu.shop') }}</span>
+            <i class="fa fa-angle-right"></i>
+        </a>
+
+        <a href="{{ route('categories.index') }}" class="close-menu">
+            <i class="fa fa-th-large color-highlight"></i>
+            <span>{{ __('ui.mobile.menu.categories') }}</span>
+            <i class="fa fa-angle-right"></i>
+        </a>
+    @endif
 
     @if ($showManufacturers)
         <a href="{{ route('manufacturers.index') }}" class="close-menu">

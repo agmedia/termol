@@ -308,6 +308,7 @@ Route::middleware(['auth', 'verified', 'admin.access', 'admin.ability'])
                 Route::get('blocks/{block}/edit', function (ContentBlock $block) {
                     return view('admin.content.blocks.edit', compact('block'));
                 })->name('blocks.edit');
+                Route::view('navigation', 'admin.content.navigation.index')->name('navigation');
 
                 Route::view('slots', 'admin.content.slots.index')->name('slots');
                 Route::view('slots/create', 'admin.content.slots.create')->name('slots.create');

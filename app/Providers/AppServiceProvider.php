@@ -17,6 +17,7 @@ use App\Observers\Content\ContentCacheObserver;
 use App\Observers\Settings\LocalSettingObserver;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
+use App\Services\Front\NavigationMenuService;
 use App\Services\Front\WishlistService;
 use App\Services\Loyalty\LoyaltyService;
 use App\Services\Settings\LocalSettingsService;
@@ -40,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(SystemSettingsService::class, fn () => new SystemSettingsService());
         $this->app->singleton(CatalogFeatureService::class, fn ($app) => new CatalogFeatureService($app->make(SystemSettingsService::class)));
         $this->app->singleton(ContentBlockResolver::class, fn () => new ContentBlockResolver());
+        $this->app->singleton(NavigationMenuService::class, fn ($app) => new NavigationMenuService($app->make(SystemSettingsService::class)));
         $this->app->singleton(UserTrackingService::class, fn ($app) => new UserTrackingService($app->make(SystemSettingsService::class)));
         $this->app->singleton(LoyaltyService::class, fn ($app) => new LoyaltyService($app->make(SystemSettingsService::class)));
     }

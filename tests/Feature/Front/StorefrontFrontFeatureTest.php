@@ -17,6 +17,7 @@ use App\Models\Settings\Local\OrderStatus;
 use App\Models\Settings\Local\PaymentMethod;
 use App\Models\Settings\Local\ShippingMethod;
 use App\Models\User;
+use App\Services\Front\NavigationMenuService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -71,6 +72,49 @@ class StorefrontFrontFeatureTest extends TestCase
             'subject' => 'Wholesale inquiry',
             'status' => 'new',
         ]);
+    }
+
+    public function test_home_renders_configured_navigation_with_subcategories(): void
+    {
+        [$parent, $parentSlug] = $this->seedCategory();
+
+        $child = Category::query()->create([
+            'scope' => Category::SCOPE_CATALOG,
+            'code' => 'child-'.strtolower((string) str()->random(5)),
+            'is_active' => true,
+            'show_in_menu' => true,
+            'sort_order' => 2,
+            'parent_id' => $parent->id,
+        ]);
+
+        CategoryTranslation::query()->create([
+            'category_id' => $child->id,
+            'scope' => Category::SCOPE_CATALOG,
+            'locale' => 'en',
+            'name' => 'Child menu category',
+            'slug' => 'child-menu-category',
+            'description' => 'Child description',
+        ]);
+
+        app(SystemSettingsService::class)->put(NavigationMenuService::SETTINGS_KEY, [
+            [
+                'type' => 'category',
+                'label' => 'Hrana i namirnice',
+                'category_id' => $parent->id,
+                'page_id' => 0,
+                'url' => '',
+                'open_in_new_tab' => false,
+                'show_dropdown' => true,
+                'is_active' => true,
+                'sort_order' => 0,
+            ],
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Hrana i namirnice')
+            ->assertSee('Child menu category')
+            ->assertSee('/category/'.$parentSlug, false);
     }
 
     public function test_account_routes_are_prefixed_and_require_authenticated_verified_user(): void

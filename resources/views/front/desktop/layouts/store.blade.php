@@ -12,6 +12,7 @@
 @php
     $cartSummary = app(\App\Services\Front\CartService::class)->summary();
     $catalogFeatures = app(\App\Services\Catalog\CatalogFeatureService::class);
+    $mainNavigation = app(\App\Services\Front\NavigationMenuService::class)->forLocale((string) app()->getLocale());
 @endphp
 <body class="font-risingsun min-h-screen bg-white text-slate-900 antialiased">
 <header class="sticky top-0 z-40 bg-white">
@@ -26,18 +27,7 @@
             </a>
 
             <nav class="hidden flex-1 items-center justify-center gap-8 px-6 text-sm font-semibold uppercase tracking-wide text-slate-900 xl:flex">
-                <a href="{{ route('shop.index') }}" class="hover:text-slate-600">{{ __('ui.front.desktop.nav.new') }}</a>
-                <a href="{{ route('shop.index') }}" class="hover:text-slate-600">{{ __('ui.front.desktop.nav.men') }}</a>
-                <a href="{{ route('shop.index') }}" class="hover:text-slate-600">{{ __('ui.front.desktop.nav.women') }}</a>
-                <a href="{{ route('shop.index') }}" class="hover:text-slate-600">{{ __('ui.front.desktop.nav.special') }}</a>
-                @if ($catalogFeatures->useBlog())
-                    <a href="{{ route('blog.index') }}" class="hover:text-slate-600">{{ __('ui.front.desktop.nav.blog') }}</a>
-                @else
-                    <a href="#" class="hover:text-slate-600">{{ __('ui.front.desktop.nav.blog') }}</a>
-                @endif
-                <a href="#" class="hover:text-slate-600">{{ __('ui.front.desktop.nav.stores') }}</a>
-                <a href="#" class="hover:text-slate-600">{{ __('ui.front.desktop.nav.faq') }}</a>
-                <a href="{{ route('contact.create') }}" class="hover:text-slate-600">{{ __('ui.front.desktop.nav.contact') }}</a>
+                @include('front.desktop.partials.main-nav')
             </nav>
 
             <div class="hidden min-h-[76px] items-stretch border-l border-slate-200 xl:flex">
@@ -182,7 +172,7 @@
 
 <div class="pointer-events-none fixed inset-0 z-[60] xl:hidden" data-mobile-menu-root>
     <button type="button" class="absolute inset-0 bg-black/45 opacity-0 transition-opacity duration-300" aria-label="{{ __('ui.front.desktop.close_navigation') }}" data-mobile-menu-close></button>
-    <aside class="absolute inset-y-0 left-0 flex w-full -translate-x-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-out" data-mobile-menu-panel>
+    <aside class="absolute inset-y-0 left-0 flex w-[90vw] max-w-md -translate-x-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-out" data-mobile-menu-panel>
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-4">
             <span class="text-xl font-black tracking-tight text-slate-900">AMDS</span>
             <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.close_navigation') }}" data-mobile-menu-close>
@@ -191,20 +181,7 @@
                 </svg>
             </button>
         </div>
-        <nav class="grid gap-1 overflow-y-auto p-4 text-sm font-semibold uppercase tracking-wide text-slate-900">
-            <a href="{{ route('shop.index') }}" class="rounded-md px-3 py-3 hover:bg-slate-100">{{ __('ui.front.desktop.nav.new') }}</a>
-            <a href="{{ route('shop.index') }}" class="rounded-md px-3 py-3 hover:bg-slate-100">{{ __('ui.front.desktop.nav.men') }}</a>
-            <a href="{{ route('shop.index') }}" class="rounded-md px-3 py-3 hover:bg-slate-100">{{ __('ui.front.desktop.nav.women') }}</a>
-            <a href="{{ route('shop.index') }}" class="rounded-md px-3 py-3 hover:bg-slate-100">{{ __('ui.front.desktop.nav.special') }}</a>
-            @if ($catalogFeatures->useBlog())
-                <a href="{{ route('blog.index') }}" class="rounded-md px-3 py-3 hover:bg-slate-100">{{ __('ui.front.desktop.nav.blog') }}</a>
-            @else
-                <a href="#" class="rounded-md px-3 py-3 hover:bg-slate-100">{{ __('ui.front.desktop.nav.blog') }}</a>
-            @endif
-            <a href="#" class="rounded-md px-3 py-3 hover:bg-slate-100">{{ __('ui.front.desktop.nav.stores') }}</a>
-            <a href="#" class="rounded-md px-3 py-3 hover:bg-slate-100">{{ __('ui.front.desktop.nav.faq') }}</a>
-            <a href="{{ route('contact.create') }}" class="rounded-md px-3 py-3 hover:bg-slate-100">{{ __('ui.front.desktop.nav.contact') }}</a>
-        </nav>
+        @include('front.desktop.partials.main-nav-mobile')
     </aside>
 </div>
 
