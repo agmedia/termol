@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Front;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Sales\Order\Order;
+use App\Models\User;
 use App\Models\User\UserAddress;
 use App\Models\User\UserProfile;
 use App\Services\Front\AddressDirectoryService;
 use App\Services\Front\CartService;
 use App\Services\Front\CheckoutService;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -54,6 +57,7 @@ class CheckoutController extends Controller
                 'first_name' => (string) ($user?->profile?->first_name ?? ''),
                 'last_name' => (string) ($user?->profile?->last_name ?? ''),
                 'phone' => (string) ($user?->profile?->phone ?? ''),
+                'newsletter_opt_in' => (bool) ($user?->profile?->newsletter_opt_in ?? false),
                 'billing' => [
                     'first_name' => (string) ($billing?->first_name ?? ''),
                     'last_name' => (string) ($billing?->last_name ?? ''),
@@ -91,10 +95,10 @@ class CheckoutController extends Controller
         }
 
         $validated = $request->validate([
-            'customer_first_name' => ['required', 'string', 'max:120'],
-            'customer_last_name' => ['required', 'string', 'max:120'],
+            'customer_first_name' => ['nullable', 'string', 'max:120'],
+            'customer_last_name' => ['nullable', 'string', 'max:120'],
             'customer_email' => ['required', 'email', 'max:191'],
-            'customer_phone' => ['nullable', 'string', 'max:80'],
+            'customer_phone' => ['required', 'string', 'max:25', 'regex:/^\+?[0-9][0-9\s\-\/]{5,24}$/'],
 
             'billing_first_name' => ['required', 'string', 'max:120'],
             'billing_last_name' => ['required', 'string', 'max:120'],
@@ -105,10 +109,11 @@ class CheckoutController extends Controller
             'billing_address_line_2' => ['nullable', 'string', 'max:191'],
             'billing_postal_code' => ['required', 'string', 'max:32'],
             'billing_city' => ['required', 'string', 'max:120'],
-            'billing_state' => ['nullable', 'string', 'max:120'],
+            'billing_state' => ['required_if:billing_country_code,HR', 'nullable', 'string', 'max:120'],
             'billing_country_code' => ['required', 'string', 'size:2'],
 
             'use_billing_for_shipping' => ['nullable', 'boolean'],
+            'ship_to_different_address' => ['nullable', 'boolean'],
 
             'shipping_first_name' => ['nullable', 'string', 'max:120'],
             'shipping_last_name' => ['nullable', 'string', 'max:120'],
@@ -125,10 +130,28 @@ class CheckoutController extends Controller
             'shipping_method_code' => ['required', 'string', 'max:60'],
             'payment_method_code' => ['required', 'string', 'max:60'],
             'customer_note' => ['nullable', 'string', 'max:2000'],
+            'newsletter_opt_in' => ['nullable', 'boolean'],
+            'register_account' => ['nullable', 'boolean'],
+            'register_password' => ['nullable', 'string', 'min:8', 'confirmed'],
             'accept_terms' => ['accepted'],
+        ], [
+            'required' => __('ui.checkout.validation.required'),
+            'customer_email.required' => __('ui.checkout.validation.customer_email_required'),
+            'customer_email.email' => __('ui.checkout.validation.customer_email_invalid'),
+            'customer_email.max' => __('ui.checkout.validation.customer_email_max'),
+            'customer_phone.required' => __('ui.checkout.validation.customer_phone_required'),
+            'customer_phone.regex' => __('ui.checkout.validation.customer_phone_invalid'),
+            'customer_phone.max' => __('ui.checkout.validation.customer_phone_max'),
+            'billing_state.required_if' => __('ui.checkout.validation.billing_state_required_hr'),
+            'register_password.required' => __('ui.checkout.validation.register_password_required'),
+            'register_password.min' => __('ui.checkout.validation.register_password_min'),
+            'register_password.confirmed' => __('ui.checkout.validation.register_password_confirmed'),
+            'accept_terms.accepted' => __('ui.checkout.validation.accept_terms'),
         ]);
 
-        $shippingFromBilling = (bool) ($validated['use_billing_for_shipping'] ?? false);
+        $shippingFromBilling = array_key_exists('ship_to_different_address', $validated)
+            ? ! ((bool) $validated['ship_to_different_address'])
+            : (bool) ($validated['use_billing_for_shipping'] ?? false);
 
         if ($shippingFromBilling) {
             $validated['shipping_first_name'] = $validated['billing_first_name'];
@@ -144,15 +167,55 @@ class CheckoutController extends Controller
             $validated['shipping_country_code'] = $validated['billing_country_code'];
         }
 
-        $order = $this->checkout->placeOrder($validated, $request->user());
+        $validated['customer_first_name'] = (string) ($validated['billing_first_name'] ?? $validated['customer_first_name'] ?? '');
+        $validated['customer_last_name'] = (string) ($validated['billing_last_name'] ?? $validated['customer_last_name'] ?? '');
+
+        $checkoutUser = $request->user();
+        $registerAccount = (bool) ($validated['register_account'] ?? false);
+
+        if (! $checkoutUser && $registerAccount) {
+            $request->validate([
+                'customer_email' => ['required', 'email', 'max:191', 'unique:users,email'],
+                'register_password' => ['required', 'string', 'min:8', 'confirmed'],
+            ], [
+                'required' => __('ui.checkout.validation.required'),
+                'customer_email.required' => __('ui.checkout.validation.customer_email_required'),
+                'customer_email.email' => __('ui.checkout.validation.customer_email_invalid'),
+                'customer_email.max' => __('ui.checkout.validation.customer_email_max'),
+                'customer_email.unique' => __('ui.checkout.validation.customer_email_unique'),
+                'register_password.required' => __('ui.checkout.validation.register_password_required'),
+                'register_password.min' => __('ui.checkout.validation.register_password_min'),
+                'register_password.confirmed' => __('ui.checkout.validation.register_password_confirmed'),
+            ]);
+
+            $checkoutUser = User::query()->create([
+                'name' => trim(((string) $validated['customer_first_name']).' '.((string) $validated['customer_last_name'])),
+                'email' => (string) $validated['customer_email'],
+                'password' => Hash::make((string) $validated['register_password']),
+            ]);
+
+            Auth::login($checkoutUser);
+            $request->setUserResolver(static fn () => $checkoutUser);
+        }
+
+        $order = $this->checkout->placeOrder($validated, $checkoutUser);
 
         $this->cart->clear();
         $request->session()->put('front.checkout.last_order_id', (int) $order->id);
 
         $this->syncCustomerData($request, $validated);
 
+        $successUrl = route('checkout.success', ['orderNumber' => $order->order_number]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'redirect' => $successUrl,
+                'status' => 'ok',
+            ]);
+        }
+
         return redirect()
-            ->route('checkout.success', ['orderNumber' => $order->order_number])
+            ->to($successUrl)
             ->with('status', 'Order created successfully.');
     }
 
@@ -194,6 +257,7 @@ class CheckoutController extends Controller
                 'first_name' => (string) $validated['customer_first_name'],
                 'last_name' => (string) $validated['customer_last_name'],
                 'phone' => (string) ($validated['customer_phone'] ?? ''),
+                'newsletter_opt_in' => (bool) ($validated['newsletter_opt_in'] ?? false),
             ]
         );
 

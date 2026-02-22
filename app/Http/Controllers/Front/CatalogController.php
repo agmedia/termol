@@ -345,6 +345,16 @@ class CatalogController extends Controller
             ->orderBy('id')
             ->get();
 
+        $breadcrumbCategories = $category->ancestors()
+            ->where('scope', Category::SCOPE_CATALOG)
+            ->where('is_active', true)
+            ->with(['translations' => fn ($q) => $q
+                ->where('scope', Category::SCOPE_CATALOG)
+                ->whereIn('locale', [$locale, $fallbackLocale])])
+            ->orderBy('_lft')
+            ->get()
+            ->push($category);
+
         $topBlocks = app(ContentBlockResolver::class)->forPlacement(
             placement: 'category.top',
             locale: $locale,
@@ -368,6 +378,7 @@ class CatalogController extends Controller
             'manufacturers' => $manufacturers,
             'sizes' => $sizes,
             'subcategories' => $subcategories,
+            'breadcrumbCategories' => $breadcrumbCategories,
             'topBlocks' => $topBlocks,
             'bottomBlocks' => $bottomBlocks,
             'filters' => [

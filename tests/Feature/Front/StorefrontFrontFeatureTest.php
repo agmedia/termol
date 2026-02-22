@@ -151,7 +151,7 @@ class StorefrontFrontFeatureTest extends TestCase
             'billing_address_line_2' => '',
             'billing_postal_code' => '10000',
             'billing_city' => 'Zagreb',
-            'billing_state' => '',
+            'billing_state' => 'Grad Zagreb',
             'billing_country_code' => 'HR',
 
             'use_billing_for_shipping' => '1',
