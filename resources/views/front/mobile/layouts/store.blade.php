@@ -64,5 +64,6 @@
 
 <script defer src="{{ asset('front-theme/scripts/bootstrap.min.js') }}"></script>
 <script defer src="{{ asset('front-theme/scripts/custom.js') }}"></script>
+@stack('scripts')
 </body>
 </html>

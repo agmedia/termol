@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Front;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Sales\Order\Order;
+use App\Models\Settings\Local\OrderStatus;
 use App\Models\User\LoyaltyTransaction;
 use App\Models\User\UserAddress;
 use App\Models\User\UserProfile;
+use App\Services\Front\AddressDirectoryService;
 use App\Services\Loyalty\LoyaltyService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Http\RedirectResponse;
@@ -76,15 +78,72 @@ class AccountController extends Controller
             ->where('user_id', $request->user()->id)
             ->where('order_number', $orderNumber)
             ->with([
-                'status:id,name,color',
-                'items',
+                'status:id,name,color,sort_order,is_cancelled',
+                'items.product:id,code,is_active',
+                'items.product.media' => static function ($query): void {
+                    $query->whereIn('collection_name', ['product_main', 'product_gallery'])
+                        ->orderBy('order_column')
+                        ->orderBy('id');
+                },
+                'items.product.translations:id,product_id,locale,slug,name',
+                'items.productOptionValue.optionValue.translations:id,option_value_id,locale,name',
+                'items.productOptionValue.parentOptionValue.translations:id,option_value_id,locale,name',
                 'totals',
                 'history.toStatus:id,name,color',
             ])
             ->firstOrFail();
 
+        $statusSteps = OrderStatus::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['id', 'name', 'sort_order']);
+
         return view($this->frontendView($request, 'account.order-show'), [
             'order' => $order,
+            'statusSteps' => $statusSteps,
+        ]);
+    }
+
+    public function loyalty(Request $request): View
+    {
+        $user = $request->user();
+        $settings = app(SystemSettingsService::class);
+        $loyaltyEnabled = (bool) $settings->get('user_loyalty_enabled', (bool) config('user_features.flags.user_loyalty_enabled', true));
+
+        abort_unless($loyaltyEnabled, 404);
+
+        $transactions = LoyaltyTransaction::query()
+            ->where('user_id', $user->id)
+            ->with('order:id,order_number')
+            ->latest('id')
+            ->paginate(20);
+
+        $balance = (int) LoyaltyTransaction::query()
+            ->where('user_id', $user->id)
+            ->sum('points');
+
+        $earned = (int) LoyaltyTransaction::query()
+            ->where('user_id', $user->id)
+            ->where('points', '>', 0)
+            ->sum('points');
+
+        $spent = abs((int) LoyaltyTransaction::query()
+            ->where('user_id', $user->id)
+            ->where('points', '<', 0)
+            ->sum('points'));
+
+        $minOrderTotal = (float) $settings->get(
+            'loyalty_min_order_total',
+            (float) config('user_features.loyalty.min_order_total', 0.0)
+        );
+
+        return view($this->frontendView($request, 'account.loyalty'), [
+            'transactions' => $transactions,
+            'balance' => $balance,
+            'earned' => $earned,
+            'spent' => $spent,
+            'minOrderTotal' => $minOrderTotal,
         ]);
     }
 
@@ -96,12 +155,16 @@ class AccountController extends Controller
         $billing = $user->addresses->firstWhere('type', UserAddress::TYPE_BILLING);
         $shipping = $user->addresses->firstWhere('type', UserAddress::TYPE_SHIPPING);
         $payload = is_array($user->profile?->payload) ? $user->profile->payload : [];
+        $addressDirectory = app(AddressDirectoryService::class);
 
         return view($this->frontendView($request, 'account.profile'), [
             'user' => $user,
             'billing' => $billing,
             'shipping' => $shipping,
             'preferencePayload' => $payload,
+            'countryOptions' => $addressDirectory->countries((string) app()->getLocale()),
+            'countyOptions' => $addressDirectory->counties(),
+            'placesAssetUrl' => $addressDirectory->placesAssetUrl(),
         ]);
     }
 
@@ -118,7 +181,7 @@ class AccountController extends Controller
             'company' => ['nullable', 'string', 'max:191'],
             'oib' => ['nullable', 'string', 'max:60'],
             'birthday' => ['nullable', 'date'],
-            'gender' => ['nullable', 'string', 'max:24'],
+            'gender' => ['nullable', Rule::in(['male', 'female'])],
         ]);
 
         $user->forceFill([
@@ -139,7 +202,7 @@ class AccountController extends Controller
             ]
         );
 
-        return back()->with('status', 'Profile updated.');
+        return back()->with('status', __('ui.account.status.profile_updated'));
     }
 
     public function updatePreferences(Request $request): RedirectResponse
@@ -162,7 +225,7 @@ class AccountController extends Controller
             'payload' => $payload,
         ])->save();
 
-        return back()->with('status', 'Preferences updated.');
+        return back()->with('status', __('ui.account.status.preferences_updated'));
     }
 
     public function updateAddress(Request $request, string $type): RedirectResponse
@@ -201,6 +264,8 @@ class AccountController extends Controller
             ]
         );
 
-        return back()->with('status', ucfirst($type).' address updated.');
+        return back()->with('status', __('ui.account.status.address_updated', [
+            'type' => __('ui.account.address.types.'.$type),
+        ]));
     }
 }

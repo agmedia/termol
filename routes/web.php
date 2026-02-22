@@ -107,6 +107,7 @@ Route::middleware(['front.locale', 'front.device'])
                 Route::get('orders/{orderNumber}', [AccountController::class, 'showOrder'])
                     ->where('orderNumber', '[A-Za-z0-9\-]+')
                     ->name('orders.show');
+                Route::get('loyalty', [AccountController::class, 'loyalty'])->name('loyalty');
 
                 Route::get('profile', [AccountController::class, 'profile'])->name('profile');
                 Route::put('profile', [AccountController::class, 'updateProfile'])->name('profile.update');

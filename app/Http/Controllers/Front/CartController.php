@@ -145,9 +145,16 @@ class CartController extends Controller
 
     public function applyCoupon(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'coupon_code' => ['required', 'string', 'max:60'],
-        ]);
+        $validated = $request->validate(
+            [
+                'coupon_code' => ['required', 'string', 'max:60'],
+            ],
+            [
+                'coupon_code.required' => __('ui.cart.validation.coupon_required'),
+                'coupon_code.string' => __('ui.cart.validation.coupon_string'),
+                'coupon_code.max' => __('ui.cart.validation.coupon_max'),
+            ]
+        );
 
         $applied = $this->cart->applyCoupon((string) $validated['coupon_code']);
 

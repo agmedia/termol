@@ -7,6 +7,7 @@ use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Sales\Order\Order;
 use App\Models\User\UserAddress;
 use App\Models\User\UserProfile;
+use App\Services\Front\AddressDirectoryService;
 use App\Services\Front\CartService;
 use App\Services\Front\CheckoutService;
 use Illuminate\Http\RedirectResponse;
@@ -37,11 +38,16 @@ class CheckoutController extends Controller
         $billing = $user?->addresses?->firstWhere('type', UserAddress::TYPE_BILLING);
         $shipping = $user?->addresses?->firstWhere('type', UserAddress::TYPE_SHIPPING);
 
+        $addressDirectory = app(AddressDirectoryService::class);
+
         return view($this->frontendView($request, 'checkout.create'), [
             'lines' => $this->cart->lines(),
             'summary' => $summary,
             'shippingMethods' => $this->checkout->availableShippingMethods((float) ($summary['subtotal_after_discount'] ?? $summary['subtotal'])),
             'paymentMethods' => $this->checkout->availablePaymentMethods((float) ($summary['subtotal_after_discount'] ?? $summary['subtotal'])),
+            'countryOptions' => $addressDirectory->countries((string) app()->getLocale()),
+            'countyOptions' => $addressDirectory->counties(),
+            'placesAssetUrl' => $addressDirectory->placesAssetUrl(),
             'prefill' => [
                 'name' => (string) ($user?->name ?? ''),
                 'email' => (string) ($user?->email ?? ''),
