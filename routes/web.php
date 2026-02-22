@@ -68,6 +68,7 @@ Route::middleware(['front.locale', 'front.device'])
         Route::get('categories', [CatalogController::class, 'categories'])->name('categories.index');
         Route::get('category/{slug}', [CatalogController::class, 'showCategory'])->name('categories.show');
         Route::get('product/{slug}', [ProductController::class, 'show'])->name('products.show');
+        Route::post('product/{slug}/comments', [ProductController::class, 'storeComment'])->name('products.comments.store');
 
         Route::get('manufacturers', [ManufacturerController::class, 'index'])->name('manufacturers.index');
         Route::get('manufacturer/{slug}', [ManufacturerController::class, 'show'])->name('manufacturers.show');

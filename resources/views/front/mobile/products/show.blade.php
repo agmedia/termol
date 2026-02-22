@@ -164,6 +164,74 @@
                 <div class="divider mt-4"></div>
                 <p class="font-13">{{ $translation->excerpt }}</p>
             @endif
+
+            @php
+                $commentFormHasErrors = $errors->has('author_name') || $errors->has('author_email') || $errors->has('body') || $errors->has('rating');
+                $commentUser = auth()->user();
+            @endphp
+
+            <div class="divider mt-4"></div>
+            <div id="product-comments" class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <h4 class="mb-0">{{ __('ui.product.comments_title') }}</h4>
+                <button type="button" class="btn p-0 font-600 text-uppercase font-11" data-comment-form-toggle aria-expanded="{{ $commentFormHasErrors ? 'true' : 'false' }}">
+                    {{ __('ui.product.comment_form.toggle') }}
+                </button>
+            </div>
+
+            <div class="{{ $commentFormHasErrors ? '' : 'd-none' }} border border-slate-200 bg-slate-50 p-3 mb-3" data-comment-form-panel>
+                <form method="POST" action="{{ route('products.comments.store', ['slug' => $translation?->slug ?? request()->route('slug')]) }}">
+                    @csrf
+                    <div class="input-style has-borders no-icon input-style-always-active mb-2">
+                        <label class="color-highlight">{{ __('ui.product.comment_form.name') }}</label>
+                        <input type="text" name="author_name" value="{{ old('author_name', $commentUser?->name ?? '') }}" @if($commentUser) readonly @endif>
+                    </div>
+                    @error('author_name') <p class="font-11 color-red-dark mb-2">{{ $message }}</p> @enderror
+
+                    <div class="input-style has-borders no-icon input-style-always-active mb-2">
+                        <label class="color-highlight">{{ __('ui.product.comment_form.email') }}</label>
+                        <input type="email" name="author_email" value="{{ old('author_email', $commentUser?->email ?? '') }}" @if($commentUser) readonly @endif>
+                    </div>
+                    @error('author_email') <p class="font-11 color-red-dark mb-2">{{ $message }}</p> @enderror
+
+                    <div class="input-style has-borders no-icon input-style-always-active mb-2">
+                        <label class="color-highlight">{{ __('ui.product.comment_form.rating') }}</label>
+                        <select name="rating">
+                            <option value="">{{ __('ui.product.comment_form.rating_optional') }}</option>
+                            @for ($i = 5; $i >= 1; $i--)
+                                <option value="{{ $i }}" @selected((string) old('rating') === (string) $i)>{{ $i }} ★</option>
+                            @endfor
+                        </select>
+                        <span><i class="fa fa-chevron-down"></i></span>
+                    </div>
+                    @error('rating') <p class="font-11 color-red-dark mb-2">{{ $message }}</p> @enderror
+
+                    <div class="input-style has-borders no-icon input-style-always-active mb-2">
+                        <label class="color-highlight">{{ __('ui.product.comment_form.body') }}</label>
+                        <textarea name="body" rows="4" required>{{ old('body') }}</textarea>
+                    </div>
+                    @error('body') <p class="font-11 color-red-dark mb-2">{{ $message }}</p> @enderror
+
+                    <button type="submit" class="btn btn-full bg-black color-white font-600 rounded-0 mt-2">{{ __('ui.product.comment_form.submit') }}</button>
+                </form>
+            </div>
+
+            @if (($comments ?? collect())->isNotEmpty())
+                <div class="d-flex flex-column gap-2">
+                    @foreach ($comments as $comment)
+                        <article class="border border-slate-200 bg-slate-50 p-3">
+                            <div class="d-flex justify-content-between align-items-center gap-2">
+                                <p class="mb-0 font-600">{{ $comment->author_name ?: ($comment->user?->name ?? __('ui.product.comments_anonymous')) }}</p>
+                                @if ((int) ($comment->rating ?? 0) > 0)
+                                    <p class="mb-0 font-11 opacity-70">{{ str_repeat('★', (int) $comment->rating) }}</p>
+                                @endif
+                            </div>
+                            <p class="mb-0 mt-2 font-13">{{ $comment->body }}</p>
+                        </article>
+                    @endforeach
+                </div>
+            @else
+                <p class="font-13 opacity-60 mb-0">{{ __('ui.product.comments_empty') }}</p>
+            @endif
         </div>
     </div>
 
@@ -187,4 +255,17 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/css/lightgallery-bundle.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/lightgallery.min.js"></script>
     <script defer src="{{ asset('front-theme/scripts/product-detail.js') }}?v={{ md5_file(public_path('front-theme/scripts/product-detail.js')) }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggle = document.querySelector('[data-comment-form-toggle]');
+            const panel = document.querySelector('[data-comment-form-panel]');
+            if (!toggle || !panel) return;
+
+            toggle.addEventListener('click', function () {
+                panel.classList.toggle('d-none');
+                const isOpen = !panel.classList.contains('d-none');
+                toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+        });
+    </script>
 @endpush

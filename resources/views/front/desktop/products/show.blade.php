@@ -352,6 +352,79 @@
             @elseif (! empty($translation?->excerpt))
                 <p class="mt-6 text-slate-700">{{ $translation->excerpt }}</p>
             @endif
+
+            @php
+                $commentFormHasErrors = $errors->has('author_name') || $errors->has('author_email') || $errors->has('body') || $errors->has('rating');
+                $commentUser = auth()->user();
+            @endphp
+
+            <div id="product-comments" class="mt-6 border-t border-slate-200 pt-4">
+                <div class="flex items-center justify-between gap-3">
+                    <h3 class="text-base font-bold text-slate-900">{{ __('ui.product.comments_title') }}</h3>
+                    <button
+                        type="button"
+                        class="text-xs font-semibold uppercase tracking-wide text-slate-700 underline underline-offset-2 hover:text-slate-900"
+                        data-comment-form-toggle
+                        aria-expanded="{{ $commentFormHasErrors ? 'true' : 'false' }}"
+                    >
+                        {{ __('ui.product.comment_form.toggle') }}
+                    </button>
+                </div>
+
+                <div class="{{ $commentFormHasErrors ? '' : 'hidden' }} mt-3 border border-slate-200 bg-slate-50 p-3" data-comment-form-panel>
+                    <form method="POST" action="{{ route('products.comments.store', ['slug' => $translation?->slug ?? request()->route('slug')]) }}" class="space-y-3">
+                        @csrf
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.product.comment_form.name') }}</label>
+                                <input type="text" name="author_name" value="{{ old('author_name', $commentUser?->name ?? '') }}" class="h-10 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" @if($commentUser) readonly @endif>
+                                @error('author_name') <p class="mt-1 text-xs font-semibold text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.product.comment_form.email') }}</label>
+                                <input type="email" name="author_email" value="{{ old('author_email', $commentUser?->email ?? '') }}" class="h-10 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" @if($commentUser) readonly @endif>
+                                @error('author_email') <p class="mt-1 text-xs font-semibold text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.product.comment_form.rating') }}</label>
+                            <select name="rating" class="h-10 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0">
+                                <option value="">{{ __('ui.product.comment_form.rating_optional') }}</option>
+                                @for ($i = 5; $i >= 1; $i--)
+                                    <option value="{{ $i }}" @selected((string) old('rating') === (string) $i)>{{ $i }} ★</option>
+                                @endfor
+                            </select>
+                            @error('rating') <p class="mt-1 text-xs font-semibold text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.product.comment_form.body') }}</label>
+                            <textarea name="body" rows="4" class="w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required>{{ old('body') }}</textarea>
+                            @error('body') <p class="mt-1 text-xs font-semibold text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <button type="submit" class="inline-flex h-10 items-center border border-slate-900 bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-700">
+                            {{ __('ui.product.comment_form.submit') }}
+                        </button>
+                    </form>
+                </div>
+
+                @if (($comments ?? collect())->isNotEmpty())
+                    <div class="mt-3 space-y-3">
+                        @foreach ($comments as $comment)
+                            <article class="border border-slate-200 bg-slate-50 p-3">
+                                <div class="flex items-center justify-between gap-3">
+                                    <p class="text-sm font-semibold text-slate-900">{{ $comment->author_name ?: ($comment->user?->name ?? __('ui.product.comments_anonymous')) }}</p>
+                                    @if ((int) ($comment->rating ?? 0) > 0)
+                                        <p class="text-xs font-semibold text-slate-600">{{ str_repeat('★', (int) $comment->rating) }}</p>
+                                    @endif
+                                </div>
+                                <p class="mt-2 text-sm leading-relaxed text-slate-700">{{ $comment->body }}</p>
+                            </article>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="mt-2 text-sm text-slate-500">{{ __('ui.product.comments_empty') }}</p>
+                @endif
+            </div>
         </aside>
     </section>
 
@@ -379,4 +452,17 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/css/lightgallery-bundle.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/lightgallery.min.js"></script>
     <script defer src="{{ asset('front-theme/scripts/product-detail.js') }}?v={{ md5_file(public_path('front-theme/scripts/product-detail.js')) }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggle = document.querySelector('[data-comment-form-toggle]');
+            const panel = document.querySelector('[data-comment-form-panel]');
+            if (!toggle || !panel) return;
+
+            toggle.addEventListener('click', function () {
+                panel.classList.toggle('hidden');
+                const isOpen = !panel.classList.contains('hidden');
+                toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+        });
+    </script>
 @endpush
