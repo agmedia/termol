@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Admin\AdminAiController;
 use App\Http\Controllers\Front\AccountController;
+use App\Http\Controllers\Front\AuthController;
 use App\Http\Controllers\Front\BlogController;
 use App\Http\Controllers\Front\CartController;
 use App\Http\Controllers\Front\CatalogController;
@@ -99,6 +100,13 @@ Route::middleware(['front.locale', 'front.device'])
         Route::get('checkout/success/{orderNumber}', [CheckoutController::class, 'success'])
             ->where('orderNumber', '[A-Za-z0-9\-]+')
             ->name('checkout.success');
+
+        Route::middleware('guest')->prefix('auth')->as('front.auth.')->group(function (): void {
+            Route::get('login', [AuthController::class, 'showLogin'])->name('login');
+            Route::post('login', [AuthController::class, 'login'])->name('login.store');
+            Route::get('register', [AuthController::class, 'showRegister'])->name('register');
+            Route::post('register', [AuthController::class, 'register'])->name('register.store');
+        });
 
         Route::middleware(['auth', 'verified'])
             ->prefix('account')

@@ -128,13 +128,13 @@
             </button>
         </form>
     @else
-        <a href="{{ route('login') }}" class="close-menu">
+        <a href="{{ route('front.auth.login') }}" class="close-menu">
             <i class="fa fa-right-to-bracket color-highlight"></i>
             <span>{{ __('ui.mobile.menu.login') }}</span>
             <i class="fa fa-angle-right"></i>
         </a>
 
-        <a href="{{ route('register') }}" class="close-menu">
+        <a href="{{ route('front.auth.register') }}" class="close-menu">
             <i class="fa fa-user-plus color-highlight"></i>
             <span>{{ __('ui.mobile.menu.register') }}</span>
             <i class="fa fa-angle-right"></i>

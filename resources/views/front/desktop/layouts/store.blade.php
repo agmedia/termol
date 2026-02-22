@@ -75,7 +75,7 @@
                         {{ __('ui.front.desktop.account') }}
                     </a>
                 @else
-                    <a href="{{ route('login') }}" class="inline-flex min-w-[136px] items-center justify-center gap-2 border-r border-slate-200 px-4 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-black">
+                    <a href="{{ route('front.auth.login') }}" class="inline-flex min-w-[136px] items-center justify-center gap-2 border-r border-slate-200 px-4 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-black">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="12" cy="8" r="4"></circle>
                             <path d="M4 20c1.6-3.2 4.3-5 8-5s6.4 1.8 8 5"></path>
@@ -120,7 +120,7 @@
                         </svg>
                     </a>
                 @else
-                    <a href="{{ route('login') }}" class="inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.sign_in') }}">
+                    <a href="{{ route('front.auth.login') }}" class="inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.sign_in') }}">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="12" cy="8" r="4"></circle>
                             <path d="M4 20c1.6-3.2 4.3-5 8-5s6.4 1.8 8 5"></path>
