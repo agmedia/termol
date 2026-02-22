@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Catalog\Product\Product;
 use App\Services\Content\ContentBlockResolver;
+use App\Services\Pricing\ProductPricePresentationService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -92,6 +93,7 @@ class ProductController extends Controller
             'related' => $related,
             'topBlocks' => $topBlocks,
             'bottomBlocks' => $bottomBlocks,
+            'pricePresentation' => app(ProductPricePresentationService::class)->forProduct($product, auth()->user()),
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
         ]);

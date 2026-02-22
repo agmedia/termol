@@ -6,8 +6,14 @@
     $manufacturerTranslation = $product->manufacturer?->translations?->firstWhere('locale', $locale)
         ?? $product->manufacturer?->translations?->firstWhere('locale', $fallbackLocale);
     $manufacturerEnabled = app(\App\Services\Catalog\CatalogFeatureService::class)->useManufacturers();
-    $taxPricing = app(\App\Services\Pricing\TaxPricingService::class);
-    $displayBasePrice = $taxPricing->grossFromNet((float) $product->base_price, $product);
+    $currentPrice = number_format((float) ($pricePresentation['current_gross'] ?? 0), 2).' €';
+    $oldPrice = isset($pricePresentation['old_gross']) && $pricePresentation['old_gross'] !== null
+        ? number_format((float) $pricePresentation['old_gross'], 2).' €'
+        : null;
+    $discountPercent = (int) ($pricePresentation['discount_percent'] ?? 0);
+    $lowest30DaysPrice = isset($pricePresentation['lowest_30_days_gross']) && $pricePresentation['lowest_30_days_gross'] !== null
+        ? number_format((float) $pricePresentation['lowest_30_days_gross'], 2).' €'
+        : null;
     $isWishlisted = app(\App\Services\Front\WishlistService::class)->has((int) $product->id);
 
     $mediaItems = $product->relationLoaded('media')
@@ -232,7 +238,7 @@
                 </ol>
             </nav>
 
-            <div class="mt-4 flex items-start justify-between gap-4">
+            <div class="mt-4">
                 <div>
                     <h1 class="text-2xl font-extrabold leading-tight text-slate-900">{{ $translation?->name ?? $product->code }}</h1>
                     <p class="mt-1 text-xs text-slate-500">{{ __('ui.product.sku') }}: {{ $product->sku ?: 'n/a' }}</p>
@@ -242,7 +248,20 @@
                         </p>
                     @endif
                 </div>
-                <p class="text-xl font-semibold text-slate-900">{{ number_format($displayBasePrice, 2) }} €</p>
+                <div class="mt-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-xl font-semibold text-slate-900">{{ $currentPrice }}</p>
+                        @if ($discountPercent > 0)
+                            <span class="inline-flex h-7 items-center border border-rose-600 bg-rose-600 px-2 text-xs font-bold text-white">-{{ $discountPercent }}%</span>
+                        @endif
+                    </div>
+                    @if ($oldPrice)
+                        <p class="mt-1 text-sm text-slate-500 line-through">{{ $oldPrice }}</p>
+                    @endif
+                    @if ($lowest30DaysPrice)
+                        <p class="mt-1 text-xs text-slate-600">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
+                    @endif
+                </div>
             </div>
 
             <form

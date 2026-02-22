@@ -128,6 +128,7 @@ return [
         'add_to_cart' => 'Add to cart',
         'to_cart' => 'To cart',
         'add' => 'Add',
+        'lowest_price_30_days' => 'Lowest price in the last 30 days: :price',
     ],
     'cart' => [
         'page_title' => 'Cart',
@@ -161,6 +162,8 @@ return [
         'coupon' => [
             'label' => 'Coupon',
             'placeholder' => 'Enter coupon code',
+            'toggle_open' => 'I have a coupon',
+            'toggle_close' => 'Hide coupon',
         ],
         'status' => [
             'added' => 'Product added to cart.',

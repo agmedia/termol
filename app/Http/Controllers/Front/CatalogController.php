@@ -334,6 +334,17 @@ class CatalogController extends Controller
             ->orderBy('id')
             ->get();
 
+        $subcategories = $category->children()
+            ->where('scope', Category::SCOPE_CATALOG)
+            ->where('is_active', true)
+            ->with(['translations' => fn ($q) => $q
+                ->where('scope', Category::SCOPE_CATALOG)
+                ->whereIn('locale', [$locale, $fallbackLocale])])
+            ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
         $topBlocks = app(ContentBlockResolver::class)->forPlacement(
             placement: 'category.top',
             locale: $locale,
@@ -356,6 +367,7 @@ class CatalogController extends Controller
             'categories' => $categories,
             'manufacturers' => $manufacturers,
             'sizes' => $sizes,
+            'subcategories' => $subcategories,
             'topBlocks' => $topBlocks,
             'bottomBlocks' => $bottomBlocks,
             'filters' => [

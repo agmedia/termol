@@ -52,6 +52,11 @@
                 </svg>
             </button>
         </form>
+        @if (! empty($discountPercent))
+            <span class="absolute left-2 top-2 inline-flex h-7 items-center border border-rose-600 bg-rose-600 px-2 text-xs font-bold text-white">
+                -{{ $discountPercent }}%
+            </span>
+        @endif
 
         <form
             method="POST"
@@ -116,8 +121,16 @@
         <h3 class="text-base font-medium leading-tight text-slate-900">{{ $productName }}</h3>
     </a>
 
-    <div class="mt-0 flex items-end justify-between">
-        <p class="text-base font-bold leading-none text-slate-900">{{ $price }}</p>
+    <div class="mt-2 flex items-end justify-between">
+        <div class="flex flex-col gap-1">
+            <p class="text-base font-bold leading-none text-slate-900">{{ $price }}</p>
+            @if (! empty($oldPrice))
+                <p class="text-sm leading-none text-slate-500 line-through">{{ $oldPrice }}</p>
+            @endif
+            @if (! empty($lowest30DaysPrice))
+                <p class="text-[11px] leading-tight text-slate-500">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
+            @endif
+        </div>
         <button
             type="button"
             class="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end border border-slate-900 bg-slate-900 text-white transition hover:bg-slate-700"

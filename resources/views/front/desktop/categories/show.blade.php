@@ -51,6 +51,26 @@
             <form method="GET" action="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="mt-3 grid gap-3">
                 <input type="hidden" name="q" value="{{ $filters['q'] ?? '' }}">
                 <div>
+                    <label for="shop-category-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.category') }}</label>
+                    <select
+                        id="shop-category-mobile"
+                        class="h-[42px] w-full rounded-none border-slate-300 text-sm"
+                        data-category-redirect
+                        data-default-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}"
+                    >
+                        <option value="" data-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" @selected(true)>{{ __('ui.shop.filters.all_categories') }}</option>
+                        @foreach (($subcategories ?? collect()) as $subCategory)
+                            @php
+                                $subCategoryTranslation = $subCategory->translations->firstWhere('locale', $locale)
+                                    ?? $subCategory->translations->firstWhere('locale', $fallbackLocale);
+                            @endphp
+                            <option value="{{ $subCategoryTranslation?->slug }}" data-url="{{ $subCategoryTranslation?->slug ? route('categories.show', ['slug' => $subCategoryTranslation->slug]) : route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}">
+                                {{ $subCategoryTranslation?->name ?? $subCategory->code }} ({{ $subCategory->products_count }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
                     <label for="shop-manufacturer-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.manufacturer') }}</label>
                     <select id="shop-manufacturer-mobile" name="manufacturer" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
                         <option value="">{{ __('ui.shop.filters.all_manufacturers') }}</option>
@@ -116,8 +136,28 @@
             </form>
         </details>
 
-        <form method="GET" action="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="hidden gap-3 md:grid xl:grid-cols-[1fr_1fr_1fr_auto_auto]">
+        <form method="GET" action="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="hidden gap-3 md:grid xl:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]">
             <input type="hidden" name="q" value="{{ $filters['q'] ?? '' }}">
+            <div>
+                <label for="shop-category" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.category') }}</label>
+                <select
+                    id="shop-category"
+                    class="h-[42px] w-full rounded-none border-slate-300 text-sm"
+                    data-category-redirect
+                    data-default-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}"
+                >
+                    <option value="" data-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" @selected(true)>{{ __('ui.shop.filters.all_categories') }}</option>
+                    @foreach (($subcategories ?? collect()) as $subCategory)
+                        @php
+                            $subCategoryTranslation = $subCategory->translations->firstWhere('locale', $locale)
+                                ?? $subCategory->translations->firstWhere('locale', $fallbackLocale);
+                        @endphp
+                        <option value="{{ $subCategoryTranslation?->slug }}" data-url="{{ $subCategoryTranslation?->slug ? route('categories.show', ['slug' => $subCategoryTranslation->slug]) : route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}">
+                            {{ $subCategoryTranslation?->name ?? $subCategory->code }} ({{ $subCategory->products_count }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
             <div>
                 <label for="shop-manufacturer" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.manufacturer') }}</label>
                 <select id="shop-manufacturer" name="manufacturer" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
@@ -206,3 +246,7 @@
         </section>
     @endif
 @endsection
+
+@push('scripts')
+    <script defer src="{{ asset('front-theme/scripts/category-select-redirect.js') }}?v={{ filemtime(public_path('front-theme/scripts/category-select-redirect.js')) }}"></script>
+@endpush

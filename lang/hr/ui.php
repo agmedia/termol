@@ -128,6 +128,7 @@ return [
         'add_to_cart' => 'Dodaj u košaricu',
         'to_cart' => 'U košaricu',
         'add' => 'Dodaj',
+        'lowest_price_30_days' => 'Najniža cijena u prethodnih 30 dana: :price',
     ],
     'cart' => [
         'page_title' => 'Košarica',
@@ -161,6 +162,8 @@ return [
         'coupon' => [
             'label' => 'Kupon',
             'placeholder' => 'Unesite kod kupona',
+            'toggle_open' => 'Imam kupon',
+            'toggle_close' => 'Zatvori kupon',
         ],
         'status' => [
             'added' => 'Proizvod je dodan u košaricu.',

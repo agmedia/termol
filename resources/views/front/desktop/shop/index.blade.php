@@ -40,14 +40,19 @@
                 <input type="hidden" name="q" value="{{ $filters['q'] }}">
                 <div>
                     <label for="shop-category-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.category') }}</label>
-                    <select id="shop-category-mobile" name="category" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
-                        <option value="">{{ __('ui.shop.filters.all_categories') }}</option>
+                    <select
+                        id="shop-category-mobile"
+                        class="h-[42px] w-full rounded-none border-slate-300 text-sm"
+                        data-category-redirect
+                        data-default-url="{{ route('shop.index') }}"
+                    >
+                        <option value="" data-url="{{ route('shop.index') }}" @selected(($filters['category'] ?? '') === '')>{{ __('ui.shop.filters.all_categories') }}</option>
                         @foreach ($categories as $category)
                             @php
                                 $translation = $category->translations->firstWhere('locale', $locale)
                                     ?? $category->translations->firstWhere('locale', $fallbackLocale);
                             @endphp
-                            <option value="{{ $translation?->slug }}" @selected($filters['category'] === ($translation?->slug ?? ''))>
+                            <option value="{{ $translation?->slug }}" data-url="{{ $translation?->slug ? route('categories.show', ['slug' => $translation->slug]) : route('shop.index') }}" @selected(($filters['category'] ?? '') === ($translation?->slug ?? ''))>
                                 {{ $translation?->name ?? $category->code }} ({{ $category->products_count }})
                             </option>
                         @endforeach
@@ -123,14 +128,19 @@
             <input type="hidden" name="q" value="{{ $filters['q'] }}">
             <div>
                 <label for="shop-category" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.category') }}</label>
-                <select id="shop-category" name="category" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
-                    <option value="">{{ __('ui.shop.filters.all_categories') }}</option>
+                <select
+                    id="shop-category"
+                    class="h-[42px] w-full rounded-none border-slate-300 text-sm"
+                    data-category-redirect
+                    data-default-url="{{ route('shop.index') }}"
+                >
+                    <option value="" data-url="{{ route('shop.index') }}" @selected(($filters['category'] ?? '') === '')>{{ __('ui.shop.filters.all_categories') }}</option>
                     @foreach ($categories as $category)
                         @php
                             $translation = $category->translations->firstWhere('locale', $locale)
                                 ?? $category->translations->firstWhere('locale', $fallbackLocale);
                         @endphp
-                        <option value="{{ $translation?->slug }}" @selected($filters['category'] === ($translation?->slug ?? ''))>
+                        <option value="{{ $translation?->slug }}" data-url="{{ $translation?->slug ? route('categories.show', ['slug' => $translation->slug]) : route('shop.index') }}" @selected(($filters['category'] ?? '') === ($translation?->slug ?? ''))>
                             {{ $translation?->name ?? $category->code }} ({{ $category->products_count }})
                         </option>
                     @endforeach
@@ -220,3 +230,7 @@
         @endif
     </section>
 @endsection
+
+@push('scripts')
+    <script defer src="{{ asset('front-theme/scripts/category-select-redirect.js') }}?v={{ filemtime(public_path('front-theme/scripts/category-select-redirect.js')) }}"></script>
+@endpush

@@ -3,13 +3,16 @@
 namespace App\View\Components\Front\Desktop;
 
 use App\Models\Catalog\Product\Product;
-use App\Services\Pricing\TaxPricingService;
+use App\Services\Pricing\ProductPricePresentationService;
 use App\Services\Front\WishlistService;
 use Illuminate\View\Component;
 use Illuminate\View\View;
 
 class ProductCard extends Component
 {
+    /** @var array<string, array{current_price:string, old_price:?string, discount_percent:?int, lowest_30_days_price:?string}> */
+    private static array $priceCache = [];
+
     public function __construct(
         public Product $product,
         public ?string $locale = null,
@@ -73,6 +76,23 @@ class ProductCard extends Component
             ->values()
             ->all();
 
+        $authUser = auth()->user();
+        $priceCacheKey = (string) $this->product->id.'|'.(string) ($authUser?->id ?? 0);
+        if (! isset(self::$priceCache[$priceCacheKey])) {
+            $priceData = app(ProductPricePresentationService::class)->forProduct($this->product, $authUser);
+
+            self::$priceCache[$priceCacheKey] = [
+                'current_price' => number_format((float) $priceData['current_gross'], 2).' €',
+                'old_price' => $priceData['old_gross'] !== null ? number_format((float) $priceData['old_gross'], 2).' €' : null,
+                'discount_percent' => $priceData['discount_percent'],
+                'lowest_30_days_price' => $priceData['lowest_30_days_gross'] !== null
+                    ? number_format((float) $priceData['lowest_30_days_gross'], 2).' €'
+                    : null,
+            ];
+        }
+
+        $priceData = self::$priceCache[$priceCacheKey];
+
         return view('components.front.desktop.product-card', [
             'productId' => (int) $this->product->id,
             'productUrl' => route('products.show', ['slug' => $translation?->slug ?? $this->product->id]),
@@ -81,10 +101,10 @@ class ProductCard extends Component
             'hoverImageUrl' => $hoverImageUrl,
             'optionRows' => $optionRows,
             'isWishlisted' => app(WishlistService::class)->has((int) $this->product->id),
-            'price' => number_format(
-                app(TaxPricingService::class)->grossFromNet((float) $this->product->base_price, $this->product),
-                2
-            ).' €',
+            'price' => $priceData['current_price'],
+            'oldPrice' => $priceData['old_price'],
+            'discountPercent' => $priceData['discount_percent'],
+            'lowest30DaysPrice' => $priceData['lowest_30_days_price'],
             'flat' => $this->flat,
         ]);
     }

@@ -68,7 +68,18 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-4 py-4">{{ number_format((float) ($line['display_unit_price'] ?? $line['unit_price']), 2) }} €</td>
+                            <td class="px-4 py-4">
+                                @php
+                                    $displayCurrent = (float) ($line['display_unit_price'] ?? $line['unit_price'] ?? 0);
+                                    $displayBase = (float) ($line['display_base_unit_price'] ?? $line['base_unit_price'] ?? $displayCurrent);
+                                @endphp
+                                <div class="flex flex-col gap-0.5">
+                                    @if ($displayBase > ($displayCurrent + 0.0001))
+                                        <span class="text-xs text-slate-500 line-through">{{ number_format($displayBase, 2) }} €</span>
+                                    @endif
+                                    <span class="font-semibold text-slate-900">{{ number_format($displayCurrent, 2) }} €</span>
+                                </div>
+                            </td>
                             <td class="px-4 py-4">
                                 <form method="POST" action="{{ route('cart.items.update', ['product' => $product->id]) }}" class="flex items-center gap-2">
                                     @csrf
@@ -105,7 +116,7 @@
                 </div>
             </div>
 
-            <aside class="border border-slate-200 bg-white p-6">
+            <aside class="h-fit self-start border border-slate-200 bg-white p-6 xl:sticky xl:top-28">
                 <h2 class="text-lg font-semibold text-slate-900">{{ __('ui.cart.summary.title') }}</h2>
                 <dl class="mt-4 space-y-2 text-sm">
                     <div class="flex items-center justify-between">
@@ -137,41 +148,61 @@
                     </div>
                 </dl>
 
-                <div class="mt-4 border-t border-slate-200 pt-4">
-                    <label for="coupon_code" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.cart.coupon.label') }}</label>
-                    <form method="POST" action="{{ route('cart.coupon.apply') }}" class="flex gap-2">
-                        @csrf
-                        <input
-                            id="coupon_code"
-                            type="text"
-                            name="coupon_code"
-                            value="{{ (string) ($summary['coupon_code'] ?? '') }}"
-                            placeholder="{{ __('ui.cart.coupon.placeholder') }}"
-                            class="h-10 flex-1 border border-slate-300 px-3 text-sm"
-                        >
-                        <button type="submit" class="h-10 border border-slate-900 bg-slate-900 px-3 text-xs font-semibold uppercase tracking-wide text-white hover:bg-slate-700">
-                            {{ __('ui.cart.actions.apply_coupon') }}
-                        </button>
-                    </form>
-                    @if ((string) ($summary['coupon_code'] ?? '') !== '')
-                        <form method="POST" action="{{ route('cart.coupon.remove') }}" class="mt-2">
+                @php
+                    $couponOpen = $errors->has('coupon_code') || ((string) ($summary['coupon_code'] ?? '') !== '');
+                @endphp
+                <div class="mt-4 border-t border-slate-200 pt-4 {{ $couponOpen ? 'mb-4' : 'mb-0' }}" data-coupon-wrap>
+                    <button
+                        type="button"
+                        class="h-10 w-full border border-slate-300 bg-white px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+                        data-coupon-toggle
+                        data-label-open="{{ __('ui.cart.coupon.toggle_open') }}"
+                        data-label-close="{{ __('ui.cart.coupon.toggle_close') }}"
+                        aria-expanded="{{ $couponOpen ? 'true' : 'false' }}"
+                        aria-controls="cart-coupon-panel"
+                    >
+                        {{ $couponOpen ? __('ui.cart.coupon.toggle_close') : __('ui.cart.coupon.toggle_open') }}
+                    </button>
+                    <div
+                        id="cart-coupon-panel"
+                        class="mt-3 overflow-hidden transition-all duration-300"
+                        data-coupon-panel
+                        data-open="{{ $couponOpen ? '1' : '0' }}"
+                        style="{{ $couponOpen ? '' : 'max-height:0;opacity:0;' }}"
+                    >
+                        <label for="coupon_code" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.cart.coupon.label') }}</label>
+                        <form method="POST" action="{{ route('cart.coupon.apply') }}" class="flex gap-2">
                             @csrf
-                            @method('DELETE')
-                            <button type="submit" class="h-9 w-full border border-slate-300 px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-100">
-                                {{ __('ui.cart.actions.remove_coupon') }}
+                            <input
+                                id="coupon_code"
+                                type="text"
+                                name="coupon_code"
+                                value="{{ (string) ($summary['coupon_code'] ?? '') }}"
+                                placeholder="{{ __('ui.cart.coupon.placeholder') }}"
+                                class="h-10 flex-1 border border-slate-300 px-3 text-sm"
+                            >
+                            <button type="submit" class="h-10 border border-slate-300 bg-white px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-100">
+                                {{ __('ui.cart.actions.apply_coupon') }}
                             </button>
                         </form>
-                    @endif
+                        @if ((string) ($summary['coupon_code'] ?? '') !== '')
+                            <form method="POST" action="{{ route('cart.coupon.remove') }}" class="mt-2">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="h-9 w-full border border-slate-300 px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-100">
+                                    {{ __('ui.cart.actions.remove_coupon') }}
+                                </button>
+                            </form>
+                        @endif
+                    </div>
                 </div>
 
-                <a href="{{ route('checkout.create') }}" class="mt-5 block bg-slate-900 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-slate-700">{{ __('ui.cart.actions.checkout') }}</a>
-
-                <form method="POST" action="{{ route('cart.clear') }}" class="mt-2">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="w-full border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">{{ __('ui.cart.actions.clear') }}</button>
-                </form>
+                <a href="{{ route('checkout.create') }}" class="mt-0 block bg-slate-900 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-slate-700">{{ __('ui.cart.actions.checkout') }}</a>
             </aside>
         </div>
     @endif
 @endsection
+
+@push('scripts')
+    <script defer src="{{ asset('front-theme/scripts/cart-coupon-toggle.js') }}?v={{ filemtime(public_path('front-theme/scripts/cart-coupon-toggle.js')) }}"></script>
+@endpush

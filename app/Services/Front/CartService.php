@@ -144,8 +144,10 @@ class CartService
             $lineDiscountTotal = round($unitDiscount * $qty, 2);
             $lineTotal = round($unitPrice * $qty, 2);
             $unitTaxAmount = $this->taxPricing->taxFromNet($unitPrice, $product);
+            $baseUnitTaxAmount = $this->taxPricing->taxFromNet($baseUnitPrice, $product);
             $lineTaxTotal = round($unitTaxAmount * $qty, 2);
             $displayUnitPrice = round($unitPrice + $unitTaxAmount, 2);
+            $displayBaseUnitPrice = round($baseUnitPrice + $baseUnitTaxAmount, 2);
             $displayLineTotal = round($lineTotal + $lineTaxTotal, 2);
             $taxRateValue = (float) ($this->taxPricing->resolveRateForProduct($product)?->rate ?? 0);
             $translation = $product->translations->firstWhere('locale', $locale)
@@ -165,6 +167,7 @@ class CartService
                 'base_unit_price' => $baseUnitPrice,
                 'unit_price' => $unitPrice,
                 'display_unit_price' => $displayUnitPrice,
+                'display_base_unit_price' => $displayBaseUnitPrice,
                 'unit_discount' => $unitDiscount,
                 'line_discount_total' => $lineDiscountTotal,
                 'line_total' => $lineTotal,
