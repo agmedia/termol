@@ -123,6 +123,7 @@
                         }
                         errorNode.textContent = '';
                         errorNode.classList.add('hidden');
+                        errorNode.style.display = 'none';
                     };
 
                     const setError = function (field, message) {
@@ -132,7 +133,17 @@
                         }
                         errorNode.textContent = message;
                         errorNode.classList.remove('hidden');
+                        errorNode.style.display = 'block';
                     };
+
+                    form.querySelectorAll('[data-field-error]').forEach(function (node) {
+                        if ((node.textContent || '').trim() === '') {
+                            node.style.display = 'none';
+                        } else {
+                            node.style.display = 'block';
+                            node.classList.remove('hidden');
+                        }
+                    });
 
                     const validate = function () {
                         ['name', 'email', 'message', 'accept_terms', 'recaptcha_token'].forEach(clearError);

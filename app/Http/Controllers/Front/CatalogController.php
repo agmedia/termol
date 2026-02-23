@@ -10,9 +10,13 @@ use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Option\OptionValue;
 use App\Models\Catalog\Product\Product;
 use App\Services\Content\ContentBlockResolver;
+use App\Services\Front\WishlistService;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Http\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class CatalogController extends Controller
@@ -20,7 +24,7 @@ class CatalogController extends Controller
     use ResolvesFrontendView;
     use ResolvesGridColumns;
 
-    public function index(Request $request): View|RedirectResponse
+    public function index(Request $request): Response|RedirectResponse
     {
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
@@ -36,10 +40,13 @@ class CatalogController extends Controller
         }
 
         $query = Product::query()
+            ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
             ->where('is_active', true)
             ->with([
-                'taxRate',
-                'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'taxRate:id,rate,rate_type,is_active',
+                'translations' => fn ($q) => $q
+                    ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt'])
+                    ->whereIn('locale', [$locale, $fallbackLocale]),
                 'categories.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'media' => fn ($q) => $q
@@ -47,12 +54,17 @@ class CatalogController extends Controller
                     ->orderBy('order_column')
                     ->orderBy('id'),
                 'optionValues' => fn ($q) => $q
+                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'is_active', 'sort_order'])
                     ->where('is_active', true)
                     ->orderBy('sort_order')
                     ->orderBy('id')
                     ->with([
-                        'optionValue.translations' => fn ($tq) => $tq->whereIn('locale', [$locale, $fallbackLocale]),
-                        'parentOptionValue.translations' => fn ($tq) => $tq->whereIn('locale', [$locale, $fallbackLocale]),
+                        'optionValue.translations' => fn ($tq) => $tq
+                            ->select(['id', 'option_value_id', 'locale', 'name'])
+                            ->whereIn('locale', [$locale, $fallbackLocale]),
+                        'parentOptionValue.translations' => fn ($tq) => $tq
+                            ->select(['id', 'option_value_id', 'locale', 'name'])
+                            ->whereIn('locale', [$locale, $fallbackLocale]),
                     ]),
             ]);
 
@@ -117,37 +129,11 @@ class CatalogController extends Controller
             ->paginate($this->shopPerPage($request, $gridCols))
             ->withQueryString();
 
-        $categories = Category::query()
-            ->where('scope', Category::SCOPE_CATALOG)
-            ->where('is_active', true)
-            ->with(['translations' => fn ($q) => $q
-                ->where('scope', Category::SCOPE_CATALOG)
-                ->whereIn('locale', [$locale, $fallbackLocale])])
-            ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
+        $categories = $this->cachedCatalogCategories($locale, $fallbackLocale);
+        $manufacturers = $this->cachedCatalogManufacturers($locale, $fallbackLocale);
+        $sizes = $this->cachedCatalogSizes($locale, $fallbackLocale);
 
-        $manufacturers = Manufacturer::query()
-            ->where('is_active', true)
-            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
-            ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
-
-        $sizes = OptionValue::query()
-            ->where('is_active', true)
-            ->whereHas('productOptionValues', function ($q): void {
-                $q->where('is_active', true)
-                    ->whereHas('product', fn ($productQuery) => $productQuery->where('is_active', true));
-            })
-            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
-
-        return view($this->frontendView($request, 'shop.index'), [
+        $response = response()->view($this->frontendView($request, 'shop.index'), [
             'products' => $products,
             'categories' => $categories,
             'manufacturers' => $manufacturers,
@@ -163,6 +149,8 @@ class CatalogController extends Controller
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
         ]);
+
+        return $this->withDesktopCacheHeaders($request, $response, 'shop');
     }
 
     public function categories(Request $request): View
@@ -199,7 +187,7 @@ class CatalogController extends Controller
         ]);
     }
 
-    public function showCategory(Request $request, string $slug): View|RedirectResponse
+    public function showCategory(Request $request, string $slug): Response|RedirectResponse
     {
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
@@ -229,10 +217,13 @@ class CatalogController extends Controller
             ->firstOrFail();
 
         $productsQuery = Product::query()
+            ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
             ->where('is_active', true)
             ->with([
-                'taxRate',
-                'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'taxRate:id,rate,rate_type,is_active',
+                'translations' => fn ($q) => $q
+                    ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt'])
+                    ->whereIn('locale', [$locale, $fallbackLocale]),
                 'categories.translations' => fn ($q) => $q
                     ->where('scope', Category::SCOPE_CATALOG)
                     ->whereIn('locale', [$locale, $fallbackLocale]),
@@ -242,12 +233,17 @@ class CatalogController extends Controller
                     ->orderBy('order_column')
                     ->orderBy('id'),
                 'optionValues' => fn ($q) => $q
+                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'is_active', 'sort_order'])
                     ->where('is_active', true)
                     ->orderBy('sort_order')
                     ->orderBy('id')
                     ->with([
-                        'optionValue.translations' => fn ($tq) => $tq->whereIn('locale', [$locale, $fallbackLocale]),
-                        'parentOptionValue.translations' => fn ($tq) => $tq->whereIn('locale', [$locale, $fallbackLocale]),
+                        'optionValue.translations' => fn ($tq) => $tq
+                            ->select(['id', 'option_value_id', 'locale', 'name'])
+                            ->whereIn('locale', [$locale, $fallbackLocale]),
+                        'parentOptionValue.translations' => fn ($tq) => $tq
+                            ->select(['id', 'option_value_id', 'locale', 'name'])
+                            ->whereIn('locale', [$locale, $fallbackLocale]),
                     ]),
             ])
             ->whereHas('categories', function ($categoryQuery) use ($locale, $fallbackLocale, $categorySlug): void {
@@ -309,35 +305,9 @@ class CatalogController extends Controller
             ->paginate($this->shopPerPage($request, $gridCols))
             ->withQueryString();
 
-        $categories = Category::query()
-            ->where('scope', Category::SCOPE_CATALOG)
-            ->where('is_active', true)
-            ->with(['translations' => fn ($q) => $q
-                ->where('scope', Category::SCOPE_CATALOG)
-                ->whereIn('locale', [$locale, $fallbackLocale])])
-            ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
-
-        $manufacturers = Manufacturer::query()
-            ->where('is_active', true)
-            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
-            ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
-
-        $sizes = OptionValue::query()
-            ->where('is_active', true)
-            ->whereHas('productOptionValues', function ($q): void {
-                $q->where('is_active', true)
-                    ->whereHas('product', fn ($productQuery) => $productQuery->where('is_active', true));
-            })
-            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
+        $categories = $this->cachedCatalogCategories($locale, $fallbackLocale);
+        $manufacturers = $this->cachedCatalogManufacturers($locale, $fallbackLocale);
+        $sizes = $this->cachedCatalogSizes($locale, $fallbackLocale);
 
         $subcategories = $category->children()
             ->where('scope', Category::SCOPE_CATALOG)
@@ -376,7 +346,7 @@ class CatalogController extends Controller
             frontendVariant: $variant
         );
 
-        return view($this->frontendView($request, 'categories.show'), [
+        $response = response()->view($this->frontendView($request, 'categories.show'), [
             'category' => $category,
             'products' => $products,
             'categories' => $categories,
@@ -396,6 +366,67 @@ class CatalogController extends Controller
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
         ]);
+
+        return $this->withDesktopCacheHeaders($request, $response, 'category:'.$categorySlug);
+    }
+
+    private function cachedCatalogCategories(string $locale, string $fallbackLocale)
+    {
+        $cacheKey = sprintf('front:catalog:categories:%s:%s', $locale, $fallbackLocale);
+
+        return Cache::remember($cacheKey, now()->addMinutes(10), static function () use ($locale, $fallbackLocale) {
+            return Category::query()
+                ->select(['id', 'code', 'sort_order'])
+                ->where('scope', Category::SCOPE_CATALOG)
+                ->where('is_active', true)
+                ->with(['translations' => fn ($q) => $q
+                    ->select(['id', 'category_id', 'scope', 'locale', 'name', 'slug'])
+                    ->where('scope', Category::SCOPE_CATALOG)
+                    ->whereIn('locale', [$locale, $fallbackLocale])])
+                ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get();
+        });
+    }
+
+    private function cachedCatalogManufacturers(string $locale, string $fallbackLocale)
+    {
+        $cacheKey = sprintf('front:catalog:manufacturers:%s:%s', $locale, $fallbackLocale);
+
+        return Cache::remember($cacheKey, now()->addMinutes(10), static function () use ($locale, $fallbackLocale) {
+            return Manufacturer::query()
+                ->select(['id', 'code', 'sort_order'])
+                ->where('is_active', true)
+                ->with(['translations' => fn ($q) => $q
+                    ->select(['id', 'manufacturer_id', 'locale', 'name', 'slug'])
+                    ->whereIn('locale', [$locale, $fallbackLocale])])
+                ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get();
+        });
+    }
+
+    private function cachedCatalogSizes(string $locale, string $fallbackLocale)
+    {
+        $cacheKey = sprintf('front:catalog:sizes:%s:%s', $locale, $fallbackLocale);
+
+        return Cache::remember($cacheKey, now()->addMinutes(10), static function () use ($locale, $fallbackLocale) {
+            return OptionValue::query()
+                ->select(['id', 'code', 'sort_order'])
+                ->where('is_active', true)
+                ->whereHas('productOptionValues', function ($q): void {
+                    $q->where('is_active', true)
+                        ->whereHas('product', fn ($productQuery) => $productQuery->where('is_active', true));
+                })
+                ->with(['translations' => fn ($q) => $q
+                    ->select(['id', 'option_value_id', 'locale', 'name'])
+                    ->whereIn('locale', [$locale, $fallbackLocale])])
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get();
+        });
     }
 
     private function productPerPage(Request $request, bool $manufacturerView): int
@@ -462,5 +493,74 @@ class CatalogController extends Controller
         }
 
         return redirect()->to($target);
+    }
+
+    private function withDesktopCacheHeaders(Request $request, Response $response, string $scope): Response
+    {
+        if ($this->frontendVariant($request) !== 'desktop') {
+            return $response;
+        }
+
+        if (auth()->check()) {
+            return $response->header('Cache-Control', 'private, no-cache, must-revalidate');
+        }
+
+        $lastModifiedTs = $this->catalogLastModifiedTimestamp();
+        $etag = $this->catalogEtag($request, $scope, $lastModifiedTs);
+
+        $response->header('Cache-Control', 'private, max-age=120, stale-while-revalidate=60');
+        $response->setEtag($etag);
+        if ($lastModifiedTs > 0) {
+            $response->setLastModified(\Carbon\CarbonImmutable::createFromTimestampUTC($lastModifiedTs));
+        }
+
+        if ($response->isNotModified($request)) {
+            return $response;
+        }
+
+        return $response;
+    }
+
+    private function catalogLastModifiedTimestamp(): int
+    {
+        return (int) Cache::remember('front:catalog:last-modified-ts', now()->addMinutes(2), static function (): int {
+            $modelType = Product::class;
+
+            $timestamps = [
+                DB::table('products')->max('updated_at'),
+                DB::table('product_translations')->max('updated_at'),
+                DB::table('categories')->max('updated_at'),
+                DB::table('category_translations')->max('updated_at'),
+                DB::table('catalog_manufacturers')->max('updated_at'),
+                DB::table('catalog_manufacturer_translations')->max('updated_at'),
+                DB::table('catalog_option_values')->max('updated_at'),
+                DB::table('catalog_option_value_translations')->max('updated_at'),
+                DB::table('media')->where('model_type', $modelType)->max('updated_at'),
+            ];
+
+            $max = 0;
+            foreach ($timestamps as $timestamp) {
+                $unix = $timestamp ? strtotime((string) $timestamp) : 0;
+                if ($unix > $max) {
+                    $max = $unix;
+                }
+            }
+
+            return $max;
+        });
+    }
+
+    private function catalogEtag(Request $request, string $scope, int $lastModifiedTs): string
+    {
+        $wishlistHash = sha1(implode(',', app(WishlistService::class)->ids()));
+
+        return '"'.sha1(implode('|', [
+            'desktop-catalog',
+            $scope,
+            app()->getLocale(),
+            $request->getRequestUri(),
+            (string) $lastModifiedTs,
+            $wishlistHash,
+        ])).'"';
     }
 }

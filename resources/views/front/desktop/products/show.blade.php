@@ -42,9 +42,14 @@
     $gallery = $galleryItems
         ->unique(fn ($mediaItem) => (int) $mediaItem->id)
         ->map(function ($mediaItem) use ($translation, $product) {
+            $displayUrl = $mediaItem->hasGeneratedConversion('detail_960x960')
+                ? $mediaItem->getUrl('detail_960x960')
+                : $mediaItem->getUrl();
+
             return [
                 'id' => (int) $mediaItem->id,
                 'full' => (string) $mediaItem->getUrl(),
+                'display' => (string) $displayUrl,
                 'thumb' => (string) ($mediaItem->hasGeneratedConversion('thumb_100x100') ? $mediaItem->getUrl('thumb_100x100') : $mediaItem->getUrl()),
                 'alt' => (string) ($translation?->name ?? $product->code),
             ];
@@ -147,7 +152,7 @@
                                         aria-label="{{ $image['alt'] }}"
                                     >
                                         <img
-                                            src="{{ $image['full'] }}"
+                                            src="{{ $image['display'] }}"
                                             alt="{{ $image['alt'] }}"
                                             class="block h-auto w-full bg-slate-50"
                                             loading="{{ $loop->first ? 'eager' : 'lazy' }}"
@@ -169,12 +174,12 @@
                                 data-gallery-thumb
                                 data-index="{{ $index }}"
                                 data-full="{{ $image['full'] }}"
-                                data-alt="{{ $image['alt'] }}"
-                                data-gallery-open="{{ $index }}"
+                                    data-alt="{{ $image['alt'] }}"
+                                    data-gallery-open="{{ $index }}"
                                     aria-label="{{ $image['alt'] }}"
                                 >
                                     <img
-                                        src="{{ $image['full'] }}"
+                                        src="{{ $image['display'] }}"
                                         alt="{{ $image['alt'] }}"
                                         class="block h-auto w-full bg-slate-50"
                                         loading="{{ $loop->first ? 'eager' : 'lazy' }}"
@@ -201,7 +206,7 @@
                                     aria-label="{{ $image['alt'] }}"
                                 >
                                     <img
-                                        src="{{ $image['full'] }}"
+                                        src="{{ $image['display'] }}"
                                         alt="{{ $image['alt'] }}"
                                         class="block h-auto w-full bg-slate-50"
                                         loading="lazy"

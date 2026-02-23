@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Session;
 class WishlistService
 {
     private const SESSION_KEY = 'front.wishlist.product_ids';
+    /** @var array<string, array<int, int>> */
+    private static array $idsCache = [];
 
     /**
      * @return array<int, int>
@@ -18,20 +20,34 @@ class WishlistService
     public function ids(): array
     {
         $userId = (int) (Auth::id() ?? 0);
+        $sessionCacheKey = 'guest:'.sha1(json_encode($this->sessionIds()));
 
         if ($userId > 0) {
+            $cacheKey = 'user:'.$userId;
+            if (isset(self::$idsCache[$cacheKey])) {
+                return self::$idsCache[$cacheKey];
+            }
+
             $this->syncSessionToUser($userId);
 
-            return WishlistItem::query()
+            self::$idsCache[$cacheKey] = WishlistItem::query()
                 ->where('user_id', $userId)
                 ->orderByDesc('id')
                 ->pluck('product_id')
                 ->map(static fn ($id): int => (int) $id)
                 ->values()
                 ->all();
+
+            return self::$idsCache[$cacheKey];
         }
 
-        return $this->sessionIds();
+        if (isset(self::$idsCache[$sessionCacheKey])) {
+            return self::$idsCache[$sessionCacheKey];
+        }
+
+        self::$idsCache[$sessionCacheKey] = $this->sessionIds();
+
+        return self::$idsCache[$sessionCacheKey];
     }
 
     /**

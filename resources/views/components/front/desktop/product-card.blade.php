@@ -2,7 +2,7 @@
     $hasOptionErrorForCard = (int) old('product_id', 0) === $productId && $errors->has('product_option_value_id');
 @endphp
 
-<article class="group {{ $flat ? 'bg-white p-4' : 'rounded-2xl bg-white p-5 shadow-sm' }}" data-product-card>
+<article class="group {{ $flat ? 'bg-white p-4' : 'rounded-2xl bg-white p-5 shadow-sm' }}" data-product-card style="content-visibility:auto;contain-intrinsic-size:420px;">
     <div class="relative -mx-4 -mt-4">
         <a href="{{ $productUrl }}" class="group block">
             @if ($imageUrl)
