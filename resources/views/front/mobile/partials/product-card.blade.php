@@ -11,7 +11,7 @@
         $categoryTranslation = $product->categories?->first()?->translations?->firstWhere('locale', $locale ?? app()->getLocale())
             ?? $product->categories?->first()?->translations?->firstWhere('locale', $fallbackLocale ?? config('app.locale'));
     }
-    $displayPrice = app(\App\Services\Pricing\TaxPricingService::class)->grossFromNet((float) $product->base_price, $product);
+    $displayPrice = app(\App\Services\Pricing\TaxPricingService::class)->grossFromStored((float) $product->base_price, $product);
 @endphp
 
 <div class="card card-style mb-2">

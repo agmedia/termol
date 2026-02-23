@@ -154,6 +154,9 @@ class StoreNotificationService
                 'image_url' => $this->absoluteUrl($imageUrl),
             ];
         })->values()->all();
+        $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null)
+            ? $order->payload['shipping']['boxnow']
+            : null;
 
         return [
             'store_name' => $storeName,
@@ -197,6 +200,13 @@ class StoreNotificationService
                 'grand_total' => (float) $order->grand_total,
             ],
             'bank_transfer' => is_array($bankTransfer) ? $bankTransfer : null,
+            'box_now' => is_array($boxNow) ? [
+                'locker_id' => trim((string) ($boxNow['locker_id'] ?? '')),
+                'locker_name' => trim((string) ($boxNow['locker_name'] ?? '')),
+                'address_line_1' => trim((string) ($boxNow['address_line_1'] ?? '')),
+                'postal_code' => trim((string) ($boxNow['postal_code'] ?? '')),
+                'city' => trim((string) ($boxNow['city'] ?? '')),
+            ] : null,
         ];
     }
 

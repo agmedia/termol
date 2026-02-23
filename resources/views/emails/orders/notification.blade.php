@@ -78,6 +78,17 @@
                     <tr><td class="label">{{ __('mail.orders.shipping_address') }}</td><td>{{ $shipping_address }}</td></tr>
                 </table>
 
+                @if (!empty($box_now) && !empty($box_now['locker_id']))
+                    <div class="bank">
+                        <h3>{{ __('mail.orders.boxnow_title') }}</h3>
+                        <p><strong>{{ __('mail.orders.boxnow_locker') }}:</strong> {{ $box_now['locker_name'] ?: '-' }} ({{ $box_now['locker_id'] }})</p>
+                        <p>
+                            <strong>{{ __('mail.orders.boxnow_address') }}:</strong>
+                            {{ trim(($box_now['address_line_1'] ?? '').', '.($box_now['postal_code'] ?? '').' '.($box_now['city'] ?? ''), ', ') ?: '-' }}
+                        </p>
+                    </div>
+                @endif
+
                 <table class="items" cellspacing="0" cellpadding="0">
                     <thead>
                         <tr>

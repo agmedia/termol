@@ -37,5 +37,8 @@ return [
         'bank_amount' => 'Iznos',
         'bank_description' => 'Opis plaćanja',
         'bank_qr_alt' => 'UPI QR kod',
+        'boxnow_title' => 'BOX NOW dostava',
+        'boxnow_locker' => 'Paketomat',
+        'boxnow_address' => 'Adresa paketomata',
     ],
 ];

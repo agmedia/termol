@@ -255,6 +255,21 @@ class SettingsLocalSeeder extends Seeder
                 'sort_order' => 5,
             ]
         );
+        ShippingMethod::updateOrCreate(
+            ['code' => 'boxnow'],
+            [
+                'name' => 'BOX NOW Locker',
+                'geo_zone_id' => $hr->id,
+                'description' => 'BOX NOW paketomat dostava.',
+                'price' => 2.99,
+                'free_over' => null,
+                'is_active' => true,
+                'sort_order' => 6,
+                'settings' => [
+                    'boxnow_partner_id' => '',
+                ],
+            ]
+        );
     }
 
     private function seedRegions(): void

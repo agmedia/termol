@@ -5,6 +5,10 @@
 @section('page_title', $order->order_number)
 
 @section('content')
+    @php
+        $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
+    @endphp
+
     <div class="card card-style">
         <div class="content">
             <div class="d-flex mb-2">
@@ -15,6 +19,16 @@
             <span class="badge bg-highlight">{{ $order->status?->name ?? __('ui.account.orders.status_new') }}</span>
         </div>
     </div>
+
+    @if (!empty($boxNow['locker_id']))
+        <div class="card card-style">
+            <div class="content">
+                <h4 class="mb-2">{{ __('ui.account.order_show.boxnow.title') }}</h4>
+                <p class="mb-1 font-13"><strong>{{ __('ui.account.order_show.boxnow.locker') }}:</strong> {{ $boxNow['locker_name'] ?: '-' }} ({{ $boxNow['locker_id'] }})</p>
+                <p class="mb-0 font-13"><strong>{{ __('ui.account.order_show.boxnow.address') }}:</strong> {{ trim(($boxNow['address_line_1'] ?? '').', '.($boxNow['postal_code'] ?? '').' '.($boxNow['city'] ?? ''), ', ') ?: '-' }}</p>
+            </div>
+        </div>
+    @endif
 
     <div class="card card-style">
         <div class="content">

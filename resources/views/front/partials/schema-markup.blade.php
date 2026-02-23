@@ -364,7 +364,7 @@
                 '@type' => 'Offer',
                 'url' => $currentUrl,
                 'priceCurrency' => strtoupper((string) ($schemaSettings['product_currency'] ?? 'EUR')),
-                'price' => number_format((float) $product->base_price, 2, '.', ''),
+                'price' => number_format((float) app(\App\Services\Pricing\TaxPricingService::class)->grossFromStored((float) $product->base_price, $product), 2, '.', ''),
                 'availability' => (int) $product->stock_qty > 0
                     ? 'https://schema.org/InStock'
                     : 'https://schema.org/OutOfStock',

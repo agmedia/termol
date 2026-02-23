@@ -87,8 +87,19 @@
 
             <div class="mt-6 ml-auto w-full max-w-sm space-y-2">
                 @forelse ($order->totals as $total)
+                    @php
+                        $totalLabelMap = [
+                            'subtotal' => __('ui.account.order_show.totals.labels.subtotal'),
+                            'shipping' => __('ui.account.order_show.totals.labels.shipping'),
+                            'payment_fee' => __('ui.account.order_show.totals.labels.payment_fee'),
+                            'tax' => __('ui.account.order_show.totals.labels.tax'),
+                            'grand_total' => __('ui.account.order_show.totals.labels.grand_total'),
+                        ];
+                        $totalLabelRaw = trim((string) ($total->title ?? ''));
+                        $totalLabel = $totalLabelMap[(string) ($total->code ?? '')] ?? $totalLabelRaw;
+                    @endphp
                     <div class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                        <span class="text-slate-700">{{ $total->title }}</span>
+                        <span class="text-slate-700">{{ $totalLabel }}</span>
                         <span class="font-semibold text-slate-900">{{ \App\Support\Currency::format((float) $total->value, $order->currency_code) }}</span>
                     </div>
                 @empty

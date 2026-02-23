@@ -25,7 +25,7 @@
             @php
                 $pt = $product->translations->firstWhere('locale', app()->getLocale())
                     ?? $product->translations->firstWhere('locale', config('app.locale'));
-                $displayPrice = $taxPricing->grossFromNet((float) $product->base_price, $product);
+                $displayPrice = $taxPricing->grossFromStored((float) $product->base_price, $product);
             @endphp
             <article class="{{ $cardClass }}">
                 <div class="h-36 rounded-xl bg-gradient-to-br from-slate-200 to-slate-100"></div>

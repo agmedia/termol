@@ -305,6 +305,15 @@
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Purchase event name') }}</label>
                         <input type="text" wire:model="form.store_analytics_purchase_event_name" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="purchase" />
                     </div>
+
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 mt-2">
+                        <h3 class="text-sm font-bold text-slate-800">{{ __('Pricing') }}</h3>
+                        <p class="mt-1 text-xs text-slate-600">{{ __('Choose if stored catalog prices are entered with VAT included or VAT excluded.') }}</p>
+                    </div>
+                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 md:col-span-2">
+                        <input type="checkbox" wire:model="form.store_pricing_prices_include_tax" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                        {{ __('Product prices include VAT') }}
+                    </label>
                 </div>
             @endif
 

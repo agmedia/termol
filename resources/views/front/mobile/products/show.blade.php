@@ -8,7 +8,7 @@
     $firstCategoryTranslation = $product->categories->first()?->translations?->firstWhere('locale', $locale)
         ?? $product->categories->first()?->translations?->firstWhere('locale', $fallbackLocale);
     $manufacturerEnabled = app(\App\Services\Catalog\CatalogFeatureService::class)->useManufacturers();
-    $displayBasePrice = app(\App\Services\Pricing\TaxPricingService::class)->grossFromNet((float) $product->base_price, $product);
+    $displayBasePrice = app(\App\Services\Pricing\TaxPricingService::class)->grossFromStored((float) $product->base_price, $product);
 
     $mediaItems = $product->relationLoaded('media')
         ? $product->media

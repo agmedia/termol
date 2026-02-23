@@ -25,6 +25,7 @@
     $visibleTotals = $loyaltyEnabled
         ? $order->totals
         : $order->totals->reject(fn ($total) => $total->code === 'loyalty_redemption');
+    $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
 @endphp
 
 <div class="space-y-6">
@@ -88,6 +89,12 @@
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Shipping') }}</p>
                     <p class="mt-1 text-sm text-slate-800">{{ $order->shipping_method_name ?: '-' }}</p>
                     <p class="text-xs text-slate-600">{{ $order->shipping_method_code ?: '-' }}</p>
+                    @if (!empty($boxNow['locker_id']))
+                        <p class="mt-1 text-xs text-slate-700"><strong>BOX NOW Locker:</strong> {{ $boxNow['locker_name'] ?: '-' }} ({{ $boxNow['locker_id'] }})</p>
+                        @if (!empty($boxNow['address_line_1']) || !empty($boxNow['postal_code']) || !empty($boxNow['city']))
+                            <p class="text-xs text-slate-600">{{ trim(($boxNow['address_line_1'] ?? '').', '.($boxNow['postal_code'] ?? '').' '.($boxNow['city'] ?? ''), ', ') }}</p>
+                        @endif
+                    @endif
                 </div>
             </div>
 
@@ -115,6 +122,16 @@
                     </div>
                 </div>
             </div>
+
+            @if (!empty($boxNow['locker_id']))
+                <div class="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">BOX NOW</p>
+                    <div class="mt-2 text-sm text-slate-800">
+                        <p><strong>{{ __('Locker') }}:</strong> {{ $boxNow['locker_name'] ?: '-' }} ({{ $boxNow['locker_id'] }})</p>
+                        <p><strong>{{ __('Address') }}:</strong> {{ trim(($boxNow['address_line_1'] ?? '').', '.($boxNow['postal_code'] ?? '').' '.($boxNow['city'] ?? ''), ', ') ?: '-' }}</p>
+                    </div>
+                </div>
+            @endif
 
             @if ($order->customer_note || $order->admin_note)
                 <div class="mt-4 grid gap-4 lg:grid-cols-2">
@@ -302,8 +319,19 @@
             <h2 class="admin-section-title">{{ __('Totals') }}</h2>
             <div class="mt-4 space-y-2">
                 @forelse ($visibleTotals as $total)
+                    @php
+                        $totalLabelMap = [
+                            'subtotal' => __('ui.account.order_show.totals.labels.subtotal'),
+                            'shipping' => __('ui.account.order_show.totals.labels.shipping'),
+                            'payment_fee' => __('ui.account.order_show.totals.labels.payment_fee'),
+                            'tax' => __('ui.account.order_show.totals.labels.tax'),
+                            'grand_total' => __('ui.account.order_show.totals.labels.grand_total'),
+                        ];
+                        $totalLabelRaw = trim((string) ($total->title ?? ''));
+                        $totalLabel = $totalLabelMap[(string) ($total->code ?? '')] ?? $totalLabelRaw;
+                    @endphp
                     <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
-                        <span class="text-slate-700">{{ $total->title }}</span>
+                        <span class="text-slate-700">{{ $totalLabel }}</span>
                         <span class="font-semibold text-slate-900">{{ \App\Support\Currency::format((float) $total->value, $order->currency_code) }}</span>
                     </div>
                 @empty

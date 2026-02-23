@@ -24,13 +24,13 @@
                 ?? $product->manufacturer?->translations?->firstWhere('locale', $fallbackLocale);
             $viewItemPayload = [
                 'currency' => $currency,
-                'value' => round((float) $taxPricing->grossFromNet((float) $product->base_price, $product), 2),
+                'value' => round((float) $taxPricing->grossFromStored((float) $product->base_price, $product), 2),
                 'items' => [[
                     'item_id' => (string) ($product->sku ?: $product->id),
                     'item_name' => (string) ($productTranslation?->name ?: $product->code),
                     'item_brand' => (string) ($manufacturerTranslation?->name ?? ''),
                     'item_category' => (string) ($firstCategoryTranslation?->name ?? ''),
-                    'price' => round((float) $taxPricing->grossFromNet((float) $product->base_price, $product), 2),
+                    'price' => round((float) $taxPricing->grossFromStored((float) $product->base_price, $product), 2),
                     'quantity' => 1,
                 ]],
             ];
@@ -89,7 +89,7 @@
                     return [
                         'item_id' => (string) ($row->sku ?: $row->id),
                         'item_name' => (string) ($translation?->name ?: $row->code),
-                        'price' => round((float) $taxPricing->grossFromNet((float) $row->base_price, $row), 2),
+                        'price' => round((float) $taxPricing->grossFromStored((float) $row->base_price, $row), 2),
                         'index' => $index + 1,
                     ];
                 })

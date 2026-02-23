@@ -132,14 +132,15 @@ class CartService
             }
 
             $qty = min(max(1, $quantity), $maxStock);
-            $baseUnitPrice = $optionRow && $optionRow->price_override !== null
+            $storedBaseUnitPrice = $optionRow && $optionRow->price_override !== null
                 ? (float) $optionRow->price_override
                 : (float) $product->base_price;
             $resolvedAction = $this->actionResolver->resolveProductAction($product, $user, $couponCode);
-            $discountedUnitPrice = $resolvedAction
-                ? $this->actionResolver->applyToPrice($baseUnitPrice, $resolvedAction)
-                : $baseUnitPrice;
-            $unitPrice = round(max(0, $discountedUnitPrice), 2);
+            $storedDiscountedUnitPrice = $resolvedAction
+                ? $this->actionResolver->applyToPrice($storedBaseUnitPrice, $resolvedAction)
+                : $storedBaseUnitPrice;
+            $baseUnitPrice = $this->taxPricing->normalizeNetPrice($storedBaseUnitPrice, $product);
+            $unitPrice = $this->taxPricing->normalizeNetPrice($storedDiscountedUnitPrice, $product);
             $unitDiscount = round(max(0, $baseUnitPrice - $unitPrice), 2);
             $lineDiscountTotal = round($unitDiscount * $qty, 2);
             $lineTotal = round($unitPrice * $qty, 2);

@@ -257,6 +257,17 @@
                     </div>
                 @endif
 
+                @if ($this->isBoxNowForm())
+                    <div class="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-blue-800">{{ __('BOX NOW widget config') }}</p>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Partner ID') }}</label>
+                            <input type="text" wire:model="form.boxnow_partner_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                            @error('form.boxnow_partner_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                @endif
+
                 <div class="grid grid-cols-2 gap-3">
                     @if (in_array('sort_order', $resources[$resource]['fields'], true))
                         <div>

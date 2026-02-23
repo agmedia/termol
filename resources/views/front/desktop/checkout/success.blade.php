@@ -3,6 +3,10 @@
 @section('title', __('ui.checkout.success.page_title'))
 
 @section('content')
+    @php
+        $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
+    @endphp
+
     <section class="border border-emerald-300 bg-white p-8">
         <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">{{ __('ui.checkout.success.eyebrow') }}</p>
         <h1 class="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.checkout.success.title') }}</h1>
@@ -42,6 +46,14 @@
                         >
                     </div>
                 @endif
+            </section>
+        @endif
+
+        @if (!empty($boxNow['locker_id']))
+            <section class="mt-6 border border-blue-200 bg-blue-50 p-4">
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">{{ __('ui.checkout.success.boxnow_title') }}</h2>
+                <p class="mt-2 text-sm text-slate-700"><strong>{{ __('ui.checkout.success.boxnow_locker') }}:</strong> {{ $boxNow['locker_name'] ?: '-' }} ({{ $boxNow['locker_id'] }})</p>
+                <p class="mt-1 text-sm text-slate-700"><strong>{{ __('ui.checkout.success.boxnow_address') }}:</strong> {{ trim(($boxNow['address_line_1'] ?? '').', '.($boxNow['postal_code'] ?? '').' '.($boxNow['city'] ?? ''), ', ') ?: '-' }}</p>
             </section>
         @endif
 

@@ -37,5 +37,8 @@ return [
         'bank_amount' => 'Amount',
         'bank_description' => 'Payment description',
         'bank_qr_alt' => 'UPI QR code',
+        'boxnow_title' => 'BOX NOW delivery',
+        'boxnow_locker' => 'Locker',
+        'boxnow_address' => 'Locker address',
     ],
 ];

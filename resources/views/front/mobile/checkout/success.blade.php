@@ -5,6 +5,10 @@
 @section('page_title', __('ui.checkout.success.page_title'))
 
 @section('content')
+    @php
+        $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
+    @endphp
+
     <div class="card card-style bg-green-dark rounded-0" data-card-height="180">
         <div class="card-center text-center px-3">
             <i class="fa fa-circle-check color-white font-40 d-block mb-2"></i>
@@ -87,6 +91,16 @@
                         >
                     </div>
                 @endif
+            </div>
+        </div>
+    @endif
+
+    @if (!empty($boxNow['locker_id']))
+        <div class="card card-style rounded-0">
+            <div class="content">
+                <h4 class="mb-3">{{ __('ui.checkout.success.boxnow_title') }}</h4>
+                <p class="font-13 mb-2"><strong>{{ __('ui.checkout.success.boxnow_locker') }}:</strong> {{ $boxNow['locker_name'] ?: '-' }} ({{ $boxNow['locker_id'] }})</p>
+                <p class="font-13 mb-0"><strong>{{ __('ui.checkout.success.boxnow_address') }}:</strong> {{ trim(($boxNow['address_line_1'] ?? '').', '.($boxNow['postal_code'] ?? '').' '.($boxNow['city'] ?? ''), ', ') ?: '-' }}</p>
             </div>
         </div>
     @endif

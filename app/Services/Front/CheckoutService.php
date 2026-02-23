@@ -127,6 +127,15 @@ class CheckoutService
             ]);
         }
 
+        if ($this->isBoxNowCode((string) $shippingMethod->code)) {
+            $lockerId = trim((string) ($payload['shipping_boxnow_locker_id'] ?? ''));
+            if ($lockerId === '') {
+                throw ValidationException::withMessages([
+                    'shipping_boxnow_locker_id' => __('ui.checkout.validation.boxnow_locker_required'),
+                ]);
+            }
+        }
+
         $shippingTotal = $this->resolveShippingTotal($shippingMethod, $subtotalAfterDiscount);
         $paymentFeeTotal = $this->resolvePaymentFeeTotal($paymentMethod, $subtotalAfterDiscount);
         $grandTotal = round($subtotalAfterDiscount + $shippingTotal + $paymentFeeTotal + $taxTotal, 2);
@@ -225,6 +234,17 @@ class CheckoutService
                 'payload' => [
                     'placed_from' => 'frontend_checkout',
                     'coupon_code' => (string) ($summary['coupon_code'] ?? ''),
+                    'shipping' => [
+                        'boxnow' => $this->isBoxNowCode((string) $shippingMethod->code)
+                            ? [
+                                'locker_id' => trim((string) ($payload['shipping_boxnow_locker_id'] ?? '')),
+                                'locker_name' => trim((string) ($payload['shipping_boxnow_locker_name'] ?? '')),
+                                'address_line_1' => trim((string) ($payload['shipping_boxnow_address_line_1'] ?? '')),
+                                'postal_code' => trim((string) ($payload['shipping_boxnow_postal_code'] ?? '')),
+                                'city' => trim((string) ($payload['shipping_boxnow_city'] ?? '')),
+                            ]
+                            : null,
+                    ],
                 ],
                 'placed_at' => now(),
                 'created_by' => $user?->id,
@@ -385,6 +405,70 @@ class CheckoutService
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public function estimateCheckoutTotals(
+        float $subtotal,
+        float $discountTotal,
+        float $subtotalAfterDiscount,
+        float $taxTotal,
+        ?string $shippingMethodCode,
+        ?string $paymentMethodCode,
+        ?string $shippingCountryCode,
+        ?string $shippingRegionCode,
+        ?string $shippingPostalCode,
+        ?string $billingCountryCode,
+        ?string $billingRegionCode,
+        ?string $billingPostalCode
+    ): array {
+        $shippingMethod = $this->availableShippingMethods(
+            $subtotalAfterDiscount,
+            $shippingCountryCode,
+            $shippingRegionCode,
+            $shippingPostalCode
+        )->firstWhere('code', (string) $shippingMethodCode);
+        if (! $shippingMethod) {
+            $shippingMethod = $this->availableShippingMethods(
+                $subtotalAfterDiscount,
+                $shippingCountryCode,
+                $shippingRegionCode,
+                $shippingPostalCode
+            )->first();
+        }
+
+        $paymentMethod = $this->availablePaymentMethods(
+            $subtotalAfterDiscount,
+            $billingCountryCode,
+            $billingRegionCode,
+            $billingPostalCode
+        )->firstWhere('code', (string) $paymentMethodCode);
+        if (! $paymentMethod) {
+            $paymentMethod = $this->availablePaymentMethods(
+                $subtotalAfterDiscount,
+                $billingCountryCode,
+                $billingRegionCode,
+                $billingPostalCode
+            )->first();
+        }
+
+        $shippingTotal = $shippingMethod ? $this->resolveShippingTotal($shippingMethod, $subtotalAfterDiscount) : 0.0;
+        $paymentFeeTotal = $paymentMethod ? $this->resolvePaymentFeeTotal($paymentMethod, $subtotalAfterDiscount) : 0.0;
+        $grandTotal = round($subtotalAfterDiscount + $shippingTotal + $paymentFeeTotal + $taxTotal, 2);
+
+        return [
+            'subtotal' => round($subtotal, 2),
+            'discount_total' => round($discountTotal, 2),
+            'subtotal_after_discount' => round($subtotalAfterDiscount, 2),
+            'tax_total' => round($taxTotal, 2),
+            'shipping_total' => round($shippingTotal, 2),
+            'payment_fee_total' => round($paymentFeeTotal, 2),
+            'grand_total' => $grandTotal,
+            'shipping_method_code' => (string) ($shippingMethod?->code ?? ''),
+            'payment_method_code' => (string) ($paymentMethod?->code ?? ''),
+        ];
+    }
+
+    /**
      * @return array<int, int>
      */
     private function resolveGeoZoneIdsForAddress(
@@ -461,5 +545,10 @@ class CheckoutService
         }
 
         return sprintf('AG-%s-%s', $datePrefix, strtoupper((string) str()->random(6)));
+    }
+
+    private function isBoxNowCode(string $code): bool
+    {
+        return in_array(strtolower(trim($code)), ['boxnow', 'box_now'], true);
     }
 }

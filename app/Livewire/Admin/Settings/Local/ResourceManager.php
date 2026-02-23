@@ -132,12 +132,18 @@ class ResourceManager extends Component
                 $settings = is_array($decoded) ? $decoded : [];
             }
             $settings = $this->mergeBankTransferUpiSettings($settings, $data);
+            $settings = $this->mergeBoxNowSettings($settings, $data);
             if ($this->isBankTransferCode((string) ($data['code'] ?? ''))) {
                 if (! $this->hasRequiredBankTransferUpiSettings($settings)) {
                     $this->addError('form.upi_receiver_name', __('UPI receiver name, street, place and IBAN are required for bank transfer.'));
                     $this->dispatch('notify', type: 'error', message: __('UPI receiver name, street, place and IBAN are required for bank transfer.'));
                     return;
                 }
+            }
+            if ($this->isBoxNowCode((string) ($data['code'] ?? '')) && trim((string) ($settings['boxnow_partner_id'] ?? '')) === '') {
+                $this->addError('form.boxnow_partner_id', __('BOX NOW partner ID is required for boxnow shipping method.'));
+                $this->dispatch('notify', type: 'error', message: __('BOX NOW partner ID is required for boxnow shipping method.'));
+                return;
             }
             $data['settings'] = $settings;
         }
@@ -151,6 +157,7 @@ class ResourceManager extends Component
             $data['upi_model'],
             $data['upi_purpose_code'],
             $data['upi_description'],
+            $data['boxnow_partner_id'],
         );
 
         if ($this->editingId) {
@@ -192,7 +199,7 @@ class ResourceManager extends Component
                 continue;
             }
 
-            if (str_starts_with($key, 'upi_')) {
+            if (str_starts_with($key, 'upi_') || $key === 'boxnow_partner_id') {
                 $this->form[$key] = (string) ($settings[$key] ?? $default);
                 continue;
             }
@@ -324,6 +331,7 @@ class ResourceManager extends Component
             'upi_model' => '00',
             'upi_purpose_code' => 'SUPP',
             'upi_description' => 'Web narudzba',
+            'boxnow_partner_id' => '',
         ];
     }
 
@@ -372,6 +380,7 @@ class ResourceManager extends Component
             'form.upi_model' => ['nullable', 'string', 'max:20'],
             'form.upi_purpose_code' => ['nullable', 'string', 'max:20'],
             'form.upi_description' => ['nullable', 'string', 'max:255'],
+            'form.boxnow_partner_id' => ['nullable', 'string', 'max:60'],
         ];
 
         if ($this->hasColumn('code')) {
@@ -406,7 +415,11 @@ class ResourceManager extends Component
                     return true;
                 }
 
-                return $this->resource === 'payment-methods' && str_starts_with($field, 'upi_');
+                if ($this->resource === 'payment-methods' && str_starts_with($field, 'upi_')) {
+                    return true;
+                }
+
+                return $this->resource === 'shipping-methods' && $field === 'boxnow_partner_id';
             })
             ->all();
     }
@@ -473,9 +486,23 @@ class ResourceManager extends Component
         return $this->isBankTransferCode((string) ($this->form['code'] ?? ''));
     }
 
+    public function isBoxNowForm(): bool
+    {
+        if ($this->resource !== 'shipping-methods') {
+            return false;
+        }
+
+        return $this->isBoxNowCode((string) ($this->form['code'] ?? ''));
+    }
+
     private function isBankTransferCode(string $code): bool
     {
         return in_array(strtolower(trim($code)), ['bank', 'bank_transfer'], true);
+    }
+
+    private function isBoxNowCode(string $code): bool
+    {
+        return in_array(strtolower(trim($code)), ['boxnow', 'box_now'], true);
     }
 
     /**
@@ -502,6 +529,25 @@ class ResourceManager extends Component
             if ($value !== '') {
                 $settings[$key] = $value;
             }
+        }
+
+        return $settings;
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function mergeBoxNowSettings(array $settings, array $data): array
+    {
+        if (! $this->isBoxNowCode((string) ($data['code'] ?? ''))) {
+            return $settings;
+        }
+
+        $partnerId = trim((string) ($data['boxnow_partner_id'] ?? ''));
+        if ($partnerId !== '') {
+            $settings['boxnow_partner_id'] = $partnerId;
         }
 
         return $settings;

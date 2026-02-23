@@ -175,6 +175,9 @@ return [
             'subtotal' => 'Međuzbroj',
             'discount' => 'Popust',
             'tax' => 'PDV',
+            'shipping' => 'Dostava',
+            'payment_fee' => 'Naknada plaćanja',
+            'free' => 'Besplatno',
             'total' => 'Ukupno',
         ],
         'actions' => [
@@ -242,6 +245,8 @@ return [
             'subtotal' => 'Međuzbroj',
             'discount' => 'Popust',
             'tax' => 'PDV',
+            'shipping' => 'Dostava',
+            'payment_fee' => 'Naknada plaćanja',
             'total' => 'Ukupno',
             'shipping_method' => 'Način dostave',
             'payment_method' => 'Način plaćanja',
@@ -257,6 +262,12 @@ return [
         ],
         'actions' => [
             'place_order' => 'Naruči',
+        ],
+        'boxnow' => [
+            'select_locker' => 'Odaberi BOX NOW paketomat',
+            'no_locker_selected' => 'Paketomat nije odabran.',
+            'partner_missing' => 'BOX NOW shipping metoda nije konfigurirana (partner ID).',
+            'widget_unavailable' => 'BOX NOW widget trenutno nije dostupan.',
         ],
         'login' => [
             'toggle' => 'Imam račun, želim se prijaviti',
@@ -295,6 +306,9 @@ return [
             'bank_amount' => 'Iznos',
             'bank_description' => 'Opis plaćanja',
             'bank_qr_alt' => 'UPI QR kod za uplatu',
+            'boxnow_title' => 'BOX NOW paketomat',
+            'boxnow_locker' => 'Paketomat',
+            'boxnow_address' => 'Adresa paketomata',
         ],
         'validation' => [
             'required' => 'Polje je obavezno.',
@@ -310,6 +324,7 @@ return [
             'register_password_min' => 'Lozinka mora imati najmanje :min znakova.',
             'register_password_confirmed' => 'Lozinke se ne podudaraju.',
             'accept_terms' => 'Potrebno je prihvatiti uvjete kupnje.',
+            'boxnow_locker_required' => 'Odaberite BOX NOW paketomat za ovu dostavu.',
         ],
     ],
     'auth' => [
@@ -483,6 +498,11 @@ return [
             'title' => 'Narudžba :number',
             'status' => 'Status',
             'placed_at' => 'Datum',
+            'boxnow' => [
+                'title' => 'BOX NOW paketomat',
+                'locker' => 'Paketomat',
+                'address' => 'Adresa',
+            ],
             'ordered_items' => 'Naručeni artikli',
             'table' => [
                 'item' => 'Stavka',

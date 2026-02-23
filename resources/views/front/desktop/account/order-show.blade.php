@@ -3,6 +3,10 @@
 @section('title', __('ui.account.order_show.page_title', ['number' => $order->order_number]))
 
 @section('content')
+    @php
+        $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
+    @endphp
+
     @include('front.desktop.account.partials.breadcrumbs', ['items' => [
         ['label' => __('ui.account.breadcrumb.home'), 'url' => route('home')],
         ['label' => __('ui.account.breadcrumb.account'), 'url' => route('account.dashboard')],
@@ -121,6 +125,14 @@
                     </div>
                 </section>
             </div>
+
+            @if (!empty($boxNow['locker_id']))
+                <section class="border border-blue-200 bg-blue-50 p-6">
+                    <h2 class="text-lg font-semibold text-slate-900">{{ __('ui.account.order_show.boxnow.title') }}</h2>
+                    <p class="mt-2 text-sm text-slate-700"><strong>{{ __('ui.account.order_show.boxnow.locker') }}:</strong> {{ $boxNow['locker_name'] ?: '-' }} ({{ $boxNow['locker_id'] }})</p>
+                    <p class="mt-1 text-sm text-slate-700"><strong>{{ __('ui.account.order_show.boxnow.address') }}:</strong> {{ trim(($boxNow['address_line_1'] ?? '').', '.($boxNow['postal_code'] ?? '').' '.($boxNow['city'] ?? ''), ', ') ?: '-' }}</p>
+                </section>
+            @endif
 
             <section class="overflow-hidden border border-slate-200 bg-white">
                 <div class="border-b border-slate-200 px-4 py-3">

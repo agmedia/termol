@@ -7,8 +7,13 @@
 @section('content')
     @php
         $showShippingAddress = old('ship_to_different_address') === '1' || old('use_billing_for_shipping') === '0';
-        $selectedShippingCode = (string) old('shipping_method_code', (string) ($shippingMethods->first()?->code ?? ''));
-        $selectedPaymentCode = (string) old('payment_method_code', (string) ($paymentMethods->first()?->code ?? ''));
+        $selectedShippingCode = (string) old('shipping_method_code', (string) ($checkoutTotals['shipping_method_code'] ?? $shippingMethods->first()?->code ?? ''));
+        $selectedPaymentCode = (string) old('payment_method_code', (string) ($checkoutTotals['payment_method_code'] ?? $paymentMethods->first()?->code ?? ''));
+        $selectedBoxNowLockerId = (string) old('shipping_boxnow_locker_id', '');
+        $selectedBoxNowLockerName = (string) old('shipping_boxnow_locker_name', '');
+        $selectedBoxNowAddressLine1 = (string) old('shipping_boxnow_address_line_1', '');
+        $selectedBoxNowPostalCode = (string) old('shipping_boxnow_postal_code', '');
+        $selectedBoxNowCity = (string) old('shipping_boxnow_city', '');
         $ga4Items = collect($lines)->map(function (array $line) {
             $locale = app()->getLocale();
             $fallbackLocale = (string) config('app.locale');
@@ -34,7 +39,15 @@
         })->values()->all();
     @endphp
 
-    <form method="POST" action="{{ route('checkout.store') }}" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
+    @if ($errors->has('accept_terms'))
+        <div class="card card-style border border-red-dark">
+            <div class="content py-2">
+                <p class="mb-0 color-red-dark font-13 font-700" data-checkout-top-error>{{ $errors->first('accept_terms') }}</p>
+            </div>
+        </div>
+    @endif
+
+    <form method="POST" action="{{ route('checkout.store') }}" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($checkoutTotals['grand_total'] ?? $summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
         @csrf
 
         <div class="card card-style">
@@ -82,7 +95,7 @@
                 <div class="d-flex">
                     <div class="pe-4 w-60">
                         <p class="font-600 color-highlight mb-0 font-13">{{ __('ui.checkout.labels.total') }}</p>
-                        <h2>{{ \App\Support\Currency::format((float) ($summary['grand_total'] ?? $summary['subtotal'])) }}</h2>
+                        <h2 data-summary-total>{{ \App\Support\Currency::format((float) ($checkoutTotals['grand_total'] ?? $summary['grand_total'] ?? $summary['subtotal'])) }}</h2>
                     </div>
                     <div class="w-100 pt-1">
                         <h6 class="font-14 font-700">{{ __('ui.checkout.labels.items') }} <span class="float-end color-theme">{{ $summary['item_qty'] }}</span></h6>
@@ -90,6 +103,10 @@
                         <h6 class="font-14 font-700">{{ __('ui.checkout.labels.lines') }} <span class="float-end color-theme">{{ $summary['line_count'] }}</span></h6>
                     </div>
                 </div>
+                <div class="divider mb-2 mt-2"></div>
+                <h6 class="font-13 font-600">{{ __('ui.checkout.labels.tax') }} <span class="float-end color-theme" data-summary-tax>{{ \App\Support\Currency::format((float) ($checkoutTotals['tax_total'] ?? $summary['tax_total'] ?? 0)) }}</span></h6>
+                <h6 class="font-13 font-600" data-summary-shipping-row>{{ __('ui.checkout.labels.shipping') }} <span class="float-end color-theme" data-summary-shipping>{{ \App\Support\Currency::format((float) ($checkoutTotals['shipping_total'] ?? 0)) }}</span></h6>
+                <h6 class="font-13 font-600 {{ (float) ($checkoutTotals['payment_fee_total'] ?? 0) <= 0 ? 'd-none' : '' }}" data-summary-payment-fee-row>{{ __('ui.checkout.labels.payment_fee') }} <span class="float-end color-theme" data-summary-payment-fee>{{ \App\Support\Currency::format((float) ($checkoutTotals['payment_fee_total'] ?? 0)) }}</span></h6>
             </div>
         </div>
 
@@ -198,10 +215,39 @@
                 <div data-checkout-shipping-options>
                     @foreach ($shippingMethods as $method)
                         <label class="d-flex align-items-center justify-content-between border rounded-sm px-3 py-2 mb-2">
-                            <span><input type="radio" name="shipping_method_code" value="{{ $method->code }}" @checked($selectedShippingCode === (string) $method->code) required> {{ $method->name }}</span>
+                            <span>
+                                <input
+                                    type="radio"
+                                    name="shipping_method_code"
+                                    value="{{ $method->code }}"
+                                    data-is-boxnow="{{ in_array(strtolower((string) $method->code), ['boxnow', 'box_now'], true) ? '1' : '0' }}"
+                                    data-boxnow-partner-id="{{ (string) ((is_array($method->settings ?? null) ? ($method->settings['boxnow_partner_id'] ?? '') : '') ?: '') }}"
+                                    @checked($selectedShippingCode === (string) $method->code)
+                                    required
+                                > {{ $method->name }}
+                            </span>
                             <span>{{ \App\Support\Currency::format((float) $method->price) }}</span>
                         </label>
                     @endforeach
+                </div>
+
+                <div class="border rounded-sm px-3 py-2 mb-2 d-none" data-boxnow-panel>
+                    <input type="hidden" name="shipping_boxnow_locker_id" value="{{ $selectedBoxNowLockerId }}" data-boxnow-locker-id>
+                    <input type="hidden" name="shipping_boxnow_locker_name" value="{{ $selectedBoxNowLockerName }}" data-boxnow-locker-name>
+                    <input type="hidden" name="shipping_boxnow_address_line_1" value="{{ $selectedBoxNowAddressLine1 }}" data-boxnow-address-line-1>
+                    <input type="hidden" name="shipping_boxnow_postal_code" value="{{ $selectedBoxNowPostalCode }}" data-boxnow-postal-code>
+                    <input type="hidden" name="shipping_boxnow_city" value="{{ $selectedBoxNowCity }}" data-boxnow-city>
+
+                    <button type="button" class="btn btn-xxs gradient-blue rounded-sm font-700 text-uppercase mb-2" data-boxnow-open>{{ __('ui.checkout.boxnow.select_locker') }}</button>
+                    <p class="font-12 mb-0" data-boxnow-selected>
+                        {{ $selectedBoxNowLockerId !== '' ? $selectedBoxNowLockerName.' ('.$selectedBoxNowLockerId.')' : __('ui.checkout.boxnow.no_locker_selected') }}
+                    </p>
+                    <p class="font-12 opacity-70 mt-1 mb-0" data-boxnow-selected-address>
+                        {{ trim($selectedBoxNowAddressLine1.', '.$selectedBoxNowPostalCode.' '.$selectedBoxNowCity, ', ') }}
+                    </p>
+                    @error('shipping_boxnow_locker_id')
+                        <p class="font-11 color-red-dark mt-2 mb-0">{{ $message }}</p>
+                    @enderror
                 </div>
             </div>
         </div>
@@ -230,6 +276,8 @@
             </div>
         </div>
     </form>
+
+    <div id="boxnow-widget-root"></div>
 @endsection
 
 @push('scripts')
@@ -244,8 +292,24 @@
             const regionOptionsByCountry = form?.dataset.regionOptions ? JSON.parse(form.dataset.regionOptions) : {};
             const shippingOptionsRoot = form?.querySelector('[data-checkout-shipping-options]');
             const paymentOptionsRoot = form?.querySelector('[data-checkout-payment-options]');
+            const boxNowPanel = form?.querySelector('[data-boxnow-panel]');
+            const boxNowOpenButton = form?.querySelector('[data-boxnow-open]');
+            const boxNowSelectedLabel = form?.querySelector('[data-boxnow-selected]');
+            const boxNowSelectedAddress = form?.querySelector('[data-boxnow-selected-address]');
+            const boxNowLockerId = form?.querySelector('[data-boxnow-locker-id]');
+            const boxNowLockerName = form?.querySelector('[data-boxnow-locker-name]');
+            const boxNowAddressLine1 = form?.querySelector('[data-boxnow-address-line-1]');
+            const boxNowPostalCode = form?.querySelector('[data-boxnow-postal-code]');
+            const boxNowCity = form?.querySelector('[data-boxnow-city]');
+            const summaryTax = form?.querySelector('[data-summary-tax]');
+            const summaryShipping = form?.querySelector('[data-summary-shipping]');
+            const summaryPaymentFee = form?.querySelector('[data-summary-payment-fee]');
+            const summaryTotal = form?.querySelector('[data-summary-total]');
+            const summaryShippingRow = form?.querySelector('[data-summary-shipping-row]');
+            const summaryPaymentFeeRow = form?.querySelector('[data-summary-payment-fee-row]');
             let refreshTimer = null;
             let optionsAbortController = null;
+            let boxNowScriptLoaded = false;
 
             if (!toggle || !shippingFields || !useBillingInput) {
                 return;
@@ -333,7 +397,7 @@
                 });
             };
 
-            const renderShippingOptions = function (methods) {
+            const renderShippingOptions = function (methods, selectedCode) {
                 if (!shippingOptionsRoot) {
                     return;
                 }
@@ -345,15 +409,21 @@
                 }
 
                 shippingOptionsRoot.innerHTML = methods.map(function (method, index) {
-                    const checked = (selected !== '' && selected === method.code) || (selected === '' && index === 0);
+                    const checked = (selectedCode && selectedCode === method.code)
+                        || (!selectedCode && (selected !== '' && selected === method.code))
+                        || (!selectedCode && selected === '' && index === 0);
+                    const isBoxNow = method.is_boxnow ? '1' : '0';
+                    const partnerId = String(method.boxnow_partner_id || '');
                     return '<label class="d-flex align-items-center justify-content-between border rounded-sm px-3 py-2 mb-2">'
-                        + '<span><input type="radio" name="shipping_method_code" value="' + String(method.code || '') + '" ' + (checked ? 'checked' : '') + ' required> ' + String(method.name || '') + '</span>'
+                        + '<span><input type="radio" name="shipping_method_code" value="' + String(method.code || '') + '" data-is-boxnow="' + isBoxNow + '" data-boxnow-partner-id="' + partnerId + '" ' + (checked ? 'checked' : '') + ' required> ' + String(method.name || '') + '</span>'
                         + '<span>' + String(method.price_formatted || '') + '</span>'
                         + '</label>';
                 }).join('');
+
+                toggleBoxNowPanel();
             };
 
-            const renderPaymentOptions = function (methods) {
+            const renderPaymentOptions = function (methods, selectedCode) {
                 if (!paymentOptionsRoot) {
                     return;
                 }
@@ -365,11 +435,107 @@
                 }
 
                 paymentOptionsRoot.innerHTML = methods.map(function (method, index) {
-                    const checked = (selected !== '' && selected === method.code) || (selected === '' && index === 0);
+                    const checked = (selectedCode && selectedCode === method.code)
+                        || (!selectedCode && (selected !== '' && selected === method.code))
+                        || (!selectedCode && selected === '' && index === 0);
                     return '<label class="d-flex align-items-center justify-content-between border rounded-sm px-3 py-2 mb-2">'
                         + '<span><input type="radio" name="payment_method_code" value="' + String(method.code || '') + '" ' + (checked ? 'checked' : '') + ' required> ' + String(method.name || '') + '</span>'
                         + '</label>';
                 }).join('');
+            };
+
+            const renderCheckoutTotals = function (totals) {
+                if (!totals || typeof totals !== 'object') {
+                    return;
+                }
+
+                if (summaryTax && totals.tax_total_formatted) {
+                    summaryTax.textContent = String(totals.tax_total_formatted);
+                }
+                if (summaryShipping && totals.shipping_total_formatted) {
+                    summaryShipping.textContent = String(totals.shipping_total_formatted);
+                }
+                if (summaryPaymentFee && totals.payment_fee_total_formatted) {
+                    summaryPaymentFee.textContent = String(totals.payment_fee_total_formatted);
+                }
+                if (summaryTotal && totals.grand_total_formatted) {
+                    summaryTotal.textContent = String(totals.grand_total_formatted);
+                }
+
+                const paymentFeeTotal = Number(totals.payment_fee_total || 0);
+                summaryShippingRow?.classList.remove('d-none');
+                summaryPaymentFeeRow?.classList.toggle('d-none', paymentFeeTotal <= 0);
+            };
+
+            const selectedShippingInput = function () {
+                return shippingOptionsRoot?.querySelector('input[name="shipping_method_code"]:checked') || null;
+            };
+
+            const toggleBoxNowPanel = function () {
+                if (!boxNowPanel) {
+                    return;
+                }
+
+                const selected = selectedShippingInput();
+                const isBoxNow = selected?.dataset?.isBoxnow === '1' || selected?.dataset?.isBoxnow === 'true';
+                boxNowPanel.classList.toggle('d-none', !isBoxNow);
+            };
+
+            const initBoxNowWidget = function () {
+                if (boxNowScriptLoaded) {
+                    return;
+                }
+
+                const partnerSource = shippingOptionsRoot?.querySelector('input[name="shipping_method_code"][data-is-boxnow="1"]');
+                const partnerId = String(partnerSource?.dataset?.boxnowPartnerId || '').trim();
+                if (partnerId === '') {
+                    return;
+                }
+
+                window._bn_map_widget_config = {
+                    partnerId: partnerId,
+                    parentElement: '#boxnow-widget-root',
+                    buttonSelector: '[data-boxnow-open]',
+                    type: 'popup',
+                    afterSelect: function (selection) {
+                        updateBoxNowSelection(selection || {});
+                    },
+                };
+
+                const script = document.createElement('script');
+                script.src = 'https://widget-cdn.boxnow.hr/map-widget/client/v5.js';
+                script.async = true;
+                script.defer = true;
+                script.onerror = function () {
+                    alert(@json(__('ui.checkout.boxnow.widget_unavailable')));
+                };
+                document.head.appendChild(script);
+                boxNowScriptLoaded = true;
+            };
+
+            const updateBoxNowSelection = function (selection) {
+                const lockerId = String(selection?.boxnowLockerId || selection?.id || '');
+                const lockerAddress = String(selection?.boxnowLockerAddressLine1 || selection?.addressLine1 || '');
+                const lockerPostal = String(selection?.boxnowLockerPostalCode || selection?.postalCode || '');
+                const lockerCity = String(selection?.boxnowLockerCity || selection?.city || '');
+                const lockerName = String(selection?.boxnowLockerDescription || selection?.name || '');
+
+                if (boxNowLockerId) boxNowLockerId.value = lockerId;
+                if (boxNowLockerName) boxNowLockerName.value = lockerName;
+                if (boxNowAddressLine1) boxNowAddressLine1.value = lockerAddress;
+                if (boxNowPostalCode) boxNowPostalCode.value = lockerPostal;
+                if (boxNowCity) boxNowCity.value = lockerCity;
+
+                if (boxNowSelectedLabel) {
+                    boxNowSelectedLabel.textContent = lockerId !== ''
+                        ? [lockerName, lockerId].filter(Boolean).join(' / ')
+                        : @json(__('ui.checkout.boxnow.no_locker_selected'));
+                }
+                if (boxNowSelectedAddress) {
+                    boxNowSelectedAddress.textContent = lockerId !== ''
+                        ? [lockerAddress, (lockerPostal + ' ' + lockerCity).trim()].filter(Boolean).join(', ')
+                        : '';
+                }
             };
 
             const refreshOptions = async function () {
@@ -391,6 +557,8 @@
                     shipping_country_code: form.querySelector('[name="shipping_country_code"]')?.value || '',
                     shipping_state: form.querySelector('[name="shipping_state"]')?.value || '',
                     shipping_postal_code: form.querySelector('[name="shipping_postal_code"]')?.value || '',
+                    shipping_method_code: form.querySelector('input[name="shipping_method_code"]:checked')?.value || '',
+                    payment_method_code: form.querySelector('input[name="payment_method_code"]:checked')?.value || '',
                 });
 
                 try {
@@ -408,8 +576,11 @@
                     }
 
                     const payload = await response.json();
-                    renderShippingOptions(payload.shipping_methods || []);
-                    renderPaymentOptions(payload.payment_methods || []);
+                    const totals = payload.totals || {};
+                    renderShippingOptions(payload.shipping_methods || [], String(totals.shipping_method_code || ''));
+                    renderPaymentOptions(payload.payment_methods || [], String(totals.payment_method_code || ''));
+                    renderCheckoutTotals(totals);
+                    initBoxNowWidget();
                 } catch (error) {
                     // Keep current options on request errors.
                 }
@@ -425,7 +596,27 @@
             setState();
             applyAllStateModes();
             scheduleOptionsRefresh();
+            toggleBoxNowPanel();
+            initBoxNowWidget();
             toggle.addEventListener('change', setState);
+            shippingOptionsRoot?.addEventListener('change', function (event) {
+                if (event.target && event.target.name === 'shipping_method_code') {
+                    toggleBoxNowPanel();
+                    scheduleOptionsRefresh();
+                }
+            });
+            paymentOptionsRoot?.addEventListener('change', function (event) {
+                if (event.target && event.target.name === 'payment_method_code') {
+                    scheduleOptionsRefresh();
+                }
+            });
+            boxNowOpenButton?.addEventListener('click', function () {
+                const selected = selectedShippingInput();
+                const partnerId = String(selected?.dataset?.boxnowPartnerId || '').trim();
+                if (partnerId === '') {
+                    alert(@json(__('ui.checkout.boxnow.partner_missing')));
+                }
+            });
             form?.querySelectorAll('[data-address-country], [data-state-select], [data-state-input], [name="billing_postal_code"], [name="shipping_postal_code"]').forEach(function (node) {
                 node.addEventListener('change', function () {
                     applyAllStateModes();
@@ -440,6 +631,15 @@
                     shippingFields.style.maxHeight = shippingFields.scrollHeight + 'px';
                 }
             });
+
+            @if ($errors->has('accept_terms'))
+                const termsInput = form?.querySelector('[name="accept_terms"]');
+                if (termsInput) {
+                    setTimeout(function () {
+                        termsInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 80);
+                }
+            @endif
         });
     </script>
 @endpush

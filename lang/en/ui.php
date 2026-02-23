@@ -175,6 +175,9 @@ return [
             'subtotal' => 'Subtotal',
             'discount' => 'Discount',
             'tax' => 'Tax',
+            'shipping' => 'Shipping',
+            'payment_fee' => 'Payment fee',
+            'free' => 'Free',
             'total' => 'Total',
         ],
         'actions' => [
@@ -258,6 +261,12 @@ return [
         'actions' => [
             'place_order' => 'Place order',
         ],
+        'boxnow' => [
+            'select_locker' => 'Select BOX NOW locker',
+            'no_locker_selected' => 'No locker selected.',
+            'partner_missing' => 'BOX NOW shipping method is not configured (partner ID).',
+            'widget_unavailable' => 'BOX NOW widget is currently unavailable.',
+        ],
         'login' => [
             'toggle' => 'I already have an account, log me in',
             'title' => 'Sign in',
@@ -295,6 +304,9 @@ return [
             'bank_amount' => 'Amount',
             'bank_description' => 'Payment description',
             'bank_qr_alt' => 'UPI QR payment code',
+            'boxnow_title' => 'BOX NOW locker',
+            'boxnow_locker' => 'Locker',
+            'boxnow_address' => 'Locker address',
         ],
         'validation' => [
             'required' => 'This field is required.',
@@ -310,6 +322,7 @@ return [
             'register_password_min' => 'Password must be at least :min characters.',
             'register_password_confirmed' => 'Passwords do not match.',
             'accept_terms' => 'You must accept checkout terms.',
+            'boxnow_locker_required' => 'Select a BOX NOW locker for this shipping method.',
         ],
     ],
     'auth' => [
@@ -483,6 +496,11 @@ return [
             'title' => 'Order :number',
             'status' => 'Status',
             'placed_at' => 'Placed',
+            'boxnow' => [
+                'title' => 'BOX NOW locker',
+                'locker' => 'Locker',
+                'address' => 'Address',
+            ],
             'ordered_items' => 'Ordered items',
             'table' => [
                 'item' => 'Item',

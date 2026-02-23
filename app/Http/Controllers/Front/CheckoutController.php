@@ -55,22 +55,39 @@ class CheckoutController extends Controller
 
         $addressDirectory = app(AddressDirectoryService::class);
         $regionOptionsByCountry = $addressDirectory->regionsByCountry((string) app()->getLocale());
+        $defaultShippingCode = (string) ($shippingMethods = $this->checkout->availableShippingMethods(
+            (float) ($summary['subtotal_after_discount'] ?? $summary['subtotal']),
+            $shippingCountry,
+            $shippingState,
+            $shippingPostal
+        ))->first()?->code;
+        $defaultPaymentCode = (string) ($paymentMethods = $this->checkout->availablePaymentMethods(
+            (float) ($summary['subtotal_after_discount'] ?? $summary['subtotal']),
+            $billingCountry,
+            $billingState,
+            $billingPostal
+        ))->first()?->code;
+        $checkoutTotals = $this->checkout->estimateCheckoutTotals(
+            (float) ($summary['subtotal'] ?? 0),
+            (float) ($summary['discount_total'] ?? 0),
+            (float) ($summary['subtotal_after_discount'] ?? $summary['subtotal'] ?? 0),
+            (float) ($summary['tax_total'] ?? 0),
+            $defaultShippingCode,
+            $defaultPaymentCode,
+            $shippingCountry,
+            $shippingState,
+            $shippingPostal,
+            $billingCountry,
+            $billingState,
+            $billingPostal
+        );
 
         return view($this->frontendView($request, 'checkout.create'), [
             'lines' => $this->cart->lines(),
             'summary' => $summary,
-            'shippingMethods' => $this->checkout->availableShippingMethods(
-                (float) ($summary['subtotal_after_discount'] ?? $summary['subtotal']),
-                $shippingCountry,
-                $shippingState,
-                $shippingPostal
-            ),
-            'paymentMethods' => $this->checkout->availablePaymentMethods(
-                (float) ($summary['subtotal_after_discount'] ?? $summary['subtotal']),
-                $billingCountry,
-                $billingState,
-                $billingPostal
-            ),
+            'shippingMethods' => $shippingMethods,
+            'paymentMethods' => $paymentMethods,
+            'checkoutTotals' => $checkoutTotals,
             'countryOptions' => $addressDirectory->countries((string) app()->getLocale()),
             'countyOptions' => array_values(array_map(
                 static fn (array $row): string => (string) ($row['name'] ?? ''),
@@ -153,6 +170,11 @@ class CheckoutController extends Controller
             'shipping_city' => ['nullable', 'string', 'max:120'],
             'shipping_state' => ['nullable', 'string', 'max:120'],
             'shipping_country_code' => ['nullable', 'string', 'size:2'],
+            'shipping_boxnow_locker_id' => ['nullable', 'string', 'max:80'],
+            'shipping_boxnow_locker_name' => ['nullable', 'string', 'max:255'],
+            'shipping_boxnow_address_line_1' => ['nullable', 'string', 'max:255'],
+            'shipping_boxnow_postal_code' => ['nullable', 'string', 'max:32'],
+            'shipping_boxnow_city' => ['nullable', 'string', 'max:120'],
 
             'shipping_method_code' => ['required', 'string', 'max:60'],
             'payment_method_code' => ['required', 'string', 'max:60'],
@@ -279,6 +301,22 @@ class CheckoutController extends Controller
         $paymentMethods = $this->checkout
             ->availablePaymentMethods($subtotal, $billingCountry, $billingState, $billingPostal)
             ->values();
+        $selectedShippingCode = (string) $request->query('shipping_method_code', '');
+        $selectedPaymentCode = (string) $request->query('payment_method_code', '');
+        $totals = $this->checkout->estimateCheckoutTotals(
+            (float) ($summary['subtotal'] ?? 0),
+            (float) ($summary['discount_total'] ?? 0),
+            $subtotal,
+            (float) ($summary['tax_total'] ?? 0),
+            $selectedShippingCode,
+            $selectedPaymentCode,
+            $shippingCountry,
+            $shippingState,
+            $shippingPostal,
+            $billingCountry,
+            $billingState,
+            $billingPostal
+        );
 
         return response()->json([
             'shipping_methods' => $shippingMethods->map(fn ($method) => [
@@ -286,11 +324,29 @@ class CheckoutController extends Controller
                 'name' => (string) $method->name,
                 'price' => round((float) $method->price, 2),
                 'price_formatted' => Currency::format((float) $method->price),
+                'is_boxnow' => in_array(strtolower((string) $method->code), ['boxnow', 'box_now'], true),
+                'boxnow_partner_id' => (string) ((is_array($method->settings ?? null) ? ($method->settings['boxnow_partner_id'] ?? '') : '') ?: ''),
             ])->all(),
             'payment_methods' => $paymentMethods->map(fn ($method) => [
                 'code' => (string) $method->code,
                 'name' => (string) $method->name,
             ])->all(),
+            'totals' => [
+                'subtotal' => round((float) $totals['subtotal'], 2),
+                'discount_total' => round((float) $totals['discount_total'], 2),
+                'tax_total' => round((float) $totals['tax_total'], 2),
+                'shipping_total' => round((float) $totals['shipping_total'], 2),
+                'payment_fee_total' => round((float) $totals['payment_fee_total'], 2),
+                'grand_total' => round((float) $totals['grand_total'], 2),
+                'shipping_method_code' => (string) ($totals['shipping_method_code'] ?? ''),
+                'payment_method_code' => (string) ($totals['payment_method_code'] ?? ''),
+                'subtotal_formatted' => Currency::format((float) $totals['subtotal']),
+                'discount_total_formatted' => Currency::format((float) $totals['discount_total']),
+                'tax_total_formatted' => Currency::format((float) $totals['tax_total']),
+                'shipping_total_formatted' => Currency::format((float) $totals['shipping_total']),
+                'payment_fee_total_formatted' => Currency::format((float) $totals['payment_fee_total']),
+                'grand_total_formatted' => Currency::format((float) $totals['grand_total']),
+            ],
         ]);
     }
 

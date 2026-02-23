@@ -28,11 +28,13 @@ class ProductPricePresentationService
      */
     public function forProduct(Product $product, ?User $user = null): array
     {
-        $baseNet = (float) $product->base_price;
+        $storedBase = (float) $product->base_price;
         $resolvedAction = $this->actionResolver->resolveProductAction($product, $user);
-        $currentNet = $resolvedAction
-            ? $this->actionResolver->applyToPrice($baseNet, $resolvedAction)
-            : $baseNet;
+        $storedCurrent = $resolvedAction
+            ? $this->actionResolver->applyToPrice($storedBase, $resolvedAction)
+            : $storedBase;
+        $baseNet = $this->taxPricing->normalizeNetPrice($storedBase, $product);
+        $currentNet = $this->taxPricing->normalizeNetPrice($storedCurrent, $product);
 
         $baseGross = (float) $this->taxPricing->grossFromNet($baseNet, $product);
         $currentGross = (float) $this->taxPricing->grossFromNet($currentNet, $product);
@@ -40,7 +42,7 @@ class ProductPricePresentationService
 
         $lowest30DaysGross = null;
         if ($hasDiscount) {
-            $lowest30DaysNet = $this->lowestNetPriceInLast30Days($product, $baseNet, $user);
+            $lowest30DaysNet = $this->lowestNetPriceInLast30Days($product, $storedBase, $user);
             $lowest30DaysGross = (float) $this->taxPricing->grossFromNet($lowest30DaysNet, $product);
         }
 
@@ -56,7 +58,7 @@ class ProductPricePresentationService
         ];
     }
 
-    private function lowestNetPriceInLast30Days(Product $product, float $baseNet, ?User $user): float
+    private function lowestNetPriceInLast30Days(Product $product, float $storedBasePrice, ?User $user): float
     {
         $periodStart = now()->subDays(30);
         $periodEnd = now();
@@ -116,14 +118,14 @@ class ProductPricePresentationService
             })
             ->get();
 
-        $best = $baseNet;
+        $best = $storedBasePrice;
         foreach ($actions as $action) {
-            $candidate = $this->actionResolver->applyToPrice($baseNet, $action);
+            $candidate = $this->actionResolver->applyToPrice($storedBasePrice, $action);
             if ($candidate < $best) {
                 $best = $candidate;
             }
         }
 
-        return max(0.0, round($best, 2));
+        return max(0.0, $this->taxPricing->normalizeNetPrice($best, $product));
     }
 }
