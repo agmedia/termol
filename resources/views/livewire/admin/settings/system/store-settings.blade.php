@@ -11,6 +11,7 @@
                 'branding' => 'Branding & Footer',
                 'newsletter' => 'Newsletter',
                 'integrations' => 'Integrations',
+                'pricing' => 'Pricing',
                 'seo' => 'SEO',
                 'og' => 'OG / Twitter',
                 'schema' => 'Schema Markup',
@@ -306,7 +307,12 @@
                         <input type="text" wire:model="form.store_analytics_purchase_event_name" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="purchase" />
                     </div>
 
-                    <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 mt-2">
+                </div>
+            @endif
+
+            @if ($tab === 'pricing')
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <h3 class="text-sm font-bold text-slate-800">{{ __('Pricing') }}</h3>
                         <p class="mt-1 text-xs text-slate-600">{{ __('Choose if stored catalog prices are entered with VAT included or VAT excluded.') }}</p>
                     </div>
