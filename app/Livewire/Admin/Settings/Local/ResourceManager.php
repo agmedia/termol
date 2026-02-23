@@ -2,12 +2,14 @@
 
 namespace App\Livewire\Admin\Settings\Local;
 
+use App\Services\Front\AddressDirectoryService;
 use App\Models\Settings\Local\Currency;
 use App\Models\Settings\Local\GeoZone;
 use App\Models\Settings\Local\GeoZoneCountry;
 use App\Models\Settings\Local\Language;
 use App\Models\Settings\Local\OrderStatus;
 use App\Models\Settings\Local\PaymentMethod;
+use App\Models\Settings\Local\Region;
 use App\Models\Settings\Local\ShippingMethod;
 use App\Models\Settings\Local\TaxRate;
 use App\Services\Settings\LocalSettingsService;
@@ -48,6 +50,11 @@ class ResourceManager extends Component
             'title' => 'Geo Zone Countries',
             'model' => GeoZoneCountry::class,
             'fields' => ['geo_zone_id', 'country_code', 'region_code', 'postal_code_from', 'postal_code_to'],
+        ],
+        'regions' => [
+            'title' => 'Regions',
+            'model' => Region::class,
+            'fields' => ['country_code', 'code', 'name', 'is_active', 'sort_order'],
         ],
         'currencies' => [
             'title' => 'Currencies',
@@ -98,6 +105,10 @@ class ResourceManager extends Component
             if ($this->hasColumn($field)) {
                 $data[$field] = (bool) ($data[$field] ?? false);
             }
+        }
+
+        if (array_key_exists('country_code', $data)) {
+            $data['country_code'] = strtoupper(trim((string) ($data['country_code'] ?? '')));
         }
 
         if ($this->hasColumn('is_default') && $this->hasColumn('is_active') && !empty($data['is_default'])) {
@@ -208,6 +219,23 @@ class ResourceManager extends Component
         return $zones->pluck('name', 'id')->all();
     }
 
+    public function countryOptions(): array
+    {
+        $locale = (string) app()->getLocale();
+        $countries = app(AddressDirectoryService::class)->countries($locale);
+
+        $options = [];
+        foreach ($countries as $country) {
+            $code = strtoupper((string) ($country['code'] ?? ''));
+            if ($code === '') {
+                continue;
+            }
+            $options[$code] = (string) ($country['label'] ?? $code);
+        }
+
+        return $options;
+    }
+
     private function modelClass(): string
     {
         return $this->resources[$this->resource]['model'];
@@ -305,7 +333,13 @@ class ResourceManager extends Component
 
         if ($this->hasColumn('code')) {
             $rules['form.code'][] = 'required';
-            $rules['form.code'][] = Rule::unique($table, 'code')->ignore($this->editingId);
+            if ($this->resource === 'regions') {
+                $rules['form.code'][] = Rule::unique($table, 'code')
+                    ->where(fn ($query) => $query->where('country_code', strtoupper((string) ($this->form['country_code'] ?? ''))))
+                    ->ignore($this->editingId);
+            } else {
+                $rules['form.code'][] = Rule::unique($table, 'code')->ignore($this->editingId);
+            }
         }
 
         if ($this->hasColumn('name')) {
@@ -314,6 +348,10 @@ class ResourceManager extends Component
 
         if ($this->resource === 'geo-zone-countries') {
             $rules['form.geo_zone_id'][] = 'required';
+            $rules['form.country_code'][] = 'required';
+        }
+
+        if ($this->resource === 'regions') {
             $rules['form.country_code'][] = 'required';
         }
 
@@ -361,6 +399,8 @@ class ResourceManager extends Component
         return view('livewire.admin.settings.local.resource-manager', [
             'rows' => $rows,
             'perPage' => $this->adminPerPage(),
+            'geoZoneLabels' => $this->geoZoneOptions(),
+            'countryLabels' => $this->countryOptions(),
         ]);
     }
 

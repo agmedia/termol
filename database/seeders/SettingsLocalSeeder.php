@@ -8,14 +8,20 @@ use App\Models\Settings\Local\GeoZoneCountry;
 use App\Models\Settings\Local\Language;
 use App\Models\Settings\Local\OrderStatus;
 use App\Models\Settings\Local\PaymentMethod;
+use App\Models\Settings\Local\Region;
 use App\Models\Settings\Local\ShippingMethod;
 use App\Models\Settings\Local\TaxRate;
+use App\Support\CountryCatalog;
+use Illuminate\Support\Carbon;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\File;
 
 class SettingsLocalSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->seedRegions();
+
         $hr = GeoZone::updateOrCreate(
             ['code' => 'HR'],
             ['name' => 'Croatia', 'description' => 'Domestic zone', 'is_active' => true, 'sort_order' => 1]
@@ -31,15 +37,55 @@ class SettingsLocalSeeder extends Seeder
             ['name' => 'World', 'description' => 'Rest of world', 'is_active' => true, 'sort_order' => 3]
         );
 
-        GeoZoneCountry::updateOrCreate(
-            ['geo_zone_id' => $hr->id, 'country_code' => 'HR', 'region_code' => null],
-            ['postal_code_from' => null, 'postal_code_to' => null]
-        );
+        $euCodes = array_values(array_filter(
+            CountryCatalog::euCodes(),
+            static fn (string $code): bool => $code !== 'HR'
+        ));
+        $allCodes = CountryCatalog::codes();
+        $worldCodes = array_values(array_diff($allCodes, array_merge(['HR'], CountryCatalog::euCodes())));
 
-        GeoZoneCountry::updateOrCreate(
-            ['geo_zone_id' => $eu->id, 'country_code' => 'SI', 'region_code' => null],
-            ['postal_code_from' => null, 'postal_code_to' => null]
-        );
+        GeoZoneCountry::query()
+            ->whereIn('geo_zone_id', [$hr->id, $eu->id, $world->id])
+            ->delete();
+
+        $now = Carbon::now();
+        $payload = [];
+
+        $payload[] = [
+            'geo_zone_id' => $hr->id,
+            'country_code' => 'HR',
+            'region_code' => null,
+            'postal_code_from' => null,
+            'postal_code_to' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+
+        foreach ($euCodes as $code) {
+            $payload[] = [
+                'geo_zone_id' => $eu->id,
+                'country_code' => $code,
+                'region_code' => null,
+                'postal_code_from' => null,
+                'postal_code_to' => null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        foreach ($worldCodes as $code) {
+            $payload[] = [
+                'geo_zone_id' => $world->id,
+                'country_code' => $code,
+                'region_code' => null,
+                'postal_code_from' => null,
+                'postal_code_to' => null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        GeoZoneCountry::query()->insert($payload);
 
         Currency::updateOrCreate(
             ['code' => 'EUR'],
@@ -162,6 +208,30 @@ class SettingsLocalSeeder extends Seeder
             ]
         );
         ShippingMethod::updateOrCreate(
+            ['code' => 'standard_eu'],
+            [
+                'name' => 'Standard Shipping (EU)',
+                'geo_zone_id' => $eu->id,
+                'description' => 'Standard shipping for EU countries (excluding Croatia).',
+                'price' => 9.99,
+                'free_over' => 120,
+                'is_active' => true,
+                'sort_order' => 2,
+            ]
+        );
+        ShippingMethod::updateOrCreate(
+            ['code' => 'standard_world'],
+            [
+                'name' => 'Standard Shipping (World)',
+                'geo_zone_id' => $world->id,
+                'description' => 'Standard international shipping outside EU.',
+                'price' => 19.99,
+                'free_over' => 200,
+                'is_active' => true,
+                'sort_order' => 3,
+            ]
+        );
+        ShippingMethod::updateOrCreate(
             ['code' => 'pickup'],
             [
                 'name' => 'Store Pickup',
@@ -170,7 +240,7 @@ class SettingsLocalSeeder extends Seeder
                 'price' => 0,
                 'free_over' => null,
                 'is_active' => true,
-                'sort_order' => 2,
+                'sort_order' => 4,
             ]
         );
         ShippingMethod::updateOrCreate(
@@ -182,8 +252,51 @@ class SettingsLocalSeeder extends Seeder
                 'price' => 8.99,
                 'free_over' => null,
                 'is_active' => true,
-                'sort_order' => 3,
+                'sort_order' => 5,
             ]
         );
+    }
+
+    private function seedRegions(): void
+    {
+        $path = public_path('front-theme/data/hr-places.json');
+        if (!File::exists($path)) {
+            return;
+        }
+
+        $raw = json_decode((string) File::get($path), true);
+        if (!is_array($raw)) {
+            return;
+        }
+
+        $counties = array_values(array_filter((array) ($raw['counties_hr'] ?? []), 'is_string'));
+        if ($counties === []) {
+            return;
+        }
+
+        Region::query()->where('country_code', 'HR')->delete();
+
+        $payload = [];
+        $now = Carbon::now();
+        foreach (array_values($counties) as $index => $county) {
+            $name = trim($county);
+            if ($name === '') {
+                continue;
+            }
+
+            $payload[] = [
+                'country_code' => 'HR',
+                'code' => strtoupper(str_replace(' ', '_', $name)),
+                'name' => $name,
+                'is_active' => true,
+                'sort_order' => $index + 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        if ($payload !== []) {
+            Region::query()->insert($payload);
+        }
     }
 }

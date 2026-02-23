@@ -9,6 +9,7 @@ use App\Models\Sales\Order\OrderHistory;
 use App\Models\Sales\Order\OrderItem;
 use App\Models\Sales\Order\OrderTotal;
 use App\Models\Settings\Local\Currency;
+use App\Models\Settings\Local\GeoZoneCountry;
 use App\Models\Settings\Local\OrderStatus;
 use App\Models\Settings\Local\PaymentMethod;
 use App\Models\Settings\Local\ShippingMethod;
@@ -27,13 +28,21 @@ class CheckoutService
     /**
      * @return Collection<int, PaymentMethod>
      */
-    public function availablePaymentMethods(float $subtotal): Collection
+    public function availablePaymentMethods(
+        float $subtotal,
+        ?string $countryCode = null,
+        ?string $regionCode = null,
+        ?string $postalCode = null
+    ): Collection
     {
+        $zoneIds = $this->resolveGeoZoneIdsForAddress($countryCode, $regionCode, $postalCode);
+
         return PaymentMethod::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
+            ->filter(fn (PaymentMethod $method) => $this->methodMatchesGeoZones($method->geo_zone_id, $zoneIds))
             ->filter(fn (PaymentMethod $method) => $this->subtotalFits($subtotal, $method->min_subtotal, $method->max_subtotal))
             ->values();
     }
@@ -41,13 +50,21 @@ class CheckoutService
     /**
      * @return Collection<int, ShippingMethod>
      */
-    public function availableShippingMethods(float $subtotal): Collection
+    public function availableShippingMethods(
+        float $subtotal,
+        ?string $countryCode = null,
+        ?string $regionCode = null,
+        ?string $postalCode = null
+    ): Collection
     {
+        $zoneIds = $this->resolveGeoZoneIdsForAddress($countryCode, $regionCode, $postalCode);
+
         return ShippingMethod::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
+            ->filter(fn (ShippingMethod $method) => $this->methodMatchesGeoZones($method->geo_zone_id, $zoneIds))
             ->filter(fn (ShippingMethod $method) => $this->subtotalFits($subtotal, $method->min_subtotal, $method->max_subtotal))
             ->values();
     }
@@ -72,12 +89,30 @@ class CheckoutService
         $taxTotal = round((float) ($summary['tax_total'] ?? 0), 2);
         $defaultTaxRate = round((float) ($summary['tax_rate'] ?? 0), 4);
 
+        $shippingCountryCode = (string) ($payload['shipping_country_code'] ?? $payload['billing_country_code'] ?? 'HR');
+        $shippingRegionCode = (string) ($payload['shipping_state'] ?? $payload['billing_state'] ?? '');
+        $shippingPostalCode = (string) ($payload['shipping_postal_code'] ?? $payload['billing_postal_code'] ?? '');
+
         /** @var ShippingMethod|null $shippingMethod */
-        $shippingMethod = $this->availableShippingMethods($subtotalAfterDiscount)
+        $shippingMethod = $this->availableShippingMethods(
+            $subtotalAfterDiscount,
+            $shippingCountryCode,
+            $shippingRegionCode,
+            $shippingPostalCode
+        )
             ->firstWhere('code', (string) ($payload['shipping_method_code'] ?? ''));
 
+        $billingCountryCode = (string) ($payload['billing_country_code'] ?? $shippingCountryCode);
+        $billingRegionCode = (string) ($payload['billing_state'] ?? '');
+        $billingPostalCode = (string) ($payload['billing_postal_code'] ?? '');
+
         /** @var PaymentMethod|null $paymentMethod */
-        $paymentMethod = $this->availablePaymentMethods($subtotalAfterDiscount)
+        $paymentMethod = $this->availablePaymentMethods(
+            $subtotalAfterDiscount,
+            $billingCountryCode,
+            $billingRegionCode,
+            $billingPostalCode
+        )
             ->firstWhere('code', (string) ($payload['payment_method_code'] ?? ''));
 
         if (! $shippingMethod) {
@@ -347,6 +382,69 @@ class CheckoutService
         }
 
         return round(max(0, $feeValue), 2);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function resolveGeoZoneIdsForAddress(
+        ?string $countryCode,
+        ?string $regionCode = null,
+        ?string $postalCode = null
+    ): array {
+        $country = strtoupper(trim((string) $countryCode));
+        if ($country === '' || strlen($country) !== 2) {
+            return [];
+        }
+
+        $region = strtoupper(trim((string) $regionCode));
+        $postal = strtoupper(trim((string) $postalCode));
+
+        /** @var Collection<int, GeoZoneCountry> $rows */
+        $rows = GeoZoneCountry::query()
+            ->where('country_code', $country)
+            ->get();
+
+        $zoneIds = [];
+        foreach ($rows as $row) {
+            $ruleRegion = strtoupper(trim((string) ($row->region_code ?? '')));
+            if ($ruleRegion !== '' && $ruleRegion !== $region) {
+                continue;
+            }
+
+            $from = strtoupper(trim((string) ($row->postal_code_from ?? '')));
+            $to = strtoupper(trim((string) ($row->postal_code_to ?? '')));
+
+            if (($from !== '' || $to !== '') && $postal === '') {
+                continue;
+            }
+
+            if ($from !== '' && strcmp($postal, $from) < 0) {
+                continue;
+            }
+
+            if ($to !== '' && strcmp($postal, $to) > 0) {
+                continue;
+            }
+
+            $zoneIds[] = (int) $row->geo_zone_id;
+        }
+
+        return array_values(array_unique($zoneIds));
+    }
+
+    /**
+     * @param  int|string|null  $methodGeoZoneId
+     * @param  array<int, int>  $zoneIds
+     */
+    private function methodMatchesGeoZones(int|string|null $methodGeoZoneId, array $zoneIds): bool
+    {
+        if ($methodGeoZoneId === null) {
+            return true;
+        }
+
+        $zoneId = (int) $methodGeoZoneId;
+        return in_array($zoneId, $zoneIds, true);
     }
 
     private function nextOrderNumber(): string

@@ -100,6 +100,7 @@ Route::middleware(['front.locale', 'front.device'])
         Route::delete('wishlist/items/{product}', [WishlistController::class, 'destroy'])->name('wishlist.items.destroy');
 
         Route::get('checkout', [CheckoutController::class, 'create'])->name('checkout.create');
+        Route::get('checkout/options', [CheckoutController::class, 'options'])->name('checkout.options');
         Route::post('checkout/login', [CheckoutController::class, 'login'])->middleware('guest')->name('checkout.login');
         Route::post('checkout', [CheckoutController::class, 'store'])->name('checkout.store');
         Route::get('checkout/success', [CheckoutController::class, 'successLatest'])->name('checkout.success.latest');
@@ -330,7 +331,7 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ab
                 Route::get('local/{resource}', function (string $resource) {
                     return view('admin.settings.local.resource', compact('resource'));
                 })
-                    ->where('resource', 'payment-methods|shipping-methods|geo-zones|geo-zone-countries|currencies|tax-rates|order-statuses|languages')
+                    ->where('resource', 'payment-methods|shipping-methods|geo-zones|geo-zone-countries|regions|currencies|tax-rates|order-statuses|languages')
                     ->name('local.resource');
 
                 Route::get('system/runtime', function () {

@@ -57,6 +57,7 @@ return [
             'shipping_methods' => 'Načini dostave',
             'geo_zones' => 'Geo zone',
             'geo_zone_countries' => 'Države geo zona',
+            'regions' => 'Regije / županije',
             'currencies' => 'Valute',
             'tax_rates' => 'Porezne stope',
             'order_statuses' => 'Statusi narudžbi',

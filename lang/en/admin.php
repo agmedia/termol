@@ -57,6 +57,7 @@ return [
             'shipping_methods' => 'Shipping Methods',
             'geo_zones' => 'Geo Zones',
             'geo_zone_countries' => 'Geo Zone Countries',
+            'regions' => 'Regions / Counties',
             'currencies' => 'Currencies',
             'tax_rates' => 'Tax Rates',
             'order_statuses' => 'Order Statuses',

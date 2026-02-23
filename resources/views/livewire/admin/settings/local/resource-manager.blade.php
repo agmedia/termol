@@ -68,23 +68,33 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Country') }}</label>
-                            <input type="text" wire:model="form.country_code" maxlength="2" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm uppercase outline-none ring-cyan-200 focus:ring" />
+                            <select wire:model="form.country_code" data-tom-select class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring">
+                                <option value="">{{ __('Select...') }}</option>
+                                @foreach (($countryLabels ?? []) as $countryCode => $countryLabel)
+                                    <option value="{{ $countryCode }}">{{ $countryCode }} - {{ $countryLabel }}</option>
+                                @endforeach
+                            </select>
+                            @error('form.country_code') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                         </div>
-                        <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Region') }}</label>
-                            <input type="text" wire:model="form.region_code" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
-                        </div>
+                        @if ($resource === 'geo-zone-countries')
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Region') }}</label>
+                                <input type="text" wire:model="form.region_code" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                            </div>
+                        @endif
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Postal from') }}</label>
-                            <input type="text" wire:model="form.postal_code_from" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                    @if ($resource === 'geo-zone-countries')
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Postal from') }}</label>
+                                <input type="text" wire:model="form.postal_code_from" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Postal to') }}</label>
+                                <input type="text" wire:model="form.postal_code_to" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                            </div>
                         </div>
-                        <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Postal to') }}</label>
-                            <input type="text" wire:model="form.postal_code_to" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
-                        </div>
-                    </div>
+                    @endif
                 @endif
 
                 @if (in_array('fee_type', $resources[$resource]['fields'], true))
@@ -274,8 +284,29 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse ($rows as $row)
                             <tr>
-                                <td class="px-3 py-2 text-center font-mono text-xs text-slate-700">{{ $row->code ?? '-' }}</td>
-                                <td class="px-3 py-2 text-slate-800">{{ $row->name ?? ($row->country_code ?? '#'.$row->id) }}</td>
+                                <td class="px-3 py-2 text-center font-mono text-xs text-slate-700">{{ $row->code ?? ($row->country_code ?? '-') }}</td>
+                                <td class="px-3 py-2 text-slate-800">
+                                    @if ($resource === 'geo-zone-countries')
+                                        @php
+                                            $countryCode = strtoupper((string) ($row->country_code ?? ''));
+                                            $countryName = (string) (($countryLabels ?? [])[$countryCode] ?? $countryCode);
+                                            $zoneName = (string) (($geoZoneLabels ?? [])[(int) ($row->geo_zone_id ?? 0)] ?? '');
+                                        @endphp
+                                        <div>{{ $countryName }} ({{ $countryCode }})</div>
+                                        @if ($zoneName !== '')
+                                            <div class="text-xs text-slate-500">{{ __('Geo zone') }}: {{ $zoneName }}</div>
+                                        @endif
+                                    @elseif ($resource === 'regions')
+                                        @php
+                                            $countryCode = strtoupper((string) ($row->country_code ?? ''));
+                                            $countryName = (string) (($countryLabels ?? [])[$countryCode] ?? $countryCode);
+                                        @endphp
+                                        <div>{{ $row->name }}</div>
+                                        <div class="text-xs text-slate-500">{{ $countryName }} ({{ $countryCode }})</div>
+                                    @else
+                                        {{ $row->name ?? ($row->country_code ?? '#'.$row->id) }}
+                                    @endif
+                                </td>
                                 <td class="px-3 py-2 text-center text-slate-600">{{ $row->sort_order ?? '-' }}</td>
                                 <td class="px-3 py-2 text-center">
                                     @if (isset($row->is_active))

@@ -83,7 +83,7 @@
         </section>
     @endguest
 
-    <form method="POST" action="{{ route('checkout.store') }}" class="grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(460px,1fr)]" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-form data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-success-fallback="{{ route('checkout.success.latest') }}" novalidate>
+    <form method="POST" action="{{ route('checkout.store') }}" class="grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(460px,1fr)]" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-form data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-success-fallback="{{ route('checkout.success.latest') }}" novalidate>
         @csrf
 
         <div class="space-y-6">
@@ -157,13 +157,14 @@
                         @enderror
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.state') }}</label>
-                        <select name="billing_state" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-county>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
+                        <select name="billing_state" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
                             <option value="">{{ __('ui.account.fields.select_county') }}</option>
                             @foreach ($countyOptions as $countyOption)
                                 <option value="{{ $countyOption }}" @selected(old('billing_state', $prefill['billing']['state']) === $countyOption)>{{ $countyOption }}</option>
                             @endforeach
                         </select>
+                        <input type="text" value="{{ old('billing_state', $prefill['billing']['state']) }}" class="hidden h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" />
                         @error('billing_state')
                             <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                         @enderror
@@ -225,13 +226,14 @@
                         <div><label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.postal_code') }}</label><input type="text" name="shipping_postal_code" value="{{ old('shipping_postal_code', $prefill['shipping']['postal_code']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-postal></div>
                         <div><label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.city') }}</label><input type="text" name="shipping_city" value="{{ old('shipping_city', $prefill['shipping']['city']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-city></div>
                         <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.state') }}</label>
-                            <select name="shipping_state" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-county>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
+                            <select name="shipping_state" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
                                 <option value="">{{ __('ui.account.fields.select_county') }}</option>
                                 @foreach ($countyOptions as $countyOption)
                                     <option value="{{ $countyOption }}" @selected(old('shipping_state', $prefill['shipping']['state']) === $countyOption)>{{ $countyOption }}</option>
                                 @endforeach
                             </select>
+                            <input type="text" value="{{ old('shipping_state', $prefill['shipping']['state']) }}" class="hidden h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" />
                         </div>
                         <div>
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.country_code') }}</label>
@@ -251,7 +253,7 @@
                 <div class="mt-4 space-y-5">
                     <div>
                         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.labels.shipping_method') }}</p>
-                        <div class="grid gap-2">
+                        <div class="grid gap-2" data-checkout-shipping-options>
                             @foreach ($shippingMethods as $method)
                                 <label class="flex cursor-pointer items-center justify-between gap-3 border border-slate-300 px-3 py-2.5 text-sm hover:border-slate-500">
                                     <span class="inline-flex items-center gap-2">
@@ -266,7 +268,7 @@
 
                     <div>
                         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.labels.payment_method') }}</p>
-                        <div class="grid gap-2">
+                        <div class="grid gap-2" data-checkout-payment-options>
                             @foreach ($paymentMethods as $method)
                                 <label class="flex cursor-pointer items-center justify-between gap-3 border border-slate-300 px-3 py-2.5 text-sm hover:border-slate-500">
                                     <span class="inline-flex items-center gap-2">
@@ -395,6 +397,13 @@
             const r1Panel = document.querySelector('[data-r1-panel]');
             const r1Company = document.querySelector('[data-r1-company]');
             const r1Oib = document.querySelector('[data-r1-oib]');
+            const optionsUrl = checkoutForm?.dataset.checkoutOptionsUrl || '';
+            const regionOptionsByCountry = checkoutForm?.dataset.regionOptions ? JSON.parse(checkoutForm.dataset.regionOptions) : {};
+            const shippingOptionsRoot = checkoutForm?.querySelector('[data-checkout-shipping-options]');
+            const paymentOptionsRoot = checkoutForm?.querySelector('[data-checkout-payment-options]');
+
+            let optionsAbortController = null;
+            let optionsRefreshTimer = null;
 
             const syncCustomerNames = function () {
                 if (!billingFirst || !billingLast || !customerFirstHidden || !customerLastHidden) {
@@ -419,6 +428,185 @@
                     shippingFields.style.maxHeight = '0';
                     shippingFields.style.opacity = '0';
                 }
+
+                scheduleOptionsRefresh();
+            };
+
+            const escapeHtml = function (value) {
+                return String(value || '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            };
+
+            const applyStateFieldMode = function (scope) {
+                const countrySelect = scope.querySelector('[data-address-country]');
+                const stateLabel = scope.querySelector('[data-state-label]');
+                const stateSelect = scope.querySelector('[data-state-select]');
+                const stateInput = scope.querySelector('[data-state-input]');
+                if (!countrySelect || !stateLabel || !stateSelect || !stateInput) {
+                    return;
+                }
+
+                const stateFieldName = stateSelect.dataset.stateName || stateSelect.getAttribute('name') || stateInput.getAttribute('name') || 'state';
+                stateSelect.dataset.stateName = stateFieldName;
+
+                const countryCode = String(countrySelect.value || '').toUpperCase();
+                const regions = Array.isArray(regionOptionsByCountry[countryCode]) ? regionOptionsByCountry[countryCode] : [];
+                const hasRegions = regions.length > 0;
+                const optionLabel = countryCode === 'HR'
+                    ? (stateSelect.dataset.optionHr || '')
+                    : (stateSelect.dataset.optionIntl || stateSelect.dataset.optionHr || '');
+
+                stateLabel.textContent = countryCode === 'HR'
+                    ? (stateLabel.dataset.labelHr || stateLabel.textContent)
+                    : (stateLabel.dataset.labelIntl || stateLabel.textContent);
+
+                if (hasRegions) {
+                    const previousValue = stateSelect.value || stateInput.value || '';
+                    const options = ['<option value="">' + escapeHtml(optionLabel) + '</option>']
+                        .concat(regions.map(function (region) {
+                            const regionName = String(region?.name || '');
+                            const selected = previousValue !== '' && previousValue === regionName ? ' selected' : '';
+                            return '<option value="' + escapeHtml(regionName) + '"' + selected + '>' + escapeHtml(regionName) + '</option>';
+                        }));
+                    stateSelect.innerHTML = options.join('');
+
+                    stateSelect.classList.remove('hidden');
+                    stateSelect.disabled = false;
+                    stateSelect.setAttribute('name', stateFieldName);
+                    stateInput.classList.add('hidden');
+                    stateInput.disabled = true;
+                    stateInput.removeAttribute('name');
+                } else {
+                    if (!stateInput.value && stateSelect.value) {
+                        stateInput.value = stateSelect.value;
+                    }
+                    stateInput.classList.remove('hidden');
+                    stateInput.disabled = false;
+                    stateInput.setAttribute('name', stateFieldName);
+                    stateInput.placeholder = stateInput.dataset.placeholderIntl || '';
+                    stateSelect.classList.add('hidden');
+                    stateSelect.disabled = true;
+                    stateSelect.removeAttribute('name');
+                }
+            };
+
+            const applyAllStateFieldModes = function () {
+                if (!checkoutForm) {
+                    return;
+                }
+
+                checkoutForm.querySelectorAll('[data-address-scope]').forEach(function (scope) {
+                    applyStateFieldMode(scope);
+                });
+            };
+
+            const renderShippingOptions = function (methods) {
+                if (!shippingOptionsRoot) {
+                    return;
+                }
+
+                const currentlySelected = shippingOptionsRoot.querySelector('input[name="shipping_method_code"]:checked')?.value || '';
+                if (!Array.isArray(methods) || methods.length === 0) {
+                    shippingOptionsRoot.innerHTML = '<div class="text-sm text-rose-600">{{ __('ui.checkout.labels.no_shipping_methods') }}</div>';
+                    return;
+                }
+
+                shippingOptionsRoot.innerHTML = methods.map(function (method, index) {
+                    const checked = (currentlySelected !== '' && currentlySelected === method.code) || (currentlySelected === '' && index === 0);
+                    return '<label class="flex cursor-pointer items-center justify-between gap-3 border border-slate-300 px-3 py-2.5 text-sm hover:border-slate-500">'
+                        + '<span class="inline-flex items-center gap-2">'
+                        + '<input type="radio" name="shipping_method_code" value="' + escapeHtml(method.code) + '" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" required ' + (checked ? 'checked' : '') + '>'
+                        + '<span class="font-semibold text-slate-900">' + escapeHtml(method.name) + '</span>'
+                        + '</span>'
+                        + '<span class="text-slate-600">' + escapeHtml(method.price_formatted || '') + '</span>'
+                        + '</label>';
+                }).join('');
+            };
+
+            const renderPaymentOptions = function (methods) {
+                if (!paymentOptionsRoot) {
+                    return;
+                }
+
+                const currentlySelected = paymentOptionsRoot.querySelector('input[name="payment_method_code"]:checked')?.value || '';
+                if (!Array.isArray(methods) || methods.length === 0) {
+                    paymentOptionsRoot.innerHTML = '<div class="text-sm text-rose-600">{{ __('ui.checkout.labels.no_payment_methods') }}</div>';
+                    return;
+                }
+
+                paymentOptionsRoot.innerHTML = methods.map(function (method, index) {
+                    const checked = (currentlySelected !== '' && currentlySelected === method.code) || (currentlySelected === '' && index === 0);
+                    return '<label class="flex cursor-pointer items-center justify-between gap-3 border border-slate-300 px-3 py-2.5 text-sm hover:border-slate-500">'
+                        + '<span class="inline-flex items-center gap-2">'
+                        + '<input type="radio" name="payment_method_code" value="' + escapeHtml(method.code) + '" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" required ' + (checked ? 'checked' : '') + '>'
+                        + '<span class="font-semibold text-slate-900">' + escapeHtml(method.name) + '</span>'
+                        + '</span>'
+                        + '</label>';
+                }).join('');
+            };
+
+            const refreshCheckoutOptions = async function () {
+                if (!checkoutForm || !optionsUrl) {
+                    return;
+                }
+
+                if (optionsAbortController) {
+                    optionsAbortController.abort();
+                }
+                optionsAbortController = new AbortController();
+
+                const shipDifferent = !!toggle?.checked;
+                const billingCountry = checkoutForm.querySelector('[name="billing_country_code"]')?.value || '';
+                const billingState = checkoutForm.querySelector('[name="billing_state"]')?.value || '';
+                const billingPostal = checkoutForm.querySelector('[name="billing_postal_code"]')?.value || '';
+                const shippingCountry = checkoutForm.querySelector('[name="shipping_country_code"]')?.value || '';
+                const shippingState = checkoutForm.querySelector('[name="shipping_state"]')?.value || '';
+                const shippingPostal = checkoutForm.querySelector('[name="shipping_postal_code"]')?.value || '';
+
+                const params = new URLSearchParams({
+                    ship_to_different_address: shipDifferent ? '1' : '0',
+                    billing_country_code: billingCountry,
+                    billing_state: billingState,
+                    billing_postal_code: billingPostal,
+                    shipping_country_code: shippingCountry,
+                    shipping_state: shippingState,
+                    shipping_postal_code: shippingPostal,
+                });
+
+                try {
+                    const response = await fetch(optionsUrl + '?' + params.toString(), {
+                        method: 'GET',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        signal: optionsAbortController.signal,
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const payload = await response.json();
+                    renderShippingOptions(payload.shipping_methods || []);
+                    renderPaymentOptions(payload.payment_methods || []);
+                } catch (error) {
+                    // Keep existing options on network/request errors.
+                }
+            };
+
+            const scheduleOptionsRefresh = function () {
+                if (optionsRefreshTimer) {
+                    window.clearTimeout(optionsRefreshTimer);
+                }
+
+                optionsRefreshTimer = window.setTimeout(function () {
+                    refreshCheckoutOptions();
+                }, 200);
             };
 
             const setLoginState = function () {
@@ -508,6 +696,8 @@
             setLoginState();
             setRegisterState();
             setR1State();
+            applyAllStateFieldModes();
+            scheduleOptionsRefresh();
 
             toggle?.addEventListener('change', setShippingState);
             loginToggle?.addEventListener('change', setLoginState);
@@ -515,6 +705,15 @@
             r1Toggle?.addEventListener('change', setR1State);
             billingFirst?.addEventListener('input', syncCustomerNames);
             billingLast?.addEventListener('input', syncCustomerNames);
+            checkoutForm?.querySelectorAll('[data-address-country], [data-state-input], [data-state-select], [name="billing_postal_code"], [name="shipping_postal_code"]').forEach(function (node) {
+                node.addEventListener('change', function () {
+                    applyAllStateFieldModes();
+                    scheduleOptionsRefresh();
+                });
+                node.addEventListener('input', function () {
+                    scheduleOptionsRefresh();
+                });
+            });
 
             window.addEventListener('resize', function () {
                 if (toggle?.checked && shippingFields) {

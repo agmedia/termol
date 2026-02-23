@@ -245,6 +245,8 @@ return [
             'total' => 'Total',
             'shipping_method' => 'Shipping method',
             'payment_method' => 'Payment method',
+            'no_shipping_methods' => 'No shipping methods are available for this address.',
+            'no_payment_methods' => 'No payment methods are available for this address.',
         ],
         'options' => [
             'ship_to_different_address' => 'Ship to a different address',
@@ -375,8 +377,12 @@ return [
             'postal_code' => 'Postal code',
             'city' => 'City',
             'state' => 'State',
+            'county' => 'County',
+            'region' => 'Region',
             'country_code' => 'Country',
             'select_county' => 'Select county',
+            'select_region' => 'Select region',
+            'enter_region' => 'Enter region',
         ],
         'actions' => [
             'save_profile' => 'Save profile',

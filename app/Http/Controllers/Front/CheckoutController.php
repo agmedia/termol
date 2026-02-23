@@ -15,6 +15,7 @@ use App\Services\Front\StoreNotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\JsonResponse;
+use App\Support\Currency;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -44,16 +45,37 @@ class CheckoutController extends Controller
 
         $billing = $user?->addresses?->firstWhere('type', UserAddress::TYPE_BILLING);
         $shipping = $user?->addresses?->firstWhere('type', UserAddress::TYPE_SHIPPING);
+        $shippingCountry = (string) ($shipping?->country_code ?: $billing?->country_code ?: 'HR');
+        $shippingState = (string) ($shipping?->state ?: $billing?->state ?: '');
+        $shippingPostal = (string) ($shipping?->postal_code ?: $billing?->postal_code ?: '');
+        $billingCountry = (string) ($billing?->country_code ?: $shippingCountry);
+        $billingState = (string) ($billing?->state ?: '');
+        $billingPostal = (string) ($billing?->postal_code ?: '');
 
         $addressDirectory = app(AddressDirectoryService::class);
+        $regionOptionsByCountry = $addressDirectory->regionsByCountry((string) app()->getLocale());
 
         return view($this->frontendView($request, 'checkout.create'), [
             'lines' => $this->cart->lines(),
             'summary' => $summary,
-            'shippingMethods' => $this->checkout->availableShippingMethods((float) ($summary['subtotal_after_discount'] ?? $summary['subtotal'])),
-            'paymentMethods' => $this->checkout->availablePaymentMethods((float) ($summary['subtotal_after_discount'] ?? $summary['subtotal'])),
+            'shippingMethods' => $this->checkout->availableShippingMethods(
+                (float) ($summary['subtotal_after_discount'] ?? $summary['subtotal']),
+                $shippingCountry,
+                $shippingState,
+                $shippingPostal
+            ),
+            'paymentMethods' => $this->checkout->availablePaymentMethods(
+                (float) ($summary['subtotal_after_discount'] ?? $summary['subtotal']),
+                $billingCountry,
+                $billingState,
+                $billingPostal
+            ),
             'countryOptions' => $addressDirectory->countries((string) app()->getLocale()),
-            'countyOptions' => $addressDirectory->counties(),
+            'countyOptions' => array_values(array_map(
+                static fn (array $row): string => (string) ($row['name'] ?? ''),
+                $regionOptionsByCountry['HR'] ?? []
+            )),
+            'regionOptionsByCountry' => $regionOptionsByCountry,
             'placesAssetUrl' => $addressDirectory->placesAssetUrl(),
             'prefill' => [
                 'name' => (string) ($user?->name ?? ''),
@@ -227,6 +249,48 @@ class CheckoutController extends Controller
         return redirect()
             ->to($successUrl)
             ->with('status', 'Order created successfully.');
+    }
+
+    public function options(Request $request): JsonResponse
+    {
+        $summary = $this->cart->summary();
+        $subtotal = (float) ($summary['subtotal_after_discount'] ?? $summary['subtotal'] ?? 0);
+
+        $billingCountry = strtoupper((string) $request->query('billing_country_code', 'HR'));
+        $billingState = (string) $request->query('billing_state', '');
+        $billingPostal = (string) $request->query('billing_postal_code', '');
+
+        $shipToDifferent = filter_var((string) $request->query('ship_to_different_address', '0'), FILTER_VALIDATE_BOOL);
+        $shippingCountry = strtoupper((string) $request->query('shipping_country_code', $billingCountry));
+        $shippingState = (string) $request->query('shipping_state', '');
+        $shippingPostal = (string) $request->query('shipping_postal_code', '');
+
+        if (!$shipToDifferent) {
+            $shippingCountry = $billingCountry;
+            $shippingState = $billingState;
+            $shippingPostal = $billingPostal;
+        }
+
+        $shippingMethods = $this->checkout
+            ->availableShippingMethods($subtotal, $shippingCountry, $shippingState, $shippingPostal)
+            ->values();
+
+        $paymentMethods = $this->checkout
+            ->availablePaymentMethods($subtotal, $billingCountry, $billingState, $billingPostal)
+            ->values();
+
+        return response()->json([
+            'shipping_methods' => $shippingMethods->map(fn ($method) => [
+                'code' => (string) $method->code,
+                'name' => (string) $method->name,
+                'price' => round((float) $method->price, 2),
+                'price_formatted' => Currency::format((float) $method->price),
+            ])->all(),
+            'payment_methods' => $paymentMethods->map(fn ($method) => [
+                'code' => (string) $method->code,
+                'name' => (string) $method->name,
+            ])->all(),
+        ]);
     }
 
     public function login(Request $request): RedirectResponse

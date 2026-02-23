@@ -14,7 +14,7 @@
         <p class="mt-2 text-slate-600">{{ __('ui.account.profile.subtitle') }}</p>
     </section>
 
-    <div class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]" data-address-autofill data-address-source="{{ $placesAssetUrl }}">
+    <div class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
         @include('front.desktop.account.partials.nav', ['current' => 'profile'])
 
         <div class="space-y-8">
@@ -92,12 +92,14 @@
                             <input type="text" name="address_line_1" value="{{ old('address_line_1', $address?->address_line_1) }}" placeholder="{{ __('ui.account.fields.address_line_1') }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required>
                             <input type="text" name="postal_code" value="{{ old('postal_code', $address?->postal_code) }}" placeholder="{{ __('ui.account.fields.postal_code') }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-postal required>
                             <input type="text" name="city" value="{{ old('city', $address?->city) }}" placeholder="{{ __('ui.account.fields.city') }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-city required>
-                            <select name="state" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-county>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
+                            <select name="state" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
                                 <option value="">{{ __('ui.account.fields.select_county') }}</option>
                                 @foreach ($countyOptions as $countyOption)
                                     <option value="{{ $countyOption }}" @selected(old('state', $address?->state) === $countyOption)>{{ $countyOption }}</option>
                                 @endforeach
                             </select>
+                            <input type="text" value="{{ old('state', $address?->state) }}" class="hidden mt-2 h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}">
                             <select name="country_code" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-country required>
                                 @foreach ($countryOptions as $countryOption)
                                     <option value="{{ $countryOption['code'] }}" @selected(old('country_code', $address?->country_code ?? 'HR') === $countryOption['code'])>{{ $countryOption['label'] }}</option>
@@ -115,4 +117,87 @@
 
 @push('scripts')
     <script defer src="{{ asset('front-theme/scripts/address-autofill.js') }}?v={{ filemtime(public_path('front-theme/scripts/address-autofill.js')) }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const root = document.querySelector('[data-region-options]');
+            if (!root) {
+                return;
+            }
+
+            const regionOptionsByCountry = root.dataset.regionOptions ? JSON.parse(root.dataset.regionOptions) : {};
+            const escapeHtml = function (value) {
+                return String(value || '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            };
+
+            const applyStateFieldMode = function (scope) {
+                const countrySelect = scope.querySelector('[data-address-country]');
+                const stateLabel = scope.querySelector('[data-state-label]');
+                const stateSelect = scope.querySelector('[data-state-select]');
+                const stateInput = scope.querySelector('[data-state-input]');
+                if (!countrySelect || !stateLabel || !stateSelect || !stateInput) {
+                    return;
+                }
+
+                const stateFieldName = stateSelect.dataset.stateName || stateSelect.getAttribute('name') || stateInput.getAttribute('name') || 'state';
+                stateSelect.dataset.stateName = stateFieldName;
+
+                const countryCode = String(countrySelect.value || '').toUpperCase();
+                const regions = Array.isArray(regionOptionsByCountry[countryCode]) ? regionOptionsByCountry[countryCode] : [];
+                const hasRegions = regions.length > 0;
+                const optionLabel = countryCode === 'HR'
+                    ? (stateSelect.dataset.optionHr || '')
+                    : (stateSelect.dataset.optionIntl || stateSelect.dataset.optionHr || '');
+
+                stateLabel.textContent = countryCode === 'HR'
+                    ? (stateLabel.dataset.labelHr || stateLabel.textContent)
+                    : (stateLabel.dataset.labelIntl || stateLabel.textContent);
+
+                if (hasRegions) {
+                    const previousValue = stateSelect.value || stateInput.value || '';
+                    const options = ['<option value="">' + escapeHtml(optionLabel) + '</option>']
+                        .concat(regions.map(function (region) {
+                            const regionName = String(region?.name || '');
+                            const selected = previousValue !== '' && previousValue === regionName ? ' selected' : '';
+                            return '<option value="' + escapeHtml(regionName) + '"' + selected + '>' + escapeHtml(regionName) + '</option>';
+                        }));
+                    stateSelect.innerHTML = options.join('');
+                    stateSelect.classList.remove('hidden');
+                    stateSelect.disabled = false;
+                    stateSelect.setAttribute('name', stateFieldName);
+                    stateInput.classList.add('hidden');
+                    stateInput.disabled = true;
+                    stateInput.removeAttribute('name');
+                } else {
+                    if (!stateInput.value && stateSelect.value) {
+                        stateInput.value = stateSelect.value;
+                    }
+                    stateInput.classList.remove('hidden');
+                    stateInput.disabled = false;
+                    stateInput.setAttribute('name', stateFieldName);
+                    stateInput.placeholder = stateInput.dataset.placeholderIntl || '';
+                    stateSelect.classList.add('hidden');
+                    stateSelect.disabled = true;
+                    stateSelect.removeAttribute('name');
+                }
+            };
+
+            root.querySelectorAll('[data-address-scope]').forEach(function (scope) {
+                applyStateFieldMode(scope);
+            });
+
+            root.querySelectorAll('[data-address-country]').forEach(function (countrySelect) {
+                countrySelect.addEventListener('change', function () {
+                    const scope = countrySelect.closest('[data-address-scope]');
+                    if (scope) {
+                        applyStateFieldMode(scope);
+                    }
+                });
+            });
+        });
+    </script>
 @endpush

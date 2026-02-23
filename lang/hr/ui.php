@@ -245,6 +245,8 @@ return [
             'total' => 'Ukupno',
             'shipping_method' => 'Način dostave',
             'payment_method' => 'Način plaćanja',
+            'no_shipping_methods' => 'Nema dostupnih načina dostave za ovu adresu.',
+            'no_payment_methods' => 'Nema dostupnih načina plaćanja za ovu adresu.',
         ],
         'options' => [
             'ship_to_different_address' => 'Dostavi na drugu adresu',
@@ -375,8 +377,12 @@ return [
             'postal_code' => 'Poštanski broj',
             'city' => 'Grad',
             'state' => 'Županija/Regija',
+            'county' => 'Županija',
+            'region' => 'Regija',
             'country_code' => 'Država',
             'select_county' => 'Odaberite županiju',
+            'select_region' => 'Odaberite regiju',
+            'enter_region' => 'Upišite regiju',
         ],
         'actions' => [
             'save_profile' => 'Spremi profil',

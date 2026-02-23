@@ -34,7 +34,7 @@
         })->values()->all();
     @endphp
 
-    <form method="POST" action="{{ route('checkout.store') }}" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
+    <form method="POST" action="{{ route('checkout.store') }}" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
         @csrf
 
         <div class="card card-style">
@@ -118,13 +118,14 @@
                     <div class="col-8"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-city" class="color-highlight">{{ __('ui.account.fields.city') }}</label><input id="billing-city" type="text" name="billing_city" value="{{ old('billing_city', $prefill['billing']['city']) }}" data-address-city required></div></div>
                 </div>
                 <div class="input-style has-borders no-icon input-style-always-active mb-3">
-                    <label for="billing-state" class="color-highlight">{{ __('ui.account.fields.state') }}</label>
-                    <select id="billing-state" name="billing_state" data-address-county>
+                    <label for="billing-state" class="color-highlight" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
+                    <select id="billing-state" name="billing_state" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
                         <option value="">{{ __('ui.account.fields.select_county') }}</option>
                         @foreach ($countyOptions as $countyOption)
                             <option value="{{ $countyOption }}" @selected(old('billing_state', $prefill['billing']['state']) === $countyOption)>{{ $countyOption }}</option>
                         @endforeach
                     </select>
+                    <input type="text" value="{{ old('billing_state', $prefill['billing']['state']) }}" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" style="display:none;">
                     <span><i class="fa fa-chevron-down"></i></span>
                 </div>
                 <div class="input-style has-borders no-icon input-style-always-active mb-0">
@@ -165,13 +166,14 @@
                             <div class="col-8"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="shipping-city" class="color-highlight">{{ __('ui.account.fields.city') }}</label><input id="shipping-city" type="text" name="shipping_city" value="{{ old('shipping_city', $prefill['shipping']['city']) }}" data-address-city></div></div>
                         </div>
                         <div class="input-style has-borders no-icon input-style-always-active mb-3">
-                            <label for="shipping-state" class="color-highlight">{{ __('ui.account.fields.state') }}</label>
-                            <select id="shipping-state" name="shipping_state" data-address-county>
+                            <label for="shipping-state" class="color-highlight" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
+                            <select id="shipping-state" name="shipping_state" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
                                 <option value="">{{ __('ui.account.fields.select_county') }}</option>
                                 @foreach ($countyOptions as $countyOption)
                                     <option value="{{ $countyOption }}" @selected(old('shipping_state', $prefill['shipping']['state']) === $countyOption)>{{ $countyOption }}</option>
                                 @endforeach
                             </select>
+                            <input type="text" value="{{ old('shipping_state', $prefill['shipping']['state']) }}" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" style="display:none;">
                             <span><i class="fa fa-chevron-down"></i></span>
                         </div>
                         <div class="input-style has-borders no-icon input-style-always-active mb-0">
@@ -193,12 +195,14 @@
                 <p class="font-600 color-highlight mb-n1">{{ __('ui.checkout.sections.shipping_payment') }}</p>
                 <h3>{{ __('ui.checkout.labels.shipping_method') }}</h3>
 
-                @foreach ($shippingMethods as $method)
-                    <label class="d-flex align-items-center justify-content-between border rounded-sm px-3 py-2 mb-2">
-                        <span><input type="radio" name="shipping_method_code" value="{{ $method->code }}" @checked($selectedShippingCode === (string) $method->code) required> {{ $method->name }}</span>
-                        <span>{{ \App\Support\Currency::format((float) $method->price) }}</span>
-                    </label>
-                @endforeach
+                <div data-checkout-shipping-options>
+                    @foreach ($shippingMethods as $method)
+                        <label class="d-flex align-items-center justify-content-between border rounded-sm px-3 py-2 mb-2">
+                            <span><input type="radio" name="shipping_method_code" value="{{ $method->code }}" @checked($selectedShippingCode === (string) $method->code) required> {{ $method->name }}</span>
+                            <span>{{ \App\Support\Currency::format((float) $method->price) }}</span>
+                        </label>
+                    @endforeach
+                </div>
             </div>
         </div>
 
@@ -206,11 +210,13 @@
             <div class="content">
                 <h3>{{ __('ui.checkout.labels.payment_method') }}</h3>
 
-                @foreach ($paymentMethods as $method)
-                    <label class="d-flex align-items-center justify-content-between border rounded-sm px-3 py-2 mb-2">
-                        <span><input type="radio" name="payment_method_code" value="{{ $method->code }}" @checked($selectedPaymentCode === (string) $method->code) required> {{ $method->name }}</span>
-                    </label>
-                @endforeach
+                <div data-checkout-payment-options>
+                    @foreach ($paymentMethods as $method)
+                        <label class="d-flex align-items-center justify-content-between border rounded-sm px-3 py-2 mb-2">
+                            <span><input type="radio" name="payment_method_code" value="{{ $method->code }}" @checked($selectedPaymentCode === (string) $method->code) required> {{ $method->name }}</span>
+                        </label>
+                    @endforeach
+                </div>
 
                 <div class="input-style has-borders input-style-always-active no-icon mb-3 mt-3">
                     <textarea id="customer-note" name="customer_note" style="height:120px;">{{ old('customer_note') }}</textarea>
@@ -230,9 +236,16 @@
     <script defer src="{{ asset('front-theme/scripts/address-autofill.js') }}?v={{ filemtime(public_path('front-theme/scripts/address-autofill.js')) }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const form = document.querySelector('form[data-checkout-options-url]');
             const toggle = document.querySelector('[data-ship-to-different]');
             const shippingFields = document.querySelector('[data-shipping-fields]');
             const useBillingInput = document.querySelector('[data-use-billing-for-shipping]');
+            const optionsUrl = form?.dataset.checkoutOptionsUrl || '';
+            const regionOptionsByCountry = form?.dataset.regionOptions ? JSON.parse(form.dataset.regionOptions) : {};
+            const shippingOptionsRoot = form?.querySelector('[data-checkout-shipping-options]');
+            const paymentOptionsRoot = form?.querySelector('[data-checkout-payment-options]');
+            let refreshTimer = null;
+            let optionsAbortController = null;
 
             if (!toggle || !shippingFields || !useBillingInput) {
                 return;
@@ -248,10 +261,180 @@
                     shippingFields.style.maxHeight = '0';
                     shippingFields.style.opacity = '0';
                 }
+
+                scheduleOptionsRefresh();
+            };
+
+            const escapeHtml = function (value) {
+                return String(value || '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            };
+
+            const applyStateFieldMode = function (scope) {
+                const countrySelect = scope.querySelector('[data-address-country]');
+                const label = scope.querySelector('[data-state-label]');
+                const select = scope.querySelector('[data-state-select]');
+                const input = scope.querySelector('[data-state-input]');
+                if (!countrySelect || !label || !select || !input) {
+                    return;
+                }
+
+                const stateFieldName = select.dataset.stateName || select.getAttribute('name') || input.getAttribute('name') || 'state';
+                select.dataset.stateName = stateFieldName;
+
+                const countryCode = String(countrySelect.value || '').toUpperCase();
+                const regions = Array.isArray(regionOptionsByCountry[countryCode]) ? regionOptionsByCountry[countryCode] : [];
+                const hasRegions = regions.length > 0;
+                const optionLabel = countryCode === 'HR'
+                    ? (select.dataset.optionHr || '')
+                    : (select.dataset.optionIntl || select.dataset.optionHr || '');
+
+                label.textContent = countryCode === 'HR'
+                    ? (label.dataset.labelHr || label.textContent)
+                    : (label.dataset.labelIntl || label.textContent);
+
+                if (hasRegions) {
+                    const previousValue = select.value || input.value || '';
+                    const options = ['<option value="">' + escapeHtml(optionLabel) + '</option>']
+                        .concat(regions.map(function (region) {
+                            const regionName = String(region?.name || '');
+                            const selected = previousValue !== '' && previousValue === regionName ? ' selected' : '';
+                            return '<option value="' + escapeHtml(regionName) + '"' + selected + '>' + escapeHtml(regionName) + '</option>';
+                        }));
+                    select.innerHTML = options.join('');
+
+                    select.style.display = '';
+                    select.disabled = false;
+                    select.setAttribute('name', stateFieldName);
+                    input.style.display = 'none';
+                    input.disabled = true;
+                    input.removeAttribute('name');
+                } else {
+                    if (!input.value && select.value) {
+                        input.value = select.value;
+                    }
+                    input.style.display = '';
+                    input.disabled = false;
+                    input.setAttribute('name', stateFieldName);
+                    input.placeholder = input.dataset.placeholderIntl || '';
+                    select.style.display = 'none';
+                    select.disabled = true;
+                    select.removeAttribute('name');
+                }
+            };
+
+            const applyAllStateModes = function () {
+                form?.querySelectorAll('[data-address-scope]').forEach(function (scope) {
+                    applyStateFieldMode(scope);
+                });
+            };
+
+            const renderShippingOptions = function (methods) {
+                if (!shippingOptionsRoot) {
+                    return;
+                }
+
+                const selected = shippingOptionsRoot.querySelector('input[name="shipping_method_code"]:checked')?.value || '';
+                if (!Array.isArray(methods) || methods.length === 0) {
+                    shippingOptionsRoot.innerHTML = '<div class="font-12 color-red-dark">{{ __('ui.checkout.labels.no_shipping_methods') }}</div>';
+                    return;
+                }
+
+                shippingOptionsRoot.innerHTML = methods.map(function (method, index) {
+                    const checked = (selected !== '' && selected === method.code) || (selected === '' && index === 0);
+                    return '<label class="d-flex align-items-center justify-content-between border rounded-sm px-3 py-2 mb-2">'
+                        + '<span><input type="radio" name="shipping_method_code" value="' + String(method.code || '') + '" ' + (checked ? 'checked' : '') + ' required> ' + String(method.name || '') + '</span>'
+                        + '<span>' + String(method.price_formatted || '') + '</span>'
+                        + '</label>';
+                }).join('');
+            };
+
+            const renderPaymentOptions = function (methods) {
+                if (!paymentOptionsRoot) {
+                    return;
+                }
+
+                const selected = paymentOptionsRoot.querySelector('input[name="payment_method_code"]:checked')?.value || '';
+                if (!Array.isArray(methods) || methods.length === 0) {
+                    paymentOptionsRoot.innerHTML = '<div class="font-12 color-red-dark">{{ __('ui.checkout.labels.no_payment_methods') }}</div>';
+                    return;
+                }
+
+                paymentOptionsRoot.innerHTML = methods.map(function (method, index) {
+                    const checked = (selected !== '' && selected === method.code) || (selected === '' && index === 0);
+                    return '<label class="d-flex align-items-center justify-content-between border rounded-sm px-3 py-2 mb-2">'
+                        + '<span><input type="radio" name="payment_method_code" value="' + String(method.code || '') + '" ' + (checked ? 'checked' : '') + ' required> ' + String(method.name || '') + '</span>'
+                        + '</label>';
+                }).join('');
+            };
+
+            const refreshOptions = async function () {
+                if (!form || !optionsUrl) {
+                    return;
+                }
+
+                if (optionsAbortController) {
+                    optionsAbortController.abort();
+                }
+                optionsAbortController = new AbortController();
+
+                const shipDifferent = !!toggle.checked;
+                const params = new URLSearchParams({
+                    ship_to_different_address: shipDifferent ? '1' : '0',
+                    billing_country_code: form.querySelector('[name="billing_country_code"]')?.value || '',
+                    billing_state: form.querySelector('[name="billing_state"]')?.value || '',
+                    billing_postal_code: form.querySelector('[name="billing_postal_code"]')?.value || '',
+                    shipping_country_code: form.querySelector('[name="shipping_country_code"]')?.value || '',
+                    shipping_state: form.querySelector('[name="shipping_state"]')?.value || '',
+                    shipping_postal_code: form.querySelector('[name="shipping_postal_code"]')?.value || '',
+                });
+
+                try {
+                    const response = await fetch(optionsUrl + '?' + params.toString(), {
+                        method: 'GET',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        signal: optionsAbortController.signal,
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const payload = await response.json();
+                    renderShippingOptions(payload.shipping_methods || []);
+                    renderPaymentOptions(payload.payment_methods || []);
+                } catch (error) {
+                    // Keep current options on request errors.
+                }
+            };
+
+            const scheduleOptionsRefresh = function () {
+                if (refreshTimer) {
+                    clearTimeout(refreshTimer);
+                }
+                refreshTimer = setTimeout(refreshOptions, 200);
             };
 
             setState();
+            applyAllStateModes();
+            scheduleOptionsRefresh();
             toggle.addEventListener('change', setState);
+            form?.querySelectorAll('[data-address-country], [data-state-select], [data-state-input], [name="billing_postal_code"], [name="shipping_postal_code"]').forEach(function (node) {
+                node.addEventListener('change', function () {
+                    applyAllStateModes();
+                    scheduleOptionsRefresh();
+                });
+                node.addEventListener('input', function () {
+                    scheduleOptionsRefresh();
+                });
+            });
             window.addEventListener('resize', function () {
                 if (toggle.checked) {
                     shippingFields.style.maxHeight = shippingFields.scrollHeight + 'px';

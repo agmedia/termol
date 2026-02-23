@@ -156,6 +156,7 @@ class AccountController extends Controller
         $shipping = $user->addresses->firstWhere('type', UserAddress::TYPE_SHIPPING);
         $payload = is_array($user->profile?->payload) ? $user->profile->payload : [];
         $addressDirectory = app(AddressDirectoryService::class);
+        $regionOptionsByCountry = $addressDirectory->regionsByCountry((string) app()->getLocale());
 
         return view($this->frontendView($request, 'account.profile'), [
             'user' => $user,
@@ -163,7 +164,11 @@ class AccountController extends Controller
             'shipping' => $shipping,
             'preferencePayload' => $payload,
             'countryOptions' => $addressDirectory->countries((string) app()->getLocale()),
-            'countyOptions' => $addressDirectory->counties(),
+            'countyOptions' => array_values(array_map(
+                static fn (array $row): string => (string) ($row['name'] ?? ''),
+                $regionOptionsByCountry['HR'] ?? []
+            )),
+            'regionOptionsByCountry' => $regionOptionsByCountry,
             'placesAssetUrl' => $addressDirectory->placesAssetUrl(),
         ]);
     }

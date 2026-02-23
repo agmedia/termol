@@ -1387,6 +1387,7 @@
                                         'shipping-methods' => __('admin.layout.menu.shipping_methods'),
                                         'geo-zones' => __('admin.layout.menu.geo_zones'),
                                         'geo-zone-countries' => __('admin.layout.menu.geo_zone_countries'),
+                                        'regions' => __('admin.layout.menu.regions'),
                                         'currencies' => __('admin.layout.menu.currencies'),
                                         'tax-rates' => __('admin.layout.menu.tax_rates'),
                                         'order-statuses' => __('admin.layout.menu.order_statuses'),
