@@ -34,7 +34,7 @@ class Manager extends Component
     {
         $page = InfoPage::query()->find($pageId);
         if (! $page) {
-            $this->dispatch('notify', type: 'danger', message: 'Page not found.');
+            $this->dispatch('notify', type: 'danger', message: __('admin.content.pages.manager.notify_not_found'));
             return;
         }
 
@@ -44,7 +44,7 @@ class Manager extends Component
             $page->delete();
         });
 
-        $this->dispatch('notify', type: 'success', message: 'Page deleted.');
+        $this->dispatch('notify', type: 'success', message: __('admin.content.pages.manager.notify_deleted'));
         $this->resetPage();
     }
 

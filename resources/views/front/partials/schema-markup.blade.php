@@ -533,7 +533,7 @@
         $schemas[] = $pageSchema;
     }
 
-    if (request()->routeIs('home') && (bool) ($schemaSettings['faq_enabled'] ?? true)) {
+    if ((request()->routeIs('home') || request()->routeIs('faq.index')) && (bool) ($schemaSettings['faq_enabled'] ?? true)) {
         try {
             $faqLimit = max(1, min(20, (int) ($schemaSettings['faq_limit'] ?? 8)));
             $faqGroup = trim((string) ($schemaSettings['faq_group'] ?? ''));

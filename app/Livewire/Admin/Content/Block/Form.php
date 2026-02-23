@@ -70,8 +70,16 @@ class Form extends Component
         /** @var array<string, string> $placements */
         $placements = config('content_blocks.placements', []);
 
-        $this->types = $this->orderedTypes($types);
+        $this->types = collect($this->orderedTypes($types))
+            ->mapWithKeys(static fn ($label, $key) => [$key => __((string) $label)])
+            ->all();
         $this->placements = $placements;
+        $this->targetTypes = collect($this->targetTypes)
+            ->map(static fn ($label) => __((string) $label))
+            ->all();
+        $this->frontendVariants = collect($this->frontendVariants)
+            ->map(static fn ($label) => __((string) $label))
+            ->all();
 
         $this->resetForm();
         $this->lastType = (string) ($this->form['type'] ?? '');
@@ -274,15 +282,15 @@ class Form extends Component
             ->all();
 
         if (trim((string) ($validated['form']['slot_target_ref'] ?? '')) !== '' && trim((string) ($validated['form']['slot_target_type'] ?? '')) === '') {
-            $this->addError('form.slot_target_type', 'Target type is required when target ref is set.');
-            $this->dispatch('notify', type: 'warning', message: 'Choose target type when target ref is set.');
+            $this->addError('form.slot_target_type', __('Target type is required when target ref is set.'));
+            $this->dispatch('notify', type: 'warning', message: __('Choose target type when target ref is set.'));
 
             return null;
         }
 
         if ($itemType !== null && $selectedIds === []) {
-            $this->addError('form.selected_item_ids', 'Select at least one item for this block type.');
-            $this->dispatch('notify', type: 'warning', message: 'Select at least one item.');
+            $this->addError('form.selected_item_ids', __('Select at least one item for this block type.'));
+            $this->dispatch('notify', type: 'warning', message: __('Select at least one item.'));
 
             return null;
         }
@@ -290,8 +298,8 @@ class Form extends Component
         if ($itemType !== null && $selectedIds !== []) {
             $validIds = $this->validIdsForItemType($itemType, $selectedIds);
             if (count($validIds) !== count($selectedIds)) {
-                $this->addError('form.selected_item_ids', 'One or more selected items are invalid.');
-                $this->dispatch('notify', type: 'warning', message: 'Invalid item selection detected.');
+                $this->addError('form.selected_item_ids', __('One or more selected items are invalid.'));
+                $this->dispatch('notify', type: 'warning', message: __('Invalid item selection detected.'));
 
                 return null;
             }
@@ -374,7 +382,7 @@ class Form extends Component
 
         return redirect()->route('admin.content.blocks')->with('notify', [
             'type' => 'success',
-            'message' => $isEdit ? 'Content block updated.' : 'Content block created.',
+            'message' => $isEdit ? __('Content block updated.') : __('Content block created.'),
         ]);
     }
 
@@ -879,7 +887,7 @@ BLADE,
             <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div class="h-36 rounded-xl bg-gradient-to-br from-slate-200 to-slate-100"></div>
                 <h3 class="mt-3 text-sm font-semibold text-slate-900">{{ $pt?->name ?? $product->code }}</h3>
-                <p class="mt-2 text-sm font-semibold text-slate-800">{{ number_format((float)$product->base_price, 2) }} €</p>
+                <p class="mt-2 text-sm font-semibold text-slate-800">{{ \App\Support\Currency::format((float) $product->base_price) }}</p>
             </article>
         @empty
             <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 sm:col-span-2 xl:col-span-4">No products selected.</div>

@@ -81,7 +81,7 @@ class ResourceManager extends Component
 
     public function getTitleProperty(): string
     {
-        return $this->resources[$this->resource]['title'];
+        return __($this->resources[$this->resource]['title']);
     }
 
     public function updatedSearch(): void
@@ -108,8 +108,8 @@ class ResourceManager extends Component
         if ($this->hasColumn('settings') && !empty($data['settings_text'])) {
             $decoded = json_decode((string) $data['settings_text'], true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->addError('form.settings_text', 'Settings JSON is invalid.');
-                $this->dispatch('notify', type: 'error', message: 'Settings JSON is invalid.');
+                $this->addError('form.settings_text', __('Settings JSON is invalid.'));
+                $this->dispatch('notify', type: 'error', message: __('Settings JSON is invalid.'));
                 return;
             }
             $data['settings'] = $decoded;
@@ -133,7 +133,7 @@ class ResourceManager extends Component
         }
 
         $this->dispatch('profile-updated', name: auth()->user()->name);
-        $this->dispatch('notify', type: 'success', message: $this->editingId ? 'Record updated.' : 'Record created.');
+        $this->dispatch('notify', type: 'success', message: $this->editingId ? __('Record updated.') : __('Record created.'));
         $this->resetForm();
     }
 
@@ -170,7 +170,7 @@ class ResourceManager extends Component
             $this->resetForm();
         }
 
-        $this->dispatch('notify', type: 'success', message: 'Record deleted.');
+        $this->dispatch('notify', type: 'success', message: __('Record deleted.'));
     }
 
     public function toggleActive(int $id): void
@@ -182,7 +182,7 @@ class ResourceManager extends Component
         $modelClass = $this->modelClass();
         $record = $modelClass::query()->findOrFail($id);
         $record->update(['is_active' => !$record->is_active]);
-        $this->dispatch('notify', type: 'info', message: $record->is_active ? 'Item switched to active.' : 'Item switched to inactive.');
+        $this->dispatch('notify', type: 'info', message: $record->is_active ? __('Item switched to active.') : __('Item switched to inactive.'));
     }
 
     public function makeDefault(int $id): void
@@ -194,7 +194,7 @@ class ResourceManager extends Component
         $modelClass = $this->modelClass();
         $modelClass::query()->update(['is_default' => false]);
         $modelClass::query()->where('id', $id)->update(['is_default' => true]);
-        $this->dispatch('notify', type: 'success', message: 'Default item updated.');
+        $this->dispatch('notify', type: 'success', message: __('Default item updated.'));
     }
 
     public function cancelEdit(): void

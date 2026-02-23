@@ -138,6 +138,15 @@ class NavigationMenuService
                     'children' => [],
                     'open_in_new_tab' => false,
                 ];
+            } elseif ($type === 'faq') {
+                $entry = [
+                    'key' => 'faq-'.$index,
+                    'type' => 'faq',
+                    'label' => $this->labelForItem($item, 'FAQ', $locale, $fallbackLocale),
+                    'url' => route('faq.index'),
+                    'children' => [],
+                    'open_in_new_tab' => false,
+                ];
             } else {
                 $url = $this->urlForItem($item, $locale, $fallbackLocale);
                 $label = $this->labelForItem($item, '', $locale, $fallbackLocale);

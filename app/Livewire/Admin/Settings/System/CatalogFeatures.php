@@ -53,7 +53,7 @@ class CatalogFeatures extends Component
 
         app(SystemSettingsService::class)->putMany($payload);
 
-        $this->dispatch('notify', type: 'success', message: 'Catalog feature flags saved.');
+        $this->dispatch('notify', type: 'success', message: __('Catalog feature flags saved.'));
     }
 
     public function resetToDefaults(): void
@@ -67,7 +67,7 @@ class CatalogFeatures extends Component
             $this->form[$key] = (bool) ($defaults[$key] ?? false);
         }
 
-        $this->dispatch('notify', type: 'info', message: 'Default feature values loaded in form (save to persist).');
+        $this->dispatch('notify', type: 'info', message: __('Default feature values loaded in form (save to persist).'));
     }
 
     /**

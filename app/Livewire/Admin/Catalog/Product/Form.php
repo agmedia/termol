@@ -167,7 +167,7 @@ class Form extends Component
                 ->route('admin.products.edit', ['product' => $this->productId, 'locale' => $this->form['locale']])
                 ->with('notify', [
                     'type' => 'success',
-                    'message' => 'Product updated.',
+                    'message' => __('Product updated.'),
                 ]);
         }
 
@@ -175,7 +175,7 @@ class Form extends Component
             ->route('admin.products.edit', ['product' => $this->productId, 'locale' => $this->form['locale']])
             ->with('notify', [
                 'type' => 'success',
-                'message' => 'Product created. Now upload product images.',
+                'message' => __('Product created. Now upload product images.'),
             ]);
     }
 
@@ -508,14 +508,14 @@ class Form extends Component
         $decoded = json_decode($value, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            $this->addError($field, 'Invalid JSON payload.');
-            $this->dispatch('notify', type: 'danger', message: 'Invalid JSON payload.');
+            $this->addError($field, __('Invalid JSON payload.'));
+            $this->dispatch('notify', type: 'danger', message: __('Invalid JSON payload.'));
             return false;
         }
 
         if (!is_array($decoded)) {
-            $this->addError($field, 'JSON payload must decode to object/array.');
-            $this->dispatch('notify', type: 'danger', message: 'JSON payload must decode to object/array.');
+            $this->addError($field, __('JSON payload must decode to object/array.'));
+            $this->dispatch('notify', type: 'danger', message: __('JSON payload must decode to object/array.'));
             return false;
         }
 
@@ -549,8 +549,8 @@ class Form extends Component
             ->get(['id', 'group_code', 'type']);
 
         if ($rows->count() !== count($ids)) {
-            $this->addError('form.attribute_ids', 'Invalid attribute selection.');
-            $this->dispatch('notify', type: 'danger', message: 'Invalid attribute selection.');
+            $this->addError('form.attribute_ids', __('Invalid attribute selection.'));
+            $this->dispatch('notify', type: 'danger', message: __('Invalid attribute selection.'));
             return false;
         }
 
@@ -559,8 +559,8 @@ class Form extends Component
         foreach ($byGroup as $groupCode => $groupRows) {
             $type = (string) ($groupRows->first()->type ?? Attribute::TYPE_SELECT);
             if ($type === Attribute::TYPE_SELECT && $groupRows->count() > 1) {
-                $this->addError('form.attribute_ids', 'Only one value is allowed for group "'.$groupCode.'".');
-                $this->dispatch('notify', type: 'danger', message: 'Only one value is allowed for select-type attribute groups.');
+                $this->addError('form.attribute_ids', __('Only one value is allowed for group ":group".', ['group' => $groupCode]));
+                $this->dispatch('notify', type: 'danger', message: __('Only one value is allowed for select-type attribute groups.'));
                 return false;
             }
         }
@@ -619,8 +619,8 @@ class Form extends Component
             ->get(['id', 'group_code', 'type']);
 
         if ($rows->count() !== count($allIds)) {
-            $this->addError('form.attribute_ids', 'Invalid attribute selection.');
-            $this->dispatch('notify', type: 'danger', message: 'Invalid attribute selection.');
+            $this->addError('form.attribute_ids', __('Invalid attribute selection.'));
+            $this->dispatch('notify', type: 'danger', message: __('Invalid attribute selection.'));
             return false;
         }
 
@@ -634,14 +634,14 @@ class Form extends Component
                 $row = $byId->get($id);
 
                 if (!$row) {
-                    $this->addError('form.attribute_ids', 'Invalid attribute selection.');
-                    $this->dispatch('notify', type: 'danger', message: 'Invalid attribute selection.');
+                    $this->addError('form.attribute_ids', __('Invalid attribute selection.'));
+                    $this->dispatch('notify', type: 'danger', message: __('Invalid attribute selection.'));
                     return false;
                 }
 
                 if ((string) $row->group_code !== $groupCode) {
-                    $this->addError('attributeSelections.'.$groupCode, 'Selected value does not belong to this group.');
-                    $this->dispatch('notify', type: 'danger', message: 'Attribute group/value mismatch detected.');
+                    $this->addError('attributeSelections.'.$groupCode, __('Selected value does not belong to this group.'));
+                    $this->dispatch('notify', type: 'danger', message: __('Attribute group/value mismatch detected.'));
                     return false;
                 }
 
@@ -649,8 +649,8 @@ class Form extends Component
             }
 
             if (($groupType ?? Attribute::TYPE_SELECT) === Attribute::TYPE_SELECT && count($ids) > 1) {
-                $this->addError('attributeSelections.'.$groupCode, 'Only one value can be selected for this group.');
-                $this->dispatch('notify', type: 'danger', message: 'Only one value is allowed for select-type attribute groups.');
+                $this->addError('attributeSelections.'.$groupCode, __('Only one value can be selected for this group.'));
+                $this->dispatch('notify', type: 'danger', message: __('Only one value is allowed for select-type attribute groups.'));
                 return false;
             }
         }

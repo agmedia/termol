@@ -215,7 +215,7 @@ class StoreSettings extends Component
         $this->ogPageImageUpload = null;
         $this->ogBlogImageUpload = null;
 
-        $this->dispatch('notify', type: 'success', message: 'Store settings saved.');
+        $this->dispatch('notify', type: 'success', message: __('Store settings saved.'));
     }
 
     /**

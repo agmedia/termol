@@ -61,13 +61,13 @@ class Manager extends Component
     {
         $record = $this->record;
         if (! $record) {
-            $this->dispatch('notify', type: 'warning', message: 'Save record first, then upload images.');
+            $this->dispatch('notify', type: 'warning', message: __('Save record first, then upload images.'));
             return;
         }
 
         $collectionConfig = MediaProfileRegistry::collectionForModel($this->modelClass, $collectionName);
         if ($collectionConfig === []) {
-            $this->dispatch('notify', type: 'danger', message: 'Unknown media collection.');
+            $this->dispatch('notify', type: 'danger', message: __('Unknown media collection.'));
             return;
         }
 
@@ -91,7 +91,7 @@ class Manager extends Component
         $files = $this->normalizeFiles($input, $isSingle);
 
         if ($files === []) {
-            $this->dispatch('notify', type: 'warning', message: 'Choose at least one image first.');
+            $this->dispatch('notify', type: 'warning', message: __('Choose at least one image first.'));
             return;
         }
 
@@ -118,20 +118,20 @@ class Manager extends Component
         unset($this->uploads[$collectionName]);
         $this->meta = [];
 
-        $this->dispatch('notify', type: 'success', message: 'Images uploaded.');
+        $this->dispatch('notify', type: 'success', message: __('Images uploaded.'));
     }
 
     public function delete(int $mediaId): void
     {
         $media = $this->findMedia($mediaId);
         if (! $media) {
-            $this->dispatch('notify', type: 'warning', message: 'Image not found.');
+            $this->dispatch('notify', type: 'warning', message: __('Image not found.'));
             return;
         }
 
         $media->delete();
         unset($this->meta[$mediaId]);
-        $this->dispatch('notify', type: 'success', message: 'Image deleted.');
+        $this->dispatch('notify', type: 'success', message: __('Image deleted.'));
     }
 
     public function moveUp(int $mediaId): void
@@ -158,7 +158,7 @@ class Manager extends Component
 
         $media = $this->findMedia($mediaId);
         if (! $media) {
-            $this->dispatch('notify', type: 'warning', message: 'Image not found.');
+            $this->dispatch('notify', type: 'warning', message: __('Image not found.'));
             return;
         }
 
@@ -169,14 +169,14 @@ class Manager extends Component
         $media->copy($record, $mainCollection);
         $this->meta = [];
 
-        $this->dispatch('notify', type: 'success', message: 'Image copied to main collection.');
+        $this->dispatch('notify', type: 'success', message: __('Image copied to main collection.'));
     }
 
     public function saveMeta(int $mediaId): void
     {
         $media = $this->findMedia($mediaId);
         if (! $media) {
-            $this->dispatch('notify', type: 'warning', message: 'Image not found.');
+            $this->dispatch('notify', type: 'warning', message: __('Image not found.'));
             return;
         }
 
@@ -248,7 +248,7 @@ class Manager extends Component
         $media->custom_properties = $custom;
         $media->save();
 
-        $this->dispatch('notify', type: 'success', message: 'Image metadata saved.');
+        $this->dispatch('notify', type: 'success', message: __('Image metadata saved.'));
     }
 
     /**
@@ -258,7 +258,7 @@ class Manager extends Component
     {
         $media = $this->findMedia($mediaId);
         if (! $media) {
-            $this->dispatch('notify', type: 'warning', message: 'Image not found.');
+            $this->dispatch('notify', type: 'warning', message: __('Image not found.'));
             return;
         }
 
@@ -297,7 +297,7 @@ class Manager extends Component
         $meta['crop_height'] = $cropHeight;
         $this->meta[$mediaId] = $meta;
 
-        $this->dispatch('notify', type: 'success', message: 'Crop/focal saved and conversions regenerated.');
+        $this->dispatch('notify', type: 'success', message: __('Crop/focal saved and conversions regenerated.'));
     }
 
     /**
@@ -429,7 +429,7 @@ class Manager extends Component
     {
         $media = $this->findMedia($mediaId);
         if (! $media) {
-            $this->dispatch('notify', type: 'warning', message: 'Image not found.');
+            $this->dispatch('notify', type: 'warning', message: __('Image not found.'));
             return;
         }
 
@@ -459,7 +459,7 @@ class Manager extends Component
         [$ids[$currentIndex], $ids[$targetIndex]] = [$ids[$targetIndex], $ids[$currentIndex]];
         Media::setNewOrder($ids);
 
-        $this->dispatch('notify', type: 'success', message: 'Image order updated.');
+        $this->dispatch('notify', type: 'success', message: __('Image order updated.'));
     }
 
     /**

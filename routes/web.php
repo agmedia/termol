@@ -9,6 +9,7 @@ use App\Http\Controllers\Front\CartController;
 use App\Http\Controllers\Front\CatalogController;
 use App\Http\Controllers\Front\CheckoutController;
 use App\Http\Controllers\Front\ContactController;
+use App\Http\Controllers\Front\FaqController;
 use App\Http\Controllers\Front\ManufacturerController;
 use App\Http\Controllers\Front\PageController;
 use App\Http\Controllers\Front\ProductController;
@@ -77,6 +78,7 @@ Route::middleware(['front.locale', 'front.device'])
 
         Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
         Route::get('blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
+        Route::get('faq', [FaqController::class, 'index'])->name('faq.index');
 
         Route::get('pages/category/{slug}', [PageController::class, 'category'])->name('pages.category');
         Route::get('page/{slug}', [PageController::class, 'show'])->name('pages.show');
@@ -144,7 +146,7 @@ Route::get('dashboard', function (Request $request) {
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
-Route::middleware(['auth', 'verified', 'admin.access', 'admin.ability'])
+Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ability'])
     ->prefix('admin')
     ->as('admin.')
     ->group(function (): void {

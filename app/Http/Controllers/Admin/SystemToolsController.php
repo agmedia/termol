@@ -19,10 +19,10 @@ class SystemToolsController extends Controller
         Artisan::call('route:clear');
 
         return back()
-            ->with('status', 'Application cache has been cleared.')
+            ->with('status', __('Application cache has been cleared.'))
             ->with('notify', [
                 'type' => 'success',
-                'message' => 'Application cache has been cleared.',
+                'message' => __('Application cache has been cleared.'),
             ]);
     }
 
@@ -44,10 +44,10 @@ class SystemToolsController extends Controller
         Artisan::call('up');
 
         return back()
-            ->with('status', 'Maintenance mode is now OFF.')
+            ->with('status', __('Maintenance mode is now OFF.'))
             ->with('notify', [
                 'type' => 'success',
-                'message' => 'Maintenance mode is now OFF.',
+                'message' => __('Maintenance mode is now OFF.'),
             ]);
     }
 

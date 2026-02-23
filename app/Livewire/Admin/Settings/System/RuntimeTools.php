@@ -22,7 +22,7 @@ class RuntimeTools extends Component
         if ($this->isMaintenance) {
             Artisan::call('up');
             $this->refreshState();
-            $this->dispatch('notify', type: 'success', message: 'Maintenance mode switched OFF.');
+            $this->dispatch('notify', type: 'success', message: __('Maintenance mode switched OFF.'));
             return;
         }
 
@@ -30,7 +30,7 @@ class RuntimeTools extends Component
         Artisan::call('down', ['--secret' => $secret]);
 
         $this->refreshState();
-        $this->dispatch('notify', type: 'warning', message: 'Maintenance mode switched ON. Redirecting to bypass URL.');
+        $this->dispatch('notify', type: 'warning', message: __('Maintenance mode switched ON. Redirecting to bypass URL.'));
         $this->redirect('/'.$secret, navigate: false);
     }
 
@@ -43,7 +43,7 @@ class RuntimeTools extends Component
         Artisan::call('view:clear');
         Artisan::call('route:clear');
 
-        $this->dispatch('notify', type: 'success', message: 'Application cache has been cleared.');
+        $this->dispatch('notify', type: 'success', message: __('Application cache has been cleared.'));
     }
 
     public function refreshState(): void

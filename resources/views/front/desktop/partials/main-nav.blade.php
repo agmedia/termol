@@ -39,5 +39,6 @@
     @if ($catalogFeatures->useBlog())
         <a href="{{ route('blog.index') }}" class="py-6 hover:text-slate-600">{{ __('ui.front.desktop.nav.blog') }}</a>
     @endif
+    <a href="{{ route('faq.index') }}" class="py-6 hover:text-slate-600">{{ __('ui.front.desktop.nav.faq') }}</a>
     <a href="{{ route('contact.create') }}" class="py-6 hover:text-slate-600">{{ __('ui.front.desktop.nav.contact') }}</a>
 @endif

@@ -108,9 +108,9 @@ class Manager extends Component
     public function getStateOptionsProperty(): array
     {
         return [
-            'all' => 'All',
-            'active' => 'Active',
-            'inactive' => 'Inactive',
+            'all' => __('admin.common.all'),
+            'active' => __('admin.common.active'),
+            'inactive' => __('admin.common.inactive'),
         ];
     }
 
@@ -120,10 +120,10 @@ class Manager extends Component
     public function getStockOptionsProperty(): array
     {
         return [
-            'all' => 'All',
-            'in_stock' => 'In stock',
-            'out_of_stock' => 'Out of stock',
-            'low_stock' => 'Low stock',
+            'all' => __('All'),
+            'in_stock' => __('In stock'),
+            'out_of_stock' => __('Out of stock'),
+            'low_stock' => __('Low stock'),
         ];
     }
 
@@ -133,16 +133,16 @@ class Manager extends Component
     public function getSortOptionsProperty(): array
     {
         return [
-            'newest' => 'Newest',
-            'oldest' => 'Oldest',
-            'name_asc' => 'Name A-Z',
-            'name_desc' => 'Name Z-A',
-            'price_asc' => 'Price Low-High',
-            'price_desc' => 'Price High-Low',
-            'stock_asc' => 'Stock Low-High',
-            'stock_desc' => 'Stock High-Low',
-            'code_asc' => 'Code A-Z',
-            'code_desc' => 'Code Z-A',
+            'newest' => __('Newest'),
+            'oldest' => __('Oldest'),
+            'name_asc' => __('Name A-Z'),
+            'name_desc' => __('Name Z-A'),
+            'price_asc' => __('Price Low-High'),
+            'price_desc' => __('Price High-Low'),
+            'stock_asc' => __('Stock Low-High'),
+            'stock_desc' => __('Stock High-Low'),
+            'code_asc' => __('Code A-Z'),
+            'code_desc' => __('Code Z-A'),
         ];
     }
 

@@ -124,10 +124,10 @@ class Form extends Component
                     'layout' => $validated['form']['layout'],
                     'category_count' => count($syncPayload),
                 ])
-                ->log('Info page saved');
+                ->log(__('Info page saved'));
         });
 
-        $message = $wasEditing ? 'Info page updated.' : 'Info page created.';
+        $message = $wasEditing ? __('Info page updated.') : __('Info page created.');
 
         return redirect()
             ->route('admin.content.pages.index', ['locale' => $this->form['locale']])
@@ -292,14 +292,14 @@ class Form extends Component
         $decoded = json_decode($value, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            $this->addError($field, 'Invalid JSON payload.');
-            $this->dispatch('notify', type: 'danger', message: 'Invalid JSON payload.');
+            $this->addError($field, (string) __('Invalid JSON payload.'));
+            $this->dispatch('notify', type: 'danger', message: __('Invalid JSON payload.'));
             return false;
         }
 
         if (!is_array($decoded)) {
-            $this->addError($field, 'JSON payload must decode to object/array.');
-            $this->dispatch('notify', type: 'danger', message: 'JSON payload must decode to object/array.');
+            $this->addError($field, (string) __('JSON payload must decode to object/array.'));
+            $this->dispatch('notify', type: 'danger', message: __('JSON payload must decode to object/array.'));
             return false;
         }
 

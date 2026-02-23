@@ -58,17 +58,25 @@ class Manager extends Component
     public function addContactItem(): void
     {
         $item = $this->makeDefaultItem('contact');
-        $item['label'] = 'Kontakt';
-        $item['label_translations'] = [$this->locale => 'Kontakt'];
+        $item['label'] = (string) __('admin.content.navigation.defaults.contact');
+        $item['label_translations'] = [$this->locale => (string) __('admin.content.navigation.defaults.contact')];
+        $this->form['items'][] = $item;
+    }
+
+    public function addFaqItem(): void
+    {
+        $item = $this->makeDefaultItem('faq');
+        $item['label'] = 'FAQ';
+        $item['label_translations'] = [$this->locale => 'FAQ'];
         $this->form['items'][] = $item;
     }
 
     public function addCustomItem(): void
     {
         $item = $this->makeDefaultItem('custom');
-        $item['label'] = 'Novi link';
+        $item['label'] = (string) __('admin.content.navigation.defaults.custom_label');
         $item['url'] = '/';
-        $item['label_translations'] = [$this->locale => 'Novi link'];
+        $item['label_translations'] = [$this->locale => (string) __('admin.content.navigation.defaults.custom_label')];
         $item['url_translations'] = [$this->locale => '/'];
         $this->form['items'][] = $item;
     }
@@ -109,7 +117,7 @@ class Manager extends Component
 
         $validated = $this->validate([
             'form.items' => ['array'],
-            'form.items.*.type' => ['required', 'in:category,page,blog,contact,custom'],
+            'form.items.*.type' => ['required', 'in:category,page,blog,contact,faq,custom'],
             'form.items.*.label' => ['nullable', 'string', 'max:120'],
             'form.items.*.category_id' => ['nullable', 'integer', 'min:0'],
             'form.items.*.page_id' => ['nullable', 'integer', 'min:0'],
@@ -131,17 +139,17 @@ class Manager extends Component
 
             $type = (string) $normalized['type'];
             if ($type === 'category' && (int) $normalized['category_id'] <= 0) {
-                $this->addError('form.items.'.$index.'.category_id', 'Odaberite kategoriju.');
+                $this->addError('form.items.'.$index.'.category_id', (string) __('admin.content.navigation.errors.select_category'));
             }
             if ($type === 'page' && (int) $normalized['page_id'] <= 0) {
-                $this->addError('form.items.'.$index.'.page_id', 'Odaberite stranicu.');
+                $this->addError('form.items.'.$index.'.page_id', (string) __('admin.content.navigation.errors.select_page'));
             }
             if ($type === 'custom') {
                 if (trim((string) $normalized['label']) === '') {
-                    $this->addError('form.items.'.$index.'.label', 'Unesite naziv linka.');
+                    $this->addError('form.items.'.$index.'.label', (string) __('admin.content.navigation.errors.enter_label'));
                 }
                 if (trim((string) $normalized['url']) === '') {
-                    $this->addError('form.items.'.$index.'.url', 'Unesite URL linka.');
+                    $this->addError('form.items.'.$index.'.url', (string) __('admin.content.navigation.errors.enter_url'));
                 }
             }
         }
@@ -152,7 +160,7 @@ class Manager extends Component
 
         app(SystemSettingsService::class)->put(NavigationMenuService::SETTINGS_KEY, $normalizedItems);
 
-        $this->dispatch('notify', type: 'success', message: 'Navigation menu spremljen.');
+        $this->dispatch('notify', type: 'success', message: (string) __('admin.content.navigation.notify_saved'));
     }
 
     public function render()

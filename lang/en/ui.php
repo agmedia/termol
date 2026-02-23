@@ -51,6 +51,12 @@ return [
             'failed' => 'Wishlist update failed.',
         ],
     ],
+    'faq' => [
+        'page_title' => 'FAQ',
+        'title' => 'Frequently asked questions',
+        'subtitle' => 'Answers to the most common customer questions.',
+        'empty' => 'No FAQ entries available right now.',
+    ],
     'front' => [
         'desktop' => [
             'store' => 'Store',

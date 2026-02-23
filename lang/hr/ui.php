@@ -51,6 +51,12 @@ return [
             'failed' => 'Ažuriranje favorita nije uspjelo.',
         ],
     ],
+    'faq' => [
+        'page_title' => 'Česta pitanja',
+        'title' => 'Česta pitanja',
+        'subtitle' => 'Odgovori na najčešća pitanja kupaca.',
+        'empty' => 'Trenutno nema dostupnih FAQ stavki.',
+    ],
     'front' => [
         'desktop' => [
             'store' => 'Store',
