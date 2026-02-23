@@ -67,6 +67,22 @@
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Payment') }}</p>
                     <p class="mt-1 text-sm text-slate-800">{{ $order->payment_method_name ?: '-' }}</p>
                     <p class="text-xs text-slate-600">{{ $order->payment_method_code ?: '-' }}</p>
+                    @if (!empty($bankTransfer) && !empty($bankTransfer['receiver_iban']))
+                        <div class="mt-2 space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
+                            <p><strong>{{ __('Recipient') }}:</strong> {{ $bankTransfer['receiver_name'] ?? '-' }}</p>
+                            <p><strong>IBAN:</strong> {{ $bankTransfer['receiver_iban'] ?? '-' }}</p>
+                            <p><strong>{{ __('Model') }}:</strong> {{ $bankTransfer['model'] ?? '-' }}</p>
+                            <p><strong>{{ __('Reference') }}:</strong> {{ $bankTransfer['reference'] ?? '-' }}</p>
+                            <p><strong>{{ __('Amount') }}:</strong> {{ $order->currency_code }} {{ number_format((float) ($bankTransfer['amount'] ?? 0), 2) }}</p>
+                        </div>
+                        @if (!empty($bankTransfer['qr_image_base64']))
+                            <img
+                                src="data:{{ $bankTransfer['qr_image_mime'] ?? 'image/png' }};base64,{{ $bankTransfer['qr_image_base64'] }}"
+                                alt="UPI QR"
+                                class="mt-2 h-auto w-full max-w-[210px] rounded border border-slate-200 bg-white p-1"
+                            >
+                        @endif
+                    @endif
                 </div>
                 <div style="grid-column: span 4;">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Shipping') }}</p>

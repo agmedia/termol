@@ -116,22 +116,45 @@ class ResourceManager extends Component
             $data['is_active'] = true;
         }
 
-        if ($this->hasColumn('settings') && !empty($data['settings_text'])) {
-            $decoded = json_decode((string) $data['settings_text'], true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->addError('form.settings_text', __('Settings JSON is invalid.'));
-                $this->dispatch('notify', type: 'error', message: __('Settings JSON is invalid.'));
-                return;
+        $modelClass = $this->modelClass();
+        $editingRecord = $this->editingId ? $modelClass::query()->findOrFail($this->editingId) : null;
+
+        $settings = [];
+        if ($this->hasColumn('settings')) {
+            $settings = is_array($editingRecord?->settings) ? $editingRecord->settings : [];
+            if (! empty($data['settings_text'])) {
+                $decoded = json_decode((string) $data['settings_text'], true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $this->addError('form.settings_text', __('Settings JSON is invalid.'));
+                    $this->dispatch('notify', type: 'error', message: __('Settings JSON is invalid.'));
+                    return;
+                }
+                $settings = is_array($decoded) ? $decoded : [];
             }
-            $data['settings'] = $decoded;
+            $settings = $this->mergeBankTransferUpiSettings($settings, $data);
+            if ($this->isBankTransferCode((string) ($data['code'] ?? ''))) {
+                if (! $this->hasRequiredBankTransferUpiSettings($settings)) {
+                    $this->addError('form.upi_receiver_name', __('UPI receiver name, street, place and IBAN are required for bank transfer.'));
+                    $this->dispatch('notify', type: 'error', message: __('UPI receiver name, street, place and IBAN are required for bank transfer.'));
+                    return;
+                }
+            }
+            $data['settings'] = $settings;
         }
 
-        unset($data['settings_text']);
-
-        $modelClass = $this->modelClass();
+        unset(
+            $data['settings_text'],
+            $data['upi_receiver_name'],
+            $data['upi_receiver_street'],
+            $data['upi_receiver_place'],
+            $data['upi_receiver_iban'],
+            $data['upi_model'],
+            $data['upi_purpose_code'],
+            $data['upi_description'],
+        );
 
         if ($this->editingId) {
-            $record = $modelClass::query()->findOrFail($this->editingId);
+            $record = $editingRecord;
             $record->update($data);
         } else {
             $record = $modelClass::query()->create($data);
@@ -153,6 +176,7 @@ class ResourceManager extends Component
         $modelClass = $this->modelClass();
         $record = $modelClass::query()->findOrFail($id);
         $this->editingId = $record->id;
+        $settings = is_array($record->settings ?? null) ? $record->settings : [];
 
         $defaults = $this->defaultForm();
         foreach ($defaults as $key => $default) {
@@ -165,6 +189,11 @@ class ResourceManager extends Component
 
             if (in_array($key, $this->booleanFields(), true)) {
                 $this->form[$key] = (bool) ($record->{$key} ?? false);
+                continue;
+            }
+
+            if (str_starts_with($key, 'upi_')) {
+                $this->form[$key] = (string) ($settings[$key] ?? $default);
                 continue;
             }
 
@@ -288,6 +317,13 @@ class ResourceManager extends Component
             'is_active' => true,
             'sort_order' => 0,
             'settings_text' => '',
+            'upi_receiver_name' => '',
+            'upi_receiver_street' => '',
+            'upi_receiver_place' => '',
+            'upi_receiver_iban' => '',
+            'upi_model' => '00',
+            'upi_purpose_code' => 'SUPP',
+            'upi_description' => 'Web narudzba',
         ];
     }
 
@@ -329,6 +365,13 @@ class ResourceManager extends Component
             'form.is_active' => ['boolean'],
             'form.sort_order' => ['nullable', 'integer', 'min:0'],
             'form.settings_text' => ['nullable', 'string'],
+            'form.upi_receiver_name' => ['nullable', 'string', 'max:255'],
+            'form.upi_receiver_street' => ['nullable', 'string', 'max:255'],
+            'form.upi_receiver_place' => ['nullable', 'string', 'max:255'],
+            'form.upi_receiver_iban' => ['nullable', 'string', 'max:64'],
+            'form.upi_model' => ['nullable', 'string', 'max:20'],
+            'form.upi_purpose_code' => ['nullable', 'string', 'max:20'],
+            'form.upi_description' => ['nullable', 'string', 'max:255'],
         ];
 
         if ($this->hasColumn('code')) {
@@ -357,7 +400,14 @@ class ResourceManager extends Component
 
         $allowed = $this->resources[$this->resource]['fields'];
         return collect($rules)
-            ->filter(fn ($v, $k) => in_array(str_replace('form.', '', $k), $allowed, true))
+            ->filter(function ($v, $k) use ($allowed): bool {
+                $field = str_replace('form.', '', $k);
+                if (in_array($field, $allowed, true)) {
+                    return true;
+                }
+
+                return $this->resource === 'payment-methods' && str_starts_with($field, 'upi_');
+            })
             ->all();
     }
 
@@ -412,5 +462,62 @@ class ResourceManager extends Component
             5,
             200
         );
+    }
+
+    public function isBankTransferForm(): bool
+    {
+        if ($this->resource !== 'payment-methods') {
+            return false;
+        }
+
+        return $this->isBankTransferCode((string) ($this->form['code'] ?? ''));
+    }
+
+    private function isBankTransferCode(string $code): bool
+    {
+        return in_array(strtolower(trim($code)), ['bank', 'bank_transfer'], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function mergeBankTransferUpiSettings(array $settings, array $data): array
+    {
+        if (! $this->isBankTransferCode((string) ($data['code'] ?? ''))) {
+            return $settings;
+        }
+
+        foreach ([
+            'upi_receiver_name',
+            'upi_receiver_street',
+            'upi_receiver_place',
+            'upi_receiver_iban',
+            'upi_model',
+            'upi_purpose_code',
+            'upi_description',
+        ] as $key) {
+            $value = trim((string) ($data[$key] ?? ''));
+            if ($value !== '') {
+                $settings[$key] = $value;
+            }
+        }
+
+        return $settings;
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function hasRequiredBankTransferUpiSettings(array $settings): bool
+    {
+        foreach (['upi_receiver_name', 'upi_receiver_street', 'upi_receiver_place', 'upi_receiver_iban'] as $key) {
+            if (trim((string) ($settings[$key] ?? '')) === '') {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

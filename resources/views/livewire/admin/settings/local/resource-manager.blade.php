@@ -217,6 +217,46 @@
                     </div>
                 @endif
 
+                @if ($this->isBankTransferForm())
+                    <div class="rounded-xl border border-cyan-200 bg-cyan-50 p-3">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-800">{{ __('UPI bank transfer data (required)') }}</p>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Receiver name') }}</label>
+                                <input type="text" wire:model="form.upi_receiver_name" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.upi_receiver_name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">IBAN</label>
+                                <input type="text" wire:model="form.upi_receiver_iban" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm uppercase outline-none ring-cyan-200 focus:ring" />
+                                @error('form.upi_receiver_iban') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Receiver street') }}</label>
+                                <input type="text" wire:model="form.upi_receiver_street" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.upi_receiver_street') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Receiver place') }}</label>
+                                <input type="text" wire:model="form.upi_receiver_place" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.upi_receiver_place') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Model') }}</label>
+                                <input type="text" wire:model="form.upi_model" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Purpose code') }}</label>
+                                <input type="text" wire:model="form.upi_purpose_code" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Payment description') }}</label>
+                                <input type="text" wire:model="form.upi_description" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="grid grid-cols-2 gap-3">
                     @if (in_array('sort_order', $resources[$resource]['fields'], true))
                         <div>

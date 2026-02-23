@@ -30,6 +30,11 @@
         .totals tr:last-child td { border-bottom:none; font-size:16px; font-weight:800; }
         .totals .k { color:#64748b; }
         .note { margin-top:16px; padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-size:13px; }
+        .bank { margin-top:16px; padding:12px; border:1px solid #e2e8f0; background:#f8fafc; }
+        .bank h3 { margin:0 0 8px; font-size:14px; }
+        .bank p { margin:4px 0; font-size:13px; }
+        .bank-qr { margin-top:10px; }
+        .bank-qr img { width:260px; max-width:100%; height:auto; border:1px solid #d1d5db; background:#fff; padding:6px; }
         .foot { padding:16px 20px; border-top:1px solid #e5e7eb; color:#64748b; font-size:12px; text-align:center; }
         @media only screen and (max-width: 620px) {
             .content { padding:14px; }
@@ -121,6 +126,25 @@
                     <tr><td class="k">{{ __('mail.orders.tax') }}</td><td class="num">{{ $totals['tax'] }}</td></tr>
                     <tr><td>{{ __('mail.orders.total') }}</td><td class="num">{{ $totals['grand_total'] }}</td></tr>
                 </table>
+
+                @if (!empty($bank_transfer) && !empty($bank_transfer['receiver_iban']))
+                    <div class="bank">
+                        <h3>{{ __('mail.orders.bank_transfer_title') }}</h3>
+                        <p>{{ __('mail.orders.bank_transfer_note') }}</p>
+                        <p><strong>{{ __('mail.orders.bank_recipient') }}:</strong> {{ $bank_transfer['receiver_name'] ?? '-' }}</p>
+                        <p><strong>{{ __('mail.orders.bank_iban') }}:</strong> {{ $bank_transfer['receiver_iban'] ?? '-' }}</p>
+                        <p><strong>{{ __('mail.orders.bank_model') }}:</strong> {{ $bank_transfer['model'] ?? '-' }}</p>
+                        <p><strong>{{ __('mail.orders.bank_reference') }}:</strong> {{ $bank_transfer['reference'] ?? '-' }}</p>
+                        <p><strong>{{ __('mail.orders.bank_amount') }}:</strong> {{ number_format((float) ($bank_transfer['amount'] ?? 0), 2, '.', ',') }} {{ $currency }}</p>
+                        <p><strong>{{ __('mail.orders.bank_description') }}:</strong> {{ $bank_transfer['description'] ?? '-' }}</p>
+
+                        @if (!empty($bank_transfer['qr_image_base64']))
+                            <div class="bank-qr">
+                                <img src="data:{{ $bank_transfer['qr_image_mime'] ?? 'image/png' }};base64,{{ $bank_transfer['qr_image_base64'] }}" alt="{{ __('mail.orders.bank_qr_alt') }}">
+                            </div>
+                        @endif
+                    </div>
+                @endif
 
                 @if (!empty($customer_note))
                     <div class="note">

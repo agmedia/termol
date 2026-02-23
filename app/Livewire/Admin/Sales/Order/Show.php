@@ -5,6 +5,7 @@ namespace App\Livewire\Admin\Sales\Order;
 use App\Models\Sales\Order\Order;
 use App\Models\Settings\Local\OrderStatus;
 use App\Services\Loyalty\LoyaltyService;
+use App\Services\Payments\BankTransferUpiService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
@@ -197,6 +198,7 @@ class Show extends Component
 
         $loyaltyService = app(LoyaltyService::class);
         $loyaltyEnabled = $loyaltyService->enabled();
+        $bankTransfer = app(BankTransferUpiService::class)->ensureForOrder($order);
         $currencyValuePerPoint = $loyaltyEnabled ? $loyaltyService->currencyValuePerPoint() : 0.0;
         $redemptionPoints = 0;
         if ($loyaltyEnabled) {
@@ -230,6 +232,7 @@ class Show extends Component
             'maxRedeemablePoints' => $maxRedeemablePoints,
             'currencyValuePerPoint' => $currencyValuePerPoint,
             'loyaltyEnabled' => $loyaltyEnabled,
+            'bankTransfer' => $bankTransfer,
         ]);
     }
 

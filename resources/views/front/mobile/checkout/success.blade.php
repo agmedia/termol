@@ -64,6 +64,33 @@
         </div>
     @endif
 
+    @if (!empty($bankTransfer) && !empty($bankTransfer['receiver_iban']))
+        <div class="card card-style rounded-0">
+            <div class="content">
+                <h4 class="mb-3">{{ __('ui.checkout.success.bank_transfer_title') }}</h4>
+                <p class="font-13 opacity-70 mb-2">{{ __('ui.checkout.success.bank_transfer_note') }}</p>
+                <div class="font-13">
+                    <div><strong>{{ __('ui.checkout.success.bank_recipient') }}:</strong> {{ $bankTransfer['receiver_name'] ?? '-' }}</div>
+                    <div><strong>{{ __('ui.checkout.success.bank_iban') }}:</strong> {{ $bankTransfer['receiver_iban'] ?? '-' }}</div>
+                    <div><strong>{{ __('ui.checkout.success.bank_model') }}:</strong> {{ $bankTransfer['model'] ?? '-' }}</div>
+                    <div><strong>{{ __('ui.checkout.success.bank_reference') }}:</strong> {{ $bankTransfer['reference'] ?? '-' }}</div>
+                    <div><strong>{{ __('ui.checkout.success.bank_amount') }}:</strong> {{ $order->currency_code }} {{ number_format((float) ($bankTransfer['amount'] ?? 0), 2) }}</div>
+                    <div><strong>{{ __('ui.checkout.success.bank_description') }}:</strong> {{ $bankTransfer['description'] ?? '-' }}</div>
+                </div>
+
+                @if (!empty($bankTransfer['qr_image_base64']))
+                    <div class="text-center mt-3">
+                        <img
+                            src="data:{{ $bankTransfer['qr_image_mime'] ?? 'image/png' }};base64,{{ $bankTransfer['qr_image_base64'] }}"
+                            alt="{{ __('ui.checkout.success.bank_qr_alt') }}"
+                            style="max-width: 300px; width: 100%; height: auto;"
+                        >
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
+
     <a href="{{ route('shop.index') }}" class="btn btn-margins btn-full gradient-blue font-13 btn-l font-600 rounded-0">{{ __('ui.checkout.success.continue_shopping') }}</a>
 
     @auth

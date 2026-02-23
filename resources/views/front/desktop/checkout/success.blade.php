@@ -19,6 +19,32 @@
             </div>
         </dl>
 
+        @if (!empty($bankTransfer) && !empty($bankTransfer['receiver_iban']))
+            <section class="mt-6 border border-slate-200 bg-slate-50 p-4">
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">{{ __('ui.checkout.success.bank_transfer_title') }}</h2>
+                <p class="mt-2 text-sm text-slate-600">{{ __('ui.checkout.success.bank_transfer_note') }}</p>
+
+                <div class="mt-3 grid gap-2 text-sm text-slate-800 md:grid-cols-2">
+                    <p><strong>{{ __('ui.checkout.success.bank_recipient') }}:</strong> {{ $bankTransfer['receiver_name'] ?? '-' }}</p>
+                    <p><strong>{{ __('ui.checkout.success.bank_iban') }}:</strong> {{ $bankTransfer['receiver_iban'] ?? '-' }}</p>
+                    <p><strong>{{ __('ui.checkout.success.bank_model') }}:</strong> {{ $bankTransfer['model'] ?? '-' }}</p>
+                    <p><strong>{{ __('ui.checkout.success.bank_reference') }}:</strong> {{ $bankTransfer['reference'] ?? '-' }}</p>
+                    <p><strong>{{ __('ui.checkout.success.bank_amount') }}:</strong> {{ $order->currency_code }} {{ number_format((float) ($bankTransfer['amount'] ?? 0), 2) }}</p>
+                    <p><strong>{{ __('ui.checkout.success.bank_description') }}:</strong> {{ $bankTransfer['description'] ?? '-' }}</p>
+                </div>
+
+                @if (!empty($bankTransfer['qr_image_base64']))
+                    <div class="mt-4">
+                        <img
+                            src="data:{{ $bankTransfer['qr_image_mime'] ?? 'image/png' }};base64,{{ $bankTransfer['qr_image_base64'] }}"
+                            alt="{{ __('ui.checkout.success.bank_qr_alt') }}"
+                            class="h-auto w-full max-w-[380px] border border-slate-200 bg-white p-2"
+                        >
+                    </div>
+                @endif
+            </section>
+        @endif
+
         <div class="mt-8 flex flex-wrap gap-2">
             @auth
                 <a href="{{ route('account.orders.show', ['orderNumber' => $order->order_number]) }}" class="bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">{{ __('ui.checkout.success.view_in_account') }}</a>

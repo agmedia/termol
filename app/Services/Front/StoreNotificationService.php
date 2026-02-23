@@ -5,6 +5,7 @@ namespace App\Services\Front;
 use App\Models\Content\Support\ContactMessage;
 use App\Models\Sales\Order\Order;
 use App\Models\Sales\Order\OrderItem;
+use App\Services\Payments\BankTransferUpiService;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
@@ -122,6 +123,7 @@ class StoreNotificationService
         $order->loadMissing([
             'items.product.media',
         ]);
+        $bankTransfer = app(BankTransferUpiService::class)->ensureForOrder($order);
 
         $settings = $this->storeSettings->all();
         $brand = $settings['branding'] ?? [];
@@ -194,6 +196,7 @@ class StoreNotificationService
                 'tax' => (float) $order->tax_total,
                 'grand_total' => (float) $order->grand_total,
             ],
+            'bank_transfer' => is_array($bankTransfer) ? $bankTransfer : null,
         ];
     }
 

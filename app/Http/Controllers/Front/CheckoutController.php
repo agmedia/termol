@@ -12,6 +12,7 @@ use App\Services\Front\AddressDirectoryService;
 use App\Services\Front\CartService;
 use App\Services\Front\CheckoutService;
 use App\Services\Front\StoreNotificationService;
+use App\Services\Payments\BankTransferUpiService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\JsonResponse;
@@ -327,8 +328,11 @@ class CheckoutController extends Controller
 
         abort_unless($allowedBySession || $allowedByUser, 404);
 
+        $bankTransfer = app(BankTransferUpiService::class)->ensureForOrder($order);
+
         return view($this->frontendView($request, 'checkout.success'), [
             'order' => $order,
+            'bankTransfer' => $bankTransfer,
         ]);
     }
 
