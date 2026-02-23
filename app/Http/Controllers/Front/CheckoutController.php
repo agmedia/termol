@@ -13,6 +13,7 @@ use App\Services\Front\CartService;
 use App\Services\Front\CheckoutService;
 use App\Services\Front\StoreNotificationService;
 use App\Services\Payments\BankTransferUpiService;
+use App\Services\Payments\WSPayFormService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\JsonResponse;
@@ -248,14 +249,19 @@ class CheckoutController extends Controller
         }
 
         $order = $this->checkout->placeOrder($validated, $checkoutUser);
-        $this->notifications->sendOrderNotification($order);
+        $wspay = app(WSPayFormService::class);
+        if (! $wspay->isWspayCode((string) $order->payment_method_code)) {
+            $this->notifications->sendOrderNotification($order);
+        }
 
         $this->cart->clear();
         $request->session()->put('front.checkout.last_order_id', (int) $order->id);
 
         $this->syncCustomerData($request, $validated);
 
-        $successUrl = route('checkout.success', ['orderNumber' => $order->order_number]);
+        $successUrl = $wspay->isWspayCode((string) $order->payment_method_code)
+            ? route('checkout.wspay.start', ['orderNumber' => $order->order_number])
+            : route('checkout.success', ['orderNumber' => $order->order_number]);
 
         if (
             $request->boolean('_ajax')
@@ -407,6 +413,45 @@ class CheckoutController extends Controller
         return redirect()->route('checkout.success', ['orderNumber' => $order->order_number]);
     }
 
+    public function wspayStart(Request $request, string $orderNumber): View|RedirectResponse
+    {
+        $order = Order::query()
+            ->where('order_number', $orderNumber)
+            ->firstOrFail();
+
+        $allowedBySession = ((int) $request->session()->get('front.checkout.last_order_id', 0)) === (int) $order->id;
+        $allowedByUser = $request->user() && ((int) $request->user()->id === (int) $order->user_id);
+
+        abort_unless($allowedBySession || $allowedByUser, 404);
+
+        $formData = app(WSPayFormService::class)->buildFormData($order);
+        if (! is_array($formData)) {
+            return redirect()
+                ->route('checkout.success', ['orderNumber' => $order->order_number])
+                ->with('status', __('ui.checkout.wspay.missing_config'));
+        }
+
+        return view($this->frontendView($request, 'checkout.wspay-redirect'), [
+            'order' => $order,
+            'formData' => $formData,
+        ]);
+    }
+
+    public function wspayReturn(Request $request, string $orderNumber): RedirectResponse
+    {
+        return $this->handleWspayCallback($request, $orderNumber, 'return');
+    }
+
+    public function wspayError(Request $request, string $orderNumber): RedirectResponse
+    {
+        return $this->handleWspayCallback($request, $orderNumber, 'error');
+    }
+
+    public function wspayCancel(Request $request, string $orderNumber): RedirectResponse
+    {
+        return $this->handleWspayCallback($request, $orderNumber, 'cancel');
+    }
+
     /**
      * @param array<string, mixed> $validated
      */
@@ -469,5 +514,91 @@ class CheckoutController extends Controller
                 'is_default' => true,
             ]
         );
+    }
+
+    private function handleWspayCallback(Request $request, string $orderNumber, string $context): RedirectResponse
+    {
+        $order = Order::query()
+            ->where('order_number', $orderNumber)
+            ->firstOrFail();
+
+        $wspay = app(WSPayFormService::class);
+        $result = $wspay->handleCallback($order, $request->all(), $context);
+
+        if (strtolower($context) === 'cancel' && ! (bool) ($result['paid'] ?? false)) {
+            $wspay->handleCancellationEffects($order);
+            $freshOrder = Order::query()->with('items')->find($order->id);
+            if ($freshOrder) {
+                $this->restoreCartFromOrder($freshOrder);
+            }
+        }
+
+        if ((bool) ($result['paid'] ?? false)) {
+            $freshOrder = Order::query()->find($order->id);
+            if ($freshOrder) {
+                $this->sendWspayNotificationOnce($freshOrder);
+            }
+        }
+
+        $request->session()->put('front.checkout.last_order_id', (int) $order->id);
+
+        $statusKey = match ((string) ($result['status'] ?? '')) {
+            'approved' => 'ui.checkout.wspay.status.approved',
+            'cancelled' => 'ui.checkout.wspay.status.cancelled',
+            'error' => 'ui.checkout.wspay.status.error',
+            'invalid_signature' => 'ui.checkout.wspay.status.invalid_signature',
+            default => 'ui.checkout.wspay.status.declined',
+        };
+
+        if (strtolower($context) === 'cancel') {
+            return redirect()
+                ->route('cart.index')
+                ->with('status', __('ui.checkout.wspay.status.cancelled_to_cart'));
+        }
+
+        return redirect()
+            ->route('checkout.success', ['orderNumber' => $order->order_number])
+            ->with('status', __($statusKey));
+    }
+
+    private function restoreCartFromOrder(Order $order): void
+    {
+        $lines = [];
+        foreach ($order->items as $item) {
+            $qty = max(0, (int) $item->quantity);
+            if ($qty <= 0) {
+                continue;
+            }
+
+            $productId = (int) ($item->product_id ?? 0);
+            if ($productId <= 0) {
+                continue;
+            }
+
+            $optionValueId = (int) ($item->product_option_value_id ?? 0);
+            $lines[] = [
+                'product_id' => $productId,
+                'product_option_value_id' => $optionValueId > 0 ? $optionValueId : null,
+                'quantity' => $qty,
+            ];
+        }
+
+        $couponCode = (string) ($order->payload['coupon_code'] ?? '');
+        $this->cart->replaceRaw($lines, $couponCode !== '' ? $couponCode : null);
+    }
+
+    private function sendWspayNotificationOnce(Order $order): void
+    {
+        $payload = is_array($order->payload) ? $order->payload : [];
+        $wspayPayload = is_array($payload['wspay'] ?? null) ? $payload['wspay'] : [];
+        if (! empty($wspayPayload['notification_sent_at'])) {
+            return;
+        }
+
+        $this->notifications->sendOrderNotification($order);
+
+        $wspayPayload['notification_sent_at'] = now()->toIso8601String();
+        $payload['wspay'] = $wspayPayload;
+        $order->forceFill(['payload' => $payload])->save();
     }
 }

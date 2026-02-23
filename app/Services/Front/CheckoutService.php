@@ -148,13 +148,7 @@ class CheckoutService
             ->orderBy('id')
             ->first();
 
-        /** @var OrderStatus|null $status */
-        $status = OrderStatus::query()
-            ->where('is_active', true)
-            ->orderByDesc('is_default')
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->first();
+        $status = $this->resolveOrderStatusForPayment($paymentMethod);
 
         $locale = (string) app()->getLocale();
 
@@ -550,5 +544,29 @@ class CheckoutService
     private function isBoxNowCode(string $code): bool
     {
         return in_array(strtolower(trim($code)), ['boxnow', 'box_now'], true);
+    }
+
+    private function resolveOrderStatusForPayment(PaymentMethod $paymentMethod): ?OrderStatus
+    {
+        $settings = is_array($paymentMethod->settings) ? $paymentMethod->settings : [];
+        $customStatusId = (int) ($settings['default_order_status_id'] ?? 0);
+
+        if ($customStatusId > 0) {
+            $customStatus = OrderStatus::query()
+                ->where('id', $customStatusId)
+                ->where('is_active', true)
+                ->first();
+
+            if ($customStatus) {
+                return $customStatus;
+            }
+        }
+
+        return OrderStatus::query()
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->first();
     }
 }

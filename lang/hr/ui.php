@@ -269,6 +269,21 @@ return [
             'partner_missing' => 'BOX NOW shipping metoda nije konfigurirana (partner ID).',
             'widget_unavailable' => 'BOX NOW widget trenutno nije dostupan.',
         ],
+        'wspay' => [
+            'redirect_page_title' => 'WSPay plaćanje',
+            'redirect_title' => 'Preusmjeravanje na WSPay',
+            'redirect_subtitle' => 'Za završetak kartičnog plaćanja bit ćete automatski preusmjereni na sigurnu WSPay stranicu.',
+            'redirect_button' => 'Nastavi na WSPay',
+            'missing_config' => 'WSPay nije ispravno konfiguriran. Obratite se podršci.',
+            'status' => [
+                'approved' => 'Plaćanje je uspješno odobreno.',
+                'declined' => 'Plaćanje nije odobreno.',
+                'cancelled' => 'Plaćanje je otkazano.',
+                'cancelled_to_cart' => 'Plaćanje je otkazano. Artikli su vraćeni u košaricu.',
+                'error' => 'Dogodila se greška pri obradi plaćanja.',
+                'invalid_signature' => 'Sigurnosna provjera plaćanja nije prošla.',
+            ],
+        ],
         'login' => [
             'toggle' => 'Imam račun, želim se prijaviti',
             'title' => 'Prijava',

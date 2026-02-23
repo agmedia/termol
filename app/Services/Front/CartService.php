@@ -350,6 +350,41 @@ class CartService
         Session::forget(self::COUPON_SESSION_KEY);
     }
 
+    /**
+     * @param array<int, array{product_id:int,product_option_value_id:int|null,quantity:int}> $lines
+     */
+    public function replaceRaw(array $lines, ?string $couponCode = null): void
+    {
+        $normalized = [];
+
+        foreach ($lines as $line) {
+            $productId = (int) ($line['product_id'] ?? 0);
+            $optionValueId = (int) ($line['product_option_value_id'] ?? 0);
+            $quantity = (int) ($line['quantity'] ?? 0);
+
+            if ($productId <= 0 || $quantity <= 0) {
+                continue;
+            }
+
+            $key = $this->lineKey($productId, $optionValueId > 0 ? $optionValueId : null);
+            $current = (int) ($normalized[$key]['quantity'] ?? 0);
+            $normalized[$key] = [
+                'product_id' => $productId,
+                'product_option_value_id' => $optionValueId > 0 ? $optionValueId : null,
+                'quantity' => min(999, $current + $quantity),
+            ];
+        }
+
+        Session::put(self::SESSION_KEY, $normalized);
+
+        $coupon = strtoupper(trim((string) ($couponCode ?? '')));
+        if ($coupon !== '') {
+            Session::put(self::COUPON_SESSION_KEY, $coupon);
+        } else {
+            Session::forget(self::COUPON_SESSION_KEY);
+        }
+    }
+
     private function lineKey(int $productId, ?int $productOptionValueId): string
     {
         return $productId.':'.(int) ($productOptionValueId ?? 0);

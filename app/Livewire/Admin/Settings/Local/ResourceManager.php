@@ -22,6 +22,9 @@ class ResourceManager extends Component
 {
     use WithPagination;
 
+    private const WSPAY_FORM_URL_TEST = 'https://formtest.wspay.biz/authorization.aspx';
+    private const WSPAY_FORM_URL_LIVE = 'https://form.wspay.biz/authorization.aspx';
+
     public string $resource = 'payment-methods';
     public array $form = [];
     public ?int $editingId = null;
@@ -131,8 +134,10 @@ class ResourceManager extends Component
                 }
                 $settings = is_array($decoded) ? $decoded : [];
             }
+            $settings = $this->mergePaymentMethodSettings($settings, $data);
             $settings = $this->mergeBankTransferUpiSettings($settings, $data);
             $settings = $this->mergeBoxNowSettings($settings, $data);
+            $settings = $this->mergeWspaySettings($settings, $data);
             if ($this->isBankTransferCode((string) ($data['code'] ?? ''))) {
                 if (! $this->hasRequiredBankTransferUpiSettings($settings)) {
                     $this->addError('form.upi_receiver_name', __('UPI receiver name, street, place and IBAN are required for bank transfer.'));
@@ -143,6 +148,11 @@ class ResourceManager extends Component
             if ($this->isBoxNowCode((string) ($data['code'] ?? '')) && trim((string) ($settings['boxnow_partner_id'] ?? '')) === '') {
                 $this->addError('form.boxnow_partner_id', __('BOX NOW partner ID is required for boxnow shipping method.'));
                 $this->dispatch('notify', type: 'error', message: __('BOX NOW partner ID is required for boxnow shipping method.'));
+                return;
+            }
+            if ($this->isWspayCode((string) ($data['code'] ?? '')) && ! $this->hasRequiredWspaySettings($settings)) {
+                $this->addError('form.wspay_shop_id', __('WSPay Shop ID and Secret Key are required.'));
+                $this->dispatch('notify', type: 'error', message: __('WSPay Shop ID and Secret Key are required.'));
                 return;
             }
             $data['settings'] = $settings;
@@ -158,6 +168,12 @@ class ResourceManager extends Component
             $data['upi_purpose_code'],
             $data['upi_description'],
             $data['boxnow_partner_id'],
+            $data['default_order_status_id'],
+            $data['wspay_form_url'],
+            $data['wspay_mode'],
+            $data['wspay_shop_id'],
+            $data['wspay_secret_key'],
+            $data['wspay_return_method'],
         );
 
         if ($this->editingId) {
@@ -199,7 +215,7 @@ class ResourceManager extends Component
                 continue;
             }
 
-            if (str_starts_with($key, 'upi_') || $key === 'boxnow_partner_id') {
+            if (str_starts_with($key, 'upi_') || str_starts_with($key, 'wspay_') || in_array($key, ['boxnow_partner_id', 'default_order_status_id'], true)) {
                 $this->form[$key] = (string) ($settings[$key] ?? $default);
                 continue;
             }
@@ -272,6 +288,16 @@ class ResourceManager extends Component
         return $options;
     }
 
+    public function orderStatusOptions(): array
+    {
+        return OrderStatus::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
+    }
+
     private function modelClass(): string
     {
         return $this->resources[$this->resource]['model'];
@@ -332,6 +358,12 @@ class ResourceManager extends Component
             'upi_purpose_code' => 'SUPP',
             'upi_description' => 'Web narudzba',
             'boxnow_partner_id' => '',
+            'default_order_status_id' => '',
+            'wspay_mode' => 'test',
+            'wspay_form_url' => '',
+            'wspay_shop_id' => '',
+            'wspay_secret_key' => '',
+            'wspay_return_method' => 'GET',
         ];
     }
 
@@ -381,6 +413,12 @@ class ResourceManager extends Component
             'form.upi_purpose_code' => ['nullable', 'string', 'max:20'],
             'form.upi_description' => ['nullable', 'string', 'max:255'],
             'form.boxnow_partner_id' => ['nullable', 'string', 'max:60'],
+            'form.default_order_status_id' => ['nullable', 'integer', 'exists:order_statuses,id'],
+            'form.wspay_mode' => ['nullable', Rule::in(['test', 'live'])],
+            'form.wspay_form_url' => ['nullable', 'string', 'max:255'],
+            'form.wspay_shop_id' => ['nullable', 'string', 'max:120'],
+            'form.wspay_secret_key' => ['nullable', 'string', 'max:255'],
+            'form.wspay_return_method' => ['nullable', Rule::in(['GET', 'POST'])],
         ];
 
         if ($this->hasColumn('code')) {
@@ -416,6 +454,14 @@ class ResourceManager extends Component
                 }
 
                 if ($this->resource === 'payment-methods' && str_starts_with($field, 'upi_')) {
+                    return true;
+                }
+
+                if ($this->resource === 'payment-methods' && str_starts_with($field, 'wspay_')) {
+                    return true;
+                }
+
+                if ($this->resource === 'payment-methods' && $field === 'default_order_status_id') {
                     return true;
                 }
 
@@ -495,6 +541,15 @@ class ResourceManager extends Component
         return $this->isBoxNowCode((string) ($this->form['code'] ?? ''));
     }
 
+    public function isWspayForm(): bool
+    {
+        if ($this->resource !== 'payment-methods') {
+            return false;
+        }
+
+        return $this->isWspayCode((string) ($this->form['code'] ?? ''));
+    }
+
     private function isBankTransferCode(string $code): bool
     {
         return in_array(strtolower(trim($code)), ['bank', 'bank_transfer'], true);
@@ -503,6 +558,32 @@ class ResourceManager extends Component
     private function isBoxNowCode(string $code): bool
     {
         return in_array(strtolower(trim($code)), ['boxnow', 'box_now'], true);
+    }
+
+    private function isWspayCode(string $code): bool
+    {
+        return in_array(strtolower(trim($code)), ['wspay', 'ws_pay'], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function mergePaymentMethodSettings(array $settings, array $data): array
+    {
+        if ($this->resource !== 'payment-methods') {
+            return $settings;
+        }
+
+        $statusId = (int) ($data['default_order_status_id'] ?? 0);
+        if ($statusId > 0) {
+            $settings['default_order_status_id'] = $statusId;
+        } else {
+            unset($settings['default_order_status_id']);
+        }
+
+        return $settings;
     }
 
     /**
@@ -555,6 +636,40 @@ class ResourceManager extends Component
 
     /**
      * @param  array<string, mixed>  $settings
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function mergeWspaySettings(array $settings, array $data): array
+    {
+        if (! $this->isWspayCode((string) ($data['code'] ?? ''))) {
+            return $settings;
+        }
+
+        $mode = strtolower(trim((string) ($data['wspay_mode'] ?? 'test')));
+        $shopId = trim((string) ($data['wspay_shop_id'] ?? ''));
+        $secret = trim((string) ($data['wspay_secret_key'] ?? ''));
+        $returnMethod = strtoupper(trim((string) ($data['wspay_return_method'] ?? 'GET')));
+
+        if (! in_array($mode, ['test', 'live'], true)) {
+            $mode = 'test';
+        }
+        $settings['wspay_mode'] = $mode;
+        $settings['wspay_form_url'] = $this->wspayFormUrlForMode($mode);
+        if ($shopId !== '') {
+            $settings['wspay_shop_id'] = $shopId;
+        }
+        if ($secret !== '') {
+            $settings['wspay_secret_key'] = $secret;
+        }
+        if (in_array($returnMethod, ['GET', 'POST'], true)) {
+            $settings['wspay_return_method'] = $returnMethod;
+        }
+
+        return $settings;
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
      */
     private function hasRequiredBankTransferUpiSettings(array $settings): bool
     {
@@ -565,5 +680,26 @@ class ResourceManager extends Component
         }
 
         return true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function hasRequiredWspaySettings(array $settings): bool
+    {
+        foreach (['wspay_shop_id', 'wspay_secret_key'] as $key) {
+            if (trim((string) ($settings[$key] ?? '')) === '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function wspayFormUrlForMode(string $mode): string
+    {
+        return $mode === 'live'
+            ? self::WSPAY_FORM_URL_LIVE
+            : self::WSPAY_FORM_URL_TEST;
     }
 }

@@ -194,6 +194,24 @@ class SettingsLocalSeeder extends Seeder
                 'sort_order' => 3,
             ]
         );
+        PaymentMethod::updateOrCreate(
+            ['code' => 'wspay'],
+            [
+                'name' => 'WSPay',
+                'provider' => 'wspay',
+                'geo_zone_id' => null,
+                'description' => 'Card payment via WSPay form redirect.',
+                'fee_type' => 'fixed',
+                'fee_value' => 0,
+                'is_active' => false,
+                'sort_order' => 4,
+                'settings' => [
+                    'wspay_mode' => 'test',
+                    'wspay_form_url' => 'https://formtest.wspay.biz/authorization.aspx',
+                    'wspay_return_method' => 'GET',
+                ],
+            ]
+        );
 
         ShippingMethod::updateOrCreate(
             ['code' => 'standard'],

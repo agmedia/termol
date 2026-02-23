@@ -103,6 +103,21 @@ Route::middleware(['front.locale', 'front.device'])
         Route::get('checkout/options', [CheckoutController::class, 'options'])->name('checkout.options');
         Route::post('checkout/login', [CheckoutController::class, 'login'])->middleware('guest')->name('checkout.login');
         Route::post('checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+        Route::get('checkout/wspay/{orderNumber}', [CheckoutController::class, 'wspayStart'])
+            ->where('orderNumber', '[A-Za-z0-9\-]+')
+            ->name('checkout.wspay.start');
+        Route::match(['GET', 'POST'], 'checkout/wspay/return/{orderNumber}', [CheckoutController::class, 'wspayReturn'])
+            ->where('orderNumber', '[A-Za-z0-9\-]+')
+            ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+            ->name('checkout.wspay.return');
+        Route::match(['GET', 'POST'], 'checkout/wspay/error/{orderNumber}', [CheckoutController::class, 'wspayError'])
+            ->where('orderNumber', '[A-Za-z0-9\-]+')
+            ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+            ->name('checkout.wspay.error');
+        Route::match(['GET', 'POST'], 'checkout/wspay/cancel/{orderNumber}', [CheckoutController::class, 'wspayCancel'])
+            ->where('orderNumber', '[A-Za-z0-9\-]+')
+            ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+            ->name('checkout.wspay.cancel');
         Route::get('checkout/success', [CheckoutController::class, 'successLatest'])->name('checkout.success.latest');
         Route::get('checkout/success/{orderNumber}', [CheckoutController::class, 'success'])
             ->where('orderNumber', '[A-Za-z0-9\-]+')

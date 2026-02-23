@@ -217,6 +217,19 @@
                     </div>
                 @endif
 
+                @if ($resource === 'payment-methods')
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Default order status') }}</label>
+                        <select wire:model="form.default_order_status_id" data-tom-select class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring">
+                            <option value="">{{ __('Store default') }}</option>
+                            @foreach ($this->orderStatusOptions() as $statusId => $statusName)
+                                <option value="{{ $statusId }}">{{ $statusName }}</option>
+                            @endforeach
+                        </select>
+                        @error('form.default_order_status_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                @endif
+
                 @if ($this->isBankTransferForm())
                     <div class="rounded-xl border border-cyan-200 bg-cyan-50 p-3">
                         <p class="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-800">{{ __('UPI bank transfer data (required)') }}</p>
@@ -252,6 +265,44 @@
                             <div class="md:col-span-2">
                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Payment description') }}</label>
                                 <input type="text" wire:model="form.upi_description" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                @if ($this->isWspayForm())
+                    <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-indigo-800">{{ __('WSPay settings (required)') }}</p>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Mode') }}</label>
+                                <select wire:model="form.wspay_mode" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring">
+                                    <option value="test">Test</option>
+                                    <option value="live">Live</option>
+                                </select>
+                                @error('form.wspay_mode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Shop ID</label>
+                                <input type="text" wire:model="form.wspay_shop_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.wspay_shop_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Secret key') }}</label>
+                                <input type="text" wire:model="form.wspay_secret_key" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.wspay_secret_key') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Return method') }}</label>
+                                <select wire:model="form.wspay_return_method" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring">
+                                    <option value="GET">GET</option>
+                                    <option value="POST">POST</option>
+                                </select>
+                                @error('form.wspay_return_method') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('WSPay form URL') }}</label>
+                                <input type="text" value="{{ ($form['wspay_mode'] ?? 'test') === 'live' ? 'https://form.wspay.biz/authorization.aspx' : 'https://formtest.wspay.biz/authorization.aspx' }}" readonly class="w-full rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none" />
                             </div>
                         </div>
                     </div>
