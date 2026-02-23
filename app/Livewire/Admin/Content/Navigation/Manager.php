@@ -18,18 +18,23 @@ class Manager extends Component
     ];
 
     public string $locale = 'en';
+    public string $previousLocale = 'en';
 
     public function mount(): void
     {
         $this->locale = (string) (request()->query('locale') ?: config('app.locale', 'en'));
+        $this->previousLocale = $this->locale;
 
         $items = app(NavigationMenuService::class)->configuredItems();
         $this->form['items'] = $items;
+        $this->syncInputsFromLocaleTranslations($this->locale);
     }
 
     public function updatedLocale(): void
     {
-        // No-op; options are reloaded from render.
+        $this->syncLocaleTranslationsFromInputs($this->previousLocale);
+        $this->syncInputsFromLocaleTranslations($this->locale);
+        $this->previousLocale = $this->locale;
     }
 
     public function addCategoryItem(): void
@@ -46,6 +51,7 @@ class Manager extends Component
     {
         $item = $this->makeDefaultItem('blog');
         $item['label'] = 'Blog';
+        $item['label_translations'] = [$this->locale => 'Blog'];
         $this->form['items'][] = $item;
     }
 
@@ -53,6 +59,7 @@ class Manager extends Component
     {
         $item = $this->makeDefaultItem('contact');
         $item['label'] = 'Kontakt';
+        $item['label_translations'] = [$this->locale => 'Kontakt'];
         $this->form['items'][] = $item;
     }
 
@@ -61,6 +68,8 @@ class Manager extends Component
         $item = $this->makeDefaultItem('custom');
         $item['label'] = 'Novi link';
         $item['url'] = '/';
+        $item['label_translations'] = [$this->locale => 'Novi link'];
+        $item['url_translations'] = [$this->locale => '/'];
         $this->form['items'][] = $item;
     }
 
@@ -96,6 +105,8 @@ class Manager extends Component
 
     public function save(): void
     {
+        $this->syncLocaleTranslationsFromInputs($this->locale);
+
         $validated = $this->validate([
             'form.items' => ['array'],
             'form.items.*.type' => ['required', 'in:category,page,blog,contact,custom'],
@@ -103,6 +114,10 @@ class Manager extends Component
             'form.items.*.category_id' => ['nullable', 'integer', 'min:0'],
             'form.items.*.page_id' => ['nullable', 'integer', 'min:0'],
             'form.items.*.url' => ['nullable', 'string', 'max:2048'],
+            'form.items.*.label_translations' => ['nullable', 'array'],
+            'form.items.*.label_translations.*' => ['nullable', 'string', 'max:120'],
+            'form.items.*.url_translations' => ['nullable', 'array'],
+            'form.items.*.url_translations.*' => ['nullable', 'string', 'max:2048'],
             'form.items.*.is_active' => ['required', 'boolean'],
             'form.items.*.show_dropdown' => ['required', 'boolean'],
             'form.items.*.open_in_new_tab' => ['required', 'boolean'],
@@ -204,13 +219,38 @@ class Manager extends Component
     private function normalizeItem(array $item, int $index): array
     {
         $type = (string) ($item['type'] ?? 'custom');
+        $locale = strtolower(trim($this->locale));
+        $fallbackLocale = strtolower((string) config('app.locale', 'en'));
+        $labelTranslations = $this->normalizeTranslations($item['label_translations'] ?? []);
+        $urlTranslations = $this->normalizeTranslations($item['url_translations'] ?? []);
+
+        $label = trim((string) ($item['label'] ?? ''));
+        if ($label !== '' && $locale !== '') {
+            $labelTranslations[$locale] = $label;
+        }
+        if ($label === '' && $locale !== '') {
+            unset($labelTranslations[$locale]);
+        }
+
+        $url = trim((string) ($item['url'] ?? ''));
+        if ($url !== '' && $locale !== '') {
+            $urlTranslations[$locale] = $url;
+        }
+        if ($url === '' && $locale !== '') {
+            unset($urlTranslations[$locale]);
+        }
+
+        $storedLabel = $this->pickTranslationValue($labelTranslations, $fallbackLocale);
+        $storedUrl = $this->pickTranslationValue($urlTranslations, $fallbackLocale);
 
         return [
             'type' => $type,
-            'label' => trim((string) ($item['label'] ?? '')),
+            'label' => $storedLabel,
+            'label_translations' => $labelTranslations,
             'category_id' => (int) ($item['category_id'] ?? 0),
             'page_id' => (int) ($item['page_id'] ?? 0),
-            'url' => trim((string) ($item['url'] ?? '')),
+            'url' => $storedUrl,
+            'url_translations' => $urlTranslations,
             'open_in_new_tab' => (bool) ($item['open_in_new_tab'] ?? false),
             'show_dropdown' => (bool) ($item['show_dropdown'] ?? true),
             'is_active' => (bool) ($item['is_active'] ?? true),
@@ -226,13 +266,114 @@ class Manager extends Component
         return [
             'type' => $type,
             'label' => '',
+            'label_translations' => [],
             'category_id' => 0,
             'page_id' => 0,
             'url' => '',
+            'url_translations' => [],
             'open_in_new_tab' => false,
             'show_dropdown' => true,
             'is_active' => true,
             'sort_order' => count($this->form['items']),
         ];
+    }
+
+    private function syncLocaleTranslationsFromInputs(string $locale): void
+    {
+        $normalizedLocale = strtolower(trim($locale));
+        if ($normalizedLocale === '') {
+            return;
+        }
+
+        foreach ($this->form['items'] as $index => $item) {
+            $labelTranslations = $this->normalizeTranslations($item['label_translations'] ?? []);
+            $urlTranslations = $this->normalizeTranslations($item['url_translations'] ?? []);
+
+            $label = trim((string) ($item['label'] ?? ''));
+            if ($label !== '') {
+                $labelTranslations[$normalizedLocale] = $label;
+            } else {
+                unset($labelTranslations[$normalizedLocale]);
+            }
+
+            $url = trim((string) ($item['url'] ?? ''));
+            if ($url !== '') {
+                $urlTranslations[$normalizedLocale] = $url;
+            } else {
+                unset($urlTranslations[$normalizedLocale]);
+            }
+
+            $this->form['items'][$index]['label_translations'] = $labelTranslations;
+            $this->form['items'][$index]['url_translations'] = $urlTranslations;
+        }
+    }
+
+    private function syncInputsFromLocaleTranslations(string $locale): void
+    {
+        $normalizedLocale = strtolower(trim($locale));
+        $fallbackLocale = strtolower((string) config('app.locale', 'en'));
+
+        foreach ($this->form['items'] as $index => $item) {
+            $labelTranslations = $this->normalizeTranslations($item['label_translations'] ?? []);
+            $urlTranslations = $this->normalizeTranslations($item['url_translations'] ?? []);
+
+            $resolvedLabel = $this->pickTranslationValue($labelTranslations, $normalizedLocale, $fallbackLocale);
+            $resolvedUrl = $this->pickTranslationValue($urlTranslations, $normalizedLocale, $fallbackLocale);
+
+            $this->form['items'][$index]['label'] = $resolvedLabel !== '' ? $resolvedLabel : trim((string) ($item['label'] ?? ''));
+            $this->form['items'][$index]['url'] = $resolvedUrl !== '' ? $resolvedUrl : trim((string) ($item['url'] ?? ''));
+            $this->form['items'][$index]['label_translations'] = $labelTranslations;
+            $this->form['items'][$index]['url_translations'] = $urlTranslations;
+        }
+    }
+
+    /**
+     * @param mixed $translations
+     * @return array<string, string>
+     */
+    private function normalizeTranslations(mixed $translations): array
+    {
+        if (! is_array($translations)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($translations as $locale => $value) {
+            $key = strtolower(trim((string) $locale));
+            if ($key === '') {
+                continue;
+            }
+
+            $text = trim((string) $value);
+            if ($text === '') {
+                continue;
+            }
+
+            $normalized[$key] = $text;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, string> $translations
+     */
+    private function pickTranslationValue(array $translations, string ...$preferredLocales): string
+    {
+        foreach ($preferredLocales as $locale) {
+            $key = strtolower(trim($locale));
+            if ($key !== '' && isset($translations[$key]) && trim((string) $translations[$key]) !== '') {
+                return trim((string) $translations[$key]);
+            }
+        }
+
+        foreach ($translations as $value) {
+            $text = trim((string) $value);
+            if ($text !== '') {
+                return $text;
+            }
+        }
+
+        return '';
     }
 }

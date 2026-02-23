@@ -1021,6 +1021,10 @@
                         auth()->user()->isA('superadmin')
                         || auth()->user()->can('settings.system.runtime.manage')
                     );
+                    $canManageStoreSettings = auth()->user() && (
+                        auth()->user()->isA('superadmin')
+                        || auth()->user()->can('settings.system.store.manage')
+                    );
                     $canManageApiSettings = auth()->user() && (
                         auth()->user()->isA('superadmin')
                         || auth()->user()->can('settings.api.manage')
@@ -1437,6 +1441,17 @@
                                             <span class="flex items-center gap-2">
                                                 <span class="sidebar-dot"></span>
                                                 <span>Catalog Features</span>
+                                            </span>
+                                        </a>
+                                    @endif
+                                    @if ($canManageStoreSettings)
+                                        <a
+                                            href="{{ route('admin.settings.system.store-settings') }}"
+                                            class="sidebar-dropdown-link block rounded-lg font-medium {{ request()->routeIs('admin.settings.system.store-settings') ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
+                                        >
+                                            <span class="flex items-center gap-2">
+                                                <span class="sidebar-dot"></span>
+                                                <span>Store Settings</span>
                                             </span>
                                         </a>
                                     @endif

@@ -26,4 +26,38 @@
             <a href="{{ route('shop.index') }}" class="border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">{{ __('ui.checkout.success.continue_shopping') }}</a>
         </div>
     </section>
+
+    @php
+        $analytics = $storeSettings['analytics'] ?? [];
+        $shouldTrackPurchase = (bool) ($analytics['enabled'] ?? false)
+            && (bool) ($analytics['purchase_event_enabled'] ?? true)
+            && trim((string) ($analytics['ga4_measurement_id'] ?? '')) !== '';
+        $eventName = trim((string) ($analytics['purchase_event_name'] ?? 'purchase')) ?: 'purchase';
+        $eventItems = $order->items->map(static function ($item): array {
+            return [
+                'item_id' => (string) ($item->sku ?: $item->code ?: $item->id),
+                'item_name' => (string) $item->name,
+                'quantity' => (int) $item->quantity,
+                'price' => (float) $item->unit_price,
+            ];
+        })->values()->all();
+    @endphp
+
+    @if ($shouldTrackPurchase)
+        @push('scripts')
+            <script>
+                if (typeof gtag === 'function') {
+                    gtag('{{ $eventName }}', {
+                        transaction_id: @json((string) $order->order_number),
+                        currency: @json((string) ($order->currency_code ?: 'EUR')),
+                        value: {{ (float) $order->grand_total }},
+                        tax: {{ (float) $order->tax_total }},
+                        shipping: {{ (float) $order->shipping_total }},
+                        coupon: @json((string) ($order->payload['coupon_code'] ?? '')),
+                        items: @json($eventItems)
+                    });
+                }
+            </script>
+        @endpush
+    @endif
 @endsection

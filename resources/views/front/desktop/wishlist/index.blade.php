@@ -5,10 +5,7 @@
 
 @section('content')
     @php
-        $cols = (int) request()->integer('cols', 4);
-        if (! in_array($cols, [1, 2, 3, 4, 5], true)) {
-            $cols = 4;
-        }
+        $cols = (int) ($cols ?? 4);
 
         $gridClass = match ($cols) {
             1 => 'grid grid-cols-1 gap-4',

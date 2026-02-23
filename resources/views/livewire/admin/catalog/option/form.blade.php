@@ -88,7 +88,7 @@
 
                 <div class="mt-3">
                     <label for="option-description-html" class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Description</label>
-                    <textarea id="option-description-html" rows="6" wire:model="form.description" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    <textarea id="option-description-html" rows="6" wire:model.live.debounce.300ms="form.description" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
                 </div>
             </div>
 

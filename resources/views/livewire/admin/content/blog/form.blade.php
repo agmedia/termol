@@ -98,9 +98,9 @@
                     <textarea rows="3" wire:model="form.excerpt" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
                 </div>
 
-                <div class="mt-3">
+                <div class="mt-3" wire:key="blog-post-body-{{ $postId ?? 'new' }}-{{ $form['locale'] }}">
                     <label for="blog-post-body-html" class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Body</label>
-                    <textarea id="blog-post-body-html" rows="10" wire:model="form.body_html" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    <textarea id="blog-post-body-html" rows="10" wire:model.live.debounce.300ms="form.body_html" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
                 </div>
 
                 <div class="mt-3">

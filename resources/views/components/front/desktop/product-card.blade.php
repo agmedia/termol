@@ -64,6 +64,13 @@
             class="pointer-events-none absolute inset-x-0 bottom-0 z-20 space-y-3 bg-black/80 p-3 opacity-0 transition-all duration-200 {{ $hasOptionErrorForCard ? 'opacity-100 pointer-events-auto' : '' }}"
             data-card-overlay
             data-product-card-form
+            data-ga4-add-to-cart-form
+            data-ga4-item-id="{{ $productSku }}"
+            data-ga4-item-name="{{ $productName }}"
+            data-ga4-item-price="{{ number_format((float) $productPriceValue, 2, '.', '') }}"
+            data-ga4-item-brand="{{ $productBrand }}"
+            data-ga4-item-category="{{ $productCategory }}"
+            data-ga4-currency="EUR"
             data-product-name="{{ $productName }}"
             data-product-image="{{ (string) ($imageUrl ?? '') }}"
             data-cart-url="{{ route('cart.index') }}"

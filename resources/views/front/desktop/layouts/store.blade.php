@@ -3,27 +3,67 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', config('app.name', 'AG Shop').' '.__('ui.front.desktop.store'))</title>
+    @include('front.partials.seo-meta')
+    @include('front.partials.schema-markup')
+    @include('front.partials.analytics')
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ asset('front-theme/styles/rising-sun-font.css') }}">
+    @if (!empty($storeSettings['branding']['favicons']['ico_url'] ?? null))
+        <link rel="icon" href="{{ $storeSettings['branding']['favicons']['ico_url'] }}" sizes="any">
+    @endif
+    @if (!empty($storeSettings['branding']['favicons']['32_url'] ?? null))
+        <link rel="icon" type="image/png" sizes="32x32" href="{{ $storeSettings['branding']['favicons']['32_url'] }}">
+    @endif
+    @if (!empty($storeSettings['branding']['favicons']['16_url'] ?? null))
+        <link rel="icon" type="image/png" sizes="16x16" href="{{ $storeSettings['branding']['favicons']['16_url'] }}">
+    @endif
+    @if (!empty($storeSettings['branding']['favicons']['180_url'] ?? null))
+        <link rel="apple-touch-icon" sizes="180x180" href="{{ $storeSettings['branding']['favicons']['180_url'] }}">
+    @endif
+    @if (!empty($storeSettings['branding']['favicons']['192_url'] ?? null))
+        <link rel="icon" type="image/png" sizes="192x192" href="{{ $storeSettings['branding']['favicons']['192_url'] }}">
+    @endif
+    @if (!empty($storeSettings['branding']['favicons']['512_url'] ?? null))
+        <link rel="icon" type="image/png" sizes="512x512" href="{{ $storeSettings['branding']['favicons']['512_url'] }}">
+    @endif
+    @if (empty($storeSettings['branding']['favicons']['ico_url'] ?? null) && !empty($storeSettings['branding']['favicon_url'] ?? null))
+        <link rel="icon" href="{{ $storeSettings['branding']['favicon_url'] }}">
+    @endif
+    <link rel="manifest" href="{{ route('front.manifest') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 @php
     $cartSummary = app(\App\Services\Front\CartService::class)->summary();
-    $catalogFeatures = app(\App\Services\Catalog\CatalogFeatureService::class);
     $mainNavigation = app(\App\Services\Front\NavigationMenuService::class)->forLocale((string) app()->getLocale());
 @endphp
 <body class="font-risingsun min-h-screen bg-white text-slate-900 antialiased">
 <header class="sticky top-0 z-40 bg-white">
-    <div class="bg-black py-2 text-center text-xs font-semibold uppercase tracking-wide text-white">
-        {{ __('ui.front.desktop.promo_bar') }}
-    </div>
+    @if ((bool) ($storeSettings['announcement']['enabled'] ?? true))
+        <div class="bg-black py-2 text-center text-xs font-semibold uppercase tracking-wide text-white">
+            @php
+                $announcementText = (string) ($storeSettings['announcement']['text'] ?? __('ui.front.desktop.promo_bar'));
+                $announcementUrl = trim((string) ($storeSettings['announcement']['url'] ?? ''));
+                $announcementNewTab = (bool) ($storeSettings['announcement']['new_tab'] ?? false);
+            @endphp
+            @if ($announcementUrl !== '')
+                <a href="{{ $announcementUrl }}" class="hover:underline" @if($announcementNewTab) target="_blank" rel="noopener noreferrer" @endif>
+                    {{ $announcementText }}
+                </a>
+            @else
+                {{ $announcementText }}
+            @endif
+        </div>
+    @endif
 
     <div class="border-b border-slate-200">
         <div class="flex w-full items-stretch justify-between pl-3 sm:pl-8">
             <a href="{{ route('home') }}" class="inline-flex items-center py-4 text-2xl font-black tracking-tight text-slate-900 sm:py-5 sm:text-4xl">
-                AMDS
+                @if (!empty($storeSettings['branding']['logo_url'] ?? null))
+                    <img src="{{ $storeSettings['branding']['logo_url'] }}" alt="{{ $storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop') }}" class="h-9 w-auto object-contain sm:h-11">
+                @else
+                    AMDS
+                @endif
             </a>
 
             <nav class="hidden flex-1 items-center justify-center gap-8 px-6 text-sm font-semibold uppercase tracking-wide text-slate-900 xl:flex">
@@ -174,7 +214,7 @@
     <button type="button" class="absolute inset-0 bg-black/45 opacity-0 transition-opacity duration-300" aria-label="{{ __('ui.front.desktop.close_navigation') }}" data-mobile-menu-close></button>
     <aside class="absolute inset-y-0 left-0 flex w-[90vw] max-w-md -translate-x-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-out" data-mobile-menu-panel>
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-4">
-            <span class="text-xl font-black tracking-tight text-slate-900">AMDS</span>
+            <span class="text-xl font-black tracking-tight text-slate-900">{{ (string) ($storeSettings['branding']['store_name'] ?? 'AMDS') }}</span>
             <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.close_navigation') }}" data-mobile-menu-close>
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M6 6l12 12M18 6L6 18"></path>
@@ -189,6 +229,8 @@
     @include('front.desktop.partials.flash')
     @yield('content')
 </main>
+
+@include('front.partials.analytics-ecommerce')
 
 <footer class="mt-20 border-t border-slate-200 bg-white">
     <div class="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -244,55 +286,45 @@
             </div>
         </div>
 
+        @php
+            $footerColumnsRaw = collect($storeSettings['footer']['link_columns'] ?? [])->take(3)->values();
+            $footerColumns = collect([1, 2, 3])->map(function (int $index) use ($footerColumnsRaw) {
+                $defaultTitle = match ($index) {
+                    1 => (string) __('ui.front.desktop.footer.shop'),
+                    2 => (string) __('ui.front.desktop.footer.help'),
+                    default => (string) __('ui.front.desktop.footer.info'),
+                };
+                $row = $footerColumnsRaw->get($index - 1);
+                $title = trim((string) (is_array($row) ? ($row['title'] ?? '') : '')) ?: $defaultTitle;
+                $links = collect(is_array($row) ? ($row['links'] ?? []) : [])
+                    ->filter(fn ($link) => is_array($link) && trim((string) ($link['url'] ?? '')) !== '')
+                    ->map(fn ($link) => [
+                        'label' => (string) ($link['label'] ?? ''),
+                        'url' => (string) ($link['url'] ?? '#'),
+                    ])
+                    ->filter(fn (array $link) => trim($link['label']) !== '')
+                    ->values()
+                    ->all();
+
+                return ['title' => $title, 'links' => $links];
+            })->values();
+        @endphp
+
         <div class="mt-10 border-y border-slate-200 lg:hidden">
-            <details class="group border-b border-slate-200">
-                <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
-                    {{ __('ui.front.desktop.footer.shop') }}
-                    <span class="text-2xl leading-none group-open:hidden">+</span>
-                    <span class="hidden text-2xl leading-none group-open:inline">−</span>
-                </summary>
-                <ul class="space-y-2.5 px-4 pb-4 text-sm text-slate-600">
-                    <li><a href="{{ route('shop.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.new') }}</a></li>
-                    <li><a href="{{ route('shop.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.men') }}</a></li>
-                    <li><a href="{{ route('shop.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.women') }}</a></li>
-                    <li><a href="{{ route('shop.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.special') }}</a></li>
-                    <li><a href="{{ route('categories.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.all_categories') }}</a></li>
-                </ul>
-            </details>
-
-            <details class="group border-b border-slate-200">
-                <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
-                    {{ __('ui.front.desktop.footer.help') }}
-                    <span class="text-2xl leading-none group-open:hidden">+</span>
-                    <span class="hidden text-2xl leading-none group-open:inline">−</span>
-                </summary>
-                <ul class="space-y-2.5 px-4 pb-4 text-sm text-slate-600">
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.shipping_delivery') }}</a></li>
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.returns_claims') }}</a></li>
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.payment_methods') }}</a></li>
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.faq') }}</a></li>
-                    <li><a href="{{ route('contact.create') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.contact') }}</a></li>
-                </ul>
-            </details>
-
-            <details class="group border-b border-slate-200">
-                <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
-                    {{ __('ui.front.desktop.footer.info') }}
-                    <span class="text-2xl leading-none group-open:hidden">+</span>
-                    <span class="hidden text-2xl leading-none group-open:inline">−</span>
-                </summary>
-                <ul class="space-y-2.5 px-4 pb-4 text-sm text-slate-600">
-                    <li><a href="{{ route('home') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.home') }}</a></li>
-                    @if ($catalogFeatures->useBlog())
-                        <li><a href="{{ route('blog.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.blog') }}</a></li>
-                    @else
-                        <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.blog') }}</a></li>
-                    @endif
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.about') }}</a></li>
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.stores') }}</a></li>
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.career') }}</a></li>
-                </ul>
-            </details>
+            @foreach ($footerColumns as $column)
+                <details class="group border-b border-slate-200">
+                    <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
+                        {{ $column['title'] }}
+                        <span class="text-2xl leading-none group-open:hidden">+</span>
+                        <span class="hidden text-2xl leading-none group-open:inline">−</span>
+                    </summary>
+                    <ul class="space-y-2.5 px-4 pb-4 text-sm text-slate-600">
+                        @foreach ($column['links'] as $link)
+                            <li><a href="{{ $link['url'] }}" class="transition hover:text-slate-900">{{ $link['label'] }}</a></li>
+                        @endforeach
+                    </ul>
+                </details>
+            @endforeach
 
             <details class="group">
                 <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
@@ -302,84 +334,78 @@
                 </summary>
                 <div class="space-y-2 px-4 pb-4 text-sm text-slate-600">
                     <p class="text-slate-500">{{ __('ui.front.desktop.footer.webshop_queries') }}</p>
-                    <p><a href="tel:+385916651808" class="text-base font-medium text-slate-900 transition hover:text-slate-700">091 665 18 08</a></p>
-                    <p><a href="mailto:webshop@amds.hr" class="transition hover:text-slate-900">webshop@amds.hr</a></p>
-                    <p><a href="mailto:kontakt@amds.hr" class="transition hover:text-slate-900">kontakt@amds.hr</a></p>
-                    <p>{{ __('ui.front.desktop.footer.work_hours') }}</p>
+                    @if (!empty($storeSettings['footer']['phone'] ?? ''))
+                        <p><a href="tel:{{ preg_replace('/\\s+/', '', (string) $storeSettings['footer']['phone']) }}" class="text-base font-medium text-slate-900 transition hover:text-slate-700">{{ $storeSettings['footer']['phone'] }}</a></p>
+                    @endif
+                    @if (!empty($storeSettings['footer']['email_sales'] ?? ''))
+                        <p><a href="mailto:{{ $storeSettings['footer']['email_sales'] }}" class="transition hover:text-slate-900">{{ $storeSettings['footer']['email_sales'] }}</a></p>
+                    @endif
+                    @if (!empty($storeSettings['footer']['email_support'] ?? ''))
+                        <p><a href="mailto:{{ $storeSettings['footer']['email_support'] }}" class="transition hover:text-slate-900">{{ $storeSettings['footer']['email_support'] }}</a></p>
+                    @endif
+                    <p>{{ (string) ($storeSettings['footer']['hours'] ?? __('ui.front.desktop.footer.work_hours')) }}</p>
                 </div>
             </details>
         </div>
 
         <div class="mt-12 hidden gap-12 border-b border-slate-200 pb-10 lg:grid lg:grid-cols-[1fr_1fr_1fr_1.15fr]">
-            <div class="space-y-5">
-                <h3 class="text-sm font-extrabold uppercase tracking-[0.16em] text-slate-900">{{ __('ui.front.desktop.footer.shop') }}</h3>
-                <ul class="space-y-2.5 text-sm text-slate-600">
-                    <li><a href="{{ route('shop.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.new') }}</a></li>
-                    <li><a href="{{ route('shop.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.men') }}</a></li>
-                    <li><a href="{{ route('shop.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.women') }}</a></li>
-                    <li><a href="{{ route('shop.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.special') }}</a></li>
-                    <li><a href="{{ route('categories.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.all_categories') }}</a></li>
-                </ul>
-            </div>
-
-            <div class="space-y-5">
-                <h3 class="text-sm font-extrabold uppercase tracking-[0.16em] text-slate-900">{{ __('ui.front.desktop.footer.help') }}</h3>
-                <ul class="space-y-2.5 text-sm text-slate-600">
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.shipping_delivery') }}</a></li>
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.returns_claims') }}</a></li>
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.payment_methods') }}</a></li>
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.faq') }}</a></li>
-                    <li><a href="{{ route('contact.create') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.contact') }}</a></li>
-                </ul>
-            </div>
-
-            <div class="space-y-5">
-                <h3 class="text-sm font-extrabold uppercase tracking-[0.16em] text-slate-900">{{ __('ui.front.desktop.footer.info') }}</h3>
-                <ul class="space-y-2.5 text-sm text-slate-600">
-                    <li><a href="{{ route('home') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.home') }}</a></li>
-                    @if ($catalogFeatures->useBlog())
-                        <li><a href="{{ route('blog.index') }}" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.blog') }}</a></li>
-                    @else
-                        <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.blog') }}</a></li>
-                    @endif
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.about') }}</a></li>
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.nav.stores') }}</a></li>
-                    <li><a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.career') }}</a></li>
-                </ul>
-            </div>
+            @foreach ($footerColumns as $column)
+                <div class="space-y-5">
+                    <h3 class="text-sm font-extrabold uppercase tracking-[0.16em] text-slate-900">{{ $column['title'] }}</h3>
+                    <ul class="space-y-2.5 text-sm text-slate-600">
+                        @foreach ($column['links'] as $link)
+                            <li><a href="{{ $link['url'] }}" class="transition hover:text-slate-900">{{ $link['label'] }}</a></li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endforeach
 
             <div class="space-y-5">
                 <h3 class="text-sm font-extrabold uppercase tracking-[0.16em] text-slate-900">{{ __('ui.front.desktop.footer.support') }}</h3>
                 <div class="space-y-2 text-sm text-slate-600">
                     <p class="text-slate-500">{{ __('ui.front.desktop.footer.webshop_queries') }}</p>
-                    <p><a href="tel:+385916651808" class="text-xl font-medium text-slate-900 transition hover:text-slate-700">091 665 18 08</a></p>
-                    <p><a href="mailto:webshop@amds.hr" class="transition hover:text-slate-900">webshop@amds.hr</a></p>
-                    <p><a href="mailto:kontakt@amds.hr" class="transition hover:text-slate-900">kontakt@amds.hr</a></p>
-                    <p>{{ __('ui.front.desktop.footer.work_hours') }}</p>
+                    @if (!empty($storeSettings['footer']['phone'] ?? ''))
+                        <p><a href="tel:{{ preg_replace('/\\s+/', '', (string) $storeSettings['footer']['phone']) }}" class="text-xl font-medium text-slate-900 transition hover:text-slate-700">{{ $storeSettings['footer']['phone'] }}</a></p>
+                    @endif
+                    @if (!empty($storeSettings['footer']['email_sales'] ?? ''))
+                        <p><a href="mailto:{{ $storeSettings['footer']['email_sales'] }}" class="transition hover:text-slate-900">{{ $storeSettings['footer']['email_sales'] }}</a></p>
+                    @endif
+                    @if (!empty($storeSettings['footer']['email_support'] ?? ''))
+                        <p><a href="mailto:{{ $storeSettings['footer']['email_support'] }}" class="transition hover:text-slate-900">{{ $storeSettings['footer']['email_support'] }}</a></p>
+                    @endif
+                    <p>{{ (string) ($storeSettings['footer']['hours'] ?? __('ui.front.desktop.footer.work_hours')) }}</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <a href="#" aria-label="{{ __('ui.front.desktop.social.facebook') }}" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-slate-50 text-slate-700 transition hover:border-slate-500 hover:text-slate-900">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <path d="M13.5 22v-8h2.7l.5-3h-3.2V9.1c0-.9.4-1.6 1.8-1.6H17V4.8c-.3 0-1.3-.2-2.5-.2-2.5 0-4.2 1.5-4.2 4.4V11H7.5v3h2.8v8h3.2Z"></path>
-                        </svg>
-                    </a>
-                    <a href="#" aria-label="{{ __('ui.front.desktop.social.instagram') }}" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-slate-50 text-slate-700 transition hover:border-slate-500 hover:text-slate-900">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <rect x="3.5" y="3.5" width="17" height="17" rx="5"></rect>
-                            <circle cx="12" cy="12" r="4.2"></circle>
-                            <circle cx="17.4" cy="6.6" r="1"></circle>
-                        </svg>
-                    </a>
-                    <a href="#" aria-label="{{ __('ui.front.desktop.social.tiktok') }}" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-slate-50 text-slate-700 transition hover:border-slate-500 hover:text-slate-900">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <path d="M14 4c.7 1.8 2 2.9 4 3.3V10a7.3 7.3 0 0 1-4-1.2v6.2a5 5 0 1 1-4.3-5V12a2.7 2.7 0 1 0 1.3 2.3V4H14Z"></path>
-                        </svg>
-                    </a>
-                    <a href="#" aria-label="{{ __('ui.front.desktop.social.youtube') }}" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-slate-50 text-slate-700 transition hover:border-slate-500 hover:text-slate-900">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <path d="M21.6 8.3a2.9 2.9 0 0 0-2-2A43.2 43.2 0 0 0 12 6a43.2 43.2 0 0 0-7.6.4 2.9 2.9 0 0 0-2 2A30 30 0 0 0 2 12a30 30 0 0 0 .4 3.7 2.9 2.9 0 0 0 2 2 43.2 43.2 0 0 0 7.6.4 43.2 43.2 0 0 0 7.6-.4 2.9 2.9 0 0 0 2-2A30 30 0 0 0 22 12a30 30 0 0 0-.4-3.7ZM10 15.3V8.7L16 12l-6 3.3Z"></path>
-                        </svg>
-                    </a>
+                    @if (!empty($storeSettings['branding']['social']['facebook']['url'] ?? '') && (bool) ($storeSettings['branding']['social']['facebook']['enabled'] ?? true))
+                        <a href="{{ (string) $storeSettings['branding']['social']['facebook']['url'] }}" aria-label="{{ __('ui.front.desktop.social.facebook') }}" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-slate-50 text-slate-700 transition hover:border-slate-500 hover:text-slate-900" target="_blank" rel="noopener noreferrer">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M13.5 22v-8h2.7l.5-3h-3.2V9.1c0-.9.4-1.6 1.8-1.6H17V4.8c-.3 0-1.3-.2-2.5-.2-2.5 0-4.2 1.5-4.2 4.4V11H7.5v3h2.8v8h3.2Z"></path>
+                            </svg>
+                        </a>
+                    @endif
+                    @if (!empty($storeSettings['branding']['social']['instagram']['url'] ?? '') && (bool) ($storeSettings['branding']['social']['instagram']['enabled'] ?? true))
+                        <a href="{{ (string) $storeSettings['branding']['social']['instagram']['url'] }}" aria-label="{{ __('ui.front.desktop.social.instagram') }}" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-slate-50 text-slate-700 transition hover:border-slate-500 hover:text-slate-900" target="_blank" rel="noopener noreferrer">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <rect x="3.5" y="3.5" width="17" height="17" rx="5"></rect>
+                                <circle cx="12" cy="12" r="4.2"></circle>
+                                <circle cx="17.4" cy="6.6" r="1"></circle>
+                            </svg>
+                        </a>
+                    @endif
+                    @if (!empty($storeSettings['branding']['social']['tiktok']['url'] ?? '') && (bool) ($storeSettings['branding']['social']['tiktok']['enabled'] ?? true))
+                        <a href="{{ (string) $storeSettings['branding']['social']['tiktok']['url'] }}" aria-label="{{ __('ui.front.desktop.social.tiktok') }}" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-slate-50 text-slate-700 transition hover:border-slate-500 hover:text-slate-900" target="_blank" rel="noopener noreferrer">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M14 4c.7 1.8 2 2.9 4 3.3V10a7.3 7.3 0 0 1-4-1.2v6.2a5 5 0 1 1-4.3-5V12a2.7 2.7 0 1 0 1.3 2.3V4H14Z"></path>
+                            </svg>
+                        </a>
+                    @endif
+                    @if (!empty($storeSettings['branding']['social']['youtube']['url'] ?? '') && (bool) ($storeSettings['branding']['social']['youtube']['enabled'] ?? true))
+                        <a href="{{ (string) $storeSettings['branding']['social']['youtube']['url'] }}" aria-label="{{ __('ui.front.desktop.social.youtube') }}" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-slate-50 text-slate-700 transition hover:border-slate-500 hover:text-slate-900" target="_blank" rel="noopener noreferrer">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M21.6 8.3a2.9 2.9 0 0 0-2-2A43.2 43.2 0 0 0 12 6a43.2 43.2 0 0 0-7.6.4 2.9 2.9 0 0 0-2 2A30 30 0 0 0 2 12a30 30 0 0 0 .4 3.7 2.9 2.9 0 0 0 2 2 43.2 43.2 0 0 0 7.6.4 43.2 43.2 0 0 0 7.6-.4 2.9 2.9 0 0 0 2-2A30 30 0 0 0 22 12a30 30 0 0 0-.4-3.7ZM10 15.3V8.7L16 12l-6 3.3Z"></path>
+                            </svg>
+                        </a>
+                    @endif
                 </div>
             </div>
         </div>
@@ -412,14 +438,33 @@
 
         <div class="flex flex-col gap-3 border-t border-slate-200 pt-5 text-xs text-slate-500 lg:flex-row lg:items-center lg:justify-between">
             <div>
-                © {{ now()->year }} AMDS Jeans. {{ __('ui.front.desktop.footer.copyright') }}
+                @php
+                    $copyrightText = trim((string) ($storeSettings['footer']['bottom_copyright_text'] ?? ''));
+                    if ($copyrightText === '') {
+                        $copyrightText = (string) __('ui.front.desktop.footer.copyright');
+                    }
+                    $storeName = (string) ($storeSettings['branding']['store_name'] ?? 'AMDS Jeans');
+                    $bottomLinks = collect($storeSettings['footer']['bottom_links'] ?? [])
+                        ->filter(fn ($link) => is_array($link) && trim((string) ($link['url'] ?? '')) !== '' && trim((string) ($link['label'] ?? '')) !== '')
+                        ->map(fn ($link) => ['label' => (string) $link['label'], 'url' => (string) $link['url']])
+                        ->values()
+                        ->all();
+                    if ($bottomLinks === []) {
+                        $bottomLinks = [
+                            ['label' => (string) __('ui.front.desktop.footer.terms'), 'url' => '#'],
+                            ['label' => (string) __('ui.front.desktop.footer.privacy'), 'url' => '#'],
+                            ['label' => (string) __('ui.front.desktop.footer.cookies'), 'url' => '#'],
+                            ['label' => (string) __('ui.front.desktop.footer.shipping_returns'), 'url' => '#'],
+                            ['label' => (string) __('ui.front.desktop.footer.secure_checkout'), 'url' => '#'],
+                        ];
+                    }
+                @endphp
+                © {{ now()->year }} {{ $storeName }}. {{ $copyrightText }}
             </div>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.terms') }}</a>
-                <a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.privacy') }}</a>
-                <a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.cookies') }}</a>
-                <a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.shipping_returns') }}</a>
-                <a href="#" class="transition hover:text-slate-900">{{ __('ui.front.desktop.footer.secure_checkout') }}</a>
+                @foreach ($bottomLinks as $link)
+                    <a href="{{ $link['url'] }}" class="transition hover:text-slate-900">{{ $link['label'] }}</a>
+                @endforeach
             </div>
         </div>
     </div>

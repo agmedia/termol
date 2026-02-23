@@ -62,19 +62,6 @@
                     <span class="admin-switch-track"><span class="admin-switch-thumb"></span></span>
                     <span class="admin-switch-label">{{ $form['is_active'] ? 'Active' : 'Inactive' }}</span>
                 </button>
-
-                <button
-                    type="button"
-                    wire:click="$toggle('form.show_in_footer')"
-                    class="admin-switch"
-                    data-state="{{ $form['show_in_footer'] ? 'on' : 'off' }}"
-                    role="switch"
-                    aria-checked="{{ $form['show_in_footer'] ? 'true' : 'false' }}"
-                    aria-label="Toggle footer visibility"
-                >
-                    <span class="admin-switch-track"><span class="admin-switch-thumb"></span></span>
-                    <span class="admin-switch-label">{{ $form['show_in_footer'] ? 'Footer: On' : 'Footer: Off' }}</span>
-                </button>
             </div>
         </div>
 
@@ -103,9 +90,9 @@
                     <textarea rows="3" wire:model="form.excerpt" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
                 </div>
 
-                <div class="mt-3">
+                <div class="mt-3" wire:key="info-page-body-{{ $pageId ?? 'new' }}-{{ $form['locale'] }}">
                     <label for="info-page-body-html" class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Body</label>
-                    <textarea id="info-page-body-html" rows="10" wire:model="form.body_html" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    <textarea id="info-page-body-html" rows="10" wire:model.live.debounce.300ms="form.body_html" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
                 </div>
 
                 <div class="mt-3">

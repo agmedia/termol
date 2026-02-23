@@ -3,7 +3,7 @@
         <div class="flex items-end justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">Info Pages</h1>
-                <p class="mt-1 text-sm text-slate-600">Manage static/information pages with locale slugs and footer visibility.</p>
+                <p class="mt-1 text-sm text-slate-600">Manage static/information pages with locale slugs.</p>
                 <p class="mt-2 text-xs text-slate-500">Items per page: <span class="admin-chip">{{ $perPage }}</span></p>
             </div>
 
@@ -45,7 +45,6 @@
                         <th class="px-3 py-2 text-left font-semibold">Slug</th>
                         <th class="px-3 py-2 text-center font-semibold">Layout</th>
                         <th class="px-3 py-2 text-center font-semibold">Categories</th>
-                        <th class="px-3 py-2 text-center font-semibold">Footer</th>
                         <th class="px-3 py-2 text-center font-semibold">State</th>
                         <th class="px-3 py-2 text-right font-semibold">Actions</th>
                     </tr>
@@ -62,24 +61,29 @@
                             <td class="px-3 py-2 text-center text-slate-700">{{ $row->layout }}</td>
                             <td class="px-3 py-2 text-center text-slate-700">{{ $row->categories_count }}</td>
                             <td class="px-3 py-2 text-center">
-                                <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $row->show_in_footer ? 'bg-cyan-100 text-cyan-800' : 'bg-slate-200 text-slate-700' }}">
-                                    {{ $row->show_in_footer ? 'Yes' : 'No' }}
-                                </span>
-                            </td>
-                            <td class="px-3 py-2 text-center">
                                 <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $row->is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700' }}">
                                     {{ $row->is_active ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
-                            <td class="px-3 py-2 text-right">
+                            <td class="px-3 py-2">
+                                <div class="flex justify-end gap-2">
                                 <a href="{{ route('admin.content.pages.edit', ['page' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
                                     Edit
                                 </a>
+                                <button
+                                    type="button"
+                                    wire:click="delete({{ (int) $row->id }})"
+                                    wire:confirm="Delete page '{{ $tr?->title ?? $row->code }}'?"
+                                    class="rounded-lg border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                                >
+                                    Delete
+                                </button>
+                                </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-3 py-8 text-center text-sm text-slate-500">No info pages yet.</td>
+                            <td colspan="6" class="px-3 py-8 text-center text-sm text-slate-500">No info pages yet.</td>
                         </tr>
                     @endforelse
                 </tbody>

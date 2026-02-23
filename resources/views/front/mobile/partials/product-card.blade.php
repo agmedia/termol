@@ -1,6 +1,16 @@
 @php
     $translation = $product->translations->firstWhere('locale', $locale ?? app()->getLocale())
         ?? $product->translations->firstWhere('locale', $fallbackLocale ?? config('app.locale'));
+    $manufacturerTranslation = null;
+    if ($product->relationLoaded('manufacturer')) {
+        $manufacturerTranslation = $product->manufacturer?->translations?->firstWhere('locale', $locale ?? app()->getLocale())
+            ?? $product->manufacturer?->translations?->firstWhere('locale', $fallbackLocale ?? config('app.locale'));
+    }
+    $categoryTranslation = null;
+    if ($product->relationLoaded('categories')) {
+        $categoryTranslation = $product->categories?->first()?->translations?->firstWhere('locale', $locale ?? app()->getLocale())
+            ?? $product->categories?->first()?->translations?->firstWhere('locale', $fallbackLocale ?? config('app.locale'));
+    }
     $displayPrice = app(\App\Services\Pricing\TaxPricingService::class)->grossFromNet((float) $product->base_price, $product);
 @endphp
 
@@ -15,7 +25,19 @@
                 <h4 class="font-700 mb-0">{{ number_format($displayPrice, 2) }} €</h4>
                 <p class="font-11 opacity-50 mb-0">Stock {{ (int) $product->stock_qty }}</p>
             </div>
-            <form method="POST" action="{{ route('cart.items.store') }}" class="align-self-center text-end" style="min-width:88px;">
+            <form
+                method="POST"
+                action="{{ route('cart.items.store') }}"
+                class="align-self-center text-end"
+                style="min-width:88px;"
+                data-ga4-add-to-cart-form
+                data-ga4-item-id="{{ (string) ($product->sku ?: $product->id) }}"
+                data-ga4-item-name="{{ $translation?->name ?? $product->code }}"
+                data-ga4-item-price="{{ number_format((float) $displayPrice, 2, '.', '') }}"
+                data-ga4-item-brand="{{ (string) ($manufacturerTranslation?->name ?? '') }}"
+                data-ga4-item-category="{{ (string) ($categoryTranslation?->name ?? '') }}"
+                data-ga4-currency="EUR"
+            >
                 @csrf
                 <input type="hidden" name="product_id" value="{{ $product->id }}">
                 <input type="number" name="quantity" min="1" max="99" value="1" class="form-control mb-2" style="height:32px;">

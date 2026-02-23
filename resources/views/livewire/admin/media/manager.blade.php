@@ -109,12 +109,9 @@
                                                     <input type="text" wire:model.defer="meta.{{ $media->id }}.name" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" placeholder="Name" />
                                                     <input type="text" wire:model.defer="meta.{{ $media->id }}.alt" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" placeholder="Alt ({{ $locale }})" />
                                                     <input type="text" wire:model.defer="meta.{{ $media->id }}.caption" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" placeholder="Caption ({{ $locale }})" />
-                                                    <input type="text" wire:model.defer="meta.{{ $media->id }}.link_url" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" placeholder="Link URL ({{ $locale }})" />
-                                                    <input type="text" wire:model.defer="meta.{{ $media->id }}.block_title" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" placeholder="Block title ({{ $locale }})" />
-                                                    <input type="text" wire:model.defer="meta.{{ $media->id }}.cta_1_label" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" placeholder="CTA 1 label ({{ $locale }})" />
-                                                    <input type="text" wire:model.defer="meta.{{ $media->id }}.cta_1_url" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" placeholder="CTA 1 URL ({{ $locale }})" />
-                                                    <input type="text" wire:model.defer="meta.{{ $media->id }}.cta_2_label" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" placeholder="CTA 2 label ({{ $locale }})" />
-                                                    <input type="text" wire:model.defer="meta.{{ $media->id }}.cta_2_url" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" placeholder="CTA 2 URL ({{ $locale }})" />
+                                                    @if ($isLinkableSliderBlock && $collectionName === 'block_slides')
+                                                        <input type="text" wire:model.defer="meta.{{ $media->id }}.link_url" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" placeholder="Link URL ({{ $locale }})" />
+                                                    @endif
                                                 </div>
                                             @endif
                                             <p class="mt-1 text-[11px] text-slate-500">

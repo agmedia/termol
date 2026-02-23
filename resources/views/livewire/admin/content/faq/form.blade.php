@@ -92,9 +92,9 @@
                     @error('form.slug') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
 
-                <div class="mt-3">
+                <div class="mt-3" wire:key="faq-answer-{{ $faqId ?? 'new' }}-{{ $form['locale'] }}">
                     <label for="faq-answer-html" class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Answer</label>
-                    <textarea id="faq-answer-html" rows="10" wire:model="form.answer_html" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    <textarea id="faq-answer-html" rows="10" wire:model.live.debounce.300ms="form.answer_html" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
                     @error('form.answer_html') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
             </div>

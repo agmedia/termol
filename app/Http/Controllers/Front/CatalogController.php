@@ -4,20 +4,23 @@ namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
+use App\Http\Controllers\Front\Concerns\ResolvesGridColumns;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Option\OptionValue;
 use App\Models\Catalog\Product\Product;
 use App\Services\Content\ContentBlockResolver;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class CatalogController extends Controller
 {
     use ResolvesFrontendView;
+    use ResolvesGridColumns;
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
@@ -26,9 +29,10 @@ class CatalogController extends Controller
         $manufacturerSlug = trim((string) $request->query('manufacturer', ''));
         $sizeId = (int) $request->query('size', 0);
         $sort = (string) $request->query('sort', 'newest');
-        $gridCols = (int) $request->query('cols', 4);
-        if (! in_array($gridCols, [1, 2, 3, 4, 5], true)) {
-            $gridCols = 4;
+        $gridCols = $this->resolveGridCols($request, 4);
+        $this->queueGridColsCookie($gridCols);
+        if ($request->query->has('cols')) {
+            return $this->redirectWithoutCols($request);
         }
 
         $query = Product::query()
@@ -195,7 +199,7 @@ class CatalogController extends Controller
         ]);
     }
 
-    public function showCategory(Request $request, string $slug): View
+    public function showCategory(Request $request, string $slug): View|RedirectResponse
     {
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
@@ -205,9 +209,10 @@ class CatalogController extends Controller
         $manufacturerSlug = trim((string) $request->query('manufacturer', ''));
         $sizeId = (int) $request->query('size', 0);
         $sort = (string) $request->query('sort', 'newest');
-        $gridCols = (int) $request->query('cols', 4);
-        if (! in_array($gridCols, [1, 2, 3, 4, 5], true)) {
-            $gridCols = 4;
+        $gridCols = $this->resolveGridCols($request, 4);
+        $this->queueGridColsCookie($gridCols);
+        if ($request->query->has('cols')) {
+            return $this->redirectWithoutCols($request);
         }
 
         $category = Category::query()
@@ -445,5 +450,17 @@ class CatalogController extends Controller
         $rows = (int) ceil($basePerPage / $desktopCols);
 
         return max($desktopCols, $rows * $desktopCols);
+    }
+
+    private function redirectWithoutCols(Request $request): RedirectResponse
+    {
+        $query = $request->query();
+        unset($query['cols']);
+        $target = $request->url();
+        if ($query !== []) {
+            $target .= '?'.http_build_query($query);
+        }
+
+        return redirect()->to($target);
     }
 }

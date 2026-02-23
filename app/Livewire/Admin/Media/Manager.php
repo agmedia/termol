@@ -342,8 +342,10 @@ class Manager extends Component
         $mediaByCollection = $this->mediaByCollection;
         $this->primeMetaInputs($mediaByCollection);
         $record = $this->record;
-        $isDualImageCtaBlock = $record instanceof \App\Models\Content\ContentBlock
-            && (string) ($record->type ?? '') === 'dual_image_cta';
+        $isContentBlock = $record instanceof \App\Models\Content\ContentBlock;
+        $blockType = $isContentBlock ? (string) ($record->type ?? '') : '';
+        $isDualImageCtaBlock = $blockType === 'dual_image_cta';
+        $isLinkableSliderBlock = in_array($blockType, ['full_width_image_slider', 'desktopfullwidthimageslider'], true);
 
         return view('livewire.admin.media.manager', [
             'collections' => $this->collections,
@@ -351,6 +353,7 @@ class Manager extends Component
             'mediaByCollection' => $mediaByCollection,
             'recordExists' => (bool) $this->record,
             'isDualImageCtaBlock' => $isDualImageCtaBlock,
+            'isLinkableSliderBlock' => $isLinkableSliderBlock,
         ]);
     }
 

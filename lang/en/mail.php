@@ -1,0 +1,32 @@
+<?php
+
+return [
+    'orders' => [
+        'subject_admin' => '[Order] :order',
+        'subject_customer' => 'Order confirmation: :order',
+        'mail_title' => 'Order :order',
+        'heading_admin' => 'New order',
+        'heading_customer' => 'Order confirmation',
+        'intro_admin' => 'A new order has been received from the webshop.',
+        'intro_customer' => 'Thank you for your purchase. We have received your order and started processing it.',
+        'customer' => 'Customer',
+        'email' => 'Email',
+        'phone' => 'Phone',
+        'placed_at' => 'Order time',
+        'payment' => 'Payment',
+        'shipping' => 'Shipping',
+        'billing_address' => 'Billing address',
+        'shipping_address' => 'Shipping address',
+        'image' => 'Image',
+        'product' => 'Product',
+        'sku' => 'SKU',
+        'qty' => 'Quantity',
+        'price' => 'Price',
+        'total' => 'Total',
+        'subtotal' => 'Subtotal',
+        'discount' => 'Discount',
+        'payment_fee' => 'Payment fee',
+        'tax' => 'Tax',
+        'customer_note' => 'Customer note',
+    ],
+];

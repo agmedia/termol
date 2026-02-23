@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
+use App\Http\Controllers\Front\Concerns\ResolvesGridColumns;
 use App\Models\Catalog\Product\Product;
 use App\Services\Front\WishlistService;
 use Illuminate\Http\JsonResponse;
@@ -14,21 +15,35 @@ use Illuminate\View\View;
 class WishlistController extends Controller
 {
     use ResolvesFrontendView;
+    use ResolvesGridColumns;
 
     public function __construct(
         private readonly WishlistService $wishlist
     ) {
     }
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
+        $cols = $this->resolveGridCols($request, 4);
+        $this->queueGridColsCookie($cols);
+        if ($request->query->has('cols')) {
+            $query = $request->query();
+            unset($query['cols']);
+            $target = $request->url();
+            if ($query !== []) {
+                $target .= '?'.http_build_query($query);
+            }
+
+            return redirect()->to($target);
+        }
 
         return view($this->frontendView($request, 'wishlist.index'), [
             'products' => $this->wishlist->products($locale),
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
+            'cols' => $cols,
         ]);
     }
 

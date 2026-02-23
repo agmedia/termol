@@ -354,6 +354,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     setCartCount(payload.summary.item_qty);
                 }
 
+                if (window.ShopAnalytics && typeof window.ShopAnalytics.trackAddToCartFromForm === 'function') {
+                    window.ShopAnalytics.trackAddToCartFromForm(form, currentQty(form), selectedOptionLabel(form));
+                }
+
                 showModal(form);
             } catch (error) {
                 // Keep UI stable on network errors.

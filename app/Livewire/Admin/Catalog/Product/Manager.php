@@ -158,6 +158,7 @@ class Manager extends Component
             5,
             200
         );
+        $search = trim($this->search);
 
         $query = Product::query()
             ->select('products.*')
@@ -182,18 +183,18 @@ class Manager extends Component
                     'manufacturer.translations' => fn ($q) => $q->where('locale', $this->locale),
                 ]);
             })
-            ->when($this->search !== '', function ($query) use ($useManufacturers): void {
-                $query->where(function ($q) use ($useManufacturers): void {
-                    $q->where('code', 'like', '%'.$this->search.'%')
-                        ->orWhere('sku', 'like', '%'.$this->search.'%')
-                        ->orWhereHas('translations', function ($tq): void {
-                            $tq->where('name', 'like', '%'.$this->search.'%')
-                                ->orWhere('slug', 'like', '%'.$this->search.'%');
+            ->when($search !== '', function ($query) use ($useManufacturers, $search): void {
+                $query->where(function ($q) use ($useManufacturers, $search): void {
+                    $q->where('code', 'like', '%'.$search.'%')
+                        ->orWhere('sku', 'like', '%'.$search.'%')
+                        ->orWhereHas('translations', function ($tq) use ($search): void {
+                            $tq->where('name', 'like', '%'.$search.'%')
+                                ->orWhere('slug', 'like', '%'.$search.'%');
                         });
 
                     if ($useManufacturers) {
-                        $q->orWhereHas('manufacturer.translations', function ($mq): void {
-                            $mq->where('name', 'like', '%'.$this->search.'%');
+                        $q->orWhereHas('manufacturer.translations', function ($mq) use ($search): void {
+                            $mq->where('name', 'like', '%'.$search.'%');
                         });
                     }
                 });

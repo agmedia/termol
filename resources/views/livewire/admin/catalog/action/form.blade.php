@@ -277,7 +277,7 @@
 
             <div class="mt-4">
                 <label for="catalog-action-description-html" class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Description</label>
-                <textarea id="catalog-action-description-html" rows="5" wire:model="form.description" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                <textarea id="catalog-action-description-html" rows="5" wire:model.live.debounce.300ms="form.description" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
                 @error('form.description') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
 

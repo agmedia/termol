@@ -62,6 +62,8 @@ Route::middleware(['front.locale', 'front.device'])
             return redirect()->back();
         })->name('front.locale.switch');
 
+        Route::get('site.webmanifest', [StorefrontController::class, 'manifest'])->name('front.manifest');
+
         Route::get('/', [StorefrontController::class, 'home'])->name('home');
 
         Route::get('shop', [CatalogController::class, 'index'])->name('shop.index');
@@ -76,6 +78,7 @@ Route::middleware(['front.locale', 'front.device'])
         Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
         Route::get('blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
 
+        Route::get('pages/category/{slug}', [PageController::class, 'category'])->name('pages.category');
         Route::get('page/{slug}', [PageController::class, 'show'])->name('pages.show');
 
         Route::get('contact', [ContactController::class, 'create'])->name('contact.create');
@@ -339,6 +342,7 @@ Route::middleware(['auth', 'verified', 'admin.access', 'admin.ability'])
                 })->name('system.runtime');
                 Route::view('system/admin-appearance-controls', 'admin.settings.system.admin-appearance-controls')->name('system.admin-appearance-controls');
                 Route::view('system/catalog-features', 'admin.settings.system.catalog-features')->name('system.catalog-features');
+                Route::view('system/store-settings', 'admin.settings.system.store-settings')->name('system.store-settings');
                 Route::middleware('catalog.feature:catalog_use_api')->get('api', function () {
                     $current = auth()->user();
                     abort_unless(

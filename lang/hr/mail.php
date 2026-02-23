@@ -1,0 +1,32 @@
+<?php
+
+return [
+    'orders' => [
+        'subject_admin' => '[Narudžba] :order',
+        'subject_customer' => 'Potvrda narudžbe: :order',
+        'mail_title' => 'Narudžba :order',
+        'heading_admin' => 'Nova narudžba',
+        'heading_customer' => 'Potvrda narudžbe',
+        'intro_admin' => 'Zaprimljena je nova narudžba na webshopu.',
+        'intro_customer' => 'Hvala na kupnji. Zaprimili smo vašu narudžbu i obrađujemo je.',
+        'customer' => 'Kupac',
+        'email' => 'Email',
+        'phone' => 'Telefon',
+        'placed_at' => 'Vrijeme narudžbe',
+        'payment' => 'Plaćanje',
+        'shipping' => 'Dostava',
+        'billing_address' => 'Adresa računa',
+        'shipping_address' => 'Adresa dostave',
+        'image' => 'Slika',
+        'product' => 'Artikl',
+        'sku' => 'SKU',
+        'qty' => 'Količina',
+        'price' => 'Cijena',
+        'total' => 'Ukupno',
+        'subtotal' => 'Međuzbroj',
+        'discount' => 'Popust',
+        'payment_fee' => 'Naknada plaćanja',
+        'tax' => 'PDV',
+        'customer_note' => 'Napomena kupca',
+    ],
+];

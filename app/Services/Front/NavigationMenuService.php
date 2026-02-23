@@ -104,7 +104,12 @@ class NavigationMenuService
                     $slug = trim((string) ($translation?->slug ?? ''));
 
                     if ($slug !== '') {
-                        $label = $this->labelForItem($item, (string) ($translation?->title ?? $page->code));
+                        $label = $this->labelForItem(
+                            $item,
+                            (string) ($translation?->title ?? $page->code),
+                            $locale,
+                            $fallbackLocale
+                        );
                         $entry = [
                             'key' => 'page-'.$page->id.'-'.$index,
                             'type' => 'page',
@@ -119,7 +124,7 @@ class NavigationMenuService
                 $entry = [
                     'key' => 'blog-'.$index,
                     'type' => 'blog',
-                    'label' => $this->labelForItem($item, 'Blog'),
+                    'label' => $this->labelForItem($item, 'Blog', $locale, $fallbackLocale),
                     'url' => route('blog.index'),
                     'children' => [],
                     'open_in_new_tab' => false,
@@ -128,14 +133,14 @@ class NavigationMenuService
                 $entry = [
                     'key' => 'contact-'.$index,
                     'type' => 'contact',
-                    'label' => $this->labelForItem($item, 'Kontakt'),
+                    'label' => $this->labelForItem($item, 'Kontakt', $locale, $fallbackLocale),
                     'url' => route('contact.create'),
                     'children' => [],
                     'open_in_new_tab' => false,
                 ];
             } else {
-                $url = trim((string) ($item['url'] ?? ''));
-                $label = trim((string) ($item['label'] ?? ''));
+                $url = $this->urlForItem($item, $locale, $fallbackLocale);
+                $label = $this->labelForItem($item, '', $locale, $fallbackLocale);
 
                 if ($url !== '' && $label !== '') {
                     $entry = [
@@ -174,12 +179,36 @@ class NavigationMenuService
                 continue;
             }
 
+            $labelTranslations = $this->normalizeTranslations($item['label_translations'] ?? []);
+            $urlTranslations = $this->normalizeTranslations($item['url_translations'] ?? []);
+
+            $legacyLabel = trim((string) ($item['label'] ?? ''));
+            if ($legacyLabel !== '' && $labelTranslations === []) {
+                $labelTranslations[strtolower((string) config('app.locale', 'en'))] = $legacyLabel;
+            }
+
+            $legacyUrl = trim((string) ($item['url'] ?? ''));
+            if ($legacyUrl !== '' && $urlTranslations === []) {
+                $urlTranslations[strtolower((string) config('app.locale', 'en'))] = $legacyUrl;
+            }
+
+            $storedLabel = $this->pickLocalizedValue(
+                $labelTranslations,
+                strtolower((string) config('app.locale', 'en'))
+            );
+            $storedUrl = $this->pickLocalizedValue(
+                $urlTranslations,
+                strtolower((string) config('app.locale', 'en'))
+            );
+
             $items[] = [
                 'type' => (string) ($item['type'] ?? 'custom'),
-                'label' => trim((string) ($item['label'] ?? '')),
+                'label' => $storedLabel,
+                'label_translations' => $labelTranslations,
                 'category_id' => (int) ($item['category_id'] ?? 0),
                 'page_id' => (int) ($item['page_id'] ?? 0),
-                'url' => trim((string) ($item['url'] ?? '')),
+                'url' => $storedUrl,
+                'url_translations' => $urlTranslations,
                 'open_in_new_tab' => (bool) ($item['open_in_new_tab'] ?? false),
                 'show_dropdown' => (bool) ($item['show_dropdown'] ?? true),
                 'is_active' => (bool) ($item['is_active'] ?? true),
@@ -217,7 +246,12 @@ class NavigationMenuService
         return [
             'key' => 'category-'.$category->id,
             'type' => 'category',
-            'label' => $this->labelForItem($item, (string) ($translation?->name ?? $category->code)),
+            'label' => $this->labelForItem(
+                $item,
+                (string) ($translation?->name ?? $category->code),
+                $locale,
+                $fallbackLocale
+            ),
             'url' => route('categories.show', ['slug' => $slug]),
             'children' => $children,
             'open_in_new_tab' => false,
@@ -256,11 +290,79 @@ class NavigationMenuService
     /**
      * @param array<string, mixed> $item
      */
-    private function labelForItem(array $item, string $fallback): string
+    private function labelForItem(array $item, string $fallback, string $locale, string $fallbackLocale): string
     {
-        $label = trim((string) ($item['label'] ?? ''));
+        $translations = $this->normalizeTranslations($item['label_translations'] ?? []);
+        $label = $this->pickLocalizedValue($translations, $locale, $fallbackLocale);
+        if ($label === '') {
+            $label = trim((string) ($item['label'] ?? ''));
+        }
 
         return $label !== '' ? $label : $fallback;
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     */
+    private function urlForItem(array $item, string $locale, string $fallbackLocale): string
+    {
+        $translations = $this->normalizeTranslations($item['url_translations'] ?? []);
+        $url = $this->pickLocalizedValue($translations, $locale, $fallbackLocale);
+        if ($url === '') {
+            $url = trim((string) ($item['url'] ?? ''));
+        }
+
+        return $url;
+    }
+
+    /**
+     * @param mixed $translations
+     * @return array<string, string>
+     */
+    private function normalizeTranslations(mixed $translations): array
+    {
+        if (! is_array($translations)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($translations as $locale => $value) {
+            $key = strtolower(trim((string) $locale));
+            if ($key === '') {
+                continue;
+            }
+
+            $text = trim((string) $value);
+            if ($text === '') {
+                continue;
+            }
+
+            $normalized[$key] = $text;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, string> $translations
+     */
+    private function pickLocalizedValue(array $translations, string ...$preferredLocales): string
+    {
+        foreach ($preferredLocales as $locale) {
+            $key = strtolower(trim($locale));
+            if ($key !== '' && isset($translations[$key]) && trim((string) $translations[$key]) !== '') {
+                return trim((string) $translations[$key]);
+            }
+        }
+
+        foreach ($translations as $value) {
+            $text = trim((string) $value);
+            if ($text !== '') {
+                return $text;
+            }
+        }
+
+        return '';
     }
 
     private function pickCategoryTranslation(Category $category, string $locale, string $fallbackLocale): mixed

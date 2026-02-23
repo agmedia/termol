@@ -269,6 +269,13 @@
                 action="{{ route('cart.items.store') }}"
                 class="mt-6 space-y-4"
                 data-product-detail-form
+                data-ga4-add-to-cart-form
+                data-ga4-item-id="{{ (string) ($product->sku ?: $product->id) }}"
+                data-ga4-item-name="{{ $translation?->name ?? $product->code }}"
+                data-ga4-item-price="{{ number_format((float) ($pricePresentation['current_gross'] ?? 0), 2, '.', '') }}"
+                data-ga4-item-brand="{{ (string) ($manufacturerTranslation?->name ?? '') }}"
+                data-ga4-item-category="{{ (string) ($firstCategoryTranslation?->name ?? '') }}"
+                data-ga4-currency="EUR"
                 data-product-name="{{ $translation?->name ?? $product->code }}"
                 data-product-image="{{ (string) (($gallery->first()['full'] ?? '') ?: '') }}"
                 data-cart-url="{{ route('cart.index') }}"

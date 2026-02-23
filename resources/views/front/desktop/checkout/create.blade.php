@@ -12,6 +12,29 @@
         $showR1Fields = old('want_r1_invoice') === '1'
             || old('billing_company', $prefill['billing']['company']) !== ''
             || old('billing_oib', $prefill['billing']['oib']) !== '';
+        $ga4Items = collect($lines)->map(function (array $line) {
+            $locale = app()->getLocale();
+            $fallbackLocale = (string) config('app.locale');
+            $product = $line['product'];
+            $translation = $line['translation'];
+            $manufacturerTranslation = $product->relationLoaded('manufacturer')
+                ? ($product->manufacturer?->translations?->firstWhere('locale', $locale)
+                    ?? $product->manufacturer?->translations?->firstWhere('locale', $fallbackLocale))
+                : null;
+            $categoryTranslation = $product->relationLoaded('categories')
+                ? ($product->categories?->first()?->translations?->firstWhere('locale', $locale)
+                    ?? $product->categories?->first()?->translations?->firstWhere('locale', $fallbackLocale))
+                : null;
+
+            return [
+                'item_id' => (string) ($line['sku'] ?: $product->sku ?: $product->id),
+                'item_name' => (string) ($translation?->name ?? $product->code),
+                'item_brand' => (string) ($manufacturerTranslation?->name ?? ''),
+                'item_category' => (string) ($categoryTranslation?->name ?? ''),
+                'price' => round((float) ($line['display_unit_price'] ?? $line['unit_price'] ?? 0), 2),
+                'quantity' => (int) ($line['quantity'] ?? 1),
+            ];
+        })->values()->all();
     @endphp
 
     <section class="mb-8">
@@ -60,7 +83,7 @@
         </section>
     @endguest
 
-    <form method="POST" action="{{ route('checkout.store') }}" class="grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(460px,1fr)]" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-form data-success-fallback="{{ route('checkout.success.latest') }}" novalidate>
+    <form method="POST" action="{{ route('checkout.store') }}" class="grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(460px,1fr)]" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-form data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-success-fallback="{{ route('checkout.success.latest') }}" novalidate>
         @csrf
 
         <div class="space-y-6">

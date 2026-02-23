@@ -70,6 +70,7 @@ class BlogController extends Controller
             ->with([
                 'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'categories.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'creator:id,name',
             ])
             ->firstOrFail();
 

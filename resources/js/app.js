@@ -333,9 +333,32 @@ const initQuillEditors = () => {
         return value === '<p><br></p>' ? '' : value;
     };
 
+    const readTextareaHtml = (textarea) => {
+        if (!(textarea instanceof HTMLTextAreaElement)) {
+            return '';
+        }
+
+        const fromValue = normalizeHtml(textarea.value);
+        if (fromValue !== '') {
+            return fromValue;
+        }
+
+        // Livewire can occasionally hydrate <textarea> content without dispatching input/change.
+        return normalizeHtml(textarea.textContent ?? '');
+    };
+
     const bindElement = (textarea) => {
         if (!(textarea instanceof HTMLTextAreaElement)) {
             return;
+        }
+        // If this field was previously mounted with Ace, tear it down and restore textarea.
+        const staleAce = textarea.nextElementSibling;
+        if (staleAce instanceof HTMLElement && staleAce.classList.contains('admin-ace-inline')) {
+            staleAce.remove();
+            textarea.style.display = '';
+            textarea.removeAttribute('aria-hidden');
+            textarea.tabIndex = 0;
+            delete textarea.dataset.aceInlineBound;
         }
         if (textarea.dataset.quillBound === '1') {
             return;
@@ -388,7 +411,7 @@ const initQuillEditors = () => {
             editorNode.style.minHeight = `${minHeight}px`;
         }
 
-        const initial = normalizeHtml(textarea.value);
+        const initial = readTextareaHtml(textarea);
         if (initial) {
             quill.clipboard.dangerouslyPasteHTML(initial);
         } else {
@@ -417,7 +440,7 @@ const initQuillEditors = () => {
             if (syncingFromQuill) {
                 return;
             }
-            const source = normalizeHtml(textarea.value);
+            const source = readTextareaHtml(textarea);
             const current = normalizeHtml(quill.root.innerHTML);
             if (source === current) {
                 return;
@@ -434,6 +457,22 @@ const initQuillEditors = () => {
         quill.on('text-change', syncTextareaFromQuill);
         textarea.addEventListener('input', syncQuillFromTextarea);
         textarea.addEventListener('change', syncQuillFromTextarea);
+
+        // Keep editor in sync when the textarea is patched by Livewire without input events.
+        const valueObserver = new MutationObserver(() => {
+            syncQuillFromTextarea();
+        });
+        valueObserver.observe(textarea, {
+            childList: true,
+            characterData: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['value'],
+        });
+
+        // Hydration can complete just after Quill mount, so do a delayed pull as well.
+        setTimeout(syncQuillFromTextarea, 0);
+        setTimeout(syncQuillFromTextarea, 200);
     };
 
     const bindAll = (root) => {
@@ -902,6 +941,19 @@ const initAceInline = () => {
 
     const selector = 'textarea[data-ace-inline]';
 
+    const readTextareaValue = (textarea) => {
+        if (!(textarea instanceof HTMLTextAreaElement)) {
+            return '';
+        }
+
+        if ((textarea.value ?? '') !== '') {
+            return textarea.value;
+        }
+
+        // Livewire can patch textarea contents without firing input/change.
+        return textarea.textContent || '';
+    };
+
     const bindElement = (textarea) => {
         if (!(textarea instanceof HTMLTextAreaElement)) {
             return;
@@ -956,7 +1008,7 @@ const initAceInline = () => {
                 return;
             }
 
-            const value = textarea.value || '';
+            const value = readTextareaValue(textarea);
             if (editor.getValue() === value) {
                 return;
             }
@@ -968,6 +1020,17 @@ const initAceInline = () => {
 
         textarea.addEventListener('input', syncEditorFromTextarea);
         textarea.addEventListener('change', syncEditorFromTextarea);
+
+        const valueObserver = new MutationObserver(() => {
+            syncEditorFromTextarea();
+        });
+        valueObserver.observe(textarea, {
+            childList: true,
+            characterData: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['value'],
+        });
 
         loadAce()
             .then((ace) => {
@@ -983,9 +1046,13 @@ const initAceInline = () => {
                     enableLiveAutocompletion: true,
                 });
                 editor.session.setUseWorker(false);
-                editor.setValue(textarea.value || '', -1);
+                editor.setValue(readTextareaValue(textarea), -1);
                 editor.session.on('change', scheduleSyncTextarea);
                 editor.on('blur', syncTextareaFromEditor);
+
+                // Hydration can finish right after mount.
+                setTimeout(syncEditorFromTextarea, 0);
+                setTimeout(syncEditorFromTextarea, 200);
             })
             .catch((error) => {
                 console.error('Failed to initialize inline Ace editor', error);

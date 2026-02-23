@@ -5,6 +5,8 @@
         ?? $product->translations->firstWhere('locale', $fallbackLocale);
     $manufacturerTranslation = $product->manufacturer?->translations?->firstWhere('locale', $locale)
         ?? $product->manufacturer?->translations?->firstWhere('locale', $fallbackLocale);
+    $firstCategoryTranslation = $product->categories->first()?->translations?->firstWhere('locale', $locale)
+        ?? $product->categories->first()?->translations?->firstWhere('locale', $fallbackLocale);
     $manufacturerEnabled = app(\App\Services\Catalog\CatalogFeatureService::class)->useManufacturers();
     $displayBasePrice = app(\App\Services\Pricing\TaxPricingService::class)->grossFromNet((float) $product->base_price, $product);
 
@@ -107,6 +109,13 @@
                 method="POST"
                 action="{{ route('cart.items.store') }}"
                 data-product-detail-form
+                data-ga4-add-to-cart-form
+                data-ga4-item-id="{{ (string) ($product->sku ?: $product->id) }}"
+                data-ga4-item-name="{{ $translation?->name ?? $product->code }}"
+                data-ga4-item-price="{{ number_format((float) $displayBasePrice, 2, '.', '') }}"
+                data-ga4-item-brand="{{ (string) ($manufacturerTranslation?->name ?? '') }}"
+                data-ga4-item-category="{{ (string) ($firstCategoryTranslation?->name ?? '') }}"
+                data-ga4-currency="EUR"
                 data-product-name="{{ $translation?->name ?? $product->code }}"
                 data-product-image="{{ (string) (($gallery->first()['full'] ?? '') ?: '') }}"
                 data-cart-url="{{ route('cart.index') }}"

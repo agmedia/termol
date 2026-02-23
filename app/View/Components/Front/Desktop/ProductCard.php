@@ -10,7 +10,7 @@ use Illuminate\View\View;
 
 class ProductCard extends Component
 {
-    /** @var array<string, array{current_price:string, old_price:?string, discount_percent:?int, lowest_30_days_price:?string}> */
+    /** @var array<string, array{current_gross:float,current_price:string, old_price:?string, discount_percent:?int, lowest_30_days_price:?string}> */
     private static array $priceCache = [];
 
     public function __construct(
@@ -82,6 +82,7 @@ class ProductCard extends Component
             $priceData = app(ProductPricePresentationService::class)->forProduct($this->product, $authUser);
 
             self::$priceCache[$priceCacheKey] = [
+                'current_gross' => (float) $priceData['current_gross'],
                 'current_price' => number_format((float) $priceData['current_gross'], 2).' €',
                 'old_price' => $priceData['old_gross'] !== null ? number_format((float) $priceData['old_gross'], 2).' €' : null,
                 'discount_percent' => $priceData['discount_percent'],
@@ -92,11 +93,28 @@ class ProductCard extends Component
         }
 
         $priceData = self::$priceCache[$priceCacheKey];
+        $manufacturerName = '';
+        if ($this->product->relationLoaded('manufacturer')) {
+            $manufacturerName = (string) ($this->product->manufacturer?->translations?->firstWhere('locale', $locale)?->name
+                ?? $this->product->manufacturer?->translations?->firstWhere('locale', $fallbackLocale)?->name
+                ?? '');
+        }
+
+        $categoryName = '';
+        if ($this->product->relationLoaded('categories')) {
+            $categoryName = (string) ($this->product->categories?->first()?->translations?->firstWhere('locale', $locale)?->name
+                ?? $this->product->categories?->first()?->translations?->firstWhere('locale', $fallbackLocale)?->name
+                ?? '');
+        }
 
         return view('components.front.desktop.product-card', [
             'productId' => (int) $this->product->id,
             'productUrl' => route('products.show', ['slug' => $translation?->slug ?? $this->product->id]),
             'productName' => $translation?->name ?? $this->product->code,
+            'productSku' => (string) ($this->product->sku ?: $this->product->id),
+            'productPriceValue' => round((float) ($priceData['current_gross'] ?? 0), 2),
+            'productBrand' => $manufacturerName,
+            'productCategory' => $categoryName,
             'imageUrl' => $imageUrl,
             'hoverImageUrl' => $hoverImageUrl,
             'optionRows' => $optionRows,

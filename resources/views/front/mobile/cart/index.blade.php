@@ -12,6 +12,15 @@
             @php
                 $product = $line['product'];
                 $translation = $line['translation'];
+                $manufacturerTranslation = $product->relationLoaded('manufacturer')
+                    ? ($product->manufacturer?->translations?->firstWhere('locale', app()->getLocale())
+                        ?? $product->manufacturer?->translations?->firstWhere('locale', config('app.locale')))
+                    : null;
+                $categoryTranslation = $product->relationLoaded('categories')
+                    ? ($product->categories?->first()?->translations?->firstWhere('locale', app()->getLocale())
+                        ?? $product->categories?->first()?->translations?->firstWhere('locale', config('app.locale')))
+                    : null;
+                $displayCurrent = (float) ($line['display_unit_price'] ?? $line['unit_price'] ?? 0);
             @endphp
             <div class="card card-style mb-2">
                 <div class="content">
@@ -37,7 +46,18 @@
                                 <input type="number" name="quantity" value="{{ (int) $line['quantity'] }}" min="0" max="999" class="form-control mb-1" style="height:32px;">
                                 <button type="submit" class="btn btn-3d btn-xs font-600 bg-highlight">Save</button>
                             </form>
-                            <form method="POST" action="{{ route('cart.items.destroy', ['product' => $product->id]) }}">
+                            <form
+                                method="POST"
+                                action="{{ route('cart.items.destroy', ['product' => $product->id]) }}"
+                                data-ga4-remove-from-cart-form
+                                data-ga4-item-id="{{ (string) ($line['sku'] ?: $product->sku ?: $product->id) }}"
+                                data-ga4-item-name="{{ $translation?->name ?? $product->code }}"
+                                data-ga4-item-price="{{ number_format((float) $displayCurrent, 2, '.', '') }}"
+                                data-ga4-item-brand="{{ (string) ($manufacturerTranslation?->name ?? '') }}"
+                                data-ga4-item-category="{{ (string) ($categoryTranslation?->name ?? '') }}"
+                                data-ga4-currency="EUR"
+                                data-ga4-quantity="{{ (int) $line['quantity'] }}"
+                            >
                                 @csrf
                                 @method('DELETE')
                                 @if (!empty($line['product_option_value_id']))

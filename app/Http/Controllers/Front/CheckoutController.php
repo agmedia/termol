@@ -11,6 +11,7 @@ use App\Models\User\UserProfile;
 use App\Services\Front\AddressDirectoryService;
 use App\Services\Front\CartService;
 use App\Services\Front\CheckoutService;
+use App\Services\Front\StoreNotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\JsonResponse;
@@ -25,7 +26,8 @@ class CheckoutController extends Controller
 
     public function __construct(
         private readonly CartService $cart,
-        private readonly CheckoutService $checkout
+        private readonly CheckoutService $checkout,
+        private readonly StoreNotificationService $notifications
     ) {
     }
 
@@ -201,6 +203,7 @@ class CheckoutController extends Controller
         }
 
         $order = $this->checkout->placeOrder($validated, $checkoutUser);
+        $this->notifications->sendOrderNotification($order);
 
         $this->cart->clear();
         $request->session()->put('front.checkout.last_order_id', (int) $order->id);

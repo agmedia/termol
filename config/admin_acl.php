@@ -95,6 +95,7 @@ return [
         ['name' => 'settings.system.runtime.manage', 'title' => 'Manage runtime controls', 'group' => 'settings.system'],
         ['name' => 'settings.system.admin_appearance.manage', 'title' => 'Manage admin appearance settings', 'group' => 'settings.system'],
         ['name' => 'settings.system.catalog_features.manage', 'title' => 'Manage catalog feature flags', 'group' => 'settings.system'],
+        ['name' => 'settings.system.store.manage', 'title' => 'Manage store settings', 'group' => 'settings.system'],
         ['name' => 'settings.api.manage', 'title' => 'Manage API settings', 'group' => 'settings.api'],
         ['name' => 'settings.user.manage', 'title' => 'Manage user settings', 'group' => 'settings.user'],
 
@@ -174,6 +175,7 @@ return [
             'settings.local.manage',
             'settings.system.runtime.manage',
             'settings.system.admin_appearance.manage',
+            'settings.system.store.manage',
             'settings.api.manage',
             'settings.user.manage',
             'ai.admin.use',

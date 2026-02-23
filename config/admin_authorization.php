@@ -212,6 +212,10 @@ return [
             'view' => ['settings.system.catalog_features.manage'],
             'mutate' => ['settings.system.catalog_features.manage'],
         ],
+        'admin.settings.system.store-settings' => [
+            'view' => ['settings.system.store.manage'],
+            'mutate' => ['settings.system.store.manage'],
+        ],
         'admin.settings.api.*' => [
             'view' => ['settings.api.manage'],
             'mutate' => ['settings.api.manage'],

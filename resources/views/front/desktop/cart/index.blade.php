@@ -1,7 +1,7 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('ui.cart.page_title'))
-@section('main_class', 'w-full px-6 py-8 sm:px-8')
+@section('main_class', 'w-full px-4 py-8 sm:px-8')
 
 @section('content')
     <section class="mb-8">
@@ -17,7 +17,113 @@
     @else
         <div class="grid items-start gap-8 xl:grid-cols-[minmax(0,1.45fr)_minmax(430px,1fr)]">
             <div class="border border-slate-200 bg-white">
-                <div class="overflow-x-auto md:overflow-visible">
+                <div class="divide-y divide-slate-200 md:hidden">
+                    @foreach ($lines as $line)
+                        @php
+                            $product = $line['product'];
+                            $translation = $line['translation'];
+                            $manufacturerTranslation = $product->relationLoaded('manufacturer')
+                                ? ($product->manufacturer?->translations?->firstWhere('locale', $locale ?? app()->getLocale())
+                                    ?? $product->manufacturer?->translations?->firstWhere('locale', $fallbackLocale ?? config('app.locale')))
+                                : null;
+                            $categoryTranslation = $product->relationLoaded('categories')
+                                ? ($product->categories?->first()?->translations?->firstWhere('locale', $locale ?? app()->getLocale())
+                                    ?? $product->categories?->first()?->translations?->firstWhere('locale', $fallbackLocale ?? config('app.locale')))
+                                : null;
+                            $productImage = $product->getFirstMedia('product_main')
+                                ?? $product->getFirstMedia('product_gallery');
+                            $productImageUrl = $productImage
+                                ? ($productImage->hasGeneratedConversion('thumb_100x100') ? $productImage->getUrl('thumb_100x100') : $productImage->getUrl())
+                                : null;
+                            $displayCurrent = (float) ($line['display_unit_price'] ?? $line['unit_price'] ?? 0);
+                            $displayBase = (float) ($line['display_base_unit_price'] ?? $line['base_unit_price'] ?? $displayCurrent);
+                        @endphp
+                        <div class="p-4">
+                            <div class="flex items-start gap-3">
+                                <a href="{{ route('products.show', ['slug' => $translation?->slug ?? $product->id]) }}" class="block w-16 shrink-0 border border-slate-200 bg-slate-50 p-1">
+                                    @if ($productImageUrl)
+                                        <img
+                                            src="{{ $productImageUrl }}"
+                                            alt="{{ $translation?->name ?? $product->code }}"
+                                            class="h-auto w-full"
+                                            loading="lazy"
+                                            decoding="async"
+                                        >
+                                    @else
+                                        <span class="flex h-full w-full items-center justify-center text-[10px] font-semibold uppercase text-slate-500">{{ __('ui.product.no_image') }}</span>
+                                    @endif
+                                </a>
+                                <div class="min-w-0 flex-1">
+                                    <a href="{{ route('products.show', ['slug' => $translation?->slug ?? $product->id]) }}" class="block truncate font-semibold text-slate-900 hover:text-blue-700">
+                                        {{ $translation?->name ?? $product->code }}
+                                    </a>
+                                    @if (!empty($line['sku']))
+                                        <p class="mt-1 text-xs text-slate-500">SKU: {{ $line['sku'] }}</p>
+                                    @endif
+                                    @if (!empty($line['option_label']))
+                                        <p class="mt-1 text-xs text-slate-500">{{ $line['option_label'] }}</p>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                    <p class="text-xs uppercase tracking-wide text-slate-500">{{ __('ui.cart.table.price') }}</p>
+                                    <div class="mt-0.5 flex flex-col gap-0.5">
+                                        @if ($displayBase > ($displayCurrent + 0.0001))
+                                            <span class="text-xs text-slate-500 line-through">{{ number_format($displayBase, 2) }} €</span>
+                                        @endif
+                                        <span class="font-semibold text-slate-900">{{ number_format($displayCurrent, 2) }} €</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-xs uppercase tracking-wide text-slate-500">{{ __('ui.cart.table.total') }}</p>
+                                    <p class="mt-0.5 font-semibold text-slate-900">{{ number_format((float) ($line['display_line_total'] ?? $line['line_total']), 2) }} €</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 flex flex-wrap items-center gap-2">
+                                <form method="POST" action="{{ route('cart.items.update', ['product' => $product->id]) }}" class="flex min-w-0 flex-1 items-center gap-2">
+                                    @csrf
+                                    @method('PATCH')
+                                    @if (!empty($line['product_option_value_id']))
+                                        <input type="hidden" name="product_option_value_id" value="{{ (int) $line['product_option_value_id'] }}">
+                                    @endif
+                                    <input type="number" name="quantity" value="{{ (int) $line['quantity'] }}" min="0" max="999" class="h-10 min-w-0 w-20 border border-slate-300 bg-white px-2 py-1.5 text-sm">
+                                    <button type="submit" class="h-10 flex-1 border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('ui.cart.table.save') }}</button>
+                                </form>
+                                <form
+                                    method="POST"
+                                    action="{{ route('cart.items.destroy', ['product' => $product->id]) }}"
+                                    data-ga4-remove-from-cart-form
+                                    data-ga4-item-id="{{ (string) ($line['sku'] ?: $product->sku ?: $product->id) }}"
+                                    data-ga4-item-name="{{ $translation?->name ?? $product->code }}"
+                                    data-ga4-item-price="{{ number_format((float) $displayCurrent, 2, '.', '') }}"
+                                    data-ga4-item-brand="{{ (string) ($manufacturerTranslation?->name ?? '') }}"
+                                    data-ga4-item-category="{{ (string) ($categoryTranslation?->name ?? '') }}"
+                                    data-ga4-currency="EUR"
+                                    data-ga4-quantity="{{ (int) $line['quantity'] }}"
+                                >
+                                    @csrf
+                                    @method('DELETE')
+                                    @if (!empty($line['product_option_value_id']))
+                                        <input type="hidden" name="product_option_value_id" value="{{ (int) $line['product_option_value_id'] }}">
+                                    @endif
+                                    <button
+                                        type="submit"
+                                        class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-base font-bold leading-none text-white transition hover:bg-slate-700"
+                                        aria-label="{{ __('ui.cart.table.remove') }}"
+                                        title="{{ __('ui.cart.table.remove') }}"
+                                    >
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="hidden overflow-x-auto md:block md:overflow-visible">
                 <table class="min-w-[720px] w-full text-sm md:min-w-0">
                     <thead class="bg-slate-100/70 text-left text-xs uppercase tracking-wide text-slate-500">
                     <tr>
@@ -33,11 +139,20 @@
                         @php
                             $product = $line['product'];
                             $translation = $line['translation'];
+                            $manufacturerTranslation = $product->relationLoaded('manufacturer')
+                                ? ($product->manufacturer?->translations?->firstWhere('locale', $locale ?? app()->getLocale())
+                                    ?? $product->manufacturer?->translations?->firstWhere('locale', $fallbackLocale ?? config('app.locale')))
+                                : null;
+                            $categoryTranslation = $product->relationLoaded('categories')
+                                ? ($product->categories?->first()?->translations?->firstWhere('locale', $locale ?? app()->getLocale())
+                                    ?? $product->categories?->first()?->translations?->firstWhere('locale', $fallbackLocale ?? config('app.locale')))
+                                : null;
                             $productImage = $product->getFirstMedia('product_main')
                                 ?? $product->getFirstMedia('product_gallery');
                             $productImageUrl = $productImage
                                 ? ($productImage->hasGeneratedConversion('thumb_100x100') ? $productImage->getUrl('thumb_100x100') : $productImage->getUrl())
                                 : null;
+                            $displayCurrent = (float) ($line['display_unit_price'] ?? $line['unit_price'] ?? 0);
                         @endphp
                         <tr class="border-t border-slate-200">
                             <td class="px-4 py-4">
@@ -93,7 +208,18 @@
                             </td>
                             <td class="px-4 py-4 font-semibold text-slate-900">{{ number_format((float) ($line['display_line_total'] ?? $line['line_total']), 2) }} €</td>
                             <td class="px-4 py-4">
-                                <form method="POST" action="{{ route('cart.items.destroy', ['product' => $product->id]) }}">
+                                <form
+                                    method="POST"
+                                    action="{{ route('cart.items.destroy', ['product' => $product->id]) }}"
+                                    data-ga4-remove-from-cart-form
+                                    data-ga4-item-id="{{ (string) ($line['sku'] ?: $product->sku ?: $product->id) }}"
+                                    data-ga4-item-name="{{ $translation?->name ?? $product->code }}"
+                                    data-ga4-item-price="{{ number_format((float) $displayCurrent, 2, '.', '') }}"
+                                    data-ga4-item-brand="{{ (string) ($manufacturerTranslation?->name ?? '') }}"
+                                    data-ga4-item-category="{{ (string) ($categoryTranslation?->name ?? '') }}"
+                                    data-ga4-currency="EUR"
+                                    data-ga4-quantity="{{ (int) $line['quantity'] }}"
+                                >
                                     @csrf
                                     @method('DELETE')
                                     @if (!empty($line['product_option_value_id']))
@@ -116,7 +242,7 @@
                 </div>
             </div>
 
-            <aside class="h-fit self-start border border-slate-200 bg-white p-6 xl:sticky xl:top-28">
+            <aside class="h-fit self-start border border-slate-200 bg-white p-4 sm:p-6 xl:sticky xl:top-28">
                 <h2 class="text-lg font-semibold text-slate-900">{{ __('ui.cart.summary.title') }}</h2>
                 <dl class="mt-4 space-y-2 text-sm">
                     <div class="flex items-center justify-between">
@@ -171,7 +297,7 @@
                         style="{{ $couponOpen ? '' : 'max-height:0;opacity:0;' }}"
                     >
                         <label for="coupon_code" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.cart.coupon.label') }}</label>
-                        <form method="POST" action="{{ route('cart.coupon.apply') }}" class="flex gap-2">
+                        <form method="POST" action="{{ route('cart.coupon.apply') }}" class="flex flex-col gap-2 sm:flex-row">
                             @csrf
                             <input
                                 id="coupon_code"
@@ -179,9 +305,9 @@
                                 name="coupon_code"
                                 value="{{ (string) ($summary['coupon_code'] ?? '') }}"
                                 placeholder="{{ __('ui.cart.coupon.placeholder') }}"
-                                class="h-10 flex-1 border border-slate-300 px-3 text-sm"
+                                class="h-10 min-w-0 flex-1 border border-slate-300 px-3 text-sm"
                             >
-                            <button type="submit" class="h-10 border border-slate-300 bg-white px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-100">
+                            <button type="submit" class="h-10 w-full border border-slate-300 bg-white px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-100 sm:w-auto">
                                 {{ __('ui.cart.actions.apply_coupon') }}
                             </button>
                         </form>

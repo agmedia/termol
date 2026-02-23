@@ -2,8 +2,10 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <title>@yield('title', config('app.name', 'AG Shop').' Mobile')</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    @include('front.partials.seo-meta')
+    @include('front.partials.schema-markup')
+    @include('front.partials.analytics')
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
@@ -11,15 +13,39 @@
     <link rel="stylesheet" href="{{ asset('front-theme/styles/style.css') }}">
     <link rel="stylesheet" href="{{ asset('front-theme/styles/rising-sun-font.css') }}">
     <link rel="stylesheet" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}">
-    <link rel="manifest" href="{{ asset('front-theme/_manifest.json') }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('front-theme/app/icons/icon-192x192.png') }}">
+    <link rel="manifest" href="{{ route('front.manifest') }}">
+    @if (!empty($storeSettings['branding']['favicons']['ico_url'] ?? null))
+        <link rel="icon" href="{{ $storeSettings['branding']['favicons']['ico_url'] }}" sizes="any">
+    @endif
+    @if (!empty($storeSettings['branding']['favicons']['32_url'] ?? null))
+        <link rel="icon" type="image/png" sizes="32x32" href="{{ $storeSettings['branding']['favicons']['32_url'] }}">
+    @endif
+    @if (!empty($storeSettings['branding']['favicons']['16_url'] ?? null))
+        <link rel="icon" type="image/png" sizes="16x16" href="{{ $storeSettings['branding']['favicons']['16_url'] }}">
+    @endif
+    @if (!empty($storeSettings['branding']['favicons']['180_url'] ?? null))
+        <link rel="apple-touch-icon" sizes="180x180" href="{{ $storeSettings['branding']['favicons']['180_url'] }}">
+    @elseif (!empty($storeSettings['branding']['favicons']['192_url'] ?? null))
+        <link rel="apple-touch-icon" sizes="192x192" href="{{ $storeSettings['branding']['favicons']['192_url'] }}">
+    @else
+        <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('front-theme/app/icons/icon-192x192.png') }}">
+    @endif
+    @if (!empty($storeSettings['branding']['favicons']['192_url'] ?? null))
+        <link rel="icon" type="image/png" sizes="192x192" href="{{ $storeSettings['branding']['favicons']['192_url'] }}">
+    @endif
+    @if (!empty($storeSettings['branding']['favicons']['512_url'] ?? null))
+        <link rel="icon" type="image/png" sizes="512x512" href="{{ $storeSettings['branding']['favicons']['512_url'] }}">
+    @endif
+    @if (empty($storeSettings['branding']['favicons']['ico_url'] ?? null) && !empty($storeSettings['branding']['favicon_url'] ?? null))
+        <link rel="icon" href="{{ $storeSettings['branding']['favicon_url'] }}">
+    @endif
 </head>
 <body class="theme-light font-risingsun" data-highlight="highlight-red">
 <div id="preloader"><div class="spinner-border color-highlight" role="status"></div></div>
 
 <div id="page">
     <div class="header header-fixed header-logo-center header-auto-show">
-        <a href="{{ route('home') }}" class="header-title">@yield('header_title', 'Store')</a>
+        <a href="{{ route('home') }}" class="header-title">@yield('header_title', (string) ($storeSettings['branding']['store_name'] ?? 'Store'))</a>
         <a href="#" data-back-button class="header-icon header-icon-1" aria-label="Back"><i class="fas fa-chevron-left"></i></a>
         <a href="#" data-menu="menu-main" class="header-icon header-icon-4" aria-label="Menu"><i class="fas fa-bars"></i></a>
         <a href="#" data-toggle-theme class="header-icon header-icon-3 show-on-theme-dark" aria-label="Light mode"><i class="fas fa-sun"></i></a>
@@ -53,6 +79,8 @@
         @yield('content')
         <div class="mb-5"></div>
     </div>
+
+    @include('front.partials.analytics-ecommerce')
 
     <div id="menu-main" class="menu menu-box-left rounded-0" data-menu-width="280">
         @include('front.mobile.menu-main')
