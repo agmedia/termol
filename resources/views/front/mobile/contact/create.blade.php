@@ -23,14 +23,13 @@
             <form
                 method="POST"
                 action="{{ route('contact.store') }}"
+                novalidate
                 @if($captchaEnabled) data-recaptcha-form data-recaptcha-site-key="{{ $captchaSiteKey }}" data-recaptcha-action="contact_form" @endif
             >
                 @csrf
                 <input type="hidden" name="recaptcha_token" value="" data-recaptcha-token>
                 @error('recaptcha_token')
-                    <div class="bg-red-light p-2 mb-3">
-                        <p class="mb-0 color-red-dark font-12">{{ $message }}</p>
-                    </div>
+                    <p class="font-11 color-red-dark mb-2 mt-1">{{ $message }}</p>
                 @enderror
 
                 <div class="input-style has-borders no-icon input-style-always-active mb-3">

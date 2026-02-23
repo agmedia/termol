@@ -18,6 +18,8 @@ use Livewire\Component;
 class Form extends Component
 {
     public ?int $productId = null;
+    public string $activeTab = 'content';
+    public string $categorySearch = '';
     public array $attributeSelections = [];
     public string $attributeGroupView = 'all';
     public bool $attributeShowAssignedOnly = false;
@@ -66,6 +68,15 @@ class Form extends Component
         if ($name !== '') {
             $this->form['slug'] = Str::slug($name);
         }
+    }
+
+    public function setTab(string $tab): void
+    {
+        if (!in_array($tab, ['content', 'seo', 'media', 'catalog'], true)) {
+            return;
+        }
+
+        $this->activeTab = $tab;
     }
 
     public function save()
@@ -196,6 +207,68 @@ class Form extends Component
                     ->where('locale', $this->form['locale']),
             ])
             ->get();
+    }
+
+    public function getFilteredCategoryOptionsProperty(): Collection
+    {
+        $search = Str::lower(trim($this->categorySearch));
+        $selected = collect($this->form['category_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->all();
+
+        return $this->categoryOptions
+            ->reject(fn ($category) => in_array((int) $category->id, $selected, true))
+            ->filter(function ($category) use ($search): bool {
+                if ($search === '') {
+                    return true;
+                }
+
+                $translation = $category->translations->first();
+                $label = Str::lower((string) ($translation?->name ?? $category->code ?? ''));
+                return Str::contains($label, $search);
+            })
+            ->values()
+            ->take(120);
+    }
+
+    public function getSelectedCategoryRowsProperty(): Collection
+    {
+        $map = $this->categoryOptions->keyBy('id');
+
+        return collect($this->form['category_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->values()
+            ->map(function (int $id) use ($map): array {
+                $category = $map->get($id);
+                if ($category === null) {
+                    return ['id' => $id, 'label' => '#'.$id];
+                }
+
+                $translation = $category->translations->first();
+                $label = (string) ($translation?->name ?? ($category->code ?: '#'.$id));
+                $pad = str_repeat('— ', max(0, (int) ($category->depth ?? 0)));
+
+                return ['id' => $id, 'label' => $pad.$label];
+            });
+    }
+
+    public function addCategory(int $categoryId): void
+    {
+        $ids = collect($this->form['category_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values();
+        if ($ids->contains($categoryId)) {
+            return;
+        }
+
+        $ids->push($categoryId);
+        $this->form['category_ids'] = $ids->all();
+    }
+
+    public function removeCategory(int $categoryId): void
+    {
+        $this->form['category_ids'] = collect($this->form['category_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->reject(fn ($id) => $id === $categoryId)
+            ->values()
+            ->all();
     }
 
     public function render()

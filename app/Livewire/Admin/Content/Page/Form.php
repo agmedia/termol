@@ -14,6 +14,7 @@ use Livewire\Component;
 class Form extends Component
 {
     public ?int $pageId = null;
+    public string $activeTab = 'content';
 
     public array $form = [
         'code' => '',
@@ -54,6 +55,15 @@ class Form extends Component
         if ($title !== '') {
             $this->form['slug'] = Str::slug($title);
         }
+    }
+
+    public function setTab(string $tab): void
+    {
+        if (!in_array($tab, ['content', 'seo'], true)) {
+            return;
+        }
+
+        $this->activeTab = $tab;
     }
 
     public function save()
