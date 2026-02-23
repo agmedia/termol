@@ -1,7 +1,6 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('ui.cart.page_title'))
-@section('main_class', 'w-full px-4 py-8 sm:px-8')
 
 @section('content')
     <section class="mb-8">

@@ -78,7 +78,7 @@ class PageController extends Controller
         $fallbackLocale = (string) config('app.locale');
         $variant = $this->frontendVariant($request);
 
-        $page = InfoPage::query()
+        $pages = InfoPage::query()
             ->where('is_active', true)
             ->where(function ($q): void {
                 $q->whereNull('published_at')
@@ -88,12 +88,15 @@ class PageController extends Controller
                 $q->where('slug', $slug);
             })
             ->with('translations')
-            ->firstOrFail();
+            ->get();
 
-        $selectedTranslation = $page->translations->firstWhere('slug', $slug)
-            ?? $page->translations->firstWhere('locale', $locale)
-            ?? $page->translations->firstWhere('locale', $fallbackLocale)
-            ?? $page->translations->first();
+        $page = $pages
+            ->sortBy(fn (InfoPage $candidate): int => $this->pageMatchScore($candidate, $slug, (string) $locale, $fallbackLocale))
+            ->first();
+
+        abort_if(!$page, 404);
+
+        $selectedTranslation = $this->pickTranslation($page, $slug, (string) $locale, $fallbackLocale);
 
         $topBlocks = app(ContentBlockResolver::class)->forPlacement(
             placement: 'page.top',
@@ -119,5 +122,42 @@ class PageController extends Controller
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
         ]);
+    }
+
+    private function pickTranslation(InfoPage $page, string $slug, string $locale, string $fallbackLocale)
+    {
+        return $page->translations
+            ->sortBy(function ($translation) use ($slug, $locale, $fallbackLocale): int {
+                $tLocale = (string) ($translation->locale ?? '');
+                $tSlug = (string) ($translation->slug ?? '');
+
+                return match (true) {
+                    $tLocale === $locale && $tSlug === $slug => 0,
+                    $tLocale === $fallbackLocale && $tSlug === $slug => 1,
+                    $tSlug === $slug => 2,
+                    $tLocale === $locale => 3,
+                    $tLocale === $fallbackLocale => 4,
+                    default => 5,
+                };
+            })
+            ->first();
+    }
+
+    private function pageMatchScore(InfoPage $page, string $slug, string $locale, string $fallbackLocale): int
+    {
+        $translation = $this->pickTranslation($page, $slug, $locale, $fallbackLocale);
+        if (!$translation) {
+            return 99;
+        }
+
+        $tLocale = (string) ($translation->locale ?? '');
+        $tSlug = (string) ($translation->slug ?? '');
+
+        return match (true) {
+            $tLocale === $locale && $tSlug === $slug => 0,
+            $tLocale === $fallbackLocale && $tSlug === $slug => 1,
+            $tSlug === $slug => 2,
+            default => 10,
+        };
     }
 }

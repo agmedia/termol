@@ -26,8 +26,8 @@
         color: #0f172a;
         font-weight: 800;
         line-height: 1.25;
-        margin-top: 1.15em;
-        margin-bottom: 0.45em;
+        margin-top: 1.45em;
+        margin-bottom: 0.7em;
     }
 
     .content-richtext h1 { font-size: 2rem; }
@@ -38,7 +38,7 @@
     .content-richtext h6 { font-size: 1rem; }
 
     .content-richtext p {
-        margin: 0 0 0.7rem;
+        margin: 0 0 0.95rem;
     }
 
     .content-richtext ul,

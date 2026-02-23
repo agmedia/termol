@@ -232,7 +232,7 @@
 
 @include('front.partials.analytics-ecommerce')
 
-<footer class="mt-20 border-t border-slate-200 bg-white">
+<footer class="{{ request()->routeIs('home') ? 'mt-5' : 'mt-20' }} border-t border-slate-200 bg-white">
     <div class="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <section class="px-0 py-5">
             <div class="grid gap-4 lg:grid-cols-[1.2fr_1fr] lg:items-center">

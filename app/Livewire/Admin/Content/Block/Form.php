@@ -272,6 +272,8 @@ class Form extends Component
         } else {
             unset($translationPayload['reviews_featured_only']);
         }
+        $blogSource = (string) ($validated['form']['blog_source'] ?? 'latest');
+        $translationPayload['blog_source'] = in_array($blogSource, ['latest', 'featured'], true) ? $blogSource : 'latest';
         unset($translationPayload['render_mode'], $translationPayload['body_html_container_class']);
 
         $itemType = $this->itemTypeForBlockType((string) $validated['form']['type']);
@@ -416,6 +418,7 @@ class Form extends Component
             'form.custom_classes' => ['nullable', 'string', 'max:1000'],
             'form.items_limit' => ['nullable', 'integer', 'min:1', 'max:50'],
             'form.reviews_featured_only' => ['boolean'],
+            'form.blog_source' => ['nullable', Rule::in(['latest', 'featured'])],
             'form.template_body' => ['nullable', 'string'],
 
             'form.slot_placement' => ['required', 'string', 'max:120'],
@@ -453,6 +456,7 @@ class Form extends Component
             'custom_classes' => '',
             'items_limit' => 6,
             'reviews_featured_only' => false,
+            'blog_source' => 'latest',
             'template_body' => $this->defaultTemplateForType($defaultType),
 
             'slot_placement' => array_key_first($this->placements) ?: 'home.hero',
@@ -509,6 +513,9 @@ class Form extends Component
         $this->form['custom_classes'] = (string) ($translationPayload['custom_classes'] ?? '');
         $this->form['items_limit'] = (int) ($translationPayload['items_limit'] ?? 6);
         $this->form['reviews_featured_only'] = (bool) ($translationPayload['reviews_featured_only'] ?? false);
+        $this->form['blog_source'] = in_array((string) ($translationPayload['blog_source'] ?? 'latest'), ['latest', 'featured'], true)
+            ? (string) $translationPayload['blog_source']
+            : 'latest';
 
         $this->form['slot_placement'] = (string) ($slot?->placement ?? (array_key_first($this->placements) ?: 'home.hero'));
         $loadedVariant = (string) ($slot?->frontend_variant ?? 'all');
@@ -574,6 +581,9 @@ class Form extends Component
         $this->form['custom_classes'] = (string) ($translationPayload['custom_classes'] ?? '');
         $this->form['items_limit'] = (int) ($translationPayload['items_limit'] ?? 6);
         $this->form['reviews_featured_only'] = (bool) ($translationPayload['reviews_featured_only'] ?? false);
+        $this->form['blog_source'] = in_array((string) ($translationPayload['blog_source'] ?? 'latest'), ['latest', 'featured'], true)
+            ? (string) $translationPayload['blog_source']
+            : 'latest';
     }
 
     private function resolveInitialTranslation(Collection $translations, string $preferredLocale): mixed
@@ -633,6 +643,7 @@ class Form extends Component
         $this->form['custom_classes'] = '';
         $this->form['items_limit'] = 6;
         $this->form['reviews_featured_only'] = false;
+        $this->form['blog_source'] = 'latest';
     }
 
     private function itemTypeForBlockType(string $type): ?string
@@ -802,6 +813,7 @@ class Form extends Component
             'hero_highlights_strip',
             'products',
             'products_carousel',
+            'blogs_carousel',
             'categories',
             'manufacturers',
             'blogs',
@@ -830,6 +842,7 @@ class Form extends Component
             'full_width_image_slider',
             'dual_image_cta',
             'five_star_reviews_carousel',
+            'blogs_carousel',
             'hero_highlights_strip' => 'desktop',
             default => null,
         };
@@ -1331,6 +1344,14 @@ BLADE,
         @endif
     </div>
 </section>
+BLADE,
+            'blogs_carousel' => <<<'BLADE'
+@include('front.content-blocks.types.blogs_carousel', [
+    'block' => $block,
+    'translation' => $translation,
+    'slot' => $slot ?? null,
+    'blockItems' => $blockItems ?? collect(),
+])
 BLADE,
             'categories' => <<<'BLADE'
 <section class="rounded-3xl border border-slate-200 bg-white p-6">

@@ -5,6 +5,9 @@
         $slot = $item['slot'];
         $locale = app()->getLocale();
         $fallbackLocale = config('app.locale');
+        $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
+        $wrapperClasses = trim((string) ($translationPayload['custom_classes'] ?? ''));
+        $wrapperStyle = trim((string) ($translationPayload['bg_css'] ?? ''));
 
         $overridePrefix = (string) config('content_blocks.view_overrides.prefix', 'front.content-blocks.instances.');
         $codeOverride = $overridePrefix.$block->code;
@@ -91,41 +94,47 @@
         }
     @endphp
 
-    @if ($overrideView !== '')
-        @include($overrideView, [
-            'block' => $block,
-            'translation' => $translation,
-            'slot' => $slot,
-            'blockItems' => $blockItems,
-            'products' => $products,
-            'categories' => $categories,
-            'manufacturers' => $manufacturers,
-            'blogs' => $blogs,
-            'comments' => $comments,
-        ])
-    @elseif (view()->exists($partial))
-        @include($partial, [
-            'block' => $block,
-            'translation' => $translation,
-            'slot' => $slot,
-            'blockItems' => $blockItems,
-            'products' => $products,
-            'categories' => $categories,
-            'manufacturers' => $manufacturers,
-            'blogs' => $blogs,
-            'comments' => $comments,
-        ])
-    @else
-        @include('front.content-blocks.types.custom', [
-            'block' => $block,
-            'translation' => $translation,
-            'slot' => $slot,
-            'blockItems' => $blockItems,
-            'products' => $products,
-            'categories' => $categories,
-            'manufacturers' => $manufacturers,
-            'blogs' => $blogs,
-            'comments' => $comments,
-        ])
+    @if ($wrapperClasses !== '' || $wrapperStyle !== '')
+        <div @if($wrapperClasses !== '') class="{{ $wrapperClasses }}" @endif @if($wrapperStyle !== '') style="{{ $wrapperStyle }}" @endif>
+    @endif
+        @if ($overrideView !== '')
+            @include($overrideView, [
+                'block' => $block,
+                'translation' => $translation,
+                'slot' => $slot,
+                'blockItems' => $blockItems,
+                'products' => $products,
+                'categories' => $categories,
+                'manufacturers' => $manufacturers,
+                'blogs' => $blogs,
+                'comments' => $comments,
+            ])
+        @elseif (view()->exists($partial))
+            @include($partial, [
+                'block' => $block,
+                'translation' => $translation,
+                'slot' => $slot,
+                'blockItems' => $blockItems,
+                'products' => $products,
+                'categories' => $categories,
+                'manufacturers' => $manufacturers,
+                'blogs' => $blogs,
+                'comments' => $comments,
+            ])
+        @else
+            @include('front.content-blocks.types.custom', [
+                'block' => $block,
+                'translation' => $translation,
+                'slot' => $slot,
+                'blockItems' => $blockItems,
+                'products' => $products,
+                'categories' => $categories,
+                'manufacturers' => $manufacturers,
+                'blogs' => $blogs,
+                'comments' => $comments,
+            ])
+        @endif
+    @if ($wrapperClasses !== '' || $wrapperStyle !== '')
+        </div>
     @endif
 @endforeach

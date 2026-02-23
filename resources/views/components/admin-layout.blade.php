@@ -841,6 +841,22 @@
                 color: #0f172a;
                 line-height: 1.55;
             }
+            .admin-quill .ql-editor h1,
+            .admin-quill .ql-editor h2,
+            .admin-quill .ql-editor h3,
+            .admin-quill .ql-editor h4 {
+                margin-top: 1.2em;
+                margin-bottom: 0.55em;
+                line-height: 1.25;
+                font-weight: 700;
+            }
+            .admin-quill .ql-editor h1 { font-size: 1.75rem; }
+            .admin-quill .ql-editor h2 { font-size: 1.45rem; }
+            .admin-quill .ql-editor h3 { font-size: 1.2rem; }
+            .admin-quill .ql-editor h4 { font-size: 1.05rem; }
+            .admin-quill .ql-editor p {
+                margin-bottom: 0.7em;
+            }
             .admin-quill .ql-editor.ql-blank::before {
                 color: #94a3b8;
                 font-style: normal;

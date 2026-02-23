@@ -534,6 +534,13 @@ return [
             'default_cta_2' => 'Muškarci',
         ],
     ],
+    'blog' => [
+        'page_title' => 'Novosti i objave',
+        'title' => 'Novosti i objave',
+        'subtitle' => 'Izdvojene priče, trendovi i AMDS noviteti.',
+        'empty' => 'Trenutno nema objavljenih blog članaka.',
+        'excerpt_fallback' => 'Otvori članak za više detalja.',
+    ],
     'mobile' => [
         'menu' => [
             'subtitle' => 'Mobilna navigacija',

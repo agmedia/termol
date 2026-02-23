@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
+use App\Models\Catalog\Product\Product;
 use App\Models\Content\Blog\BlogPost;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
@@ -33,7 +34,10 @@ class BlogController extends Controller
                 $q->whereNull('published_at')
                     ->orWhere('published_at', '<=', now());
             })
-            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+            ->with([
+                'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'media',
+            ])
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->paginate(12);
@@ -71,6 +75,7 @@ class BlogController extends Controller
                 'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'categories.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'creator:id,name',
+                'media',
             ])
             ->firstOrFail();
 
@@ -81,15 +86,43 @@ class BlogController extends Controller
                 $q->whereNull('published_at')
                     ->orWhere('published_at', '<=', now());
             })
-            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+            ->with([
+                'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'media',
+            ])
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->limit(3)
             ->get();
 
+        $relatedProductIds = collect($post->payload['related_product_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->values()
+            ->all();
+
+        $relatedProducts = collect();
+        if ($relatedProductIds !== []) {
+            $relatedProducts = Product::query()
+                ->where('is_active', true)
+                ->whereIn('id', $relatedProductIds)
+                ->with([
+                    'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                    'media',
+                    'optionValues.optionValue.translations',
+                    'optionValues.parentOptionValue.translations',
+                    'manufacturer.translations',
+                    'categories.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                ])
+                ->get()
+                ->sortBy(fn ($row) => array_search((int) $row->id, $relatedProductIds, true))
+                ->values();
+        }
+
         return view($this->frontendView($request, 'blog.show'), [
             'post' => $post,
             'related' => $related,
+            'relatedProducts' => $relatedProducts,
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
         ]);

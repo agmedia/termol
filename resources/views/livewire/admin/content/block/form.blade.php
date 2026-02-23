@@ -164,15 +164,28 @@
                     </div>
                 </div>
 
-                @if (($form['type'] ?? '') === 'five_star_reviews_carousel')
+                @if (($form['type'] ?? '') === 'five_star_reviews_carousel' || ($form['type'] ?? '') === 'blogs_carousel')
                     <div class="mt-3">
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Number of comments to show') }}</label>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            {{ ($form['type'] ?? '') === 'blogs_carousel' ? __('Number of blog posts to show') : __('Number of comments to show') }}
+                        </label>
                         <input type="number" min="1" max="50" wire:model="form.items_limit" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm md:max-w-[220px]" />
                         @error('form.items_limit') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        <label class="inline-flex items-center gap-2">
-                            <input type="checkbox" wire:model="form.reviews_featured_only" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0">
-                            <span class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">{{ __('Featured comments only') }}</span>
-                        </label>
+
+                        @if (($form['type'] ?? '') === 'blogs_carousel')
+                            <div class="mt-2 md:max-w-[220px]">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Blog source') }}</label>
+                                <select wire:model="form.blog_source" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                    <option value="latest">{{ __('Latest') }}</option>
+                                    <option value="featured">{{ __('Featured only') }}</option>
+                                </select>
+                            </div>
+                        @else
+                            <label class="inline-flex items-center gap-2">
+                                <input type="checkbox" wire:model="form.reviews_featured_only" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0">
+                                <span class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">{{ __('Featured comments only') }}</span>
+                            </label>
+                        @endif
                     </div>
                 @endif
 

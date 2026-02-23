@@ -72,9 +72,19 @@
                                 </span>
                             </td>
                             <td class="px-3 py-2 text-right">
-                                <a href="{{ route('admin.content.blog.edit', ['post' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
-                                    {{ __('Edit') }}
-                                </a>
+                                <div class="inline-flex items-center gap-1">
+                                    <a href="{{ route('admin.content.blog.edit', ['post' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                                        {{ __('Edit') }}
+                                    </a>
+                                    <button
+                                        type="button"
+                                        wire:click="delete({{ $row->id }})"
+                                        wire:confirm="{{ __('Delete this blog post?') }}"
+                                        class="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                                    >
+                                        {{ __('Delete') }}
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     @empty

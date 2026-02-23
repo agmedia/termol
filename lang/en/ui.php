@@ -534,6 +534,13 @@ return [
             'default_cta_2' => 'Men',
         ],
     ],
+    'blog' => [
+        'page_title' => 'News & Updates',
+        'title' => 'News & Updates',
+        'subtitle' => 'Featured stories, trends, and AMDS highlights.',
+        'empty' => 'No blog posts published yet.',
+        'excerpt_fallback' => 'Open the article for more details.',
+    ],
     'mobile' => [
         'menu' => [
             'subtitle' => 'Mobile starter navigation',
