@@ -114,26 +114,22 @@
                     </a>
                 @endauth
 
-                <a href="{{ route('wishlist.index') }}" class="inline-flex h-full w-[76px] items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.favorites') }}">
-                    <span class="relative inline-flex items-center justify-center">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M20.8 8.6c0 5.9-8.8 10.9-8.8 10.9S3.2 14.5 3.2 8.6a4.8 4.8 0 0 1 8.8-2.7 4.8 4.8 0 0 1 8.8 2.7Z"></path>
-                        </svg>
-                        <span class="absolute -right-3 -top-2.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-xs font-bold text-white" data-wishlist-count>
-                            {{ (int) ($wishlistSummary['item_count'] ?? 0) }}
-                        </span>
+                <a href="{{ route('wishlist.index') }}" class="relative inline-flex h-full w-[76px] items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.favorites') }}">
+                    <svg class="block h-5 w-5 text-current" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M20.8 8.6c0 5.9-8.8 10.9-8.8 10.9S3.2 14.5 3.2 8.6a4.8 4.8 0 0 1 8.8-2.7 4.8 4.8 0 0 1 8.8 2.7Z"></path>
+                    </svg>
+                    <span class="absolute right-2 top-3 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-xs font-bold text-white" data-wishlist-count>
+                        {{ (int) ($wishlistSummary['item_count'] ?? 0) }}
                     </span>
                 </a>
 
-                <a href="{{ route('cart.index') }}" class="inline-flex h-full w-[76px] items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.cart') }}">
-                    <span class="relative inline-flex items-center justify-center">
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M7 9h10l-1 10H8L7 9Z"></path>
-                            <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
-                        </svg>
-                        <span class="absolute -right-3 -top-2.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-xs font-bold text-white" data-cart-count>
-                            {{ (int) $cartSummary['item_qty'] }}
-                        </span>
+                <a href="{{ route('cart.index') }}" class="relative inline-flex h-full w-[76px] items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.cart') }}">
+                    <svg class="block h-6 w-6 text-current" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 9h10l-1 10H8L7 9Z"></path>
+                        <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
+                    </svg>
+                    <span class="absolute right-2 top-3 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-xs font-bold text-white" data-cart-count>
+                        {{ (int) $cartSummary['item_qty'] }}
                     </span>
                 </a>
             </div>
