@@ -12,6 +12,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->preventRequestsDuringMaintenance([
+            'admin',
+            'admin/*',
+            'login',
+            'logout',
+            'livewire/*',
+        ]);
+
         $middleware->alias([
             'admin.locale' => \App\Http\Middleware\SetAdminLocale::class,
             'admin.access' => \App\Http\Middleware\EnsureAdminAccess::class,

@@ -1650,6 +1650,15 @@
                                 </a>
 
                                 @if ($canManageRuntimeTools)
+                                    @php
+                                        $maintenanceOn = app()->isDownForMaintenance();
+                                    @endphp
+
+                                    <div class="mb-2 rounded-lg border px-3 py-2 text-sm {{ $maintenanceOn ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700' }}">
+                                        <span class="font-semibold">Maintenance:</span>
+                                        <span>{{ $maintenanceOn ? 'ON' : 'OFF' }}</span>
+                                    </div>
+
                                     <form method="POST" action="{{ route('admin.system.cache.clear') }}">
                                         @csrf
                                         <button type="submit" class="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100">
