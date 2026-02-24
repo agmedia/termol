@@ -63,7 +63,9 @@
     @endphp
 
     @if ($homeHeroBlocks->isNotEmpty())
-        @include('components.content-placement', ['items' => $homeHeroBlocks])
+        <section class="-mt-px">
+            @include('components.content-placement', ['items' => $homeHeroBlocks])
+        </section>
     @endif
 
     @if ($homeHeroBenefitsBlocks->isNotEmpty())
