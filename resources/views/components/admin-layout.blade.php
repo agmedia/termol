@@ -1634,6 +1634,16 @@
                                     <p class="mt-1 text-sm font-medium text-slate-800">{{ auth()->user()->name }}</p>
                                 </div>
                                 <div class="p-2">
+                                @php
+                                    $openFrontendUrl = '/';
+                                    if (app()->isDownForMaintenance()) {
+                                        $maintenanceData = rescue(fn () => app()->maintenanceMode()->data(), [], report: false);
+                                        $maintenanceSecret = trim((string) ($maintenanceData['secret'] ?? ''));
+                                        if ($maintenanceSecret !== '') {
+                                            $openFrontendUrl = '/'.$maintenanceSecret;
+                                        }
+                                    }
+                                @endphp
                                 <a
                                     href="{{ route('admin.profile') }}"
                                     class="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
@@ -1642,7 +1652,7 @@
                                 </a>
 
                                 <a
-                                    href="{{ url('/') }}"
+                                    href="{{ $openFrontendUrl }}"
                                     target="_blank"
                                     class="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
                                 >
