@@ -32,9 +32,19 @@ class SystemToolsController extends Controller
         $this->ensurePrivilegedAdmin();
 
         $secret = (string) config('app.maintenance_bypass_secret', 'agshop-admin-bypass');
+        $except = [
+            'admin',
+            'admin/*',
+            'login',
+            'logout',
+            'livewire/*',
+        ];
 
         try {
-            $exitCode = Artisan::call('down', ['--secret' => $secret]);
+            $exitCode = Artisan::call('down', [
+                '--secret' => $secret,
+                '--except' => $except,
+            ]);
         } catch (Throwable $e) {
             return back()->with('notify', [
                 'type' => 'danger',
