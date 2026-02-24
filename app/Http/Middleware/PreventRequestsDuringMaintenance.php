@@ -14,6 +14,8 @@ class PreventRequestsDuringMaintenance extends Middleware
     protected $except = [
         'admin',
         'admin/*',
+        'dashboard',
+        'dashboard/*',
         'admin/login',
         'admin/logout',
         'login',
