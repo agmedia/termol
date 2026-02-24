@@ -31,6 +31,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (/^https?:\/\//i.test(raw)) {
+            if (window.location.protocol === 'https:' && raw.startsWith('http://')) {
+                return 'https://' + raw.slice('http://'.length);
+            }
             return raw;
         }
 
@@ -125,8 +128,8 @@ document.addEventListener('DOMContentLoaded', function () {
             dynamic: true,
             dynamicEl: galleryItems.map(function (item) {
                 return {
-                    src: item.full,
-                    thumb: item.full,
+                    src: encodeURI(item.full),
+                    thumb: encodeURI(item.full),
                     subHtml: item.alt,
                 };
             }),
