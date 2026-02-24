@@ -186,18 +186,13 @@
             <div class="mt-4 rounded-xl border border-slate-200 p-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Categories (order defines primary)') }}</p>
                 <input type="text" wire:model.live.debounce.250ms="categorySearch" class="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="{{ __('Pretraga kategorija...') }}">
-                <div class="mt-3 max-h-60 overflow-auto rounded-xl border border-slate-200 bg-white p-2">
-                    @forelse ($this->filteredCategoryOptions as $category)
-                        @php
-                            $translation = $category->translations->first();
-                            $label = $translation?->name ?? ($category->code ?: __('Category #:id', ['id' => $category->id]));
-                            $pad = str_repeat('— ', max(0, (int) ($category->depth ?? 0)));
-                        @endphp
-                        <button type="button" wire:click="addCategory({{ $category->id }})" class="mb-1 flex w-full items-center justify-between rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50">
-                            <span>{{ $pad.$label }}</span>
-                            <span class="text-xs font-semibold text-slate-500">+</span>
-                        </button>
-                    @empty
+                    <div class="mt-3 max-h-60 overflow-auto rounded-xl border border-slate-200 bg-white p-2">
+                        @forelse ($this->filteredCategoryOptions as $category)
+                            <button type="button" wire:click="addCategory({{ $category['id'] }})" class="mb-1 flex w-full items-center justify-between rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50">
+                                <span>{{ $category['label'] }}</span>
+                                <span class="text-xs font-semibold text-slate-500">+</span>
+                            </button>
+                        @empty
                         <p class="px-1 py-1 text-xs text-slate-500">{{ __('Nema rezultata') }}</p>
                     @endforelse
                 </div>

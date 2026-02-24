@@ -5,6 +5,7 @@ namespace App\Services\Front;
 use App\Models\Catalog\Category\Category;
 use App\Models\Content\Page\InfoPage;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Support\Facades\Storage;
 
 class NavigationMenuService
 {
@@ -117,6 +118,7 @@ class NavigationMenuService
                             'url' => route('pages.show', ['slug' => $slug]),
                             'children' => [],
                             'open_in_new_tab' => false,
+                            'mega_promo' => $this->resolveMegaPromo($item),
                         ];
                     }
                 }
@@ -128,6 +130,7 @@ class NavigationMenuService
                     'url' => route('blog.index'),
                     'children' => [],
                     'open_in_new_tab' => false,
+                    'mega_promo' => $this->resolveMegaPromo($item),
                 ];
             } elseif ($type === 'contact') {
                 $entry = [
@@ -137,6 +140,7 @@ class NavigationMenuService
                     'url' => route('contact.create'),
                     'children' => [],
                     'open_in_new_tab' => false,
+                    'mega_promo' => $this->resolveMegaPromo($item),
                 ];
             } elseif ($type === 'faq') {
                 $entry = [
@@ -146,6 +150,7 @@ class NavigationMenuService
                     'url' => route('faq.index'),
                     'children' => [],
                     'open_in_new_tab' => false,
+                    'mega_promo' => $this->resolveMegaPromo($item),
                 ];
             } else {
                 $url = $this->urlForItem($item, $locale, $fallbackLocale);
@@ -159,6 +164,7 @@ class NavigationMenuService
                         'url' => $url,
                         'children' => [],
                         'open_in_new_tab' => (bool) ($item['open_in_new_tab'] ?? false),
+                        'mega_promo' => $this->resolveMegaPromo($item),
                     ];
                 }
             }
@@ -222,6 +228,11 @@ class NavigationMenuService
                 'show_dropdown' => (bool) ($item['show_dropdown'] ?? true),
                 'is_active' => (bool) ($item['is_active'] ?? true),
                 'sort_order' => (int) ($item['sort_order'] ?? $index),
+                'desktop_promo_image_path' => trim((string) ($item['desktop_promo_image_path'] ?? ($item['desktop_promo_image_url'] ?? ''))),
+                'desktop_promo_title' => trim((string) ($item['desktop_promo_title'] ?? '')),
+                'desktop_promo_subtitle' => trim((string) ($item['desktop_promo_subtitle'] ?? '')),
+                'desktop_promo_cta_label' => trim((string) ($item['desktop_promo_cta_label'] ?? '')),
+                'desktop_promo_cta_url' => trim((string) ($item['desktop_promo_cta_url'] ?? '')),
             ];
         }
 
@@ -264,6 +275,33 @@ class NavigationMenuService
             'url' => route('categories.show', ['slug' => $slug]),
             'children' => $children,
             'open_in_new_tab' => false,
+            'mega_promo' => $this->resolveMegaPromo($item),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     * @return array<string, string>
+     */
+    private function resolveMegaPromo(array $item): array
+    {
+        $imagePath = trim((string) ($item['desktop_promo_image_path'] ?? ''));
+        $imageUrl = '';
+
+        if ($imagePath !== '') {
+            if (str_starts_with($imagePath, 'http://') || str_starts_with($imagePath, 'https://') || str_starts_with($imagePath, '/')) {
+                $imageUrl = $imagePath;
+            } else {
+                $imageUrl = Storage::disk('public')->url($imagePath);
+            }
+        }
+
+        return [
+            'image_url' => $imageUrl,
+            'title' => trim((string) ($item['desktop_promo_title'] ?? '')),
+            'subtitle' => trim((string) ($item['desktop_promo_subtitle'] ?? '')),
+            'cta_label' => trim((string) ($item['desktop_promo_cta_label'] ?? '')),
+            'cta_url' => trim((string) ($item['desktop_promo_cta_url'] ?? '')),
         ];
     }
 

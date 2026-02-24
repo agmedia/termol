@@ -27,7 +27,7 @@
         <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="card card-style mb-2 d-block">
             <div class="content">
                 <h5 class="mb-1">{{ $translation?->name ?? $category->code }}</h5>
-                <p class="opacity-70 mb-2">{{ $translation?->description ?: 'Open to view assigned products.' }}</p>
+                <p class="opacity-70 mb-2">{{ $translation?->clean_description ?: 'Open to view assigned products.' }}</p>
                 <span class="badge bg-highlight">{{ $category->products_count }} products</span>
             </div>
         </a>

@@ -355,15 +355,39 @@ class StoreSettings extends Component
                     ->where('scope', Category::SCOPE_CATALOG)
                     ->whereIn('locale', [$locale, $fallbackLocale]),
             ])
-            ->get()
-            ->map(function (Category $category) use ($locale, $fallbackLocale): array {
+            ->get();
+
+        $categoryNameById = $catalogCategoryOptions->mapWithKeys(function (Category $category) use ($locale, $fallbackLocale): array {
+            $translation = $category->translations->firstWhere('locale', $locale)
+                ?? $category->translations->firstWhere('locale', $fallbackLocale)
+                ?? $category->translations->first();
+
+            return [
+                (int) $category->id => (string) ($translation?->name ?? $category->code ?? ('Category #'.$category->id)),
+            ];
+        });
+        $categoryMap = $catalogCategoryOptions->keyBy(fn (Category $category): int => (int) $category->id);
+
+        $catalogCategoryOptions = $catalogCategoryOptions
+            ->map(function (Category $category) use ($categoryNameById, $categoryMap): array {
+                $parts = [];
+                $cursor = $category;
+                $guard = 0;
+
+                while ($cursor && $guard < 32) {
+                    $parts[] = (string) ($categoryNameById[(int) $cursor->id] ?? ('Category #'.$cursor->id));
+                    $parentId = (int) ($cursor->parent_id ?? 0);
+                    $cursor = $parentId > 0 ? $categoryMap->get($parentId) : null;
+                    $guard++;
+                }
+
                 $translation = $category->translations->firstWhere('locale', $locale)
                     ?? $category->translations->firstWhere('locale', $fallbackLocale)
                     ?? $category->translations->first();
 
                 return [
                     'id' => (int) $category->id,
-                    'label' => str_repeat('— ', max(0, (int) ($category->depth ?? 0))).(string) ($translation?->name ?? $category->code ?? ('Category #'.$category->id)),
+                    'label' => implode(' > ', array_reverse($parts)),
                 ];
             })
             ->values()

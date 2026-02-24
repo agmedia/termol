@@ -45,7 +45,7 @@
             </ol>
         </nav>
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ $translation?->name ?? $category->code }}</h1>
-        <p class="mt-2 text-slate-600">{{ $translation?->description ?: __('ui.category.default_description') }}</p>
+        <p class="mt-2 text-slate-600">{{ $translation?->clean_description ?: __('ui.category.default_description') }}</p>
     </section>
 
     @if ($topBlocks->isNotEmpty())

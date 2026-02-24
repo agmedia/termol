@@ -106,12 +106,7 @@
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Page Categories (order defines primary)') }}</label>
                     <select wire:model="form.category_ids" multiple size="8" class="admin-multiselect w-full rounded-xl border border-slate-300 text-sm">
                         @foreach ($this->categoryOptions as $category)
-                            @php
-                                $translation = $category->translations->first();
-                                $label = $translation?->name ?? ($category->code ?: __('Category #:id', ['id' => $category->id]));
-                                $pad = str_repeat('— ', max(0, (int) ($category->depth ?? 0)));
-                            @endphp
-                            <option value="{{ $category->id }}">{{ $pad.$label }}</option>
+                            <option value="{{ $category['id'] }}">{{ $category['label'] }}</option>
                         @endforeach
                     </select>
                     @error('form.category_ids.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror

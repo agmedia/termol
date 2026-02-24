@@ -2,15 +2,15 @@
     $hasOptionErrorForCard = (int) old('product_id', 0) === $productId && $errors->has('product_option_value_id');
 @endphp
 
-<article class="group {{ $flat ? 'bg-white p-4' : 'rounded-2xl bg-white p-5 shadow-sm' }}" data-product-card style="content-visibility:auto;contain-intrinsic-size:420px;">
-    <div class="relative -mx-4 -mt-4">
+<article class="group w-full min-w-0 overflow-hidden {{ $flat ? 'bg-white p-4' : 'rounded-2xl bg-white p-5 shadow-sm' }}" data-product-card>
+    <div class="relative {{ $flat ? '-mt-4 overflow-hidden' : '-mt-5 overflow-hidden rounded-t-2xl' }}">
         <a href="{{ $productUrl }}" class="group block">
             @if ($imageUrl)
                 <div class="relative">
                     <img
                         src="{{ $imageUrl }}"
                         alt="{{ $productName }}"
-                        class="{{ $flat ? 'w-full h-auto' : 'w-full h-auto rounded-xl' }} {{ $hoverImageUrl ? 'transition-opacity duration-300 group-hover:opacity-0' : '' }}"
+                        class="{{ $flat ? 'block h-auto w-full max-w-full' : 'block h-auto w-full max-w-full rounded-xl' }} {{ $hoverImageUrl ? 'transition-opacity duration-300 group-hover:opacity-0' : '' }}"
                         loading="lazy"
                         decoding="async"
                     >

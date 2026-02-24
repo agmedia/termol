@@ -71,10 +71,10 @@
                                 @if ($hasSlideLink)
                                     <a href="{{ $slideLink }}" class="block">
                                 @endif
-                                    <img src="{{ $slideUrl }}" alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}" class="h-[36vw] min-h-[320px] max-h-[720px] w-full object-cover">
-                                    <div class="absolute inset-0 bg-black/20"></div>
+                                    <img src="{{ $slideUrl }}" alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}" class="h-[42vw] min-h-[420px] max-h-[880px] w-full object-cover">
+                                    <div class="absolute inset-0 bg-black/10"></div>
                                     @if (($translation?->title ?? '') !== '' || ($translation?->subtitle ?? '') !== '')
-                                        <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-6 pb-10 pt-16 text-white md:px-12">
+                                        <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent px-6 pb-10 pt-16 text-white md:px-12">
                                             @if (($translation?->title ?? '') !== '')
                                                 <h2 class="text-3xl font-extrabold tracking-tight md:text-5xl">{{ $translation->title }}</h2>
                                             @endif

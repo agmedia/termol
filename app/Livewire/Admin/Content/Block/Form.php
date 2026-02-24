@@ -513,8 +513,9 @@ class Form extends Component
         $this->form['custom_classes'] = (string) ($translationPayload['custom_classes'] ?? '');
         $this->form['items_limit'] = (int) ($translationPayload['items_limit'] ?? 6);
         $this->form['reviews_featured_only'] = (bool) ($translationPayload['reviews_featured_only'] ?? false);
-        $this->form['blog_source'] = in_array((string) ($translationPayload['blog_source'] ?? 'latest'), ['latest', 'featured'], true)
-            ? (string) $translationPayload['blog_source']
+        $blogSource = (string) ($translationPayload['blog_source'] ?? 'latest');
+        $this->form['blog_source'] = in_array($blogSource, ['latest', 'featured'], true)
+            ? $blogSource
             : 'latest';
 
         $this->form['slot_placement'] = (string) ($slot?->placement ?? (array_key_first($this->placements) ?: 'home.hero'));
@@ -581,8 +582,9 @@ class Form extends Component
         $this->form['custom_classes'] = (string) ($translationPayload['custom_classes'] ?? '');
         $this->form['items_limit'] = (int) ($translationPayload['items_limit'] ?? 6);
         $this->form['reviews_featured_only'] = (bool) ($translationPayload['reviews_featured_only'] ?? false);
-        $this->form['blog_source'] = in_array((string) ($translationPayload['blog_source'] ?? 'latest'), ['latest', 'featured'], true)
-            ? (string) $translationPayload['blog_source']
+        $blogSource = (string) ($translationPayload['blog_source'] ?? 'latest');
+        $this->form['blog_source'] = in_array($blogSource, ['latest', 'featured'], true)
+            ? $blogSource
             : 'latest';
     }
 
@@ -1517,10 +1519,10 @@ BLADE,
                                 @if ($hasSlideLink)
                                     <a href="{{ $slideLink }}" class="block">
                                 @endif
-                                    <img src="{{ $slideUrl }}" alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}" class="h-[36vw] min-h-[320px] max-h-[720px] w-full object-cover">
-                                    <div class="absolute inset-0 bg-black/20"></div>
+                                    <img src="{{ $slideUrl }}" alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}" class="h-[42vw] min-h-[420px] max-h-[880px] w-full object-cover">
+                                    <div class="absolute inset-0 bg-black/10"></div>
                                     @if (($translation?->title ?? '') !== '' || ($translation?->subtitle ?? '') !== '')
-                                        <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-6 pb-10 pt-16 text-white md:px-12">
+                                        <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent px-6 pb-10 pt-16 text-white md:px-12">
                                             @if (($translation?->title ?? '') !== '')
                                                 <h2 class="text-3xl font-extrabold tracking-tight md:text-5xl">{{ $translation->title }}</h2>
                                             @endif

@@ -37,7 +37,7 @@
     $cartSummary = app(\App\Services\Front\CartService::class)->summary();
     $mainNavigation = app(\App\Services\Front\NavigationMenuService::class)->forLocale((string) app()->getLocale());
 @endphp
-<body class="font-risingsun min-h-screen bg-white text-slate-900 antialiased">
+<body class="font-risingsun min-h-screen overflow-x-hidden bg-white text-slate-900 antialiased">
 <header class="sticky top-0 z-40 bg-white">
     @if ((bool) ($storeSettings['announcement']['enabled'] ?? true))
         <div class="bg-black py-2 text-center text-xs font-semibold uppercase tracking-wide text-white">
@@ -57,7 +57,7 @@
     @endif
 
     <div class="border-b border-slate-200">
-        <div class="flex w-full items-stretch justify-between pl-3 sm:pl-8">
+        <div class="flex w-full items-stretch justify-between pl-2 pr-0 sm:pl-4 sm:pr-0 lg:pl-5 lg:pr-0 xl:px-5">
             <a href="{{ route('home') }}" class="inline-flex items-center py-4 text-2xl font-black tracking-tight text-slate-900 sm:py-5 sm:text-4xl">
                 @if (!empty($storeSettings['branding']['logo_url'] ?? null))
                     <img src="{{ $storeSettings['branding']['logo_url'] }}" alt="{{ $storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop') }}" class="h-9 w-auto object-contain sm:h-11">
@@ -66,11 +66,11 @@
                 @endif
             </a>
 
-            <nav class="hidden flex-1 items-center justify-center gap-8 px-6 text-sm font-semibold uppercase tracking-wide text-slate-900 xl:flex">
+            <nav class="relative hidden flex-1 items-center justify-center gap-3 px-3 text-[13px] font-semibold uppercase tracking-wide text-slate-900 lg:flex xl:gap-6 xl:px-5 xl:text-sm">
                 @include('front.desktop.partials.main-nav')
             </nav>
 
-            <div class="hidden min-h-[76px] items-stretch border-l border-slate-200 xl:flex">
+            <div class="hidden min-h-[76px] items-stretch border-l border-slate-200 lg:flex">
                 @php
                     $activeLocale = (string) ($frontLocale ?? app()->getLocale());
                     $switchLanguage = collect($frontLanguages ?? [])->first(
@@ -123,7 +123,7 @@
                     </span>
                 </a>
 
-                <a href="{{ route('cart.index') }}" class="relative inline-flex w-[76px] items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.cart') }}">
+                <a href="{{ route('cart.index') }}" class="relative inline-flex min-w-[58px] items-center justify-center border-r-0 border-slate-200 px-3 text-slate-900 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.cart') }}">
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M7 9h10l-1 10H8L7 9Z"></path>
                         <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
@@ -134,7 +134,7 @@
                 </a>
             </div>
 
-            <div class="flex min-h-[68px] items-stretch border-l border-slate-200 xl:hidden">
+            <div class="flex min-h-[68px] items-stretch border-l border-slate-200 lg:hidden">
                 <button type="button" class="inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.search') }}" data-header-search-toggle>
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                         <circle cx="11" cy="11" r="7"></circle>
@@ -210,7 +210,7 @@
     </div>
 </div>
 
-<div class="pointer-events-none fixed inset-0 z-[60] xl:hidden" data-mobile-menu-root>
+<div class="pointer-events-none fixed inset-0 z-[60] lg:hidden" data-mobile-menu-root>
     <button type="button" class="absolute inset-0 bg-black/45 opacity-0 transition-opacity duration-300" aria-label="{{ __('ui.front.desktop.close_navigation') }}" data-mobile-menu-close></button>
     <aside class="absolute inset-y-0 left-0 flex w-[90vw] max-w-md -translate-x-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-out" data-mobile-menu-panel>
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-4">

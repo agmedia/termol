@@ -6,10 +6,14 @@ use App\Models\Catalog\Category\Category;
 use App\Models\Content\Page\InfoPage;
 use App\Services\Front\NavigationMenuService;
 use App\Services\Settings\SystemSettingsService;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Manager extends Component
 {
+    use WithFileUploads;
+
     /**
      * @var array{items: array<int, array<string, mixed>>}
      */
@@ -19,6 +23,8 @@ class Manager extends Component
 
     public string $locale = 'en';
     public string $previousLocale = 'en';
+    /** @var array<int, TemporaryUploadedFile|null> */
+    public array $desktopPromoUploads = [];
 
     public function mount(): void
     {
@@ -130,11 +136,17 @@ class Manager extends Component
             'form.items.*.show_dropdown' => ['required', 'boolean'],
             'form.items.*.open_in_new_tab' => ['required', 'boolean'],
             'form.items.*.sort_order' => ['required', 'integer', 'min:0', 'max:9999'],
+            'form.items.*.desktop_promo_image_path' => ['nullable', 'string', 'max:2048'],
+            'form.items.*.desktop_promo_title' => ['nullable', 'string', 'max:120'],
+            'form.items.*.desktop_promo_subtitle' => ['nullable', 'string', 'max:255'],
+            'form.items.*.desktop_promo_cta_label' => ['nullable', 'string', 'max:80'],
+            'form.items.*.desktop_promo_cta_url' => ['nullable', 'string', 'max:2048'],
+            'desktopPromoUploads.*' => ['nullable', 'image', 'max:4096'],
         ]);
 
         $normalizedItems = [];
         foreach (($validated['form']['items'] ?? []) as $index => $item) {
-            $normalized = $this->normalizeItem($item, $index);
+            $normalized = $this->normalizeItem($item, $index, $this->desktopPromoUploads[$index] ?? null);
             $normalizedItems[] = $normalized;
 
             $type = (string) $normalized['type'];
@@ -159,8 +171,19 @@ class Manager extends Component
         }
 
         app(SystemSettingsService::class)->put(NavigationMenuService::SETTINGS_KEY, $normalizedItems);
+        $this->desktopPromoUploads = [];
 
         $this->dispatch('notify', type: 'success', message: (string) __('admin.content.navigation.notify_saved'));
+    }
+
+    public function clearDesktopPromoImage(int $index): void
+    {
+        if (! isset($this->form['items'][$index])) {
+            return;
+        }
+
+        $this->form['items'][$index]['desktop_promo_image_path'] = '';
+        unset($this->desktopPromoUploads[$index]);
     }
 
     public function render()
@@ -177,17 +200,39 @@ class Manager extends Component
                     ->whereIn('locale', $locales),
             ])
             ->orderBy('_lft')
-            ->get()
-            ->map(function (Category $category) use ($fallbackLocale): array {
+            ->get();
+
+        $categoryNameById = $categoryOptions
+            ->mapWithKeys(function (Category $category) use ($fallbackLocale): array {
                 $translation = $category->translations->firstWhere('locale', $this->locale)
                     ?? $category->translations->firstWhere('locale', $fallbackLocale)
                     ?? $category->translations->first();
-                $label = (string) ($translation?->name ?? $category->code);
-                $depth = max(0, ((int) ($category->depth ?? 0)) - 1);
+
+                return [
+                    (int) $category->id => (string) ($translation?->name ?? $category->code ?? '#'.$category->id),
+                ];
+            });
+
+        $categoryMap = $categoryOptions->keyBy(fn (Category $category): int => (int) $category->id);
+
+        $categoryOptions = $categoryOptions
+            ->map(function (Category $category) use ($categoryNameById, $categoryMap): array {
+                $parts = [];
+                $cursor = $category;
+                $guard = 0;
+
+                while ($cursor && $guard < 32) {
+                    $parts[] = (string) ($categoryNameById[(int) $cursor->id] ?? ('#'.$cursor->id));
+                    $parentId = (int) ($cursor->parent_id ?? 0);
+                    $cursor = $parentId > 0 ? $categoryMap->get($parentId) : null;
+                    $guard++;
+                }
+
+                $parts = array_reverse($parts);
 
                 return [
                     'id' => (int) $category->id,
-                    'label' => str_repeat('— ', $depth).$label,
+                    'label' => implode(' > ', $parts),
                 ];
             })
             ->values()
@@ -224,7 +269,7 @@ class Manager extends Component
      * @param array<string, mixed> $item
      * @return array<string, mixed>
      */
-    private function normalizeItem(array $item, int $index): array
+    private function normalizeItem(array $item, int $index, mixed $desktopPromoUpload = null): array
     {
         $type = (string) ($item['type'] ?? 'custom');
         $locale = strtolower(trim($this->locale));
@@ -251,6 +296,11 @@ class Manager extends Component
         $storedLabel = $this->pickTranslationValue($labelTranslations, $fallbackLocale);
         $storedUrl = $this->pickTranslationValue($urlTranslations, $fallbackLocale);
 
+        $desktopPromoImagePath = trim((string) ($item['desktop_promo_image_path'] ?? ''));
+        if ($desktopPromoUpload instanceof TemporaryUploadedFile) {
+            $desktopPromoImagePath = $desktopPromoUpload->store('navigation/mega-promo', 'public');
+        }
+
         return [
             'type' => $type,
             'label' => $storedLabel,
@@ -263,6 +313,11 @@ class Manager extends Component
             'show_dropdown' => (bool) ($item['show_dropdown'] ?? true),
             'is_active' => (bool) ($item['is_active'] ?? true),
             'sort_order' => (int) ($item['sort_order'] ?? $index),
+            'desktop_promo_image_path' => $desktopPromoImagePath,
+            'desktop_promo_title' => trim((string) ($item['desktop_promo_title'] ?? '')),
+            'desktop_promo_subtitle' => trim((string) ($item['desktop_promo_subtitle'] ?? '')),
+            'desktop_promo_cta_label' => trim((string) ($item['desktop_promo_cta_label'] ?? '')),
+            'desktop_promo_cta_url' => trim((string) ($item['desktop_promo_cta_url'] ?? '')),
         ];
     }
 
@@ -283,6 +338,11 @@ class Manager extends Component
             'show_dropdown' => true,
             'is_active' => true,
             'sort_order' => count($this->form['items']),
+            'desktop_promo_image_path' => '',
+            'desktop_promo_title' => '',
+            'desktop_promo_subtitle' => '',
+            'desktop_promo_cta_label' => '',
+            'desktop_promo_cta_url' => '',
         ];
     }
 

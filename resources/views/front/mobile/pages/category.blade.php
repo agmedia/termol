@@ -18,8 +18,8 @@
         <div class="content">
             <div class="bg-light border p-3">
                 <h3 class="mb-2">{{ $categoryTranslation?->name ?? 'Pages' }}</h3>
-                @if (!empty($categoryTranslation?->description))
-                    <p class="mb-0 opacity-70">{{ $categoryTranslation->description }}</p>
+                @if (!empty($categoryTranslation?->clean_description))
+                    <p class="mb-0 opacity-70">{{ $categoryTranslation->clean_description }}</p>
                 @endif
             </div>
         </div>

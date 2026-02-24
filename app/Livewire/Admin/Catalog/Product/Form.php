@@ -213,17 +213,24 @@ class Form extends Component
     {
         $search = Str::lower(trim($this->categorySearch));
         $selected = collect($this->form['category_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->all();
+        $labels = $this->categoryLabelMap;
 
         return $this->categoryOptions
             ->reject(fn ($category) => in_array((int) $category->id, $selected, true))
-            ->filter(function ($category) use ($search): bool {
+            ->map(function ($category) use ($labels): array {
+                $id = (int) $category->id;
+
+                return [
+                    'id' => $id,
+                    'label' => (string) ($labels[$id] ?? ('#'.$id)),
+                ];
+            })
+            ->filter(function (array $row) use ($search): bool {
                 if ($search === '') {
                     return true;
                 }
 
-                $translation = $category->translations->first();
-                $label = Str::lower((string) ($translation?->name ?? $category->code ?? ''));
-                return Str::contains($label, $search);
+                return Str::contains(Str::lower($row['label']), $search);
             })
             ->values()
             ->take(120);
@@ -231,24 +238,58 @@ class Form extends Component
 
     public function getSelectedCategoryRowsProperty(): Collection
     {
-        $map = $this->categoryOptions->keyBy('id');
+        $labels = $this->categoryLabelMap;
 
         return collect($this->form['category_ids'] ?? [])
             ->map(fn ($id) => (int) $id)
             ->filter()
             ->values()
-            ->map(function (int $id) use ($map): array {
-                $category = $map->get($id);
-                if ($category === null) {
-                    return ['id' => $id, 'label' => '#'.$id];
-                }
-
-                $translation = $category->translations->first();
-                $label = (string) ($translation?->name ?? ($category->code ?: '#'.$id));
-                $pad = str_repeat('— ', max(0, (int) ($category->depth ?? 0)));
-
-                return ['id' => $id, 'label' => $pad.$label];
+            ->map(function (int $id) use ($labels): array {
+                return ['id' => $id, 'label' => (string) ($labels[$id] ?? ('#'.$id))];
             });
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getCategoryLabelMapProperty(): array
+    {
+        $categories = $this->categoryOptions;
+        $nameById = $categories->mapWithKeys(function ($category): array {
+            $name = (string) ($category->translations->first()?->name ?? ($category->code ?: ('#'.$category->id)));
+
+            return [(int) $category->id => $name];
+        });
+        $byId = $categories->keyBy(fn ($category): int => (int) $category->id);
+        $labels = [];
+
+        $build = function (int $id) use (&$build, &$labels, $byId, $nameById): string {
+            if (isset($labels[$id])) {
+                return $labels[$id];
+            }
+
+            $current = $byId->get($id);
+            if ($current === null) {
+                return '#'.$id;
+            }
+
+            $name = (string) ($nameById[$id] ?? ('#'.$id));
+            $parentId = (int) ($current->parent_id ?? 0);
+
+            if ($parentId > 0 && $byId->has($parentId)) {
+                $labels[$id] = $build($parentId).' > '.$name;
+            } else {
+                $labels[$id] = $name;
+            }
+
+            return $labels[$id];
+        };
+
+        foreach ($byId->keys() as $id) {
+            $build((int) $id);
+        }
+
+        return $labels;
     }
 
     public function addCategory(int $categoryId): void

@@ -23,8 +23,8 @@
 
         <div class="bg-slate-100 px-8 py-8 text-center">
             <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ $categoryTranslation?->name ?? __('ui.front.desktop.footer.info') }}</h1>
-            @if (!empty($categoryTranslation?->description))
-                <p class="mt-2 text-slate-600">{{ $categoryTranslation->description }}</p>
+            @if (!empty($categoryTranslation?->clean_description))
+                <p class="mt-2 text-slate-600">{{ $categoryTranslation->clean_description }}</p>
             @endif
         </div>
     </section>

@@ -27,7 +27,7 @@
 
                 <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                     <h2 class="text-lg font-semibold text-slate-900">{{ $translation?->name ?? $category->code }}</h2>
-                    <p class="mt-2 line-clamp-3 text-sm text-slate-600">{{ $translation?->description ?: 'Category products and merchandising blocks.' }}</p>
+                    <p class="mt-2 line-clamp-3 text-sm text-slate-600">{{ $translation?->clean_description ?: 'Category products and merchandising blocks.' }}</p>
                     <p class="mt-4 text-sm font-semibold text-blue-700">{{ $category->products_count }} products</p>
                 </a>
             @endforeach

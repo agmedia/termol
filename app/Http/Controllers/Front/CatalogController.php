@@ -216,6 +216,12 @@ class CatalogController extends Controller
             ])
             ->firstOrFail();
 
+        $categoryTreeIds = $category->descendants()
+            ->where('scope', Category::SCOPE_CATALOG)
+            ->where('is_active', true)
+            ->pluck('id');
+        $categoryTreeIds->prepend($category->id);
+
         $productsQuery = Product::query()
             ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
             ->where('is_active', true)
@@ -246,16 +252,11 @@ class CatalogController extends Controller
                             ->whereIn('locale', [$locale, $fallbackLocale]),
                     ]),
             ])
-            ->whereHas('categories', function ($categoryQuery) use ($locale, $fallbackLocale, $categorySlug): void {
+            ->whereHas('categories', function ($categoryQuery) use ($categoryTreeIds): void {
                 $categoryQuery
                     ->where('scope', Category::SCOPE_CATALOG)
                     ->where('is_active', true)
-                    ->whereHas('translations', function ($translationQuery) use ($locale, $fallbackLocale, $categorySlug): void {
-                        $translationQuery
-                            ->where('scope', Category::SCOPE_CATALOG)
-                            ->whereIn('locale', [$locale, $fallbackLocale])
-                            ->where('slug', $categorySlug);
-                    });
+                    ->whereIn('categories.id', $categoryTreeIds);
             });
 
         if ($search !== '') {

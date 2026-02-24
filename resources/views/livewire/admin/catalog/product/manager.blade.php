@@ -63,18 +63,13 @@
             @endif
             <div>
                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Category') }}</label>
-                <select wire:model.live="categoryFilter" data-tom-select class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm">
-                    <option value="all">{{ __('All') }}</option>
-                    @foreach ($this->categoryOptions as $category)
-                        @php
-                            $categoryTr = $category->translations->first();
-                            $categoryLabel = $categoryTr?->name ?? $category->code;
-                            $categoryPad = str_repeat('— ', max(0, (int) ($category->depth ?? 0)));
-                        @endphp
-                        <option value="{{ $category->id }}">{{ $categoryPad . $categoryLabel }}</option>
-                    @endforeach
-                </select>
-            </div>
+                    <select wire:model.live="categoryFilter" data-tom-select class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm">
+                        <option value="all">{{ __('All') }}</option>
+                        @foreach ($this->categoryOptions as $category)
+                            <option value="{{ $category['id'] }}">{{ $category['label'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
             <div>
                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.common.sort') }}</label>
                 <select wire:model.live="sortBy" data-tom-select data-tom-no-search="1" class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm">

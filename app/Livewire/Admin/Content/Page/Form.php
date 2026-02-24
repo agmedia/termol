@@ -161,7 +161,7 @@ class Form extends Component
 
     public function getCategoryOptionsProperty(): Collection
     {
-        return Category::query()
+        $categories = Category::query()
             ->where('scope', Category::SCOPE_PAGE)
             ->withDepth()
             ->defaultOrder()
@@ -171,6 +171,40 @@ class Form extends Component
                     ->where('locale', $this->form['locale']),
             ])
             ->get();
+
+        $nameById = $categories->mapWithKeys(function (Category $category): array {
+            $name = (string) ($category->translations->first()?->name ?? ($category->code ?: ('#'.$category->id)));
+
+            return [(int) $category->id => $name];
+        });
+        $byId = $categories->keyBy(fn (Category $category): int => (int) $category->id);
+        $labels = [];
+
+        $build = function (int $id) use (&$build, &$labels, $byId, $nameById): string {
+            if (isset($labels[$id])) {
+                return $labels[$id];
+            }
+
+            $current = $byId->get($id);
+            if ($current === null) {
+                return '#'.$id;
+            }
+
+            $name = (string) ($nameById[$id] ?? ('#'.$id));
+            $parentId = (int) ($current->parent_id ?? 0);
+            $labels[$id] = ($parentId > 0 && $byId->has($parentId))
+                ? $build($parentId).' > '.$name
+                : $name;
+
+            return $labels[$id];
+        };
+
+        return $categories->map(function (Category $category) use (&$build): array {
+            return [
+                'id' => (int) $category->id,
+                'label' => $build((int) $category->id),
+            ];
+        });
     }
 
     /**

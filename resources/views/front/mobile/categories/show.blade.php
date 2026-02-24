@@ -17,7 +17,7 @@
     <div class="card card-style">
         <div class="content">
             <h3 class="mb-2">{{ $translation?->name ?? $category->code }}</h3>
-            <p class="mb-0 opacity-70">{{ $translation?->description ?: 'Assigned catalog products.' }}</p>
+            <p class="mb-0 opacity-70">{{ $translation?->clean_description ?: 'Assigned catalog products.' }}</p>
         </div>
     </div>
 
