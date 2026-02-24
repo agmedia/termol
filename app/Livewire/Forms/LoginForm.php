@@ -2,13 +2,16 @@
 
 namespace App\Livewire\Forms;
 
+use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Validate;
 use Livewire\Form;
+use Throwable;
 
 class LoginForm extends Form
 {
@@ -37,6 +40,8 @@ class LoginForm extends Form
                 'form.email' => trans('auth.failed'),
             ]);
         }
+
+        $this->issueMaintenanceBypassCookieForPrivilegedUser();
 
         RateLimiter::clear($this->throttleKey());
     }
@@ -68,5 +73,41 @@ class LoginForm extends Form
     protected function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->email).'|'.request()->ip());
+    }
+
+    private function issueMaintenanceBypassCookieForPrivilegedUser(): void
+    {
+        if (! app()->isDownForMaintenance()) {
+            return;
+        }
+
+        $user = Auth::user();
+
+        if (! $user) {
+            return;
+        }
+
+        $isPrivileged = $user->isA('superadmin')
+            || $user->isA('super-admin')
+            || $user->isA('admin')
+            || $user->isA('editor')
+            || $user->can('admin.access');
+
+        if (! $isPrivileged) {
+            return;
+        }
+
+        $secret = '';
+
+        try {
+            $data = app()->maintenanceMode()->data();
+            $secret = trim((string) ($data['secret'] ?? ''));
+        } catch (Throwable) {
+            $secret = trim((string) config('app.maintenance_bypass_secret', ''));
+        }
+
+        if ($secret !== '') {
+            Cookie::queue(MaintenanceModeBypassCookie::create($secret));
+        }
     }
 }
