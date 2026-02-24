@@ -19,14 +19,15 @@
 @section('content')
     <section class="px-4 text-center sm:px-6 lg:px-8">
         <nav aria-label="Breadcrumb" class="mb-3">
-            <ol class="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+            <ol class="inline-flex max-w-full items-center gap-1.5 overflow-hidden text-xs font-medium uppercase tracking-wide text-slate-500 sm:gap-2">
                 <li>
-                    <a href="{{ route('home') }}" class="hover:text-slate-700">{{ __('ui.front.desktop.footer.home') }}</a>
+                    <a href="{{ route('home') }}" class="inline-flex h-4 w-4 items-center justify-center text-slate-500 hover:text-slate-700" aria-label="{{ __('ui.front.desktop.footer.home') }}">
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path d="M9.47 2.22a.75.75 0 0 1 1.06 0l6.25 6.25a.75.75 0 1 1-1.06 1.06L15 8.81V16a1 1 0 0 1-1 1h-2.5a.75.75 0 0 1-.75-.75V12a.25.25 0 0 0-.25-.25h-1a.25.25 0 0 0-.25.25v4.25a.75.75 0 0 1-.75.75H6a1 1 0 0 1-1-1V8.81l-.72.72a.75.75 0 0 1-1.06-1.06l6.25-6.25Z"/>
+                        </svg>
+                    </a>
                 </li>
                 <li class="text-slate-400">/</li>
-                <li>
-                    <a href="{{ route('shop.index') }}" class="hover:text-slate-700">{{ __('ui.shop.page_title') }}</a>
-                </li>
                 @foreach (($breadcrumbCategories ?? collect()) as $breadcrumbCategory)
                     @php
                         $breadcrumbTranslation = $breadcrumbCategory->translations->firstWhere('locale', $locale)
@@ -35,10 +36,10 @@
                     @endphp
                     <li class="text-slate-400">/</li>
                     @if ($loop->last)
-                        <li class="text-slate-700">{{ $breadcrumbLabel }}</li>
+                        <li class="max-w-[7.5rem] truncate text-slate-700 sm:max-w-none">{{ $breadcrumbLabel }}</li>
                     @else
-                        <li>
-                            <a href="{{ route('categories.show', ['slug' => $breadcrumbTranslation?->slug ?? $breadcrumbCategory->id]) }}" class="hover:text-slate-700">{{ $breadcrumbLabel }}</a>
+                        <li class="max-w-[6.5rem] truncate sm:max-w-none">
+                            <a href="{{ route('categories.show', ['slug' => $breadcrumbTranslation?->slug ?? $breadcrumbCategory->id]) }}" class="block truncate hover:text-slate-700">{{ $breadcrumbLabel }}</a>
                         </li>
                     @endif
                 @endforeach
