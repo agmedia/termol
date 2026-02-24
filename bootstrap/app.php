@@ -13,10 +13,25 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->preventRequestsDuringMaintenance([
+            'dashboard',
+            'dashboard/*',
             'admin',
             'admin/*',
+            'admin/login',
+            'admin/logout',
             'login',
             'logout',
+            'register',
+            'forgot-password',
+            'reset-password/*',
+            'password/*',
+            'verify-email',
+            'verify-email/*',
+            'email/verify',
+            'email/verify/*',
+            'confirm-password',
+            'sanctum/csrf-cookie',
+            'livewire',
             'livewire/*',
             'storage',
             'storage/*',
@@ -24,6 +39,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'build/*',
             'front-theme',
             'front-theme/*',
+            'up',
+            '/up',
         ]);
 
         $middleware->alias([
