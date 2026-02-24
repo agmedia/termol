@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Artisan;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -51,7 +52,8 @@ class SystemToolsController extends Controller
             ]);
         }
 
-        return redirect('/'.$secret);
+        return redirect('/'.$secret)
+            ->withCookie(MaintenanceModeBypassCookie::create($secret));
     }
 
     public function maintenanceOff(): RedirectResponse

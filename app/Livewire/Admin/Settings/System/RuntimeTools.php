@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Admin\Settings\System;
 
+use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Artisan;
 use Livewire\Component;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -28,6 +30,7 @@ class RuntimeTools extends Component
 
         $secret = (string) config('app.maintenance_bypass_secret', 'agshop-admin-bypass');
         Artisan::call('down', ['--secret' => $secret]);
+        Cookie::queue(MaintenanceModeBypassCookie::create($secret));
 
         $this->refreshState();
         $this->dispatch('notify', type: 'warning', message: __('Maintenance mode switched ON. Redirecting to bypass URL.'));
