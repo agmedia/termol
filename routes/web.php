@@ -191,6 +191,8 @@ Route::get('dashboard', function (Request $request) {
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
+Route::redirect('admin/login', '/login');
+
 Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.maintenance-bypass', 'admin.ability'])
     ->prefix('admin')
     ->as('admin.')
