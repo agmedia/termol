@@ -191,7 +191,7 @@ Route::get('dashboard', function (Request $request) {
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
-Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ability'])
+Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.maintenance-bypass', 'admin.ability'])
     ->prefix('admin')
     ->as('admin.')
     ->group(function (): void {

@@ -30,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.locale' => \App\Http\Middleware\SetAdminLocale::class,
             'admin.access' => \App\Http\Middleware\EnsureAdminAccess::class,
             'admin.ability' => \App\Http\Middleware\EnsureAdminAbility::class,
+            'admin.maintenance-bypass' => \App\Http\Middleware\IssueMaintenanceBypassForPrivilegedAdmin::class,
             'front.locale' => \App\Http\Middleware\SetFrontendLocale::class,
             'front.device' => \App\Http\Middleware\DetectFrontendVariant::class,
             'catalog.feature' => \App\Http\Middleware\EnsureCatalogFeatureEnabled::class,
