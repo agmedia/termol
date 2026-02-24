@@ -381,10 +381,6 @@ class StoreSettings extends Component
                     $guard++;
                 }
 
-                $translation = $category->translations->firstWhere('locale', $locale)
-                    ?? $category->translations->firstWhere('locale', $fallbackLocale)
-                    ?? $category->translations->first();
-
                 return [
                     'id' => (int) $category->id,
                     'label' => implode(' > ', array_reverse($parts)),
