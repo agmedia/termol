@@ -24,12 +24,46 @@ document.addEventListener('DOMContentLoaded', function () {
         slider.mount();
     }
 
-    const galleryItemsRaw = galleryThumbs.map(function (button) {
+    const normalizeGalleryUrl = function (value) {
+        const raw = String(value || '').trim();
+        if (!raw) {
+            return '';
+        }
+
+        if (/^https?:\/\//i.test(raw)) {
+            return raw;
+        }
+
+        if (raw.startsWith('//')) {
+            return window.location.protocol + raw;
+        }
+
+        if (raw.startsWith('/')) {
+            return window.location.origin + raw;
+        }
+
+        return raw;
+    };
+
+    const galleryItemsFromThumbs = galleryThumbs.map(function (button) {
         return {
-            full: String(button.dataset.full || '').trim(),
+            full: normalizeGalleryUrl(button.dataset.full || ''),
             alt: String(button.dataset.alt || '').trim(),
         };
-    }).filter(function (item) {
+    });
+
+    const galleryItemsFromButtons = galleryOpenButtons.map(function (button) {
+        const image = button.querySelector('img');
+        return {
+            full: normalizeGalleryUrl((image && image.getAttribute('src')) || ''),
+            alt: String((image && image.getAttribute('alt')) || button.getAttribute('aria-label') || '').trim(),
+        };
+    });
+
+    const galleryItemsRaw = (galleryItemsFromThumbs.some(function (item) { return item.full !== ''; })
+        ? galleryItemsFromThumbs
+        : galleryItemsFromButtons
+    ).filter(function (item) {
         return item.full !== '';
     });
     const seenGallery = new Set();
@@ -78,6 +112,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let galleryBox = null;
     if (galleryItems.length && typeof window.lightGallery === 'function') {
+        const previousGalleryRoot = document.querySelector('[data-product-lightgallery="1"]');
+        if (previousGalleryRoot) {
+            previousGalleryRoot.remove();
+        }
+
         const galleryRoot = document.createElement('div');
         galleryRoot.setAttribute('data-product-lightgallery', '1');
         document.body.appendChild(galleryRoot);

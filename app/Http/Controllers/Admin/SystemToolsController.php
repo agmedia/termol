@@ -38,6 +38,12 @@ class SystemToolsController extends Controller
             'login',
             'logout',
             'livewire/*',
+            'storage',
+            'storage/*',
+            'build',
+            'build/*',
+            'front-theme',
+            'front-theme/*',
         ];
 
         try {

@@ -18,6 +18,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'login',
             'logout',
             'livewire/*',
+            'storage',
+            'storage/*',
+            'build',
+            'build/*',
+            'front-theme',
+            'front-theme/*',
         ]);
 
         $middleware->alias([
