@@ -20,6 +20,29 @@ new #[Layout('layouts.guest')] class extends Component
 
         Session::regenerate();
 
+        if (app()->isDownForMaintenance()) {
+            $user = auth()->user();
+            $isPrivileged = $user
+                && (
+                    $user->isA('superadmin')
+                    || $user->isA('super-admin')
+                    || $user->isA('admin')
+                    || $user->isA('editor')
+                    || $user->can('admin.access')
+                );
+
+            if ($isPrivileged) {
+                $data = app()->maintenanceMode()->data();
+                $secret = trim((string) ($data['secret'] ?? ''));
+
+                if ($secret !== '') {
+                    $this->redirect('/'.$secret, navigate: true);
+
+                    return;
+                }
+            }
+        }
+
         $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
     }
 }; ?>
