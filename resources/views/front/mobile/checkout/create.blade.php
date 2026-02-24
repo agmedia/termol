@@ -259,7 +259,15 @@
                 <div data-checkout-payment-options>
                     @foreach ($paymentMethods as $method)
                         <label class="d-flex align-items-center justify-content-between border rounded-sm px-3 py-2 mb-2">
-                            <span><input type="radio" name="payment_method_code" value="{{ $method->code }}" @checked($selectedPaymentCode === (string) $method->code) required> {{ $method->name }}</span>
+                            @if (in_array(strtolower((string) $method->code), ['keks', 'keks_pay', 'kekspay'], true))
+                                <span class="d-flex align-items-center gap-2">
+                                    <input type="radio" name="payment_method_code" value="{{ $method->code }}" @checked($selectedPaymentCode === (string) $method->code) required>
+                                    <img src="{{ asset('assets/payments/keks-logo.svg') }}" alt="KEKS Pay" style="height:20px; width:auto; max-width:100px;">
+                                    <span>{{ $method->name }}</span>
+                                </span>
+                            @else
+                                <span><input type="radio" name="payment_method_code" value="{{ $method->code }}" @checked($selectedPaymentCode === (string) $method->code) required> {{ $method->name }}</span>
+                            @endif
                         </label>
                     @endforeach
                 </div>
@@ -438,8 +446,13 @@
                     const checked = (selectedCode && selectedCode === method.code)
                         || (!selectedCode && (selected !== '' && selected === method.code))
                         || (!selectedCode && selected === '' && index === 0);
+                    const code = String(method.code || '').toLowerCase();
+                    const isKeks = code === 'keks' || code === 'keks_pay' || code === 'kekspay';
+                    const methodLabel = isKeks
+                        ? '<span class="d-flex align-items-center gap-2"><img src="{{ asset('assets/payments/keks-logo.svg') }}" alt="KEKS Pay" style="height:20px; width:auto; max-width:100px;"><span>' + String(method.name || '') + '</span></span>'
+                        : String(method.name || '');
                     return '<label class="d-flex align-items-center justify-content-between border rounded-sm px-3 py-2 mb-2">'
-                        + '<span><input type="radio" name="payment_method_code" value="' + String(method.code || '') + '" ' + (checked ? 'checked' : '') + ' required> ' + String(method.name || '') + '</span>'
+                        + '<span><input type="radio" name="payment_method_code" value="' + String(method.code || '') + '" ' + (checked ? 'checked' : '') + ' required> ' + methodLabel + '</span>'
                         + '</label>';
                 }).join('');
             };

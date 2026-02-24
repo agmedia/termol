@@ -13,6 +13,8 @@ use App\Services\Front\CartService;
 use App\Services\Front\CheckoutService;
 use App\Services\Front\StoreNotificationService;
 use App\Services\Payments\BankTransferUpiService;
+use App\Services\Payments\CorvusPayFormService;
+use App\Services\Payments\KeksPayService;
 use App\Services\Payments\WSPayFormService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -250,18 +252,29 @@ class CheckoutController extends Controller
 
         $order = $this->checkout->placeOrder($validated, $checkoutUser);
         $wspay = app(WSPayFormService::class);
-        if (! $wspay->isWspayCode((string) $order->payment_method_code)) {
+        $corvus = app(CorvusPayFormService::class);
+        $keks = app(KeksPayService::class);
+        $isDeferredGateway = $wspay->isWspayCode((string) $order->payment_method_code)
+            || $corvus->isCorvusCode((string) $order->payment_method_code)
+            || $keks->isKeksCode((string) $order->payment_method_code);
+        if (! $isDeferredGateway) {
             $this->notifications->sendOrderNotification($order);
         }
 
         $this->cart->clear();
         $request->session()->put('front.checkout.last_order_id', (int) $order->id);
+        $request->session()->put('front.checkout.last_order_number', (string) $order->order_number);
 
         $this->syncCustomerData($request, $validated);
 
-        $successUrl = $wspay->isWspayCode((string) $order->payment_method_code)
-            ? route('checkout.wspay.start', ['orderNumber' => $order->order_number])
-            : route('checkout.success', ['orderNumber' => $order->order_number]);
+        $successUrl = route('checkout.success', ['orderNumber' => $order->order_number]);
+        if ($wspay->isWspayCode((string) $order->payment_method_code)) {
+            $successUrl = route('checkout.wspay.start', ['orderNumber' => $order->order_number]);
+        } elseif ($corvus->isCorvusCode((string) $order->payment_method_code)) {
+            $successUrl = route('checkout.corvus.start', ['orderNumber' => $order->order_number]);
+        } elseif ($keks->isKeksCode((string) $order->payment_method_code)) {
+            $successUrl = route('checkout.keks.start', ['orderNumber' => $order->order_number]);
+        }
 
         if (
             $request->boolean('_ajax')
@@ -452,6 +465,132 @@ class CheckoutController extends Controller
         return $this->handleWspayCallback($request, $orderNumber, 'cancel');
     }
 
+    public function corvusStart(Request $request, string $orderNumber): View|RedirectResponse
+    {
+        $order = Order::query()
+            ->where('order_number', $orderNumber)
+            ->firstOrFail();
+
+        $allowedBySession = ((int) $request->session()->get('front.checkout.last_order_id', 0)) === (int) $order->id;
+        $allowedByUser = $request->user() && ((int) $request->user()->id === (int) $order->user_id);
+        abort_unless($allowedBySession || $allowedByUser, 404);
+
+        $formData = app(CorvusPayFormService::class)->buildFormData($order);
+        if (! is_array($formData)) {
+            return redirect()
+                ->route('checkout.success', ['orderNumber' => $order->order_number])
+                ->with('status', __('ui.checkout.corvus.missing_config'));
+        }
+
+        return view($this->frontendView($request, 'checkout.corvus-redirect'), [
+            'order' => $order,
+            'formData' => $formData,
+        ]);
+    }
+
+    public function corvusSuccess(Request $request, string $orderNumber): RedirectResponse
+    {
+        return $this->handleCorvusCallback($request, $orderNumber, 'success');
+    }
+
+    public function corvusCancel(Request $request, string $orderNumber): RedirectResponse
+    {
+        return $this->handleCorvusCallback($request, $orderNumber, 'cancel');
+    }
+
+    public function corvusSuccessStatic(Request $request): RedirectResponse
+    {
+        $orderNumber = $this->resolveCorvusOrderNumber($request);
+        abort_unless($orderNumber !== '', 404);
+
+        return $this->handleCorvusCallback($request, $orderNumber, 'success');
+    }
+
+    public function corvusCancelStatic(Request $request): RedirectResponse
+    {
+        $orderNumber = $this->resolveCorvusOrderNumber($request);
+        abort_unless($orderNumber !== '', 404);
+
+        return $this->handleCorvusCallback($request, $orderNumber, 'cancel');
+    }
+
+    public function keksStart(Request $request, string $orderNumber): View|RedirectResponse
+    {
+        $order = Order::query()
+            ->where('order_number', $orderNumber)
+            ->with('items')
+            ->firstOrFail();
+
+        $allowedBySession = ((int) $request->session()->get('front.checkout.last_order_id', 0)) === (int) $order->id;
+        $allowedByUser = $request->user() && ((int) $request->user()->id === (int) $order->user_id);
+        abort_unless($allowedBySession || $allowedByUser, 404);
+
+        $sellData = app(KeksPayService::class)->buildSellData($order);
+        if (! is_array($sellData)) {
+            return redirect()
+                ->route('checkout.success', ['orderNumber' => $order->order_number])
+                ->with('status', __('ui.checkout.keks.missing_config'));
+        }
+
+        return view($this->frontendView($request, 'checkout.keks-redirect'), [
+            'order' => $order,
+            'sellData' => $sellData,
+        ]);
+    }
+
+    public function keksSuccess(Request $request): RedirectResponse
+    {
+        $orderNumber = trim((string) $request->query('bill_id', ''));
+        if ($orderNumber === '') {
+            $orderNumber = trim((string) $request->session()->get('front.checkout.last_order_number', ''));
+        }
+        abort_unless($orderNumber !== '', 404);
+
+        return redirect()
+            ->route('checkout.success', ['orderNumber' => $orderNumber])
+            ->with('status', __('ui.checkout.keks.status.pending'));
+    }
+
+    public function keksFail(Request $request): RedirectResponse
+    {
+        $orderNumber = trim((string) $request->query('bill_id', ''));
+        if ($orderNumber === '') {
+            $orderNumber = trim((string) $request->session()->get('front.checkout.last_order_number', ''));
+        }
+        abort_unless($orderNumber !== '', 404);
+
+        $order = Order::query()->where('order_number', $orderNumber)->with('items')->first();
+        if ($order) {
+            app(KeksPayService::class)->handleFailureEffects($order);
+            $this->restoreCartFromOrder($order);
+        }
+
+        return redirect()
+            ->route('cart.index')
+            ->with('status', __('ui.checkout.keks.status.cancelled_to_cart'));
+    }
+
+    public function keksAdvice(Request $request): JsonResponse
+    {
+        $payload = $request->json()->all();
+        if (! is_array($payload) || $payload === []) {
+            $payload = $request->all();
+        }
+
+        $result = app(KeksPayService::class)->handleAdvice($payload, $request);
+        $order = $result['order'] ?? null;
+        if ($order instanceof Order && ((int) ($payload['status'] ?? -1) === 0)) {
+            $this->sendKeksNotificationOnce($order);
+        } elseif ($order instanceof Order) {
+            app(KeksPayService::class)->handleFailureEffects($order);
+        }
+
+        return response()->json([
+            'status' => (int) ($result['status'] ?? -1),
+            'message' => (string) ($result['message'] ?? 'Rejected'),
+        ]);
+    }
+
     /**
      * @param array<string, mixed> $validated
      */
@@ -600,5 +739,84 @@ class CheckoutController extends Controller
         $wspayPayload['notification_sent_at'] = now()->toIso8601String();
         $payload['wspay'] = $wspayPayload;
         $order->forceFill(['payload' => $payload])->save();
+    }
+
+    private function handleCorvusCallback(Request $request, string $orderNumber, string $context): RedirectResponse
+    {
+        $order = Order::query()
+            ->where('order_number', $orderNumber)
+            ->firstOrFail();
+
+        $corvus = app(CorvusPayFormService::class);
+        $result = $corvus->handleCallback($order, $request->all(), $context);
+
+        if (strtolower($context) === 'cancel' && ! (bool) ($result['paid'] ?? false)) {
+            $corvus->handleCancellationEffects($order);
+            $freshOrder = Order::query()->with('items')->find($order->id);
+            if ($freshOrder) {
+                $this->restoreCartFromOrder($freshOrder);
+            }
+        }
+
+        if ((bool) ($result['paid'] ?? false)) {
+            $freshOrder = Order::query()->find($order->id);
+            if ($freshOrder) {
+                $this->sendCorvusNotificationOnce($freshOrder);
+            }
+        }
+
+        $request->session()->put('front.checkout.last_order_id', (int) $order->id);
+
+        $statusKey = match ((string) ($result['status'] ?? '')) {
+            'approved' => 'ui.checkout.corvus.status.approved',
+            'cancelled' => 'ui.checkout.corvus.status.cancelled',
+            'invalid_signature' => 'ui.checkout.corvus.status.invalid_signature',
+            default => 'ui.checkout.corvus.status.declined',
+        };
+
+        if (strtolower($context) === 'cancel') {
+            return redirect()
+                ->route('cart.index')
+                ->with('status', __('ui.checkout.corvus.status.cancelled_to_cart'));
+        }
+
+        return redirect()
+            ->route('checkout.success', ['orderNumber' => $order->order_number])
+            ->with('status', __($statusKey));
+    }
+
+    private function sendCorvusNotificationOnce(Order $order): void
+    {
+        $payload = is_array($order->payload) ? $order->payload : [];
+        $corvusPayload = is_array($payload['corvuspay'] ?? null) ? $payload['corvuspay'] : [];
+        if (! empty($corvusPayload['notification_sent_at'])) {
+            return;
+        }
+
+        $this->notifications->sendOrderNotification($order);
+
+        $corvusPayload['notification_sent_at'] = now()->toIso8601String();
+        $payload['corvuspay'] = $corvusPayload;
+        $order->forceFill(['payload' => $payload])->save();
+    }
+
+    private function sendKeksNotificationOnce(Order $order): void
+    {
+        $payload = is_array($order->payload) ? $order->payload : [];
+        $keksPayload = is_array($payload['kekspay'] ?? null) ? $payload['kekspay'] : [];
+        if (! empty($keksPayload['notification_sent_at'])) {
+            return;
+        }
+
+        $this->notifications->sendOrderNotification($order);
+
+        $keksPayload['notification_sent_at'] = now()->toIso8601String();
+        $payload['kekspay'] = $keksPayload;
+        $order->forceFill(['payload' => $payload])->save();
+    }
+
+    private function resolveCorvusOrderNumber(Request $request): string
+    {
+        return trim((string) ($request->input('order_number', '')));
     }
 }

@@ -24,6 +24,10 @@ class ResourceManager extends Component
 
     private const WSPAY_FORM_URL_TEST = 'https://formtest.wspay.biz/authorization.aspx';
     private const WSPAY_FORM_URL_LIVE = 'https://form.wspay.biz/authorization.aspx';
+    private const CORVUS_FORM_URL_TEST = 'https://wallet.test.corvuspay.com/checkout/';
+    private const CORVUS_FORM_URL_LIVE = 'https://wallet.corvuspay.com/checkout/';
+    private const KEKS_SELL_URL_TEST = 'https://kekspayuat.erstebank.hr/galebpay';
+    private const KEKS_SELL_URL_LIVE = 'https://kekspay.hr/galebpay';
 
     public string $resource = 'payment-methods';
     public array $form = [];
@@ -138,6 +142,8 @@ class ResourceManager extends Component
             $settings = $this->mergeBankTransferUpiSettings($settings, $data);
             $settings = $this->mergeBoxNowSettings($settings, $data);
             $settings = $this->mergeWspaySettings($settings, $data);
+            $settings = $this->mergeCorvusSettings($settings, $data);
+            $settings = $this->mergeKeksSettings($settings, $data);
             if ($this->isBankTransferCode((string) ($data['code'] ?? ''))) {
                 if (! $this->hasRequiredBankTransferUpiSettings($settings)) {
                     $this->addError('form.upi_receiver_name', __('UPI receiver name, street, place and IBAN are required for bank transfer.'));
@@ -153,6 +159,16 @@ class ResourceManager extends Component
             if ($this->isWspayCode((string) ($data['code'] ?? '')) && ! $this->hasRequiredWspaySettings($settings)) {
                 $this->addError('form.wspay_shop_id', __('WSPay Shop ID and Secret Key are required.'));
                 $this->dispatch('notify', type: 'error', message: __('WSPay Shop ID and Secret Key are required.'));
+                return;
+            }
+            if ($this->isCorvusCode((string) ($data['code'] ?? '')) && ! $this->hasRequiredCorvusSettings($settings)) {
+                $this->addError('form.corvus_store_id', __('CorvusPay Store ID and Secret Key are required.'));
+                $this->dispatch('notify', type: 'error', message: __('CorvusPay Store ID and Secret Key are required.'));
+                return;
+            }
+            if ($this->isKeksCode((string) ($data['code'] ?? '')) && ! $this->hasRequiredKeksSettings($settings)) {
+                $this->addError('form.keks_cid', __('KEKS Pay CID, TID and DES key are required.'));
+                $this->dispatch('notify', type: 'error', message: __('KEKS Pay CID, TID and DES key are required.'));
                 return;
             }
             $data['settings'] = $settings;
@@ -174,6 +190,23 @@ class ResourceManager extends Component
             $data['wspay_shop_id'],
             $data['wspay_secret_key'],
             $data['wspay_return_method'],
+            $data['corvus_mode'],
+            $data['corvus_store_id'],
+            $data['corvus_secret_key'],
+            $data['corvus_language'],
+            $data['corvus_currency'],
+            $data['corvus_require_complete'],
+            $data['corvus_form_url'],
+            $data['keks_mode'],
+            $data['keks_cid'],
+            $data['keks_tid'],
+            $data['keks_des_key'],
+            $data['keks_qr_type'],
+            $data['keks_sell_base_url'],
+            $data['keks_advice_auth_mode'],
+            $data['keks_advice_token'],
+            $data['keks_advice_username'],
+            $data['keks_advice_password'],
         );
 
         if ($this->editingId) {
@@ -215,7 +248,13 @@ class ResourceManager extends Component
                 continue;
             }
 
-            if (str_starts_with($key, 'upi_') || str_starts_with($key, 'wspay_') || in_array($key, ['boxnow_partner_id', 'default_order_status_id'], true)) {
+            if (
+                str_starts_with($key, 'upi_')
+                || str_starts_with($key, 'wspay_')
+                || str_starts_with($key, 'corvus_')
+                || str_starts_with($key, 'keks_')
+                || in_array($key, ['boxnow_partner_id', 'default_order_status_id'], true)
+            ) {
                 $this->form[$key] = (string) ($settings[$key] ?? $default);
                 continue;
             }
@@ -364,6 +403,23 @@ class ResourceManager extends Component
             'wspay_shop_id' => '',
             'wspay_secret_key' => '',
             'wspay_return_method' => 'GET',
+            'corvus_mode' => 'test',
+            'corvus_store_id' => '',
+            'corvus_secret_key' => '',
+            'corvus_language' => 'hr',
+            'corvus_currency' => 'EUR',
+            'corvus_require_complete' => 'false',
+            'corvus_form_url' => '',
+            'keks_mode' => 'test',
+            'keks_cid' => '',
+            'keks_tid' => '',
+            'keks_des_key' => '',
+            'keks_qr_type' => '1',
+            'keks_sell_base_url' => '',
+            'keks_advice_auth_mode' => 'none',
+            'keks_advice_token' => '',
+            'keks_advice_username' => '',
+            'keks_advice_password' => '',
         ];
     }
 
@@ -419,6 +475,23 @@ class ResourceManager extends Component
             'form.wspay_shop_id' => ['nullable', 'string', 'max:120'],
             'form.wspay_secret_key' => ['nullable', 'string', 'max:255'],
             'form.wspay_return_method' => ['nullable', Rule::in(['GET', 'POST'])],
+            'form.corvus_mode' => ['nullable', Rule::in(['test', 'live'])],
+            'form.corvus_store_id' => ['nullable', 'string', 'max:120'],
+            'form.corvus_secret_key' => ['nullable', 'string', 'max:255'],
+            'form.corvus_language' => ['nullable', Rule::in(['hr', 'en', 'it', 'de', 'rs', 'sl', 'mk', 'sq'])],
+            'form.corvus_currency' => ['nullable', 'string', 'size:3'],
+            'form.corvus_require_complete' => ['nullable', Rule::in(['true', 'false'])],
+            'form.corvus_form_url' => ['nullable', 'string', 'max:255'],
+            'form.keks_mode' => ['nullable', Rule::in(['test', 'live'])],
+            'form.keks_cid' => ['nullable', 'string', 'max:120'],
+            'form.keks_tid' => ['nullable', 'string', 'max:120'],
+            'form.keks_des_key' => ['nullable', 'string', 'max:255'],
+            'form.keks_qr_type' => ['nullable', 'integer', 'min:1', 'max:9'],
+            'form.keks_sell_base_url' => ['nullable', 'string', 'max:255'],
+            'form.keks_advice_auth_mode' => ['nullable', Rule::in(['none', 'token', 'basic', 'url_token'])],
+            'form.keks_advice_token' => ['nullable', 'string', 'max:255'],
+            'form.keks_advice_username' => ['nullable', 'string', 'max:120'],
+            'form.keks_advice_password' => ['nullable', 'string', 'max:255'],
         ];
 
         if ($this->hasColumn('code')) {
@@ -458,6 +531,12 @@ class ResourceManager extends Component
                 }
 
                 if ($this->resource === 'payment-methods' && str_starts_with($field, 'wspay_')) {
+                    return true;
+                }
+                if ($this->resource === 'payment-methods' && str_starts_with($field, 'corvus_')) {
+                    return true;
+                }
+                if ($this->resource === 'payment-methods' && str_starts_with($field, 'keks_')) {
                     return true;
                 }
 
@@ -550,6 +629,24 @@ class ResourceManager extends Component
         return $this->isWspayCode((string) ($this->form['code'] ?? ''));
     }
 
+    public function isCorvusForm(): bool
+    {
+        if ($this->resource !== 'payment-methods') {
+            return false;
+        }
+
+        return $this->isCorvusCode((string) ($this->form['code'] ?? ''));
+    }
+
+    public function isKeksForm(): bool
+    {
+        if ($this->resource !== 'payment-methods') {
+            return false;
+        }
+
+        return $this->isKeksCode((string) ($this->form['code'] ?? ''));
+    }
+
     private function isBankTransferCode(string $code): bool
     {
         return in_array(strtolower(trim($code)), ['bank', 'bank_transfer'], true);
@@ -563,6 +660,16 @@ class ResourceManager extends Component
     private function isWspayCode(string $code): bool
     {
         return in_array(strtolower(trim($code)), ['wspay', 'ws_pay'], true);
+    }
+
+    private function isCorvusCode(string $code): bool
+    {
+        return in_array(strtolower(trim($code)), ['corvus', 'corvuspay', 'corvus_pay'], true);
+    }
+
+    private function isKeksCode(string $code): bool
+    {
+        return in_array(strtolower(trim($code)), ['keks', 'keks_pay', 'kekspay'], true);
     }
 
     /**
@@ -670,6 +777,104 @@ class ResourceManager extends Component
 
     /**
      * @param  array<string, mixed>  $settings
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function mergeCorvusSettings(array $settings, array $data): array
+    {
+        if (! $this->isCorvusCode((string) ($data['code'] ?? ''))) {
+            return $settings;
+        }
+
+        $mode = strtolower(trim((string) ($data['corvus_mode'] ?? 'test')));
+        if (! in_array($mode, ['test', 'live'], true)) {
+            $mode = 'test';
+        }
+
+        $storeId = trim((string) ($data['corvus_store_id'] ?? ''));
+        $secret = trim((string) ($data['corvus_secret_key'] ?? ''));
+        $language = strtolower(trim((string) ($data['corvus_language'] ?? 'hr')));
+        $currency = strtoupper(trim((string) ($data['corvus_currency'] ?? 'EUR')));
+        $requireComplete = filter_var((string) ($data['corvus_require_complete'] ?? 'false'), FILTER_VALIDATE_BOOL)
+            ? 'true'
+            : 'false';
+
+        $settings['corvus_mode'] = $mode;
+        $settings['corvus_form_url'] = $this->corvusFormUrlForMode($mode);
+        if ($storeId !== '') {
+            $settings['corvus_store_id'] = $storeId;
+        }
+        if ($secret !== '') {
+            $settings['corvus_secret_key'] = $secret;
+        }
+        if (in_array($language, ['hr', 'en', 'it', 'de', 'rs', 'sl', 'mk', 'sq'], true)) {
+            $settings['corvus_language'] = $language;
+        }
+        if ($currency !== '' && strlen($currency) === 3) {
+            $settings['corvus_currency'] = $currency;
+        }
+        $settings['corvus_require_complete'] = $requireComplete;
+
+        return $settings;
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function mergeKeksSettings(array $settings, array $data): array
+    {
+        if (! $this->isKeksCode((string) ($data['code'] ?? ''))) {
+            return $settings;
+        }
+
+        $mode = strtolower(trim((string) ($data['keks_mode'] ?? 'test')));
+        if (! in_array($mode, ['test', 'live'], true)) {
+            $mode = 'test';
+        }
+
+        $cid = trim((string) ($data['keks_cid'] ?? ''));
+        $tid = trim((string) ($data['keks_tid'] ?? ''));
+        $desKey = trim((string) ($data['keks_des_key'] ?? ''));
+        $qrType = max(1, (int) ($data['keks_qr_type'] ?? 1));
+        $sellBaseUrl = trim((string) ($data['keks_sell_base_url'] ?? ''));
+        $authMode = strtolower(trim((string) ($data['keks_advice_auth_mode'] ?? 'none')));
+        if (! in_array($authMode, ['none', 'token', 'basic', 'url_token'], true)) {
+            $authMode = 'none';
+        }
+        $authToken = trim((string) ($data['keks_advice_token'] ?? ''));
+        $authUsername = trim((string) ($data['keks_advice_username'] ?? ''));
+        $authPassword = trim((string) ($data['keks_advice_password'] ?? ''));
+
+        $settings['keks_mode'] = $mode;
+        $settings['keks_qr_type'] = $qrType;
+        $settings['keks_sell_base_url'] = $sellBaseUrl !== '' ? $sellBaseUrl : $this->keksSellUrlForMode($mode);
+        $settings['keks_advice_auth_mode'] = $authMode;
+        if ($cid !== '') {
+            $settings['keks_cid'] = $cid;
+        }
+        if ($tid !== '') {
+            $settings['keks_tid'] = $tid;
+        }
+        if ($desKey !== '') {
+            $settings['keks_des_key'] = $desKey;
+        }
+        if ($authToken !== '') {
+            $settings['keks_advice_token'] = $authToken;
+        }
+        if ($authUsername !== '') {
+            $settings['keks_advice_username'] = $authUsername;
+        }
+        if ($authPassword !== '') {
+            $settings['keks_advice_password'] = $authPassword;
+        }
+
+        return $settings;
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
      */
     private function hasRequiredBankTransferUpiSettings(array $settings): bool
     {
@@ -696,10 +901,52 @@ class ResourceManager extends Component
         return true;
     }
 
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function hasRequiredCorvusSettings(array $settings): bool
+    {
+        foreach (['corvus_store_id', 'corvus_secret_key'] as $key) {
+            if (trim((string) ($settings[$key] ?? '')) === '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function hasRequiredKeksSettings(array $settings): bool
+    {
+        foreach (['keks_cid', 'keks_tid', 'keks_des_key'] as $key) {
+            if (trim((string) ($settings[$key] ?? '')) === '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private function wspayFormUrlForMode(string $mode): string
     {
         return $mode === 'live'
             ? self::WSPAY_FORM_URL_LIVE
             : self::WSPAY_FORM_URL_TEST;
+    }
+
+    private function corvusFormUrlForMode(string $mode): string
+    {
+        return $mode === 'live'
+            ? self::CORVUS_FORM_URL_LIVE
+            : self::CORVUS_FORM_URL_TEST;
+    }
+
+    private function keksSellUrlForMode(string $mode): string
+    {
+        return $mode === 'live'
+            ? self::KEKS_SELL_URL_LIVE
+            : self::KEKS_SELL_URL_TEST;
     }
 }

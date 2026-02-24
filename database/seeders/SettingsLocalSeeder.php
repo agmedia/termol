@@ -212,6 +212,45 @@ class SettingsLocalSeeder extends Seeder
                 ],
             ]
         );
+        PaymentMethod::updateOrCreate(
+            ['code' => 'corvus'],
+            [
+                'name' => 'CorvusPay',
+                'provider' => 'corvuspay',
+                'geo_zone_id' => null,
+                'description' => 'Card payment via CorvusPay form redirect.',
+                'fee_type' => 'fixed',
+                'fee_value' => 0,
+                'is_active' => false,
+                'sort_order' => 5,
+                'settings' => [
+                    'corvus_mode' => 'test',
+                    'corvus_form_url' => 'https://wallet.test.corvuspay.com/checkout/',
+                    'corvus_language' => 'hr',
+                    'corvus_currency' => 'EUR',
+                    'corvus_require_complete' => 'false',
+                ],
+            ]
+        );
+        PaymentMethod::updateOrCreate(
+            ['code' => 'keks'],
+            [
+                'name' => 'KEKS Pay',
+                'provider' => 'kekspay',
+                'geo_zone_id' => null,
+                'description' => 'Najbrže i bez naknada putem KEKS Pay aplikacije!',
+                'fee_type' => 'fixed',
+                'fee_value' => 0,
+                'is_active' => false,
+                'sort_order' => 6,
+                'settings' => [
+                    'keks_mode' => 'test',
+                    'keks_qr_type' => 1,
+                    'keks_sell_base_url' => 'https://kekspayuat.erstebank.hr/galebpay',
+                    'keks_advice_auth_mode' => 'none',
+                ],
+            ]
+        );
 
         ShippingMethod::updateOrCreate(
             ['code' => 'standard'],

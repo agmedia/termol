@@ -118,6 +118,35 @@ Route::middleware(['front.locale', 'front.device'])
             ->where('orderNumber', '[A-Za-z0-9\-]+')
             ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
             ->name('checkout.wspay.cancel');
+        Route::get('checkout/corvus/{orderNumber}', [CheckoutController::class, 'corvusStart'])
+            ->where('orderNumber', '[A-Za-z0-9\-]+')
+            ->name('checkout.corvus.start');
+        Route::match(['GET', 'POST'], 'checkout/corvus/success', [CheckoutController::class, 'corvusSuccessStatic'])
+            ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+            ->name('checkout.corvus.success.static');
+        Route::match(['GET', 'POST'], 'checkout/corvus/cancel', [CheckoutController::class, 'corvusCancelStatic'])
+            ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+            ->name('checkout.corvus.cancel.static');
+        Route::match(['GET', 'POST'], 'checkout/corvus/success/{orderNumber}', [CheckoutController::class, 'corvusSuccess'])
+            ->where('orderNumber', '[A-Za-z0-9\-]+')
+            ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+            ->name('checkout.corvus.success');
+        Route::match(['GET', 'POST'], 'checkout/corvus/cancel/{orderNumber}', [CheckoutController::class, 'corvusCancel'])
+            ->where('orderNumber', '[A-Za-z0-9\-]+')
+            ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+            ->name('checkout.corvus.cancel');
+        Route::get('checkout/keks/{orderNumber}', [CheckoutController::class, 'keksStart'])
+            ->where('orderNumber', '[A-Za-z0-9\-]+')
+            ->name('checkout.keks.start');
+        Route::match(['GET', 'POST'], 'checkout/keks/success', [CheckoutController::class, 'keksSuccess'])
+            ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+            ->name('checkout.keks.success');
+        Route::match(['GET', 'POST'], 'checkout/keks/fail', [CheckoutController::class, 'keksFail'])
+            ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+            ->name('checkout.keks.fail');
+        Route::match(['GET', 'POST'], 'checkout/keks/advice', [CheckoutController::class, 'keksAdvice'])
+            ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+            ->name('checkout.keks.advice');
         Route::get('checkout/success', [CheckoutController::class, 'successLatest'])->name('checkout.success.latest');
         Route::get('checkout/success/{orderNumber}', [CheckoutController::class, 'success'])
             ->where('orderNumber', '[A-Za-z0-9\-]+')

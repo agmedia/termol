@@ -308,6 +308,149 @@
                     </div>
                 @endif
 
+                @if ($this->isCorvusForm())
+                    <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-800">{{ __('CorvusPay settings (required)') }}</p>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Mode') }}</label>
+                                <select wire:model="form.corvus_mode" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring">
+                                    <option value="test">Test</option>
+                                    <option value="live">Live</option>
+                                </select>
+                                @error('form.corvus_mode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Store ID</label>
+                                <input type="text" wire:model="form.corvus_store_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.corvus_store_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Secret key') }}</label>
+                                <input type="text" wire:model="form.corvus_secret_key" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.corvus_secret_key') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Language') }}</label>
+                                <select wire:model="form.corvus_language" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring">
+                                    <option value="hr">hr</option>
+                                    <option value="en">en</option>
+                                    <option value="it">it</option>
+                                    <option value="de">de</option>
+                                    <option value="rs">rs</option>
+                                    <option value="sl">sl</option>
+                                    <option value="mk">mk</option>
+                                    <option value="sq">sq</option>
+                                </select>
+                                @error('form.corvus_language') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Currency') }}</label>
+                                <input type="text" wire:model="form.corvus_currency" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm uppercase outline-none ring-cyan-200 focus:ring" />
+                                @error('form.corvus_currency') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Require complete') }}</label>
+                                <select wire:model="form.corvus_require_complete" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring">
+                                    <option value="false">false (sale)</option>
+                                    <option value="true">true (preauth)</option>
+                                </select>
+                                @error('form.corvus_require_complete') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('CorvusPay form URL') }}</label>
+                                <input type="text" value="{{ ($form['corvus_mode'] ?? 'test') === 'live' ? 'https://wallet.corvuspay.com/checkout/' : 'https://wallet.test.corvuspay.com/checkout/' }}" readonly class="w-full rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Success URL template</label>
+                                <input type="text" value="{{ rtrim(url('/'), '/').'/checkout/corvus/success' }}" readonly class="w-full rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Cancel URL template</label>
+                                <input type="text" value="{{ rtrim(url('/'), '/').'/checkout/corvus/cancel' }}" readonly class="w-full rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none" />
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                @if ($this->isKeksForm())
+                    <div class="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-3">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-fuchsia-800">{{ __('KEKS Pay settings (required)') }}</p>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Mode') }}</label>
+                                <select wire:model="form.keks_mode" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring">
+                                    <option value="test">Test</option>
+                                    <option value="live">Live</option>
+                                </select>
+                                @error('form.keks_mode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">CID</label>
+                                <input type="text" wire:model="form.keks_cid" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.keks_cid') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">TID</label>
+                                <input type="text" wire:model="form.keks_tid" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.keks_tid') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">DES key</label>
+                                <input type="text" wire:model="form.keks_des_key" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.keks_des_key') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">QR type</label>
+                                <input type="number" min="1" max="9" wire:model="form.keks_qr_type" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.keks_qr_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Advice auth mode</label>
+                                <select wire:model="form.keks_advice_auth_mode" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring">
+                                    <option value="none">none</option>
+                                    <option value="token">token</option>
+                                    <option value="basic">basic</option>
+                                    <option value="url_token">url_token</option>
+                                </select>
+                                @error('form.keks_advice_auth_mode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Advice token</label>
+                                <input type="text" wire:model="form.keks_advice_token" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.keks_advice_token') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Advice username</label>
+                                <input type="text" wire:model="form.keks_advice_username" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.keks_advice_username') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Advice password</label>
+                                <input type="text" wire:model="form.keks_advice_password" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.keks_advice_password') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">KEKS sell URL</label>
+                                <input type="text" wire:model="form.keks_sell_base_url" placeholder="{{ ($form['keks_mode'] ?? 'test') === 'live' ? 'https://kekspay.hr/galebpay' : 'https://kekspayuat.erstebank.hr/galebpay' }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                @error('form.keks_sell_base_url') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Advice URL</label>
+                                <input type="text" value="{{ rtrim(url('/'), '/').'/checkout/keks/advice' }}" readonly class="w-full rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Success URL</label>
+                                <input type="text" value="{{ rtrim(url('/'), '/').'/checkout/keks/success?bill_id={ORDER_NUMBER}' }}" readonly class="w-full rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Fail URL</label>
+                                <input type="text" value="{{ rtrim(url('/'), '/').'/checkout/keks/fail?bill_id={ORDER_NUMBER}' }}" readonly class="w-full rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none" />
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 @if ($this->isBoxNowForm())
                     <div class="rounded-xl border border-blue-200 bg-blue-50 p-3">
                         <p class="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-blue-800">{{ __('BOX NOW widget config') }}</p>
