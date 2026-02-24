@@ -14,8 +14,16 @@ class PreventRequestsDuringMaintenance extends Middleware
     protected $except = [
         'admin',
         'admin/*',
+        'admin/login',
+        'admin/logout',
         'login',
         'logout',
+        'register',
+        'forgot-password',
+        'reset-password/*',
+        'password/*',
+        'sanctum/csrf-cookie',
+        'livewire',
         'livewire/*',
         'storage',
         'storage/*',
@@ -25,4 +33,3 @@ class PreventRequestsDuringMaintenance extends Middleware
         'front-theme/*',
     ];
 }
-

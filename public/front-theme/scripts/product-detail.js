@@ -142,15 +142,40 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    const openFallbackImage = function (index) {
+        if (!galleryItems.length) {
+            return;
+        }
+
+        const normalized = ((index % galleryItems.length) + galleryItems.length) % galleryItems.length;
+        const target = galleryItems[normalized];
+        if (!target || !target.full) {
+            return;
+        }
+
+        // iOS-safe fallback when lightbox plugin is unavailable or throws.
+        window.location.href = target.full;
+    };
+
     galleryOpenButtons.forEach(function (button) {
         button.addEventListener('click', function () {
-            if (!galleryItems.length || !galleryBox) {
+            if (!galleryItems.length) {
                 return;
             }
 
             const index = Number.parseInt(String(button.dataset.galleryOpen || '0'), 10);
             const normalized = Number.isNaN(index) ? 0 : index;
-            galleryBox.openGallery(normalized);
+
+            if (!galleryBox) {
+                openFallbackImage(normalized);
+                return;
+            }
+
+            try {
+                galleryBox.openGallery(normalized);
+            } catch (error) {
+                openFallbackImage(normalized);
+            }
         });
     });
 
