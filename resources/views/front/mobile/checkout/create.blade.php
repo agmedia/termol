@@ -277,8 +277,8 @@
                     <label for="customer-note" class="color-highlight">{{ __('ui.checkout.fields.order_note') }}</label>
                 </div>
 
-                <label class="font-12 d-block mb-3"><input type="checkbox" name="newsletter_opt_in" value="1" @checked((bool) old('newsletter_opt_in', $prefill['newsletter_opt_in'] ?? false))> {{ __('ui.checkout.options.newsletter_opt_in') }}</label>
-                <label class="font-12 d-block mb-3"><input type="checkbox" name="accept_terms" value="1" required> {{ __('ui.checkout.options.accept_terms') }}</label>
+                <label class="font-12 d-block mb-3"><input type="checkbox" name="accept_terms" value="1" required @checked((bool) old('accept_terms'))> {{ __('ui.checkout.options.accept_terms') }}</label>
+                <label class="font-12 d-block mb-3"><input type="checkbox" name="newsletter_opt_in" value="1" @checked((bool) old('newsletter_opt_in', false))> {{ __('ui.checkout.options.newsletter_opt_in') }}</label>
 
                 <button type="submit" class="btn btn-margins btn-full gradient-blue font-13 btn-l font-600 rounded-sm">{{ __('ui.checkout.actions.place_order') }}</button>
             </div>

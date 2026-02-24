@@ -123,7 +123,7 @@
                     </span>
                 </a>
 
-                <a href="{{ route('cart.index') }}" class="relative inline-flex min-w-[58px] items-center justify-center border-r-0 border-slate-200 px-3 text-slate-900 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.cart') }}">
+                <a href="{{ route('cart.index') }}" class="relative inline-flex h-full w-[76px] items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.cart') }}">
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M7 9h10l-1 10H8L7 9Z"></path>
                         <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
@@ -167,7 +167,7 @@
                     </span>
                 </a>
 
-                <a href="{{ route('cart.index') }}" class="relative inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.cart') }}">
+                <a href="{{ route('cart.index') }}" class="relative inline-flex h-full w-12 items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.cart') }}">
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M7 9h10l-1 10H8L7 9Z"></path>
                         <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>

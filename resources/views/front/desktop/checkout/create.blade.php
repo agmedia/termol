@@ -333,17 +333,17 @@
                 </div>
 
                 <label class="mt-4 inline-flex items-center gap-2 text-sm text-slate-700">
-                    <input type="checkbox" name="newsletter_opt_in" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" @checked((bool) old('newsletter_opt_in', $prefill['newsletter_opt_in'] ?? false))>
-                    {{ __('ui.checkout.options.newsletter_opt_in') }}
-                </label>
-
-                <label class="mt-3 inline-flex items-center gap-2 text-sm text-slate-700">
-                    <input type="checkbox" name="accept_terms" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" required>
+                    <input type="checkbox" name="accept_terms" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" required @checked((bool) old('accept_terms'))>
                     {{ __('ui.checkout.options.accept_terms') }}
                 </label>
                 @error('accept_terms')
                     <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                 @enderror
+
+                <label class="mt-3 inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input type="checkbox" name="newsletter_opt_in" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" @checked((bool) old('newsletter_opt_in', false))>
+                    {{ __('ui.checkout.options.newsletter_opt_in') }}
+                </label>
             </section>
         </div>
 

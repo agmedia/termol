@@ -6,7 +6,9 @@
     <title>{{ __('mail.orders.mail_title', ['order' => $order_number]) }}</title>
     <style>
         body { margin:0; padding:0; background:#f3f4f6; font-family:Arial, Helvetica, sans-serif; color:#0f172a; }
-        a { color:#0f172a; text-decoration:none; }
+        a, a:link, a:visited { color:#0f172a !important; text-decoration:none !important; }
+        a:hover, a:active { color:#0f172a !important; text-decoration:none !important; }
+        a[x-apple-data-detectors], u + #body a, #MessageViewBody a { color:#0f172a !important; text-decoration:none !important; font:inherit !important; }
         .wrap { width:100%; padding:20px 10px; box-sizing:border-box; }
         .card { max-width:720px; margin:0 auto; background:#ffffff; border:1px solid #e5e7eb; }
         .head { padding:20px; border-bottom:1px solid #e5e7eb; text-align:center; }
@@ -22,7 +24,8 @@
         .items { width:100%; border-collapse:collapse; margin-top:16px; }
         .items th { text-align:left; font-size:12px; color:#64748b; border-bottom:1px solid #e5e7eb; padding:10px 8px; text-transform:uppercase; letter-spacing:.05em; }
         .items td { border-bottom:1px solid #e5e7eb; padding:10px 8px; vertical-align:top; font-size:14px; }
-        .img { width:64px; height:64px; border:1px solid #e5e7eb; object-fit:cover; background:#f8fafc; display:block; }
+        .img-wrap { width:72px; height:96px; border:1px solid #e5e7eb; background:#f8fafc; display:flex; align-items:center; justify-content:center; }
+        .img { max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; display:block; }
         .name { font-weight:700; color:#0f172a; text-decoration:none; }
         .sku { font-size:12px; color:#64748b; margin-top:3px; }
         .num { text-align:right; white-space:nowrap; }
@@ -35,7 +38,7 @@
         .bank h3 { margin:0 0 8px; font-size:14px; }
         .bank p { margin:4px 0; font-size:13px; }
         .bank-qr { margin-top:10px; }
-        .bank-qr img { width:260px; max-width:100%; height:auto; border:1px solid #d1d5db; background:#fff; padding:6px; }
+        .bank-qr img { width:360px; max-width:100%; height:auto; border:1px solid #d1d5db; background:#fff; padding:6px; }
         .foot { padding:16px 20px; border-top:1px solid #e5e7eb; color:#64748b; font-size:12px; text-align:center; }
         @media only screen and (max-width: 620px) {
             .content { padding:14px; }
@@ -69,7 +72,7 @@
 
                 <table class="meta" width="100%" cellspacing="0" cellpadding="0">
                     <tr><td class="label">{{ __('mail.orders.customer') }}</td><td>{{ $customer_name }}</td></tr>
-                    <tr><td class="label">{{ __('mail.orders.email') }}</td><td>{{ $customer_email }}</td></tr>
+                    <tr><td class="label">{{ __('mail.orders.email') }}</td><td><a href="mailto:{{ $customer_email }}" style="color:#0f172a !important; text-decoration:none !important;">{{ $customer_email }}</a></td></tr>
                     <tr><td class="label">{{ __('mail.orders.phone') }}</td><td>{{ $customer_phone }}</td></tr>
                     <tr><td class="label">{{ __('mail.orders.placed_at') }}</td><td>{{ $placed_at }}</td></tr>
                     <tr><td class="label">{{ __('mail.orders.payment') }}</td><td>{{ $payment_method }}</td></tr>
@@ -104,14 +107,16 @@
                             <tr>
                                 <td>
                                     @if (!empty($item['image_url']))
-                                        <img src="{{ $item['image_url'] }}" alt="{{ $item['name'] }}" class="img">
+                                        <div class="img-wrap">
+                                            <img src="{{ $item['image_url'] }}" alt="{{ $item['name'] }}" class="img">
+                                        </div>
                                     @else
-                                        <div class="img"></div>
+                                        <div class="img-wrap"></div>
                                     @endif
                                 </td>
                                 <td>
                                     @if (!empty($item['product_url']))
-                                        <a href="{{ $item['product_url'] }}" class="name">{{ $item['name'] }}</a>
+                                        <a href="{{ $item['product_url'] }}" class="name" style="color:#0f172a !important; text-decoration:none !important;">{{ $item['name'] }}</a>
                                     @else
                                         <span class="name">{{ $item['name'] }}</span>
                                     @endif

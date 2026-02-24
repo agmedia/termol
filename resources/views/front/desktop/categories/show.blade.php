@@ -27,7 +27,6 @@
                         </svg>
                     </a>
                 </li>
-                <li class="text-slate-400">/</li>
                 @foreach (($breadcrumbCategories ?? collect()) as $breadcrumbCategory)
                     @php
                         $breadcrumbTranslation = $breadcrumbCategory->translations->firstWhere('locale', $locale)
