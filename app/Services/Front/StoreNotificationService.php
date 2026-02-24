@@ -93,10 +93,7 @@ class StoreNotificationService
             }
         }
 
-        if (
-            filter_var($customerTo, FILTER_VALIDATE_EMAIL)
-            && strcasecmp($customerTo, $adminTo) !== 0
-        ) {
+        if (filter_var($customerTo, FILTER_VALIDATE_EMAIL)) {
             try {
                 $this->withLocale($mailLocale, function () use ($data, $customerTo, $adminTo, $order): void {
                     $subject = __('mail.orders.subject_customer', ['order' => $order->order_number]);

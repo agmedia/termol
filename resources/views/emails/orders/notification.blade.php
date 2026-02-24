@@ -6,11 +6,12 @@
     <title>{{ __('mail.orders.mail_title', ['order' => $order_number]) }}</title>
     <style>
         body { margin:0; padding:0; background:#f3f4f6; font-family:Arial, Helvetica, sans-serif; color:#0f172a; }
+        a { color:#0f172a; text-decoration:none; }
         .wrap { width:100%; padding:20px 10px; box-sizing:border-box; }
         .card { max-width:720px; margin:0 auto; background:#ffffff; border:1px solid #e5e7eb; }
         .head { padding:20px; border-bottom:1px solid #e5e7eb; text-align:center; }
         .logo { max-height:42px; width:auto; }
-        .store { font-size:22px; font-weight:800; letter-spacing:.02em; }
+        .store { margin-top:8px; font-size:34px; font-weight:900; letter-spacing:.01em; text-transform:uppercase; }
         .content { padding:20px; }
         .title { font-size:24px; font-weight:800; margin:0 0 6px; }
         .muted { color:#64748b; font-size:14px; margin:0; }
@@ -53,9 +54,8 @@
             <div class="head">
                 @if (!empty($logo_url))
                     <img src="{{ $logo_url }}" alt="{{ $store_name }}" class="logo">
-                @else
-                    <div class="store">{{ $store_name }}</div>
                 @endif
+                <div class="store">{{ $store_name }}</div>
             </div>
 
             <div class="content">
@@ -150,8 +150,20 @@
                         <p><strong>{{ __('mail.orders.bank_description') }}:</strong> {{ $bank_transfer['description'] ?? '-' }}</p>
 
                         @if (!empty($bank_transfer['qr_image_base64']))
+                            @php
+                                $qrBinary = base64_decode((string) $bank_transfer['qr_image_base64'], true);
+                                $qrMime = (string) ($bank_transfer['qr_image_mime'] ?? 'image/png');
+                                $qrCid = null;
+                                if ($qrBinary !== false && isset($message) && method_exists($message, 'embedData')) {
+                                    $qrCid = $message->embedData($qrBinary, 'upi-qr-'.$order_number.'.png', $qrMime);
+                                }
+                            @endphp
                             <div class="bank-qr">
-                                <img src="data:{{ $bank_transfer['qr_image_mime'] ?? 'image/png' }};base64,{{ $bank_transfer['qr_image_base64'] }}" alt="{{ __('mail.orders.bank_qr_alt') }}">
+                                @if (!empty($qrCid))
+                                    <img src="{{ $qrCid }}" alt="{{ __('mail.orders.bank_qr_alt') }}">
+                                @elseif ($qrBinary !== false)
+                                    <img src="data:{{ $qrMime }};base64,{{ $bank_transfer['qr_image_base64'] }}" alt="{{ __('mail.orders.bank_qr_alt') }}">
+                                @endif
                             </div>
                         @endif
                     </div>
