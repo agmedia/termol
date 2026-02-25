@@ -61,6 +61,16 @@
             display: block;
             flex-shrink: 0;
         }
+        #cookie-consent-floating-button{
+            position: fixed !important;
+            left: 1rem !important;
+            bottom: 1rem !important;
+            z-index: 2147483647 !important;
+            display: inline-flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
 
     </style>
 @endif
