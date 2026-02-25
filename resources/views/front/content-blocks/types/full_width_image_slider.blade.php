@@ -71,7 +71,18 @@
                                 @if ($hasSlideLink)
                                     <a href="{{ $slideLink }}" class="block">
                                 @endif
-                                    <img src="{{ $slideUrl }}" alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}" class="h-[42vw] min-h-[420px] max-h-[880px] w-full object-cover">
+                                    <img
+                                        src="{{ $slideUrl }}"
+                                        alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}"
+                                        class="h-[42vw] min-h-[420px] max-h-[880px] w-full object-cover"
+                                        @if ($loop->first)
+                                            loading="eager"
+                                            fetchpriority="high"
+                                        @else
+                                            loading="lazy"
+                                        @endif
+                                        decoding="async"
+                                    >
                                     <div class="absolute inset-0 bg-black/10"></div>
                                     @if (($translation?->title ?? '') !== '' || ($translation?->subtitle ?? '') !== '')
                                         <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent px-6 pb-10 pt-16 text-white md:px-12">

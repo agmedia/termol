@@ -1,4 +1,5 @@
 @if ((bool) ($storeSettings['cookies']['enabled'] ?? true))
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vanilla-cookieconsent@3/dist/cookieconsent.css">
     <style>
         #cc-main .cm {

@@ -45,7 +45,18 @@
                 @endphp
 
                 <article class="group relative min-h-[360px] overflow-hidden md:min-h-[560px]">
-                    <img src="{{ $imageUrl }}" alt="{{ $slideTitle !== '' ? $slideTitle : $block->name }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]">
+                    <img
+                        src="{{ $imageUrl }}"
+                        alt="{{ $slideTitle !== '' ? $slideTitle : $block->name }}"
+                        class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+                        @if ($loop->first)
+                            loading="eager"
+                            fetchpriority="high"
+                        @else
+                            loading="lazy"
+                        @endif
+                        decoding="async"
+                    >
                     <div class="absolute inset-0 bg-gradient-to-t from-black/55 via-black/20 to-transparent"></div>
 
                     <div class="absolute inset-x-0 bottom-12 px-8 text-center text-white md:bottom-16 md:px-10">

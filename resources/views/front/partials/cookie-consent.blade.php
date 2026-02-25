@@ -30,7 +30,7 @@
         <img src="{{ asset('front-theme/images/cookie-svg.svg') }}" alt="" class="h-6 w-6" loading="lazy" />
     </button>
 
-    <script src="https://cdn.jsdelivr.net/npm/vanilla-cookieconsent@3/dist/cookieconsent.umd.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/vanilla-cookieconsent@3/dist/cookieconsent.umd.js"></script>
     <script>
         const syncGoogleConsent = () => {
             const analyticsGranted = window.CookieConsent.acceptedCategory('analytics');
@@ -45,7 +45,7 @@
             }
         };
 
-        window.CookieConsent.run({
+        const cookieConsentConfig = {
             disablePageInteraction: true,
             guiOptions: {
                 consentModal: {
@@ -113,18 +113,40 @@
                     }
                 }
             }
-        });
-        syncGoogleConsent();
-        setTimeout(() => {
+        };
+
+        (function initCookieConsent() {
+            if (typeof window.CookieConsent?.run !== 'function') {
+                let attempts = 0;
+                const timer = window.setInterval(() => {
+                    attempts += 1;
+                    if (typeof window.CookieConsent?.run === 'function' || attempts > 40) {
+                        window.clearInterval(timer);
+                        if (typeof window.CookieConsent?.run === 'function') {
+                            window.CookieConsent.run(cookieConsentConfig);
+                            syncGoogleConsent();
+                            if (!window.CookieConsent.validConsent()) {
+                                window.CookieConsent.show();
+                            }
+                        }
+                    }
+                }, 100);
+                return;
+            }
+
+            window.CookieConsent.run(cookieConsentConfig);
+            syncGoogleConsent();
             if (!window.CookieConsent.validConsent()) {
                 window.CookieConsent.show();
             }
-        }, 40);
+        })();
 
         const cookieFloatingButton = document.getElementById('cookie-consent-floating-button');
         if (cookieFloatingButton) {
             cookieFloatingButton.addEventListener('click', () => {
-                window.CookieConsent.showPreferences();
+                if (typeof window.CookieConsent?.showPreferences === 'function') {
+                    window.CookieConsent.showPreferences();
+                }
             });
         }
     </script>
