@@ -27,6 +27,7 @@ use App\Services\Settings\SystemSettingsService;
 use App\Services\UserTracking\UserTrackingService;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -62,6 +63,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ((bool) config('app.force_https', false)) {
+            URL::forceScheme('https');
+        }
+
         Livewire::addPersistentMiddleware([
             \App\Http\Middleware\EnsureAdminAbility::class,
         ]);

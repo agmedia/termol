@@ -9,11 +9,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <link rel="stylesheet" href="{{ asset('front-theme/styles/bootstrap.css') }}">
-    <link rel="stylesheet" href="{{ asset('front-theme/styles/style.css') }}">
-    <link rel="stylesheet" href="{{ asset('front-theme/styles/rising-sun-font.css') }}">
-    <link rel="preload" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}"></noscript>
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/bootstrap.css') }}?v={{ filemtime(public_path('front-theme/styles/bootstrap.css')) }}">
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/style.css') }}?v={{ filemtime(public_path('front-theme/styles/style.css')) }}">
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/rising-sun-font.css') }}?v={{ filemtime(public_path('front-theme/styles/rising-sun-font.css')) }}">
+    <link rel="preload" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}?v={{ filemtime(public_path('front-theme/fonts/css/fontawesome-all.min.css')) }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}?v={{ filemtime(public_path('front-theme/fonts/css/fontawesome-all.min.css')) }}"></noscript>
     <link rel="manifest" href="{{ route('front.manifest') }}">
     @if (!empty($storeSettings['branding']['favicons']['ico_url'] ?? null))
         <link rel="icon" href="{{ $storeSettings['branding']['favicons']['ico_url'] }}" sizes="any">
@@ -43,8 +43,6 @@
     @include('front.partials.cookie-consent-head')
 </head>
 <body class="theme-light font-risingsun" data-highlight="highlight-red">
-<div id="preloader"><div class="spinner-border color-highlight" role="status"></div></div>
-
 <div id="page">
     <div class="header header-fixed header-logo-center header-auto-show">
         <a href="{{ route('home') }}" class="header-title">@yield('header_title', (string) ($storeSettings['branding']['store_name'] ?? 'Store'))</a>
@@ -92,8 +90,8 @@
     @stack('mobile-menus')
 </div>
 
-<script defer src="{{ asset('front-theme/scripts/bootstrap.min.js') }}"></script>
-<script defer src="{{ asset('front-theme/scripts/custom.js') }}"></script>
+<script defer src="{{ asset('front-theme/scripts/bootstrap.min.js') }}?v={{ filemtime(public_path('front-theme/scripts/bootstrap.min.js')) }}"></script>
+<script defer src="{{ asset('front-theme/scripts/custom.js') }}?v={{ filemtime(public_path('front-theme/scripts/custom.js')) }}"></script>
 <script defer src="{{ asset('front-theme/scripts/wishlist-toggle.js') }}?v={{ filemtime(public_path('front-theme/scripts/wishlist-toggle.js')) }}"></script>
 @include('front.partials.cookie-consent')
 @stack('scripts')

@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         //Image Sliders
         var splide = document.getElementsByClassName('splide');
-        if(splide.length){
+        if(splide.length && typeof window.Splide === 'function'){
             var singleSlider = document.querySelectorAll('.single-slider');
             if(singleSlider.length){
                 singleSlider.forEach(function(e){
@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         var topicSlider = document.querySelectorAll('.topic-slider');
-        if(topicSlider.length){
+        if(topicSlider.length && typeof window.Splide === 'function'){
              var topic = new Splide( '.topic-slider', {
                 type:'loop',
                 autoplay:false,
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }).mount();
         }
         var storySlider = document.querySelectorAll('.story-slider');
-        if(storySlider.length){
+        if(storySlider.length && typeof window.Splide === 'function'){
              var topic = new Splide( '.story-slider', {
                 type:'loop',
                 autoplay:false,
@@ -1271,6 +1271,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 },500);
             })
+            .catch(() => {
+                // Ignore optional menu fragment loading errors to avoid noisy console failures.
+            })
         })
 
         //Detecting Mobile OS
@@ -1652,4 +1655,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
     waitForPageAndInit();
 });
-

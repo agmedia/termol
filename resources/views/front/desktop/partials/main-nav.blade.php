@@ -130,7 +130,7 @@
                                 @endif
                                     <div class="relative aspect-[4/5] overflow-hidden bg-slate-200">
                                         @if ($promoImage !== '')
-                                            <img src="{{ $promoImage }}" alt="{{ $promoTitle !== '' ? $promoTitle : $item['label'] }}" class="h-full w-full object-cover transition duration-300 group-hover/promo:scale-[1.02]">
+                                            <img src="{{ $promoImage }}" alt="{{ $promoTitle !== '' ? $promoTitle : $item['label'] }}" class="h-full w-full object-cover transition duration-300 group-hover/promo:scale-[1.02]" loading="lazy" decoding="async">
                                         @else
                                             <div class="h-full w-full bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300"></div>
                                         @endif

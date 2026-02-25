@@ -56,6 +56,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Force HTTPS URLs
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, Laravel will generate all URLs with the https scheme.
+    | Useful for reverse-proxy hosting setups where mixed-content can appear.
+    |
+    */
+
+    'force_https' => (bool) env('FORCE_HTTPS', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Maintenance Bypass Secret
     |--------------------------------------------------------------------------
     |
