@@ -542,19 +542,26 @@ class StoreSettings extends Component
             return;
         }
 
-        foreach ($batch as $media) {
-            $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type);
+        $queueConversionsByDefault = (bool) config('media-library.queue_conversions_by_default', true);
+        config()->set('media-library.queue_conversions_by_default', false);
 
-            try {
-                if ($conversionNames !== []) {
-                    app(FileManipulator::class)->createDerivedFiles($media, $conversionNames, true, false, false);
+        try {
+            foreach ($batch as $media) {
+                $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type);
+
+                try {
+                    if ($conversionNames !== []) {
+                        app(FileManipulator::class)->createDerivedFiles($media, $conversionNames, true, false, false);
+                    }
+                } catch (\Throwable) {
+                    $state['failed'] = (int) ($state['failed'] ?? 0) + 1;
                 }
-            } catch (\Throwable) {
-                $state['failed'] = (int) ($state['failed'] ?? 0) + 1;
-            }
 
-            $state['processed'] = (int) ($state['processed'] ?? 0) + 1;
-            $state['last_id'] = (int) $media->id;
+                $state['processed'] = (int) ($state['processed'] ?? 0) + 1;
+                $state['last_id'] = (int) $media->id;
+            }
+        } finally {
+            config()->set('media-library.queue_conversions_by_default', $queueConversionsByDefault);
         }
 
         if ((int) ($state['processed'] ?? 0) >= (int) ($state['total'] ?? 0)) {
