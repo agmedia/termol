@@ -99,11 +99,23 @@
     @stack('mobile-menus')
 </div>
 
-<script defer src="{{ asset('front-theme/scripts/bootstrap.min.js') }}?v={{ filemtime(public_path('front-theme/scripts/bootstrap.min.js')) }}"></script>
-<script defer src="{{ asset('front-theme/scripts/custom.js') }}?v={{ filemtime(public_path('front-theme/scripts/custom.js')) }}"></script>
-<script defer src="{{ asset('front-theme/scripts/wishlist-toggle.js') }}?v={{ filemtime(public_path('front-theme/scripts/wishlist-toggle.js')) }}"></script>
 <script>
     (function () {
+        var onLoadQueue = [
+            "{{ asset('front-theme/scripts/bootstrap.min.js') }}?v={{ filemtime(public_path('front-theme/scripts/bootstrap.min.js')) }}",
+            "{{ asset('front-theme/scripts/custom.js') }}?v={{ filemtime(public_path('front-theme/scripts/custom.js')) }}",
+            "{{ asset('front-theme/scripts/wishlist-toggle.js') }}?v={{ filemtime(public_path('front-theme/scripts/wishlist-toggle.js')) }}"
+        ];
+        function loadScript(src) {
+            var s = document.createElement('script');
+            s.src = src;
+            s.defer = true;
+            document.body.appendChild(s);
+        }
+        window.addEventListener('load', function () {
+            onLoadQueue.forEach(loadScript);
+        }, { once: true });
+
         var loaded = false;
         function loadFontAwesome() {
             if (loaded) return;
