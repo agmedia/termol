@@ -116,50 +116,16 @@
                     @error('syncForm.luceed_sync_stock_warehouses') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
 
-                <div class="grid gap-3 md:grid-cols-3">
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('B2B Partner Type') }}</label>
-                        <input type="text" wire:model="syncForm.luceed_sync_partner_type" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
-                        @error('syncForm.luceed_sync_partner_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('B2B Partner Value') }}</label>
-                        <input type="text" wire:model="syncForm.luceed_sync_partner_value" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
-                        @error('syncForm.luceed_sync_partner_value') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('B2B Currency') }}</label>
-                        <input type="text" wire:model="syncForm.luceed_sync_partner_currency" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
-                        @error('syncForm.luceed_sync_partner_currency') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                    </div>
-                </div>
-
                 <div class="grid gap-3 md:grid-cols-2">
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Order Status Domain') }}</label>
-                        <select wire:model="syncForm.luceed_sync_order_status_domain" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                            <option value="NaloziProdaje">NaloziProdaje</option>
-                            <option value="Narudzbe">Narudzbe</option>
-                        </select>
-                        @error('syncForm.luceed_sync_order_status_domain') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                    </div>
                     <div>
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Order Lookback Days') }}</label>
                         <input type="number" min="1" wire:model="syncForm.luceed_sync_orders_lookback_days" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
                         @error('syncForm.luceed_sync_orders_lookback_days') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
-                </div>
-
-                <div class="grid gap-3 md:grid-cols-2">
                     <div>
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Remote Status Codes Filter (CSV, optional)') }}</label>
                         <input type="text" wire:model="syncForm.luceed_sync_status_codes" placeholder="10,20,30" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
                         @error('syncForm.luceed_sync_status_codes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Status Duration Threshold (days)') }}</label>
-                        <input type="number" min="1" wire:model="syncForm.luceed_sync_status_duration_days" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
-                        @error('syncForm.luceed_sync_status_duration_days') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
                 </div>
 
@@ -167,6 +133,11 @@
                     <button type="submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">{{ __('Save Sync Settings') }}</button>
                 </div>
             </form>
+
+            <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Luceed Endpoint Map (fixed for current integration)') }}</p>
+                <pre class="mt-2 overflow-x-auto rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700">{{ json_encode($endpointMap, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+            </div>
         </div>
     @endif
 
@@ -224,8 +195,8 @@
                 <h4 class="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Key settings explained') }}</h4>
                 <p class="mt-2 text-sm text-slate-700"><strong>{{ __('Article Limit') }}:</strong> {{ __('safety cap for heavy product sync. 0 means full list. Use a small number while validating mapping.') }}</p>
                 <p class="mt-2 text-sm text-slate-700"><strong>{{ __('Stock Warehouse Codes') }}:</strong> {{ __('warehouse scope for quantity sync. Empty means auto-discover all warehouses.') }}</p>
-                <p class="mt-2 text-sm text-slate-700"><strong>{{ __('B2B Partner Type/Value') }}:</strong> {{ __('required by B2B price diff endpoint. If missing, B2B price sync intentionally fails with explicit error.') }}</p>
-                <p class="mt-2 text-sm text-slate-700"><strong>{{ __('Order Lookback + Status Codes') }}:</strong> {{ __('controls how many remote rows are scanned when syncing local order statuses.') }}</p>
+                <p class="mt-2 text-sm text-slate-700"><strong>{{ __('Order Lookback + Status Codes') }}:</strong> {{ __('Controls `NaloziProdaje/statusi/` query scope for order sync.') }}</p>
+                <p class="mt-2 text-sm text-slate-700"><strong>{{ __('Endpoint Map') }}:</strong> {{ __('Locked to the fixed Luceed values shown in Settings tab. No dynamic endpoint composition outside those bases.') }}</p>
             </section>
 
             <section>
@@ -237,7 +208,7 @@
             <section>
                 <h4 class="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Operational workflow') }}</h4>
                 <p class="mt-2 text-sm text-slate-700">1) {{ __('Save connection and test probe.') }}</p>
-                <p class="mt-1 text-sm text-slate-700">2) {{ __('Set sync settings (locale/warehouses/partner).') }}</p>
+                <p class="mt-1 text-sm text-slate-700">2) {{ __('Set sync settings (locale/warehouses/order filters).') }}</p>
                 <p class="mt-1 text-sm text-slate-700">3) {{ __('Run catalog dictionary actions once or on demand.') }}</p>
                 <p class="mt-1 text-sm text-slate-700">4) {{ __('Run product + price + quantity actions in order.') }}</p>
                 <p class="mt-1 text-sm text-slate-700">5) {{ __('Run order status sync and inspect history log for counts/errors.') }}</p>

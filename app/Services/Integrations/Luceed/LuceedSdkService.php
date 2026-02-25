@@ -17,6 +17,7 @@ use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Psr7\HttpFactory;
 use InvalidArgumentException;
 use RuntimeException;
+use Throwable;
 
 class LuceedSdkService
 {
@@ -48,7 +49,7 @@ class LuceedSdkService
             'luceed_api_query_value' => '',
             'luceed_api_timeout_seconds' => 20,
             'luceed_api_verify_tls' => true,
-            'luceed_api_probe' => self::PROBE_SIFRARNICI,
+            'luceed_api_probe' => self::PROBE_SKLADISTA,
         ];
     }
 
@@ -119,10 +120,7 @@ class LuceedSdkService
         $client = $this->makeClient($override);
 
         $rows = match ($probe) {
-            self::PROBE_SIFRARNICI => array_map(
-                static fn ($item): array => $item->data,
-                $client->sifrarnici()->listCodebooks()
-            ),
+            self::PROBE_SIFRARNICI => $this->probeSifrarniciWithFallback($client),
             self::PROBE_SKLADISTA => array_map(
                 static fn ($item): array => $item->data,
                 $client->skladista()->list()
@@ -139,6 +137,42 @@ class LuceedSdkService
             'result_count' => count($rows),
             'first_item' => $rows[0] ?? null,
         ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function probeSifrarniciWithFallback(LuceedClient $client): array
+    {
+        try {
+            return array_map(
+                static fn ($item): array => $item->data,
+                $client->sifrarnici()->listCodebooks()
+            );
+        } catch (Throwable $primaryException) {
+            $fallbacks = [
+                ['path' => 'sifrarnici/lista', 'lists' => ['sifrarnici']],
+                ['path' => 'Sifrarnici/Lista', 'lists' => ['sifrarnici']],
+                ['path' => 'Sifrarnici/list', 'lists' => ['sifrarnici']],
+            ];
+
+            foreach ($fallbacks as $fallback) {
+                try {
+                    $rows = $client->raw()->getRows((string) $fallback['path'], (array) $fallback['lists']);
+                    if ($rows !== []) {
+                        return $rows;
+                    }
+                } catch (Throwable) {
+                    // Try next fallback path.
+                }
+            }
+
+            throw new RuntimeException(
+                'Sifrarnici probe is not available for this Luceed profile/user. '.
+                'Use Skladista or Vrste placanja probe, or enable Sifrarnici/List permission. '.
+                'Original error: '.$primaryException->getMessage()
+            );
+        }
     }
 
     public function assertEnabled(): void

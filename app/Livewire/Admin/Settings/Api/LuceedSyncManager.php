@@ -4,7 +4,6 @@ namespace App\Livewire\Admin\Settings\Api;
 
 use App\Models\Integrations\LuceedSyncRun;
 use App\Services\Integrations\Luceed\LuceedSyncService;
-use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -24,13 +23,8 @@ class LuceedSyncManager extends Component
         'luceed_sync_default_locale' => 'en',
         'luceed_sync_article_limit' => 0,
         'luceed_sync_stock_warehouses' => '',
-        'luceed_sync_partner_type' => 'sifra',
-        'luceed_sync_partner_value' => '',
-        'luceed_sync_partner_currency' => 'EUR',
         'luceed_sync_orders_lookback_days' => 30,
         'luceed_sync_status_codes' => '',
-        'luceed_sync_status_duration_days' => 4,
-        'luceed_sync_order_status_domain' => 'NaloziProdaje',
     ];
 
     public string $runningActionKey = '';
@@ -105,6 +99,7 @@ class LuceedSyncManager extends Component
 
         return view('livewire.admin.settings.api.luceed-sync-manager', [
             'actionGroups' => $syncService->actionGroups(),
+            'endpointMap' => $syncService->endpointMap(),
             'runs' => $runs,
             'lastRun' => $lastRun,
         ]);
@@ -119,13 +114,8 @@ class LuceedSyncManager extends Component
             'syncForm.luceed_sync_default_locale' => ['required', 'string', 'max:12'],
             'syncForm.luceed_sync_article_limit' => ['required', 'integer', 'min:0', 'max:100000'],
             'syncForm.luceed_sync_stock_warehouses' => ['nullable', 'string', 'max:2000'],
-            'syncForm.luceed_sync_partner_type' => ['required', 'string', 'max:32'],
-            'syncForm.luceed_sync_partner_value' => ['nullable', 'string', 'max:128'],
-            'syncForm.luceed_sync_partner_currency' => ['required', 'string', 'max:8'],
             'syncForm.luceed_sync_orders_lookback_days' => ['required', 'integer', 'min:1', 'max:365'],
             'syncForm.luceed_sync_status_codes' => ['nullable', 'string', 'max:500'],
-            'syncForm.luceed_sync_status_duration_days' => ['required', 'integer', 'min:1', 'max:60'],
-            'syncForm.luceed_sync_order_status_domain' => ['required', 'string', 'max:64', Rule::in(['NaloziProdaje', 'Narudzbe'])],
         ];
     }
 
@@ -139,13 +129,8 @@ class LuceedSyncManager extends Component
             'luceed_sync_default_locale' => strtolower(trim((string) ($raw['luceed_sync_default_locale'] ?? 'en'))),
             'luceed_sync_article_limit' => max(0, (int) ($raw['luceed_sync_article_limit'] ?? 0)),
             'luceed_sync_stock_warehouses' => trim((string) ($raw['luceed_sync_stock_warehouses'] ?? '')),
-            'luceed_sync_partner_type' => trim((string) ($raw['luceed_sync_partner_type'] ?? 'sifra')),
-            'luceed_sync_partner_value' => trim((string) ($raw['luceed_sync_partner_value'] ?? '')),
-            'luceed_sync_partner_currency' => strtoupper(trim((string) ($raw['luceed_sync_partner_currency'] ?? 'EUR'))),
             'luceed_sync_orders_lookback_days' => max(1, (int) ($raw['luceed_sync_orders_lookback_days'] ?? 30)),
             'luceed_sync_status_codes' => trim((string) ($raw['luceed_sync_status_codes'] ?? '')),
-            'luceed_sync_status_duration_days' => max(1, (int) ($raw['luceed_sync_status_duration_days'] ?? 4)),
-            'luceed_sync_order_status_domain' => trim((string) ($raw['luceed_sync_order_status_domain'] ?? 'NaloziProdaje')),
         ];
     }
 

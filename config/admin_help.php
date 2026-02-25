@@ -627,7 +627,7 @@ return [
                     'items' => [
                         '1) Enable Luceed in Catalog Features (`Use Luceed API`) and enable Luceed connector toggle in Luceed API settings.',
                         '2) Save connection/auth and run Test Connection probe.',
-                        '3) Open Sync Manager / Settings tab and define locale, stock warehouse CSV, and partner parameters for B2B pricing.',
+                        '3) Open Sync Manager / Settings tab and define locale, stock warehouse CSV, and order status filters.',
                         '4) Run actions in order: categories/manufacturers/payments -> products -> prices/quantities -> order statuses.',
                         '5) Inspect History tab after each run; failed actions keep exact error message for troubleshooting.',
                     ],
@@ -635,9 +635,9 @@ return [
                 [
                     'title' => 'Luceed Sync Action Groups',
                     'items' => [
-                        'Catalog Foundations: Import/Update categories, Sync category UIDs, Import manufacturers, Sync manufacturer UIDs, Import warehouses, Import payment methods.',
-                        'Products And Prices: Import/Update products, Additional product data, Related products, Import actions, Last-30d action prices, Update prices, Update B2B prices, Update VPC prices, Update quantities, Combined price+quantity update.',
-                        'Order Status Sync: Update order statuses, Update B2B order statuses, Check order status duration.',
+                        'Catalog Base Sync: Add/Update categories, Add/Update manufacturers, Sync warehouses, Sync payment methods.',
+                        'Product Sync: Add/Update products, Sync actions, Sync related products, Update prices, Update quantities.',
+                        'Order Sync: Update order statuses.',
                     ],
                 ],
                 [

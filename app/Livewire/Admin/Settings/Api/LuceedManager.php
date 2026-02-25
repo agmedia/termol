@@ -25,7 +25,7 @@ class LuceedManager extends Component
         'luceed_api_query_value' => '',
         'luceed_api_timeout_seconds' => 20,
         'luceed_api_verify_tls' => true,
-        'luceed_api_probe' => LuceedSdkService::PROBE_SIFRARNICI,
+        'luceed_api_probe' => LuceedSdkService::PROBE_SKLADISTA,
     ];
 
     /**
@@ -136,7 +136,7 @@ class LuceedManager extends Component
             'luceed_api_query_value' => trim((string) ($raw['luceed_api_query_value'] ?? '')),
             'luceed_api_timeout_seconds' => (int) ($raw['luceed_api_timeout_seconds'] ?? 20),
             'luceed_api_verify_tls' => (bool) ($raw['luceed_api_verify_tls'] ?? true),
-            'luceed_api_probe' => (string) ($raw['luceed_api_probe'] ?? LuceedSdkService::PROBE_SIFRARNICI),
+            'luceed_api_probe' => (string) ($raw['luceed_api_probe'] ?? LuceedSdkService::PROBE_SKLADISTA),
         ];
     }
 
@@ -160,7 +160,6 @@ class LuceedManager extends Component
     private function probeOptions(): array
     {
         return [
-            LuceedSdkService::PROBE_SIFRARNICI => __('Sifrarnici (codebooks)'),
             LuceedSdkService::PROBE_SKLADISTA => __('Skladista (warehouses)'),
             LuceedSdkService::PROBE_VRSTE_PLACANJA => __('Vrste placanja (payment types)'),
         ];
