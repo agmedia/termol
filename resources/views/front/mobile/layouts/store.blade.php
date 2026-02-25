@@ -15,8 +15,6 @@
     <noscript><link rel="stylesheet" href="{{ asset('front-theme/styles/style.css') }}?v={{ filemtime(public_path('front-theme/styles/style.css')) }}"></noscript>
     <link rel="preload" href="{{ asset('front-theme/styles/rising-sun-font.css') }}?v={{ filemtime(public_path('front-theme/styles/rising-sun-font.css')) }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="{{ asset('front-theme/styles/rising-sun-font.css') }}?v={{ filemtime(public_path('front-theme/styles/rising-sun-font.css')) }}"></noscript>
-    <link rel="preload" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}?v={{ filemtime(public_path('front-theme/fonts/css/fontawesome-all.min.css')) }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}?v={{ filemtime(public_path('front-theme/fonts/css/fontawesome-all.min.css')) }}"></noscript>
     <link rel="manifest" href="{{ route('front.manifest') }}">
     @if (!empty($storeSettings['branding']['favicons']['ico_url'] ?? null))
         <link rel="icon" href="{{ $storeSettings['branding']['favicons']['ico_url'] }}" sizes="any">
@@ -49,31 +47,39 @@
 <div id="page">
     <div class="header header-fixed header-logo-center header-auto-show">
         <a href="{{ route('home') }}" class="header-title">@yield('header_title', (string) ($storeSettings['branding']['store_name'] ?? 'Store'))</a>
-        <a href="#" data-back-button class="header-icon header-icon-1" aria-label="Back"><i class="fas fa-chevron-left"></i></a>
-        <a href="#" data-menu="menu-main" class="header-icon header-icon-4" aria-label="Menu"><i class="fas fa-bars"></i></a>
-        <a href="#" data-toggle-theme class="header-icon header-icon-3 show-on-theme-dark" aria-label="Light mode"><i class="fas fa-sun"></i></a>
-        <a href="#" data-toggle-theme class="header-icon header-icon-3 show-on-theme-light" aria-label="Dark mode"><i class="fas fa-moon"></i></a>
+        <a href="#" data-back-button class="header-icon header-icon-1" aria-label="Back">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        </a>
+        <a href="#" data-menu="menu-main" class="header-icon header-icon-4" aria-label="Menu">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </a>
+        <a href="#" data-toggle-theme class="header-icon header-icon-3 show-on-theme-dark" aria-label="Light mode">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+        </a>
+        <a href="#" data-toggle-theme class="header-icon header-icon-3 show-on-theme-light" aria-label="Dark mode">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 1 0 9.8 9.8Z"/></svg>
+        </a>
     </div>
 
     <div id="footer-bar" class="footer-bar-6">
-        <a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? 'active-nav' : '' }}"><i class="fa fa-home"></i><span>Home</span></a>
-        <a href="{{ route('categories.index') }}" class="{{ request()->routeIs('categories.*') ? 'active-nav' : '' }}"><i class="fa fa-th-large"></i><span>Categories</span></a>
-        <a href="{{ route('shop.index') }}" class="{{ request()->routeIs('shop.*') ? 'active-nav circle-nav' : 'circle-nav' }}"><i class="fa fa-star"></i><span>Shop</span></a>
-        <a href="{{ route('cart.index') }}" class="{{ request()->routeIs('cart.*') ? 'active-nav' : '' }}"><i class="fa fa-bag-shopping"></i><span>Cart</span></a>
+        <a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? 'active-nav' : '' }}"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3 3 10h2v10h5v-6h4v6h5V10h2z"/></svg><span>Home</span></a>
+        <a href="{{ route('categories.index') }}" class="{{ request()->routeIs('categories.*') ? 'active-nav' : '' }}"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z"/></svg><span>Categories</span></a>
+        <a href="{{ route('shop.index') }}" class="{{ request()->routeIs('shop.*') ? 'active-nav circle-nav' : 'circle-nav' }}"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 2 2.7 5.5L21 8.4l-4.5 4.4 1.1 6.2L12 16.1 6.4 19l1.1-6.2L3 8.4l6.3-.9z"/></svg><span>Shop</span></a>
+        <a href="{{ route('cart.index') }}" class="{{ request()->routeIs('cart.*') ? 'active-nav' : '' }}"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 9h10l-1 10H8L7 9Z"/><path d="M9 9V7a3 3 0 0 1 6 0v2"/></svg><span>Cart</span></a>
         <a href="{{ route('wishlist.index') }}" class="{{ request()->routeIs('wishlist.*') ? 'active-nav' : '' }}">
-            <i class="fa fa-heart"></i>
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20.8 8.6c0 5.9-8.8 10.9-8.8 10.9S3.2 14.5 3.2 8.6a4.8 4.8 0 0 1 8.8-2.7 4.8 4.8 0 0 1 8.8 2.7Z"/></svg>
             <span>{{ __('ui.front.desktop.favorites') }}</span>
             <u data-wishlist-count>{{ (int) ($wishlistSummary['item_count'] ?? 0) }}</u>
         </a>
-        <a href="#" data-menu="menu-main"><i class="fa fa-bars"></i><span>Menu</span></a>
+        <a href="#" data-menu="menu-main"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></a>
     </div>
 
     <div class="page-title page-title-fixed">
         <h1>@yield('page_title', 'Store')</h1>
-        <a href="#" class="page-title-icon shadow-xl bg-theme color-theme" data-menu="menu-share" aria-label="Share"><i class="fa fa-share-alt"></i></a>
-        <a href="#" class="page-title-icon shadow-xl bg-theme color-theme show-on-theme-light" data-toggle-theme aria-label="Dark mode"><i class="fa fa-moon"></i></a>
-        <a href="#" class="page-title-icon shadow-xl bg-theme color-theme show-on-theme-dark" data-toggle-theme aria-label="Light mode"><i class="fa fa-lightbulb color-yellow-dark"></i></a>
-        <a href="#" class="page-title-icon shadow-xl bg-theme color-theme" data-menu="menu-main" aria-label="Menu"><i class="fa fa-bars"></i></a>
+        <a href="#" class="page-title-icon shadow-xl bg-theme color-theme" data-menu="menu-share" aria-label="Share"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M16 8a3 3 0 1 0-2.9-3.8L8.8 6.9a3 3 0 1 0 0 10.2l4.3 2.7A3 3 0 1 0 14 18a3 3 0 0 0-.1-.8l-4.3-2.7a3 3 0 0 0 0-5l4.3-2.7c.3.2.7.2 1.1.2Z"/></svg></a>
+        <a href="#" class="page-title-icon shadow-xl bg-theme color-theme show-on-theme-light" data-toggle-theme aria-label="Dark mode"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 1 0 9.8 9.8Z"/></svg></a>
+        <a href="#" class="page-title-icon shadow-xl bg-theme color-theme show-on-theme-dark" data-toggle-theme aria-label="Light mode"><svg class="h-4 w-4 text-yellow-300" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3a1 1 0 0 1 1 1v1.1a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1Zm0 14a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm8-6a1 1 0 0 1 1 1 1 1 0 0 1-1 1h-1.1a1 1 0 1 1 0-2H20ZM5.1 12a1 1 0 1 1 0 2H4a1 1 0 1 1 0-2h1.1Zm11.2 5.7a1 1 0 0 1 1.4 0l.8.8a1 1 0 1 1-1.4 1.4l-.8-.8a1 1 0 0 1 0-1.4ZM6.5 6.5a1 1 0 0 1 1.4 0l.8.8A1 1 0 0 1 7.3 8.7l-.8-.8a1 1 0 0 1 0-1.4Zm11 2.2a1 1 0 0 1 0-1.4l.8-.8a1 1 0 1 1 1.4 1.4l-.8.8a1 1 0 0 1-1.4 0ZM6.5 17.5a1 1 0 0 1 1.4 0 1 1 0 0 1 0 1.4l-.8.8a1 1 0 1 1-1.4-1.4l.8-.8Z"/></svg></a>
+        <a href="#" class="page-title-icon shadow-xl bg-theme color-theme" data-menu="menu-main" aria-label="Menu"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></a>
     </div>
     <div class="page-title-clear"></div>
 
@@ -96,6 +102,29 @@
 <script defer src="{{ asset('front-theme/scripts/bootstrap.min.js') }}?v={{ filemtime(public_path('front-theme/scripts/bootstrap.min.js')) }}"></script>
 <script defer src="{{ asset('front-theme/scripts/custom.js') }}?v={{ filemtime(public_path('front-theme/scripts/custom.js')) }}"></script>
 <script defer src="{{ asset('front-theme/scripts/wishlist-toggle.js') }}?v={{ filemtime(public_path('front-theme/scripts/wishlist-toggle.js')) }}"></script>
+<script>
+    (function () {
+        var loaded = false;
+        function loadFontAwesome() {
+            if (loaded) return;
+            loaded = true;
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = "{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}?v={{ filemtime(public_path('front-theme/fonts/css/fontawesome-all.min.css')) }}";
+            document.head.appendChild(link);
+        }
+        document.addEventListener('click', function (event) {
+            if (event.target && event.target.closest('[data-menu=\"menu-main\"], [data-menu=\"menu-share\"]')) {
+                loadFontAwesome();
+            }
+        }, { passive: true });
+        if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(loadFontAwesome, { timeout: 2500 });
+        } else {
+            window.setTimeout(loadFontAwesome, 2500);
+        }
+    })();
+</script>
 @include('front.partials.cookie-consent')
 @stack('scripts')
 </body>

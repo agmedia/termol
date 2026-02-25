@@ -49,6 +49,12 @@ class ProductCard extends Component
                 static fn ($media): bool => ! $mainMedia || (int) $media->id !== (int) $mainMedia->id
             );
         }
+        if (! $hoverMedia) {
+            $hoverMedia = $this->product
+                ->getMedia('*')
+                ->whereIn('collection_name', ['product_main', 'product_gallery'])
+                ->first(static fn ($media): bool => ! $mainMedia || (int) $media->id !== (int) $mainMedia->id);
+        }
         $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', false);
 
         $imageUrl = MediaUrl::conversion($mainMedia, 'card_480w', $preferWebp);
