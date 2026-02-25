@@ -116,12 +116,17 @@
                     fill: #fff;
                 }
 
+                #products-carousel-{{ $block->id }} .splide__pagination {
+                    bottom: -1.1rem;
+                }
+
                 @media (hover: none) {
                     #products-carousel-{{ $block->id }} .splide__arrow {
                         opacity: 1;
                         transform: translateY(-50%) scale(1);
                     }
                 }
+
             </style>
 
             @once
@@ -174,7 +179,7 @@
                                         gap: '1.25rem',
                                         drag: count > 1,
                                         snap: true,
-                                        pagination: count > 1,
+                                        pagination: false,
                                         arrows: count > 1,
                                         updateOnMove: true,
                                         speed: 520,

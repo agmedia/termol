@@ -174,7 +174,7 @@
                                         gap: '1.25rem',
                                         drag: count > 1,
                                         snap: true,
-                                        pagination: count > 1,
+                                        pagination: false,
                                         arrows: count > 1,
                                         updateOnMove: true,
                                         speed: 520,

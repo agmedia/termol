@@ -49,7 +49,7 @@
                             @endif
                         </div>
 
-                        <h2 class="mt-4 text-center text-2xl font-semibold leading-tight text-slate-800">
+                        <h2 class="mt-4 text-center text-lg font-semibold leading-snug text-slate-800 lg:text-xl">
                             {{ $translation?->title ?? $post->code }}
                         </h2>
 

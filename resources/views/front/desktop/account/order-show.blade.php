@@ -14,7 +14,7 @@
         ['label' => __('ui.account.order_show.title', ['number' => $order->order_number])],
     ]])
 
-    <section class="mb-8 border border-slate-200 bg-slate-100 px-6 py-6 text-center">
+    <section class="mb-8 border border-slate-200 bg-slate-100 px-4 py-6 text-center sm:px-6">
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.account.order_show.title', ['number' => $order->order_number]) }}</h1>
         <p class="mt-2 text-slate-600">{{ __('ui.account.order_show.status') }}: <span class="font-semibold">{{ $order->status?->name ?? __('ui.account.orders.status_new') }}</span></p>
         <p class="mt-1 text-sm text-slate-500">{{ __('ui.account.order_show.placed_at') }}: {{ optional($order->placed_at ?? $order->created_at)->format('Y-m-d H:i') }}</p>
@@ -23,7 +23,7 @@
     <div class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
         @include('front.desktop.account.partials.nav', ['current' => 'order_show'])
 
-        <div class="space-y-6">
+        <div class="min-w-0 space-y-6">
             @php
                 $visitedStatusIds = collect([$order->status_id])
                     ->merge($order->history->pluck('to_status_id'))
@@ -129,8 +129,8 @@
             @if (!empty($boxNow['locker_id']))
                 <section class="border border-blue-200 bg-blue-50 p-6">
                     <h2 class="text-lg font-semibold text-slate-900">{{ __('ui.account.order_show.boxnow.title') }}</h2>
-                    <p class="mt-2 text-sm text-slate-700"><strong>{{ __('ui.account.order_show.boxnow.locker') }}:</strong> {{ $boxNow['locker_name'] ?: '-' }} ({{ $boxNow['locker_id'] }})</p>
-                    <p class="mt-1 text-sm text-slate-700"><strong>{{ __('ui.account.order_show.boxnow.address') }}:</strong> {{ trim(($boxNow['address_line_1'] ?? '').', '.($boxNow['postal_code'] ?? '').' '.($boxNow['city'] ?? ''), ', ') ?: '-' }}</p>
+                    <p class="mt-2 break-words text-sm text-slate-700"><strong>{{ __('ui.account.order_show.boxnow.locker') }}:</strong> {{ $boxNow['locker_name'] ?: '-' }} ({{ $boxNow['locker_id'] }})</p>
+                    <p class="mt-1 break-words text-sm text-slate-700"><strong>{{ __('ui.account.order_show.boxnow.address') }}:</strong> {{ trim(($boxNow['address_line_1'] ?? '').', '.($boxNow['postal_code'] ?? '').' '.($boxNow['city'] ?? ''), ', ') ?: '-' }}</p>
                 </section>
             @endif
 
@@ -139,7 +139,7 @@
                     <h2 class="text-lg font-semibold text-slate-900">{{ __('ui.account.order_show.ordered_items') }}</h2>
                 </div>
                 <div class="overflow-x-auto lg:overflow-visible">
-                    <table class="min-w-[980px] w-full text-sm lg:min-w-0">
+                    <table class="w-full min-w-[760px] text-sm lg:min-w-0">
                         <thead class="bg-slate-100/70 text-left text-xs uppercase tracking-wide text-slate-500">
                         <tr>
                             <th class="px-4 py-3">{{ __('ui.account.order_show.table.item') }}</th>
@@ -194,11 +194,11 @@
                                                 @endif
                                             </div>
                                         @endif
-                                        <div>
+                                        <div class="min-w-0">
                                             @if ($productUrl)
-                                                <a href="{{ $productUrl }}" class="font-semibold text-slate-900 hover:text-blue-700">{{ $item->name }}</a>
+                                                <a href="{{ $productUrl }}" class="break-words font-semibold text-slate-900 hover:text-blue-700">{{ $item->name }}</a>
                                             @else
-                                                <span class="font-semibold text-slate-900">{{ $item->name }}</span>
+                                                <span class="break-words font-semibold text-slate-900">{{ $item->name }}</span>
                                             @endif
                                             @if ($optionLabel !== '')
                                                 <p class="mt-1 text-xs text-slate-500">{{ $optionLabel }}</p>

@@ -9,7 +9,7 @@
         ['label' => __('ui.account.dashboard.title')],
     ]])
 
-    <section class="mb-8 border border-slate-200 bg-slate-100 px-6 py-6 text-center">
+    <section class="mb-8 border border-slate-200 bg-slate-100 px-4 py-6 text-center sm:px-6">
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.account.dashboard.title') }}</h1>
         <p class="mt-2 text-slate-600">{{ __('ui.account.dashboard.subtitle') }}</p>
     </section>
@@ -17,7 +17,7 @@
     <div class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
         @include('front.desktop.account.partials.nav', ['current' => 'dashboard'])
 
-        <div class="space-y-8">
+        <div class="min-w-0 space-y-8">
             <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                 <article class="border border-slate-200 bg-white p-5">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.dashboard.cards.user') }}</p>
@@ -49,7 +49,7 @@
                 <h2 class="text-2xl font-bold text-slate-900">{{ __('ui.account.dashboard.recent_orders.title') }}</h2>
                 <div class="mt-4 overflow-hidden border border-slate-200 bg-white">
                     <div class="overflow-x-auto">
-                        <table class="min-w-[700px] w-full text-sm">
+                        <table class="w-full min-w-[560px] text-sm sm:min-w-[620px]">
                             <thead class="bg-slate-100/70 text-left text-xs uppercase tracking-wide text-slate-500">
                             <tr>
                                 <th class="px-4 py-3">{{ __('ui.account.orders.table.order') }}</th>
@@ -61,7 +61,7 @@
                             <tbody>
                             @forelse ($orders as $order)
                                 <tr class="border-t border-slate-200">
-                                    <td class="px-4 py-3"><a href="{{ route('account.orders.show', ['orderNumber' => $order->order_number]) }}" class="font-semibold text-slate-900 underline-offset-2 hover:underline">{{ $order->order_number }}</a></td>
+                                    <td class="px-4 py-3"><a href="{{ route('account.orders.show', ['orderNumber' => $order->order_number]) }}" class="break-all font-semibold text-slate-900 underline-offset-2 hover:underline">{{ $order->order_number }}</a></td>
                                     <td class="px-4 py-3">{{ optional($order->placed_at ?? $order->created_at)->format('Y-m-d H:i') }}</td>
                                     <td class="px-4 py-3">{{ $order->status?->name ?? __('ui.account.orders.status_new') }}</td>
                                     <td class="px-4 py-3 font-semibold">{{ \App\Support\Currency::format((float) $order->grand_total, $order->currency_code) }}</td>

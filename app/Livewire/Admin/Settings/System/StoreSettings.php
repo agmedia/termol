@@ -131,6 +131,13 @@ class StoreSettings extends Component
         'store_announcement_text' => '',
         'store_announcement_url' => '',
         'store_announcement_new_tab' => false,
+
+        'store_cookie_consent_enabled' => true,
+        'store_cookie_consent_title' => 'Koristimo kolačiće',
+        'store_cookie_consent_message' => 'Koristimo kolačiće za ispravan rad sajta i bolje korisničko iskustvo.',
+        'store_cookie_consent_accept_label' => 'U redu',
+        'store_cookie_consent_policy_label' => 'Politika kolačića',
+        'store_cookie_consent_policy_url' => '',
     ];
 
     public ?TemporaryUploadedFile $logoUpload = null;
@@ -328,6 +335,13 @@ class StoreSettings extends Component
             'form.store_announcement_text' => ['nullable', 'string', 'max:191'],
             'form.store_announcement_url' => ['nullable', 'url', 'max:2048'],
             'form.store_announcement_new_tab' => ['required', 'boolean'],
+
+            'form.store_cookie_consent_enabled' => ['required', 'boolean'],
+            'form.store_cookie_consent_title' => ['nullable', 'string', 'max:120'],
+            'form.store_cookie_consent_message' => ['nullable', 'string', 'max:2000'],
+            'form.store_cookie_consent_accept_label' => ['nullable', 'string', 'max:60'],
+            'form.store_cookie_consent_policy_label' => ['nullable', 'string', 'max:60'],
+            'form.store_cookie_consent_policy_url' => ['nullable', 'url', 'max:2048'],
 
             'logoUpload' => ['nullable', 'file', 'max:4096', 'mimes:jpg,jpeg,png,webp,avif,svg'],
             'faviconUpload' => ['nullable', 'image', 'max:2048'],

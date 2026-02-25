@@ -35,6 +35,7 @@
 </head>
 @php
     $cartSummary = app(\App\Services\Front\CartService::class)->summary();
+    $wishlistCount = (int) ($wishlistSummary['item_count'] ?? 0);
     $mainNavigation = app(\App\Services\Front\NavigationMenuService::class)->forLocale((string) app()->getLocale());
 @endphp
 <body class="font-risingsun min-h-screen overflow-x-hidden bg-white text-slate-900 antialiased">
@@ -114,12 +115,12 @@
                     </a>
                 @endauth
 
-                <a href="{{ route('wishlist.index') }}" class="relative inline-flex h-full w-[76px] items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.favorites') }}">
+                <a href="{{ route('wishlist.index') }}" class="relative inline-flex h-full w-[76px] items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black {{ $wishlistCount > 0 ? '' : 'hidden' }}" aria-label="{{ __('ui.front.desktop.favorites') }}" data-wishlist-link>
                     <svg class="block h-5 w-5 text-current" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M20.8 8.6c0 5.9-8.8 10.9-8.8 10.9S3.2 14.5 3.2 8.6a4.8 4.8 0 0 1 8.8-2.7 4.8 4.8 0 0 1 8.8 2.7Z"></path>
                     </svg>
                     <span class="absolute right-3 top-4 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-xs font-bold text-white" data-wishlist-count>
-                        {{ (int) ($wishlistSummary['item_count'] ?? 0) }}
+                        {{ $wishlistCount }}
                     </span>
                 </a>
 
@@ -158,12 +159,12 @@
                     </a>
                 @endauth
 
-                <a href="{{ route('wishlist.index') }}" class="relative inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.favorites') }}">
+                <a href="{{ route('wishlist.index') }}" class="relative inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16 {{ $wishlistCount > 0 ? '' : 'hidden' }}" aria-label="{{ __('ui.front.desktop.favorites') }}" data-wishlist-link>
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M20.8 8.6c0 5.9-8.8 10.9-8.8 10.9S3.2 14.5 3.2 8.6a4.8 4.8 0 0 1 8.8-2.7 4.8 4.8 0 0 1 8.8 2.7Z"></path>
                     </svg>
                     <span class="absolute right-0.5 top-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-bold text-white" data-wishlist-count>
-                        {{ (int) ($wishlistSummary['item_count'] ?? 0) }}
+                        {{ $wishlistCount }}
                     </span>
                 </a>
 
@@ -315,8 +316,8 @@
                 <details class="group border-b border-slate-200">
                     <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
                         {{ $column['title'] }}
-                        <span class="text-2xl leading-none group-open:hidden">+</span>
-                        <span class="hidden text-2xl leading-none group-open:inline">−</span>
+                        <span class="inline-flex h-6 w-6 items-center justify-center text-[21px] font-light leading-none text-slate-500 group-open:hidden">+</span>
+                        <span class="hidden h-6 w-6 items-center justify-center text-[21px] font-light leading-none text-slate-500 group-open:inline-flex">−</span>
                     </summary>
                     <ul class="space-y-2.5 px-4 pb-4 text-sm text-slate-600">
                         @foreach ($column['links'] as $link)
@@ -329,8 +330,8 @@
             <details class="group">
                 <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
                     {{ __('ui.front.desktop.footer.support') }}
-                    <span class="text-2xl leading-none group-open:hidden">+</span>
-                    <span class="hidden text-2xl leading-none group-open:inline">−</span>
+                    <span class="inline-flex h-6 w-6 items-center justify-center text-[21px] font-light leading-none text-slate-500 group-open:hidden">+</span>
+                    <span class="hidden h-6 w-6 items-center justify-center text-[21px] font-light leading-none text-slate-500 group-open:inline-flex">−</span>
                 </summary>
                 <div class="space-y-2 px-4 pb-4 text-sm text-slate-600">
                     <p class="text-slate-500">{{ __('ui.front.desktop.footer.webshop_queries') }}</p>
@@ -472,6 +473,7 @@
 
 <script defer src="{{ asset('front-theme/scripts/desktop-header-menu.js') }}"></script>
 <script defer src="{{ asset('front-theme/scripts/header-search-panel.js') }}"></script>
+<script defer src="{{ asset('front-theme/scripts/wishlist-toggle.js') }}?v={{ filemtime(public_path('front-theme/scripts/wishlist-toggle.js')) }}"></script>
 @stack('scripts')
 </body>
 </html>

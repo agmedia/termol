@@ -19,12 +19,28 @@
 
             @if ($hasChildren)
                 <details class="group/nav border-b border-slate-200">
-                    <summary class="flex min-h-[56px] cursor-pointer list-none items-center justify-between px-4 py-3 hover:bg-slate-50">
-                        <span class="min-w-0 truncate pr-3 text-[14px] font-semibold">{{ $item['label'] }}</span>
-                        <span class="inline-flex h-6 w-6 items-center justify-center text-[21px] font-light leading-none text-slate-500 group-open/nav:hidden">+</span>
-                        <span class="hidden h-6 w-6 items-center justify-center text-[21px] font-light leading-none text-slate-500 group-open/nav:inline-flex">−</span>
+                    <summary class="relative flex min-h-[56px] cursor-pointer list-none items-center px-4 py-3 hover:bg-slate-50">
+                        <a
+                            href="{{ $item['url'] ?? '#' }}"
+                            class="min-w-0 flex-1 truncate pr-12 text-[14px] font-semibold"
+                            data-mobile-nav-link
+                            @if($target) target="{{ $target }}" rel="{{ $rel }}" @endif
+                        >
+                            {{ $item['label'] }}
+                        </a>
+                        <span class="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center border border-slate-300 bg-white text-slate-600 group-open/nav:hidden" aria-hidden="true">
+                            <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                                <path d="M4 10h12"></path>
+                                <path d="M10 4v12"></path>
+                            </svg>
+                        </span>
+                        <span class="absolute right-3 top-1/2 hidden h-8 w-8 -translate-y-1/2 items-center justify-center border border-slate-300 bg-white text-slate-600 group-open/nav:inline-flex" aria-hidden="true">
+                            <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                                <path d="M4 10h12"></path>
+                            </svg>
+                        </span>
                     </summary>
-                    <ul class="px-0 pb-0 text-[13px]">
+                    <ul class="m-0 list-none px-0 pb-0 text-[13px]">
                         @foreach ($children as $child)
                             @include('front.desktop.partials.main-nav-mobile-child', ['child' => $child, 'level' => 0])
                         @endforeach

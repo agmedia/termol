@@ -2,7 +2,7 @@
     $hasOptionErrorForCard = (int) old('product_id', 0) === $productId && $errors->has('product_option_value_id');
 @endphp
 
-<article class="group w-full min-w-0 overflow-hidden {{ $flat ? 'bg-white p-4' : 'rounded-2xl bg-white p-5 shadow-sm' }}" data-product-card>
+<article class="group w-full min-w-0 overflow-hidden {{ $flat ? 'bg-white p-4' : 'rounded-2xl bg-white p-5 shadow-sm' }}" data-product-card data-product-id="{{ $productId }}">
     <div class="relative {{ $flat ? '-mt-4 overflow-hidden' : '-mt-5 overflow-hidden rounded-t-2xl' }}">
         <a href="{{ $productUrl }}" class="group block">
             @if ($imageUrl)
@@ -35,6 +35,7 @@
             action="{{ route('wishlist.items.toggle', ['product' => $productId]) }}"
             class="absolute right-2 top-2"
             data-wishlist-form
+            data-product-id="{{ $productId }}"
             data-wishlisted="{{ $isWishlisted ? '1' : '0' }}"
             data-label-add="{{ __('ui.wishlist.add') }}"
             data-label-remove="{{ __('ui.wishlist.remove') }}"
@@ -160,6 +161,5 @@
         <script defer src="{{ asset('front-theme/scripts/product-card-quantity.js') }}"></script>
         <script defer src="{{ asset('front-theme/scripts/product-card-cart-modal.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-cart-modal.js')) }}"></script>
         <script defer src="{{ asset('front-theme/scripts/product-card-overlay-cart.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-overlay-cart.js')) }}"></script>
-        <script defer src="{{ asset('front-theme/scripts/wishlist-toggle.js') }}"></script>
     @endpush
 @endonce

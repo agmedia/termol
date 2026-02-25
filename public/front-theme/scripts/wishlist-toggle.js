@@ -1,13 +1,23 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const forms = document.querySelectorAll('[data-wishlist-form]');
-    if (!forms.length) {
+    if (window.__wishlistToggleInit === true) {
         return;
     }
+    window.__wishlistToggleInit = true;
 
     const countNodes = document.querySelectorAll('[data-wishlist-count]');
+    const wishlistLinks = document.querySelectorAll('[data-wishlist-link]');
+
+    const syncWishlistVisibility = function (count) {
+        const hasItems = count > 0;
+        wishlistLinks.forEach(function (link) {
+            link.classList.toggle('hidden', !hasItems);
+            link.style.display = hasItems ? 'inline-flex' : 'none';
+        });
+    };
 
     const setCount = function (count) {
         const safeCount = Number.isFinite(count) ? Math.max(0, count) : 0;
+        syncWishlistVisibility(safeCount);
         countNodes.forEach(function (node) {
             node.textContent = String(safeCount);
         });
@@ -43,32 +53,58 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 1800);
     };
 
+    const resolveButton = function (form) {
+        let button = form.querySelector('[data-wishlist-button]');
+        if (button) {
+            return button;
+        }
+
+        const formId = String(form.getAttribute('id') || '').trim();
+        if (!formId) {
+            return null;
+        }
+
+        const selector = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+            ? '[data-wishlist-button][form="' + CSS.escape(formId) + '"]'
+            : '[data-wishlist-button][form="' + formId.replace(/"/g, '\\"') + '"]';
+
+        return document.querySelector(selector);
+    };
+
+    const readVisualState = function (form) {
+        const button = resolveButton(form);
+        if (button) {
+            if (button.classList.contains('bg-slate-900')) {
+                return true;
+            }
+            if (button.classList.contains('bg-white') || button.classList.contains('bg-white/95')) {
+                return false;
+            }
+        }
+
+        return form.dataset.wishlisted === '1';
+    };
+
     const toggleVisualState = function (form, isActive) {
         form.dataset.wishlisted = isActive ? '1' : '0';
 
-        const button = form.querySelector('[data-wishlist-button]');
+        const button = resolveButton(form);
         if (!button) {
             return;
         }
 
-        button.classList.remove(
-            'border-slate-900',
-            'bg-slate-900',
-            'text-white',
-            'hover:bg-slate-700',
-            'border-slate-200',
-            'bg-white/95',
-            'text-slate-700',
-            'hover:text-slate-900'
-        );
-
-        if (isActive) {
-            button.classList.add('border-slate-900', 'bg-slate-900', 'text-white', 'hover:bg-slate-700');
-            button.setAttribute('aria-label', form.dataset.labelRemove || 'Remove');
-        } else {
-            button.classList.add('border-slate-200', 'bg-white/95', 'text-slate-700', 'hover:text-slate-900');
-            button.setAttribute('aria-label', form.dataset.labelAdd || 'Add');
-        }
+        button.classList.toggle('border-slate-900', isActive);
+        button.classList.toggle('bg-slate-900', isActive);
+        button.classList.toggle('text-white', isActive);
+        button.classList.toggle('hover:bg-slate-700', isActive);
+        button.classList.toggle('border-slate-200', !isActive);
+        button.classList.toggle('bg-white/95', !isActive);
+        button.classList.toggle('text-slate-700', !isActive);
+        button.classList.toggle('hover:text-slate-900', !isActive);
+        button.classList.toggle('border-slate-300', !isActive);
+        button.classList.toggle('bg-white', !isActive);
+        button.classList.toggle('hover:border-slate-900', !isActive);
+        button.setAttribute('aria-label', isActive ? (form.dataset.labelRemove || 'Remove') : (form.dataset.labelAdd || 'Add'));
     };
 
     const readCurrentCount = function () {
@@ -81,43 +117,138 @@ document.addEventListener('DOMContentLoaded', function () {
         return Number.isNaN(parsed) ? 0 : parsed;
     };
 
-    forms.forEach(function (form) {
-        form.addEventListener('submit', async function (event) {
-            event.preventDefault();
+    const syncFormsByAction = function (action, isActive) {
+        if (!action) {
+            return;
+        }
 
-            const wasActive = form.dataset.wishlisted === '1';
-            const optimisticActive = !wasActive;
-            const currentCount = readCurrentCount();
-            const optimisticCount = optimisticActive ? currentCount + 1 : currentCount - 1;
+        document.querySelectorAll('[data-wishlist-form]').forEach(function (form) {
+            if (form.getAttribute('action') !== action) {
+                return;
+            }
+            toggleVisualState(form, isActive);
+        });
+    };
 
-            toggleVisualState(form, optimisticActive);
-            setCount(optimisticCount);
+    const removeWishlistCardIfNeeded = function (form, isActive) {
+        if (isActive) {
+            return;
+        }
 
-            try {
-                const response = await fetch(form.action, {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json',
-                    },
-                    body: new FormData(form),
-                });
+        if (!window.location.pathname.includes('/wishlist')) {
+            return;
+        }
 
-                if (!response.ok) {
-                    throw new Error('Wishlist request failed');
-                }
+        const card = form.closest('[data-product-card]');
+        if (card) {
+            card.remove();
+        }
 
+        const remainingCards = document.querySelectorAll('[data-product-card]');
+        if (remainingCards.length > 0) {
+            return;
+        }
+
+        const contentSection = document.querySelector('[data-wishlist-page]');
+        if (!contentSection || contentSection.querySelector('[data-wishlist-empty]')) {
+            return;
+        }
+
+        const emptyText = String(contentSection.getAttribute('data-wishlist-empty-text') || '').trim();
+        const empty = document.createElement('div');
+        empty.setAttribute('data-wishlist-empty', '1');
+        empty.className = 'border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500';
+        empty.textContent = emptyText || 'Wishlist is empty.';
+        contentSection.appendChild(empty);
+    };
+
+    document.querySelectorAll('[data-wishlist-form]').forEach(function (form) {
+        form.dataset.wishlisted = readVisualState(form) ? '1' : '0';
+    });
+
+    setCount(readCurrentCount());
+
+    document.addEventListener('submit', async function (event) {
+        const target = event.target;
+        if (!target || target.nodeType !== 1 || typeof target.matches !== 'function' || !target.matches('[data-wishlist-form]')) {
+            return;
+        }
+
+        event.preventDefault();
+        const form = target;
+        if (form.dataset.wishlistPending === '1') {
+            return;
+        }
+        form.dataset.wishlistPending = '1';
+
+        const wasActive = readVisualState(form);
+        const optimisticActive = !wasActive;
+        const currentCount = readCurrentCount();
+        const optimisticCount = optimisticActive ? currentCount + 1 : currentCount - 1;
+
+        syncFormsByAction(form.getAttribute('action'), optimisticActive);
+        setCount(optimisticCount);
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'X-Wishlist-Ajax': '1',
+                },
+                body: new FormData(form),
+            });
+
+            if (!response.ok) {
+                throw new Error('Wishlist request failed');
+            }
+
+            const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+            if (contentType.includes('application/json')) {
                 const data = await response.json();
-                toggleVisualState(form, !!data.active);
+                const isActive = !!data.active;
+                syncFormsByAction(form.getAttribute('action'), isActive);
                 if (typeof data.count === 'number') {
                     setCount(data.count);
+                } else {
+                    setCount(optimisticCount);
                 }
+                removeWishlistCardIfNeeded(form, isActive);
                 showMessage(String(data.message || ''), !data.ok);
-            } catch (error) {
-                toggleVisualState(form, wasActive);
-                setCount(currentCount);
-                showMessage(form.dataset.msgFailed || 'Wishlist update failed.', true);
+            } else {
+                // Fallback when server responds with redirect/html: keep optimistic state.
+                syncFormsByAction(form.getAttribute('action'), optimisticActive);
+                setCount(optimisticCount);
+                removeWishlistCardIfNeeded(form, optimisticActive);
             }
-        });
-    });
+        } catch (error) {
+            syncFormsByAction(form.getAttribute('action'), wasActive);
+            setCount(currentCount);
+            showMessage(form.dataset.msgFailed || 'Wishlist update failed.', true);
+        } finally {
+            form.dataset.wishlistPending = '0';
+        }
+    }, true);
+
+    document.addEventListener('click', function (event) {
+        const rawTarget = event.target;
+        if (!rawTarget || rawTarget.nodeType !== 1 || typeof rawTarget.closest !== 'function') {
+            return;
+        }
+
+        const button = rawTarget.closest('[data-wishlist-button]');
+        if (!button) {
+            return;
+        }
+
+        const form = button.form || button.closest('form[data-wishlist-form]');
+        if (!form || !form.matches('[data-wishlist-form]')) {
+            return;
+        }
+
+        if (form.dataset.wishlistPending === '1') {
+            event.preventDefault();
+        }
+    }, true);
 });

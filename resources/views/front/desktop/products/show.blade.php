@@ -76,6 +76,7 @@
         .product-ipad-slider {
             display: block;
             margin-top: -2rem;
+            padding-bottom: 2.25rem;
             width: 100%;
             max-width: 100%;
             overflow: hidden;
@@ -103,6 +104,10 @@
                 width: 100%;
                 max-width: 100%;
                 height: auto;
+            }
+
+            .product-ipad-slider .splide__pagination {
+                bottom: -2rem !important;
             }
         }
 
@@ -339,6 +344,7 @@
                         form="wishlist-product-{{ $product->id }}"
                         class="inline-flex h-10 w-10 items-center justify-center border transition {{ $isWishlisted ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-900 hover:text-slate-900' }}"
                         aria-label="{{ $isWishlisted ? __('ui.wishlist.remove') : __('ui.wishlist.add') }}"
+                        data-wishlist-button
                     >
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M20.8 8.6c0 5.9-8.8 10.9-8.8 10.9S3.2 14.5 3.2 8.6a4.8 4.8 0 0 1 8.8-2.7 4.8 4.8 0 0 1 8.8 2.7Z"></path>
@@ -347,7 +353,17 @@
                 </div>
             </form>
 
-            <form id="wishlist-product-{{ $product->id }}" method="POST" action="{{ route('wishlist.items.toggle', ['product' => $product->id]) }}" class="hidden">
+            <form
+                id="wishlist-product-{{ $product->id }}"
+                method="POST"
+                action="{{ route('wishlist.items.toggle', ['product' => $product->id]) }}"
+                class="hidden"
+                data-wishlist-form
+                data-wishlisted="{{ $isWishlisted ? '1' : '0' }}"
+                data-label-add="{{ __('ui.wishlist.add') }}"
+                data-label-remove="{{ __('ui.wishlist.remove') }}"
+                data-msg-failed="{{ __('ui.wishlist.status.failed') }}"
+            >
                 @csrf
             </form>
 
@@ -443,10 +459,52 @@
     @if ($related->isNotEmpty())
         <section class="mt-10 px-4 sm:px-6 lg:px-8">
             <h2 class="text-2xl font-bold text-slate-900">{{ __('ui.product.related') }}</h2>
-            <div class="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-                @foreach ($related as $product)
-                    @include('front.desktop.partials.product-card', ['product' => $product, 'locale' => $locale, 'fallbackLocale' => $fallbackLocale, 'flat' => true])
-                @endforeach
+            <style>
+                #related-products-carousel-{{ $product->id }} .splide__arrow {
+                    opacity: 0;
+                    width: 46px;
+                    height: 46px;
+                    border-radius: 9999px;
+                    border: 1px solid rgba(255, 255, 255, 0.75);
+                    background: rgba(15, 23, 42, 0.35);
+                    backdrop-filter: blur(6px);
+                    transform: translateY(-50%) scale(0.92);
+                    transition: opacity .25s ease, transform .25s ease, background-color .25s ease;
+                }
+
+                #related-products-carousel-{{ $product->id }}:hover .splide__arrow,
+                #related-products-carousel-{{ $product->id }}:focus-within .splide__arrow {
+                    opacity: 1;
+                    transform: translateY(-50%) scale(1);
+                }
+
+                #related-products-carousel-{{ $product->id }} .splide__arrow:hover {
+                    background: rgba(15, 23, 42, 0.55);
+                }
+
+                #related-products-carousel-{{ $product->id }} .splide__arrow svg {
+                    fill: #fff;
+                }
+
+                @media (hover: none) {
+                    #related-products-carousel-{{ $product->id }} .splide__arrow {
+                        opacity: 1;
+                        transform: translateY(-50%) scale(1);
+                    }
+                }
+            </style>
+            <div class="mt-4">
+                <div id="related-products-carousel-{{ $product->id }}" class="splide" data-related-products-splide>
+                    <div class="splide__track">
+                        <ul class="splide__list">
+                            @foreach ($related as $relatedProduct)
+                                <li class="splide__slide">
+                                    @include('front.desktop.partials.product-card', ['product' => $relatedProduct, 'locale' => $locale, 'fallbackLocale' => $fallbackLocale, 'flat' => true])
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
             </div>
         </section>
     @endif
@@ -475,6 +533,54 @@
                 const isOpen = !panel.classList.contains('hidden');
                 toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
             });
+
+            const initRelatedProductsCarousel = function () {
+                if (typeof window.Splide !== 'function') {
+                    return false;
+                }
+
+                const sliders = document.querySelectorAll('[data-related-products-splide]');
+                sliders.forEach(function (el) {
+                    if (el.dataset.splideReady === '1') {
+                        return;
+                    }
+                    el.dataset.splideReady = '1';
+
+                    const count = el.querySelectorAll('.splide__slide').length;
+                    new window.Splide(el, {
+                        type: count > 1 ? 'loop' : 'slide',
+                        perPage: Math.min(4, Math.max(1, count)),
+                        perMove: 1,
+                        gap: '1.25rem',
+                        drag: count > 1,
+                        snap: true,
+                        pagination: false,
+                        arrows: count > 1,
+                        updateOnMove: true,
+                        speed: 520,
+                        breakpoints: {
+                            1280: { perPage: Math.min(3, Math.max(1, count)) },
+                            1024: { perPage: Math.min(2, Math.max(1, count)) },
+                            860: { perPage: 1, gap: '1rem' },
+                            640: { perPage: 1, gap: '0.8rem' },
+                        },
+                    }).mount();
+                });
+
+                return true;
+            };
+
+            if (initRelatedProductsCarousel()) {
+                return;
+            }
+
+            let attempts = 0;
+            const timer = window.setInterval(function () {
+                attempts += 1;
+                if (initRelatedProductsCarousel() || attempts > 40) {
+                    window.clearInterval(timer);
+                }
+            }, 120);
         });
     </script>
 @endpush

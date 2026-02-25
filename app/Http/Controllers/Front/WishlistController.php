@@ -88,7 +88,12 @@ class WishlistController extends Controller
             'message' => $message,
         ];
 
-        if ($request->expectsJson() || $request->ajax()) {
+        if (
+            $request->expectsJson()
+            || $request->wantsJson()
+            || $request->ajax()
+            || (string) $request->header('X-Wishlist-Ajax', '') === '1'
+        ) {
             return response()->json($payload);
         }
 
