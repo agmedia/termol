@@ -507,7 +507,7 @@ class StoreSettings extends Component
         $this->refreshWebpGenerationStatus();
 
         if ($total === 0) {
-            $this->dispatch('notify', type: 'success', message: __('No media records found for WebP generation.'));
+            $this->dispatch('notify', type: 'success', message: __('admin.settings.store.images.notify_no_media'));
         }
     }
 
@@ -537,7 +537,7 @@ class StoreSettings extends Component
             $state['finished_at'] = now()->toDateTimeString();
             Cache::put($cacheKey, $state, now()->addHours(6));
             $this->refreshWebpGenerationStatus();
-            $this->dispatch('notify', type: 'success', message: __('WebP generation finished.'));
+            $this->dispatch('notify', type: 'success', message: __('admin.settings.store.images.notify_finished'));
 
             return;
         }
@@ -561,7 +561,7 @@ class StoreSettings extends Component
             $state['running'] = false;
             $state['finished'] = true;
             $state['finished_at'] = now()->toDateTimeString();
-            $this->dispatch('notify', type: 'success', message: __('WebP generation finished.'));
+            $this->dispatch('notify', type: 'success', message: __('admin.settings.store.images.notify_finished'));
         }
 
         Cache::put($cacheKey, $state, now()->addHours(6));

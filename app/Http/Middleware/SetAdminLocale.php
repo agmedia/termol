@@ -14,13 +14,16 @@ class SetAdminLocale
     {
         $available = $this->availableLocales();
         $fallback = $this->normalizeLocale((string) config('app.locale', 'en')) ?: 'en';
+        $adminDefault = 'hr';
 
         $queryLocale = $this->normalizeLocale((string) $request->query('admin_locale', ''));
-        $sessionLocale = $this->normalizeLocale((string) $request->session()->get('admin_locale', ''));
+        $defaultLocale = in_array($adminDefault, $available, true)
+            ? $adminDefault
+            : (in_array($fallback, $available, true) ? $fallback : (string) ($available[0] ?? $adminDefault));
 
         $locale = in_array($queryLocale, $available, true)
             ? $queryLocale
-            : (in_array($sessionLocale, $available, true) ? $sessionLocale : (in_array($fallback, $available, true) ? $fallback : (string) ($available[0] ?? $fallback)));
+            : $defaultLocale;
 
         App::setLocale($locale);
         $request->setLocale($locale);

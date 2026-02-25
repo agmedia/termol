@@ -169,4 +169,21 @@ return [
             ],
         ],
     ],
+    'settings' => [
+        'store' => [
+            'images' => [
+                'title' => 'Optimizacija slika',
+                'subtitle' => 'Omogući WebP prikaz na storefrontu i generiraj nedostajuće WebP konverzije za postojeći media sadržaj.',
+                'use_webp' => 'Koristi WebP slike na storefrontu (kada su dostupne)',
+                'generate' => 'Generiraj WebP za postojeće slike',
+                'processed' => 'Obrađeno:',
+                'failed' => 'Neuspješno:',
+                'status_running' => 'Status: u tijeku...',
+                'status_finished' => 'Status: završeno.',
+                'status_idle' => 'Status: mirovanje.',
+                'notify_no_media' => 'Nema media zapisa za WebP generiranje.',
+                'notify_finished' => 'WebP generiranje je završeno.',
+            ],
+        ],
+    ],
 ];

@@ -169,4 +169,21 @@ return [
             ],
         ],
     ],
+    'settings' => [
+        'store' => [
+            'images' => [
+                'title' => 'Image Optimization',
+                'subtitle' => 'Enable WebP delivery on storefront and generate missing WebP conversions for existing media.',
+                'use_webp' => 'Use WebP images on storefront (when available)',
+                'generate' => 'Generate WebP for existing images',
+                'processed' => 'Processed:',
+                'failed' => 'Failed:',
+                'status_running' => 'Status: running...',
+                'status_finished' => 'Status: finished.',
+                'status_idle' => 'Status: idle.',
+                'notify_no_media' => 'No media records found for WebP generation.',
+                'notify_finished' => 'WebP generation finished.',
+            ],
+        ],
+    ],
 ];

@@ -328,13 +328,13 @@
             @if ($tab === 'images')
                 <div class="grid gap-4 md:grid-cols-2" @if(($webpGeneration['running'] ?? false) === true) wire:poll.1500ms="processWebpGenerationStep" @endif>
                     <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <h3 class="text-sm font-bold text-slate-800">{{ __('Image Optimization') }}</h3>
-                        <p class="mt-1 text-xs text-slate-600">{{ __('Enable WebP delivery on storefront and generate missing WebP conversions for existing media.') }}</p>
+                        <h3 class="text-sm font-bold text-slate-800">{{ __('admin.settings.store.images.title') }}</h3>
+                        <p class="mt-1 text-xs text-slate-600">{{ __('admin.settings.store.images.subtitle') }}</p>
                     </div>
 
                     <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 md:col-span-2">
                         <input type="checkbox" wire:model="form.store_images_use_webp" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
-                        {{ __('Use WebP images on storefront (when available)') }}
+                        {{ __('admin.settings.store.images.use_webp') }}
                     </label>
 
                     <div class="md:col-span-2 rounded-xl border border-slate-200 p-4">
@@ -345,13 +345,13 @@
                                 class="rounded-xl border border-cyan-700 bg-cyan-700 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-60"
                                 @disabled(($webpGeneration['running'] ?? false) === true)
                             >
-                                {{ __('Generate WebP for existing images') }}
+                                {{ __('admin.settings.store.images.generate') }}
                             </button>
 
                             <span class="text-xs text-slate-600">
-                                {{ __('Processed:') }} {{ (int) ($webpGeneration['processed'] ?? 0) }} / {{ (int) ($webpGeneration['total'] ?? 0) }}
+                                {{ __('admin.settings.store.images.processed') }} {{ (int) ($webpGeneration['processed'] ?? 0) }} / {{ (int) ($webpGeneration['total'] ?? 0) }}
                                 @if (($webpGeneration['failed'] ?? 0) > 0)
-                                    • {{ __('Failed:') }} {{ (int) ($webpGeneration['failed'] ?? 0) }}
+                                    • {{ __('admin.settings.store.images.failed') }} {{ (int) ($webpGeneration['failed'] ?? 0) }}
                                 @endif
                             </span>
                         </div>
@@ -367,11 +367,11 @@
 
                         <p class="mt-2 text-xs text-slate-600">
                             @if (($webpGeneration['running'] ?? false) === true)
-                                {{ __('Status: running...') }} ({{ $percent }}%)
+                                {{ __('admin.settings.store.images.status_running') }} ({{ $percent }}%)
                             @elseif (($webpGeneration['finished'] ?? false) === true)
-                                {{ __('Status: finished.') }}
+                                {{ __('admin.settings.store.images.status_finished') }}
                             @else
-                                {{ __('Status: idle.') }}
+                                {{ __('admin.settings.store.images.status_idle') }}
                             @endif
                         </p>
                     </div>
