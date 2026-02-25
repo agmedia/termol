@@ -12,7 +12,7 @@
         <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
             @foreach ($slides as $media)
                 @php
-                    $imageUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1440w', $preferWebp) ?? $media->getUrl();
+                    $imageUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1200w', $preferWebp) ?? $media->getUrl();
                     $props = (array) ($media->custom_properties ?? []);
                     $slideTitle = trim((string) (
                         data_get($props, "block_title.$locale")

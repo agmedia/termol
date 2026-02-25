@@ -52,7 +52,7 @@
                 <ul class="splide__list">
                     @foreach ($slides as $media)
                         @php
-                            $slideUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1440w', $preferWebp) ?? $media->getUrl();
+                            $slideUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1200w', $preferWebp) ?? $media->getUrl();
                             $slideLink = trim((string) (
                                 data_get($media->custom_properties, 'link_url.'.app()->getLocale())
                                 ?: data_get($media->custom_properties, 'link_url.'.config('app.locale'))

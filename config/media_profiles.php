@@ -38,6 +38,12 @@ return [
             'quality' => 86,
             'format' => null,
         ],
+        'card_480w' => [
+            'fit' => 'max',
+            'width' => 480,
+            'quality' => 84,
+            'format' => null,
+        ],
         'detail_960x960' => [
             'fit' => 'contain',
             'width' => 960,
@@ -56,6 +62,12 @@ return [
             'fit' => 'max',
             'width' => 1440,
             'quality' => 86,
+            'format' => null,
+        ],
+        'hero_1200w' => [
+            'fit' => 'max',
+            'width' => 1200,
+            'quality' => 84,
             'format' => null,
         ],
         'cover_900x1200' => [
@@ -82,7 +94,7 @@ return [
                     'single_file' => true,
                     'max_upload_kb' => 8192,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
-                    'conversions' => ['thumb_100x100', 'card_360x240', 'detail_960x960'],
+                    'conversions' => ['thumb_100x100', 'card_360x240', 'card_480w', 'detail_960x960'],
                     'preview_conversion' => 'card_360x240',
                 ],
                 'product_gallery' => [
@@ -90,7 +102,7 @@ return [
                     'single_file' => false,
                     'max_upload_kb' => 8192,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
-                    'conversions' => ['thumb_100x100', 'card_360x240', 'detail_960x960'],
+                    'conversions' => ['thumb_100x100', 'card_360x240', 'card_480w', 'detail_960x960'],
                     'preview_conversion' => 'card_360x240',
                 ],
             ],
@@ -167,7 +179,7 @@ return [
                     'single_file' => true,
                     'max_upload_kb' => 8192,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
-                    'conversions' => ['card_360x240', 'hero_1440x480', 'hero_1440w'],
+                    'conversions' => ['card_360x240', 'hero_1440x480', 'hero_1440w', 'hero_1200w'],
                     'preview_conversion' => 'card_360x240',
                 ],
                 'block_slides' => [
@@ -176,7 +188,7 @@ return [
                     'only_keep_latest' => 30,
                     'max_upload_kb' => 12288,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
-                    'conversions' => ['card_360x240', 'hero_1440x480', 'hero_1440w'],
+                    'conversions' => ['card_360x240', 'hero_1440x480', 'hero_1440w', 'hero_1200w'],
                     'preview_conversion' => 'card_360x240',
                 ],
             ],

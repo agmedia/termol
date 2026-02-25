@@ -12,14 +12,14 @@
     $overlayClass = (string) ($payload['overlay_class'] ?? 'absolute inset-0 bg-gradient-to-br from-white/80 via-white/60 to-white/40');
     $bgCss = trim((string) ($payload['bg_css'] ?? ''));
 
-    $backgroundUrl = $block->getFirstMediaUrl('block_background', 'hero_1440x480');
+    $backgroundUrl = $block->getFirstMediaUrl('block_background', 'hero_1200w');
     if ($backgroundUrl === '') {
         $backgroundUrl = $block->getFirstMediaUrl('block_background');
     }
 
     $bgStyle = $bgCss;
     if ($backgroundUrl !== '') {
-        $bgImageCss = "background-image:url('".e($backgroundUrl)."');background-size:cover;background-position:center;";
+        $bgImageCss = "background-image:url('".e($backgroundUrl)."');background-size:contain;background-repeat:no-repeat;background-position:center;";
         $bgStyle = trim($bgImageCss.' '.$bgCss);
     }
 

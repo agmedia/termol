@@ -9,9 +9,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <link rel="stylesheet" href="{{ asset('front-theme/styles/bootstrap.css') }}?v={{ filemtime(public_path('front-theme/styles/bootstrap.css')) }}">
-    <link rel="stylesheet" href="{{ asset('front-theme/styles/style.css') }}?v={{ filemtime(public_path('front-theme/styles/style.css')) }}">
-    <link rel="stylesheet" href="{{ asset('front-theme/styles/rising-sun-font.css') }}?v={{ filemtime(public_path('front-theme/styles/rising-sun-font.css')) }}">
+    <link rel="preload" href="{{ asset('front-theme/styles/bootstrap.css') }}?v={{ filemtime(public_path('front-theme/styles/bootstrap.css')) }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{{ asset('front-theme/styles/bootstrap.css') }}?v={{ filemtime(public_path('front-theme/styles/bootstrap.css')) }}"></noscript>
+    <link rel="preload" href="{{ asset('front-theme/styles/style.css') }}?v={{ filemtime(public_path('front-theme/styles/style.css')) }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{{ asset('front-theme/styles/style.css') }}?v={{ filemtime(public_path('front-theme/styles/style.css')) }}"></noscript>
+    <link rel="preload" href="{{ asset('front-theme/styles/rising-sun-font.css') }}?v={{ filemtime(public_path('front-theme/styles/rising-sun-font.css')) }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{{ asset('front-theme/styles/rising-sun-font.css') }}?v={{ filemtime(public_path('front-theme/styles/rising-sun-font.css')) }}"></noscript>
     <link rel="preload" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}?v={{ filemtime(public_path('front-theme/fonts/css/fontawesome-all.min.css')) }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}?v={{ filemtime(public_path('front-theme/fonts/css/fontawesome-all.min.css')) }}"></noscript>
     <link rel="manifest" href="{{ route('front.manifest') }}">
