@@ -138,6 +138,16 @@ class StoreSettings extends Component
         'store_cookie_consent_accept_label' => 'U redu',
         'store_cookie_consent_policy_label' => 'Politika kolačića',
         'store_cookie_consent_policy_url' => '',
+        'store_cookie_preferences_title' => 'Postavke kolačića',
+        'store_cookie_preferences_accept_all_label' => 'Prihvati sve',
+        'store_cookie_preferences_accept_necessary_label' => 'Samo nužni',
+        'store_cookie_preferences_save_label' => 'Spremi odabir',
+        'store_cookie_necessary_title' => 'Nužni kolačići',
+        'store_cookie_necessary_description' => 'Neki kolačići na ovoj internetskoj stranici neophodni su za pravilno funkcioniranje stranice stoga ih nije moguće onemogućiti.',
+        'store_cookie_analytics_title' => 'Analitički kolačići',
+        'store_cookie_analytics_description' => 'Analitički kolačići nam pomažu kako bismo poboljšali našu internetsku stranicu sakupljajući i analizirajući podatke o njenoj posjećenosti.',
+        'store_cookie_marketing_title' => 'Marketinški kolačići',
+        'store_cookie_marketing_description' => 'Marketinški kolačići služe za praćenje posjetitelja u korištenju internet stranice u svrhu omogućavanja prikazivanja relevantnih oglasa oglašivača trećih strana.',
     ];
 
     public ?TemporaryUploadedFile $logoUpload = null;
@@ -342,6 +352,16 @@ class StoreSettings extends Component
             'form.store_cookie_consent_accept_label' => ['nullable', 'string', 'max:60'],
             'form.store_cookie_consent_policy_label' => ['nullable', 'string', 'max:60'],
             'form.store_cookie_consent_policy_url' => ['nullable', 'url', 'max:2048'],
+            'form.store_cookie_preferences_title' => ['nullable', 'string', 'max:120'],
+            'form.store_cookie_preferences_accept_all_label' => ['nullable', 'string', 'max:60'],
+            'form.store_cookie_preferences_accept_necessary_label' => ['nullable', 'string', 'max:60'],
+            'form.store_cookie_preferences_save_label' => ['nullable', 'string', 'max:60'],
+            'form.store_cookie_necessary_title' => ['nullable', 'string', 'max:120'],
+            'form.store_cookie_necessary_description' => ['nullable', 'string', 'max:2000'],
+            'form.store_cookie_analytics_title' => ['nullable', 'string', 'max:120'],
+            'form.store_cookie_analytics_description' => ['nullable', 'string', 'max:2000'],
+            'form.store_cookie_marketing_title' => ['nullable', 'string', 'max:120'],
+            'form.store_cookie_marketing_description' => ['nullable', 'string', 'max:2000'],
 
             'logoUpload' => ['nullable', 'file', 'max:4096', 'mimes:jpg,jpeg,png,webp,avif,svg'],
             'faviconUpload' => ['nullable', 'image', 'max:2048'],

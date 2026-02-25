@@ -30,6 +30,7 @@
     @if (empty($storeSettings['branding']['favicons']['ico_url'] ?? null) && !empty($storeSettings['branding']['favicon_url'] ?? null))
         <link rel="icon" href="{{ $storeSettings['branding']['favicon_url'] }}">
     @endif
+    @include('front.partials.cookie-consent-head')
     <link rel="manifest" href="{{ route('front.manifest') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -474,6 +475,7 @@
 <script defer src="{{ asset('front-theme/scripts/desktop-header-menu.js') }}"></script>
 <script defer src="{{ asset('front-theme/scripts/header-search-panel.js') }}"></script>
 <script defer src="{{ asset('front-theme/scripts/wishlist-toggle.js') }}?v={{ filemtime(public_path('front-theme/scripts/wishlist-toggle.js')) }}"></script>
+@include('front.partials.cookie-consent')
 @stack('scripts')
 </body>
 </html>

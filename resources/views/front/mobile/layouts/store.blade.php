@@ -39,6 +39,7 @@
     @if (empty($storeSettings['branding']['favicons']['ico_url'] ?? null) && !empty($storeSettings['branding']['favicon_url'] ?? null))
         <link rel="icon" href="{{ $storeSettings['branding']['favicon_url'] }}">
     @endif
+    @include('front.partials.cookie-consent-head')
 </head>
 <body class="theme-light font-risingsun" data-highlight="highlight-red">
 <div id="preloader"><div class="spinner-border color-highlight" role="status"></div></div>
@@ -93,6 +94,7 @@
 <script defer src="{{ asset('front-theme/scripts/bootstrap.min.js') }}"></script>
 <script defer src="{{ asset('front-theme/scripts/custom.js') }}"></script>
 <script defer src="{{ asset('front-theme/scripts/wishlist-toggle.js') }}?v={{ filemtime(public_path('front-theme/scripts/wishlist-toggle.js')) }}"></script>
+@include('front.partials.cookie-consent')
 @stack('scripts')
 </body>
 </html>
