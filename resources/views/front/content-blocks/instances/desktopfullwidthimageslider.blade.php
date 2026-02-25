@@ -52,7 +52,7 @@
                 <ul class="splide__list">
                     @foreach ($slides as $media)
                         @php
-                            $slideUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1440x480', $preferWebp) ?? $media->getUrl();
+                            $slideUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1440w', $preferWebp) ?? $media->getUrl();
                             $slideLink = trim((string) (
                                 data_get($media->custom_properties, 'link_url.'.app()->getLocale())
                                 ?: data_get($media->custom_properties, 'link_url.'.config('app.locale'))
@@ -68,7 +68,7 @@
                                     <img
                                         src="{{ $slideUrl }}"
                                         alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}"
-                                        class="h-[42vw] min-h-[420px] max-h-[880px] w-full object-cover"
+                                        class="h-auto w-full bg-slate-100 object-contain"
                                         @if ($loop->first)
                                             loading="eager"
                                             fetchpriority="high"

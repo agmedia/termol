@@ -46,8 +46,8 @@ class ProductCard extends Component
         );
         $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', false);
 
-        $imageUrl = MediaUrl::conversion($mainMedia, 'card_360x240', $preferWebp);
-        $hoverImageUrl = MediaUrl::conversion($hoverMedia, 'card_360x240', $preferWebp);
+        $imageUrl = MediaUrl::conversion($mainMedia, 'detail_960x960', $preferWebp);
+        $hoverImageUrl = MediaUrl::conversion($hoverMedia, 'detail_960x960', $preferWebp);
 
         $optionRows = $this->product->optionValues
             ->where('is_active', true)

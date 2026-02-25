@@ -12,7 +12,7 @@
         <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
             @foreach ($slides as $media)
                 @php
-                    $imageUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1440x480', $preferWebp) ?? $media->getUrl();
+                    $imageUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1440w', $preferWebp) ?? $media->getUrl();
                     $props = (array) ($media->custom_properties ?? []);
                     $slideTitle = trim((string) (
                         data_get($props, "block_title.$locale")
@@ -43,11 +43,11 @@
                     ));
                 @endphp
 
-                <article class="group relative min-h-[360px] overflow-hidden md:min-h-[560px]">
+                <article class="group relative overflow-hidden">
                     <img
                         src="{{ $imageUrl }}"
                         alt="{{ $slideTitle !== '' ? $slideTitle : $block->name }}"
-                        class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+                        class="h-auto w-full bg-slate-100 object-contain transition duration-500 group-hover:scale-[1.02]"
                         @if ($loop->first)
                             loading="eager"
                             fetchpriority="high"
