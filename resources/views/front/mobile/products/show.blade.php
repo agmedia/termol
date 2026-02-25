@@ -150,7 +150,7 @@
                     <div class="col-5">
                         <div class="d-flex h-100" data-qty-control>
                             <button type="button" class="btn btn-border border-gray-dark color-gray-dark rounded-0" data-qty-dec>-</button>
-                            <input type="text" name="quantity" value="1" readonly class="form-control text-center rounded-0" data-qty-input>
+                            <input type="text" name="quantity" value="1" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" class="form-control text-center rounded-0" data-qty-input>
                             <button type="button" class="btn btn-border border-gray-dark color-gray-dark rounded-0" data-qty-inc>+</button>
                         </div>
                     </div>

@@ -312,8 +312,8 @@
                                     $label = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
                                     $inputId = 'product-detail-pov-'.$product->id.'-'.$row->id;
                                 @endphp
+                                <input id="{{ $inputId }}" type="radio" name="product_option_value_id" value="{{ $row->id }}" class="sr-only">
                                 <label for="{{ $inputId }}" class="inline-flex h-10 min-w-10 cursor-pointer items-center justify-center border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:bg-slate-100 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
-                                    <input id="{{ $inputId }}" type="radio" name="product_option_value_id" value="{{ $row->id }}" class="sr-only">
                                     <span>{{ $label }}</span>
                                 </label>
                             @endforeach
@@ -327,7 +327,7 @@
                 <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
                     <div class="inline-flex h-10 items-stretch" data-qty-control>
                         <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 text-xl font-semibold text-slate-700 hover:bg-slate-100" data-qty-dec aria-label="Decrease quantity">-</button>
-                        <input type="text" name="quantity" value="1" inputmode="numeric" readonly class="h-10 w-10 border-y border-r border-slate-300 border-l-0 bg-white p-0 text-center text-base font-normal text-slate-900" data-qty-input>
+                        <input type="text" name="quantity" value="1" inputmode="numeric" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" class="h-10 w-10 border-y border-r border-slate-300 border-l-0 bg-white p-0 text-center text-base font-normal text-slate-900" data-qty-input>
                         <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-l-0 border-slate-300 text-xl font-semibold text-slate-700 hover:bg-slate-100" data-qty-inc aria-label="Increase quantity">+</button>
                     </div>
 

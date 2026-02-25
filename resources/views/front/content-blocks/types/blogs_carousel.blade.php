@@ -175,7 +175,7 @@
                                         <a href="{{ $postUrl }}" class="block">
                                             <div class="overflow-hidden bg-slate-100">
                                                 @if ($postCoverUrl)
-                                                    <img src="{{ $postCoverUrl }}" alt="{{ $postTitle }}" class="h-auto w-full object-contain transition duration-300 group-hover:scale-[1.01]" loading="lazy" decoding="async">
+                                                    <img src="{{ $postCoverUrl }}" alt="" class="h-auto w-full object-contain transition duration-300 group-hover:scale-[1.01]" loading="lazy" decoding="async">
                                                 @else
                                                     <div class="flex h-full w-full items-center justify-center text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.product.no_image') }}</div>
                                                 @endif
