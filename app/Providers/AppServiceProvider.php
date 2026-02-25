@@ -138,6 +138,9 @@ class AppServiceProvider extends ServiceProvider
                             'url' => '',
                             'new_tab' => false,
                         ],
+                        'images' => [
+                            'use_webp' => false,
+                        ],
                         'cookies' => [
                             'enabled' => true,
                             'title' => 'Koristimo kolačiće',

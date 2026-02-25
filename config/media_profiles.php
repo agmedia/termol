@@ -52,6 +52,13 @@ return [
             'quality' => 86,
             'format' => null,
         ],
+        'cover_900x1200' => [
+            'fit' => 'crop',
+            'width' => 900,
+            'height' => 1200,
+            'quality' => 86,
+            'format' => null,
+        ],
     ],
 
     /*
@@ -91,7 +98,7 @@ return [
                     'single_file' => true,
                     'max_upload_kb' => 8192,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
-                    'conversions' => ['thumb_100x100', 'card_360x240', 'hero_1440x480'],
+                    'conversions' => ['thumb_100x100', 'card_360x240', 'hero_1440x480', 'cover_900x1200'],
                     'preview_conversion' => 'card_360x240',
                 ],
                 'blog_gallery' => [

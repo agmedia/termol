@@ -3,6 +3,7 @@
 
     $locale = app()->getLocale();
     $fallbackLocale = config('app.locale');
+    $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
     $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
     $blockPayload = is_array($block->payload ?? null) ? $block->payload : [];
     $mergedPayload = array_merge($blockPayload, $translationPayload);
@@ -148,12 +149,7 @@
                 }
             </style>
 
-            @once
-                @push('scripts')
-                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">
-                    <script defer src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
-                @endpush
-            @endonce
+            @include('front.partials.splide-assets')
 
             <div class="mt-4">
                 <div id="blogs-carousel-{{ $block->id }}" class="splide" data-blogs-carousel-splide>
@@ -168,7 +164,9 @@
                                     $postSlug = (string) ($postTranslation?->slug ?? $post->id);
                                     $postUrl = route('blog.show', ['slug' => $postSlug]);
                                     $postCover = $post->getFirstMedia('blog_cover');
-                                    $postCoverUrl = $postCover?->getUrl();
+                                    $postCoverUrl = $postCover
+                                        ? (\App\Support\Media\MediaUrl::conversion($postCover, 'cover_900x1200', $preferWebp) ?? $postCover->getUrl())
+                                        : null;
                                 @endphp
                                 <li class="splide__slide">
                                     <article class="group h-full bg-white">

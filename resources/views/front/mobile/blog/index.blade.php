@@ -5,6 +5,9 @@
 @section('page_title', __('ui.blog.title'))
 
 @section('content')
+    @php
+        $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
+    @endphp
     @if ($topBlocks->isNotEmpty())
         @include('components.content-placement', ['items' => $topBlocks])
     @endif
@@ -21,7 +24,9 @@
                 $translation = $post->translations->firstWhere('locale', $locale)
                     ?? $post->translations->firstWhere('locale', $fallbackLocale);
                 $postImage = $post->getFirstMedia('blog_cover');
-                $postImageUrl = $postImage ? $postImage->getUrl() : null;
+                $postImageUrl = $postImage
+                    ? (\App\Support\Media\MediaUrl::conversion($postImage, 'cover_900x1200', $preferWebp) ?? $postImage->getUrl())
+                    : null;
             @endphp
 
             <article class="card card-style mb-3">

@@ -3,8 +3,10 @@
 namespace App\View\Components\Front\Desktop;
 
 use App\Models\Catalog\Product\Product;
-use App\Services\Pricing\ProductPricePresentationService;
 use App\Services\Front\WishlistService;
+use App\Services\Pricing\ProductPricePresentationService;
+use App\Services\Settings\SystemSettingsService;
+use App\Support\Media\MediaUrl;
 use Illuminate\View\Component;
 use Illuminate\View\View;
 
@@ -42,13 +44,10 @@ class ProductCard extends Component
             static fn ($media): bool => $media->collection_name === 'product_gallery'
                 && (! $mainMedia || (int) $media->id !== (int) $mainMedia->id)
         );
+        $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', false);
 
-        $imageUrl = $mainMedia
-            ? ($mainMedia->hasGeneratedConversion('card_360x240') ? $mainMedia->getUrl('card_360x240') : $mainMedia->getUrl())
-            : null;
-        $hoverImageUrl = $hoverMedia
-            ? ($hoverMedia->hasGeneratedConversion('card_360x240') ? $hoverMedia->getUrl('card_360x240') : $hoverMedia->getUrl())
-            : null;
+        $imageUrl = MediaUrl::conversion($mainMedia, 'card_360x240', $preferWebp);
+        $hoverImageUrl = MediaUrl::conversion($hoverMedia, 'card_360x240', $preferWebp);
 
         $optionRows = $this->product->optionValues
             ->where('is_active', true)

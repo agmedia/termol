@@ -21,6 +21,7 @@ class StoreSettingsService
     {
         return [
             'announcement' => $this->announcement(),
+            'images' => $this->images(),
             'cookies' => $this->cookies(),
             'branding' => $this->branding(),
             'footer' => $this->footer(),
@@ -44,6 +45,16 @@ class StoreSettingsService
             'text' => (string) $this->settings->get('store_announcement_text', __('ui.front.desktop.promo_bar')),
             'url' => trim((string) $this->settings->get('store_announcement_url', '')),
             'new_tab' => (bool) $this->settings->get('store_announcement_new_tab', false),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function images(): array
+    {
+        return [
+            'use_webp' => (bool) $this->settings->get('store_images_use_webp', false),
         ];
     }
 

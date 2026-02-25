@@ -9,6 +9,7 @@
         ?? $product->categories->first()?->translations?->firstWhere('locale', $fallbackLocale);
     $manufacturerEnabled = app(\App\Services\Catalog\CatalogFeatureService::class)->useManufacturers();
     $displayBasePrice = app(\App\Services\Pricing\TaxPricingService::class)->grossFromStored((float) $product->base_price, $product);
+    $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
 
     $mediaItems = $product->relationLoaded('media')
         ? $product->media
@@ -35,10 +36,12 @@
 
     $gallery = $galleryItems
         ->unique(fn ($mediaItem) => (int) $mediaItem->id)
-        ->map(function ($mediaItem) use ($translation, $product) {
+        ->map(function ($mediaItem) use ($translation, $product, $preferWebp) {
+            $displayUrl = \App\Support\Media\MediaUrl::conversion($mediaItem, 'detail_960x960', $preferWebp);
+
             return [
                 'id' => (int) $mediaItem->id,
-                'full' => (string) $mediaItem->getUrl(),
+                'full' => (string) ($displayUrl ?? $mediaItem->getUrl()),
                 'alt' => (string) ($translation?->name ?? $product->code),
             ];
         })

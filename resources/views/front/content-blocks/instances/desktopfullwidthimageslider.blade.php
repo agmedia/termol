@@ -1,6 +1,7 @@
 @php
     $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
     $customClasses = trim((string) ($translationPayload['custom_classes'] ?? ''));
+    $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
     $sliderId = 'full-width-slider-'.$block->id;
     $slides = $block->getMedia('block_slides');
 
@@ -15,12 +16,7 @@
 @endphp
 
 @if ($slides->isNotEmpty())
-    @once
-        @push('scripts')
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">
-            <script defer src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
-        @endpush
-    @endonce
+    @include('front.partials.splide-assets')
 
     <style>
         #{{ $sliderId }} .splide__arrow {
@@ -56,9 +52,7 @@
                 <ul class="splide__list">
                     @foreach ($slides as $media)
                         @php
-                            $slideUrl = $media->hasGeneratedConversion('hero_1440x480')
-                                ? $media->getUrl('hero_1440x480')
-                                : $media->getUrl();
+                            $slideUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1440x480', $preferWebp) ?? $media->getUrl();
                             $slideLink = trim((string) (
                                 data_get($media->custom_properties, 'link_url.'.app()->getLocale())
                                 ?: data_get($media->custom_properties, 'link_url.'.config('app.locale'))

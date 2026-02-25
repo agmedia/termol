@@ -12,6 +12,7 @@
                 'newsletter' => 'Newsletter',
                 'integrations' => 'Integrations',
                 'pricing' => 'Pricing',
+                'images' => 'Images',
                 'seo' => 'SEO',
                 'og' => 'OG / Twitter',
                 'schema' => 'Schema Markup',
@@ -321,6 +322,59 @@
                         <input type="checkbox" wire:model="form.store_pricing_prices_include_tax" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
                         {{ __('Product prices include VAT') }}
                     </label>
+                </div>
+            @endif
+
+            @if ($tab === 'images')
+                <div class="grid gap-4 md:grid-cols-2" @if(($webpGeneration['running'] ?? false) === true) wire:poll.1500ms="processWebpGenerationStep" @endif>
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <h3 class="text-sm font-bold text-slate-800">{{ __('Image Optimization') }}</h3>
+                        <p class="mt-1 text-xs text-slate-600">{{ __('Enable WebP delivery on storefront and generate missing WebP conversions for existing media.') }}</p>
+                    </div>
+
+                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 md:col-span-2">
+                        <input type="checkbox" wire:model="form.store_images_use_webp" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                        {{ __('Use WebP images on storefront (when available)') }}
+                    </label>
+
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 p-4">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <button
+                                type="button"
+                                wire:click="startWebpGeneration"
+                                class="rounded-xl border border-cyan-700 bg-cyan-700 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                @disabled(($webpGeneration['running'] ?? false) === true)
+                            >
+                                {{ __('Generate WebP for existing images') }}
+                            </button>
+
+                            <span class="text-xs text-slate-600">
+                                {{ __('Processed:') }} {{ (int) ($webpGeneration['processed'] ?? 0) }} / {{ (int) ($webpGeneration['total'] ?? 0) }}
+                                @if (($webpGeneration['failed'] ?? 0) > 0)
+                                    • {{ __('Failed:') }} {{ (int) ($webpGeneration['failed'] ?? 0) }}
+                                @endif
+                            </span>
+                        </div>
+
+                        <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                            @php
+                                $total = (int) ($webpGeneration['total'] ?? 0);
+                                $processed = (int) ($webpGeneration['processed'] ?? 0);
+                                $percent = $total > 0 ? min(100, (int) round(($processed / $total) * 100)) : 0;
+                            @endphp
+                            <div class="h-full bg-cyan-600 transition-all duration-300" style="width: {{ $percent }}%"></div>
+                        </div>
+
+                        <p class="mt-2 text-xs text-slate-600">
+                            @if (($webpGeneration['running'] ?? false) === true)
+                                {{ __('Status: running...') }} ({{ $percent }}%)
+                            @elseif (($webpGeneration['finished'] ?? false) === true)
+                                {{ __('Status: finished.') }}
+                            @else
+                                {{ __('Status: idle.') }}
+                            @endif
+                        </p>
+                    </div>
                 </div>
             @endif
 

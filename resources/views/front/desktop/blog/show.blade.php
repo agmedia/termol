@@ -10,8 +10,11 @@
             ->sortBy(static fn ($mediaItem) => (int) ($mediaItem->order_column ?? 0))
             ->values()
         : collect();
+    $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
     $coverImage = $mediaItems->firstWhere('collection_name', 'blog_cover') ?? $post->getFirstMedia('blog_cover');
-    $coverImageUrl = $coverImage ? $coverImage->getUrl() : null;
+    $coverImageUrl = $coverImage
+        ? (\App\Support\Media\MediaUrl::conversion($coverImage, 'cover_900x1200', $preferWebp) ?? $coverImage->getUrl())
+        : null;
     $galleryItems = $mediaItems->where('collection_name', 'blog_gallery')->values();
     if ($galleryItems->isEmpty()) {
         $galleryItems = $post->getMedia('blog_gallery')
@@ -87,7 +90,7 @@
             <div class="grid gap-5 {{ $galleryColumnsClass }}" data-blog-gallery>
                 @foreach ($galleryItems as $mediaItem)
                     @php
-                        $galleryImageUrl = $mediaItem->getUrl();
+                        $galleryImageUrl = \App\Support\Media\MediaUrl::conversion($mediaItem, 'detail_960x960', $preferWebp) ?? $mediaItem->getUrl();
                     @endphp
                     <a
                         href="{{ $galleryImageUrl }}"
@@ -179,8 +182,7 @@
 @endsection
 
 @push('scripts')
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
+    @include('front.partials.splide-assets')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/css/lightgallery-bundle.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/lightgallery.min.js"></script>
     <script defer>

@@ -53,6 +53,20 @@ trait HasConfiguredMedia
                 ->performOnCollections(...$collections);
 
             $this->applyPresetToConversion($conversion, $preset, $media);
+
+            // Always register a paired WebP conversion so frontend can toggle WebP delivery.
+            if (! str_ends_with((string) $conversionName, '_webp')) {
+                $webpPreset = $preset;
+                $webpPreset['format'] = 'webp';
+                if (! isset($webpPreset['quality']) || ! is_numeric($webpPreset['quality'])) {
+                    $webpPreset['quality'] = 84;
+                }
+
+                $webpConversion = $this->addMediaConversion((string) $conversionName.'_webp')
+                    ->performOnCollections(...$collections);
+
+                $this->applyPresetToConversion($webpConversion, $webpPreset, $media);
+            }
         }
     }
 

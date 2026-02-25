@@ -15,6 +15,7 @@
         ? number_format((float) $pricePresentation['lowest_30_days_gross'], 2).' €'
         : null;
     $isWishlisted = app(\App\Services\Front\WishlistService::class)->has((int) $product->id);
+    $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
 
     $mediaItems = $product->relationLoaded('media')
         ? $product->media
@@ -41,16 +42,15 @@
 
     $gallery = $galleryItems
         ->unique(fn ($mediaItem) => (int) $mediaItem->id)
-        ->map(function ($mediaItem) use ($translation, $product) {
-            $displayUrl = $mediaItem->hasGeneratedConversion('detail_960x960')
-                ? $mediaItem->getUrl('detail_960x960')
-                : $mediaItem->getUrl();
+        ->map(function ($mediaItem) use ($translation, $product, $preferWebp) {
+            $displayUrl = \App\Support\Media\MediaUrl::conversion($mediaItem, 'detail_960x960', $preferWebp);
+            $thumbUrl = \App\Support\Media\MediaUrl::conversion($mediaItem, 'thumb_100x100', $preferWebp);
 
             return [
                 'id' => (int) $mediaItem->id,
-                'full' => (string) $mediaItem->getUrl(),
+                'full' => (string) ($displayUrl ?? $mediaItem->getUrl()),
                 'display' => (string) $displayUrl,
-                'thumb' => (string) ($mediaItem->hasGeneratedConversion('thumb_100x100') ? $mediaItem->getUrl('thumb_100x100') : $mediaItem->getUrl()),
+                'thumb' => (string) ($thumbUrl ?? $mediaItem->getUrl()),
                 'alt' => (string) ($translation?->name ?? $product->code),
             ];
         })
@@ -517,8 +517,7 @@
 @endsection
 
 @push('scripts')
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
+    @include('front.partials.splide-assets')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/css/lightgallery-bundle.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/lightgallery.min.js"></script>
     <script defer src="{{ asset('front-theme/scripts/product-detail.js') }}?v={{ md5_file(public_path('front-theme/scripts/product-detail.js')) }}"></script>

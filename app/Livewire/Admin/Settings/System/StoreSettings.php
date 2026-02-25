@@ -4,12 +4,16 @@ namespace App\Livewire\Admin\Settings\System;
 
 use App\Models\Catalog\Category\Category;
 use App\Models\Content\Page\InfoPage;
+use App\Support\Media\MediaProfileRegistry;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
+use Spatie\MediaLibrary\Conversions\FileManipulator;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 
 class StoreSettings extends Component
@@ -131,6 +135,7 @@ class StoreSettings extends Component
         'store_announcement_text' => '',
         'store_announcement_url' => '',
         'store_announcement_new_tab' => false,
+        'store_images_use_webp' => false,
 
         'store_cookie_consent_enabled' => true,
         'store_cookie_consent_title' => 'Koristimo kolačiće',
@@ -159,6 +164,18 @@ class StoreSettings extends Component
     public ?TemporaryUploadedFile $ogPageImageUpload = null;
     public ?TemporaryUploadedFile $ogBlogImageUpload = null;
 
+    /** @var array<string, mixed> */
+    public array $webpGeneration = [
+        'running' => false,
+        'total' => 0,
+        'processed' => 0,
+        'failed' => 0,
+        'finished' => false,
+        'started_at' => null,
+        'finished_at' => null,
+        'last_id' => 0,
+    ];
+
     public function mount(): void
     {
         $this->authorizeAccess();
@@ -179,6 +196,8 @@ class StoreSettings extends Component
         if (trim((string) $this->form['store_announcement_text']) === '') {
             $this->form['store_announcement_text'] = (string) __('ui.front.desktop.promo_bar');
         }
+
+        $this->refreshWebpGenerationStatus();
     }
 
     public function save(): void
@@ -345,6 +364,7 @@ class StoreSettings extends Component
             'form.store_announcement_text' => ['nullable', 'string', 'max:191'],
             'form.store_announcement_url' => ['nullable', 'url', 'max:2048'],
             'form.store_announcement_new_tab' => ['required', 'boolean'],
+            'form.store_images_use_webp' => ['required', 'boolean'],
 
             'form.store_cookie_consent_enabled' => ['required', 'boolean'],
             'form.store_cookie_consent_title' => ['nullable', 'string', 'max:120'],
@@ -455,6 +475,128 @@ class StoreSettings extends Component
             $user && (Bouncer::is($user)->an('superadmin') || $user->can('settings.system.store.manage')),
             403
         );
+    }
+
+    public function startWebpGeneration(): void
+    {
+        $this->authorizeAccess();
+
+        $cacheKey = $this->webpGenerationCacheKey();
+        $state = Cache::get($cacheKey, []);
+        if ((bool) ($state['running'] ?? false)) {
+            $this->refreshWebpGenerationStatus();
+
+            return;
+        }
+
+        $modelTypes = MediaProfileRegistry::modelClasses();
+        $total = Media::query()->whereIn('model_type', $modelTypes)->count();
+
+        $state = [
+            'running' => $total > 0,
+            'total' => (int) $total,
+            'processed' => 0,
+            'failed' => 0,
+            'finished' => $total === 0,
+            'started_at' => now()->toDateTimeString(),
+            'finished_at' => $total === 0 ? now()->toDateTimeString() : null,
+            'last_id' => 0,
+        ];
+
+        Cache::put($cacheKey, $state, now()->addHours(6));
+        $this->refreshWebpGenerationStatus();
+
+        if ($total === 0) {
+            $this->dispatch('notify', type: 'success', message: __('No media records found for WebP generation.'));
+        }
+    }
+
+    public function processWebpGenerationStep(): void
+    {
+        $cacheKey = $this->webpGenerationCacheKey();
+        $state = Cache::get($cacheKey, []);
+        if (! ((bool) ($state['running'] ?? false))) {
+            $this->refreshWebpGenerationStatus();
+
+            return;
+        }
+
+        $lastId = (int) ($state['last_id'] ?? 0);
+        $modelTypes = MediaProfileRegistry::modelClasses();
+
+        $batch = Media::query()
+            ->whereIn('model_type', $modelTypes)
+            ->where('id', '>', $lastId)
+            ->orderBy('id')
+            ->limit(20)
+            ->get();
+
+        if ($batch->isEmpty()) {
+            $state['running'] = false;
+            $state['finished'] = true;
+            $state['finished_at'] = now()->toDateTimeString();
+            Cache::put($cacheKey, $state, now()->addHours(6));
+            $this->refreshWebpGenerationStatus();
+            $this->dispatch('notify', type: 'success', message: __('WebP generation finished.'));
+
+            return;
+        }
+
+        foreach ($batch as $media) {
+            $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type);
+
+            try {
+                if ($conversionNames !== []) {
+                    app(FileManipulator::class)->createDerivedFiles($media, $conversionNames, true, false, false);
+                }
+            } catch (\Throwable) {
+                $state['failed'] = (int) ($state['failed'] ?? 0) + 1;
+            }
+
+            $state['processed'] = (int) ($state['processed'] ?? 0) + 1;
+            $state['last_id'] = (int) $media->id;
+        }
+
+        if ((int) ($state['processed'] ?? 0) >= (int) ($state['total'] ?? 0)) {
+            $state['running'] = false;
+            $state['finished'] = true;
+            $state['finished_at'] = now()->toDateTimeString();
+            $this->dispatch('notify', type: 'success', message: __('WebP generation finished.'));
+        }
+
+        Cache::put($cacheKey, $state, now()->addHours(6));
+        $this->refreshWebpGenerationStatus();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function webpConversionNamesForModel(string $modelType): array
+    {
+        $map = MediaProfileRegistry::conversionMapForModel($modelType);
+        $conversionNames = array_keys($map);
+        if ($conversionNames === []) {
+            return [];
+        }
+
+        return array_map(static fn (string $name): string => $name.'_webp', $conversionNames);
+    }
+
+    private function webpGenerationCacheKey(): string
+    {
+        $userId = (int) (auth()->id() ?? 0);
+
+        return 'settings.store.webp_generation.'.$userId;
+    }
+
+    private function refreshWebpGenerationStatus(): void
+    {
+        $state = Cache::get($this->webpGenerationCacheKey(), []);
+        if (! is_array($state) || $state === []) {
+            return;
+        }
+
+        $this->webpGeneration = array_merge($this->webpGeneration, $state);
     }
 
     /**

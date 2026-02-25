@@ -3,6 +3,7 @@
     $fallbackLocale = config('app.locale');
     $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
     $customClasses = trim((string) ($translationPayload['custom_classes'] ?? ''));
+    $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
     $slides = $block->getMedia('block_slides')->take(2);
 @endphp
 
@@ -11,9 +12,7 @@
         <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
             @foreach ($slides as $media)
                 @php
-                    $imageUrl = $media->hasGeneratedConversion('hero_1440x480')
-                        ? $media->getUrl('hero_1440x480')
-                        : $media->getUrl();
+                    $imageUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1440x480', $preferWebp) ?? $media->getUrl();
                     $props = (array) ($media->custom_properties ?? []);
                     $slideTitle = trim((string) (
                         data_get($props, "block_title.$locale")

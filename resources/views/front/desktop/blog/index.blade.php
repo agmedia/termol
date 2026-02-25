@@ -24,13 +24,18 @@
     @if ($posts->isEmpty())
         <div class="border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">{{ __('ui.blog.empty') }}</div>
     @else
+        @php
+            $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
+        @endphp
         <section class="grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
             @foreach ($posts as $post)
                 @php
                     $translation = $post->translations->firstWhere('locale', $locale)
                         ?? $post->translations->firstWhere('locale', $fallbackLocale);
                     $postImage = $post->getFirstMedia('blog_cover');
-                    $postImageUrl = $postImage ? $postImage->getUrl() : null;
+                    $postImageUrl = $postImage
+                        ? (\App\Support\Media\MediaUrl::conversion($postImage, 'cover_900x1200', $preferWebp) ?? $postImage->getUrl())
+                        : null;
                 @endphp
 
                 <article>
