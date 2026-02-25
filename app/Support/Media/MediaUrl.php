@@ -19,19 +19,29 @@ class MediaUrl
 
         $webpConversion = $baseConversion.'_webp';
 
-        if ($preferWebp && $media->hasGeneratedConversion($webpConversion)) {
+        if ($preferWebp && self::hasUsableConversion($media, $webpConversion)) {
             return (string) $media->getUrl($webpConversion);
         }
 
-        if ($media->hasGeneratedConversion($baseConversion)) {
+        if (self::hasUsableConversion($media, $baseConversion)) {
             return (string) $media->getUrl($baseConversion);
         }
 
-        if ($preferWebp && $media->hasGeneratedConversion($webpConversion)) {
+        if ($preferWebp && self::hasUsableConversion($media, $webpConversion)) {
             return (string) $media->getUrl($webpConversion);
         }
 
         return (string) $media->getUrl();
     }
-}
 
+    private static function hasUsableConversion(Media $media, string $conversionName): bool
+    {
+        if (! $media->hasGeneratedConversion($conversionName)) {
+            return false;
+        }
+
+        $path = $media->getPath($conversionName);
+
+        return is_string($path) && $path !== '' && is_file($path);
+    }
+}
