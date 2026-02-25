@@ -9,7 +9,7 @@
         ['label' => __('ui.account.orders.title')],
     ]])
 
-    <section class="mb-8 border border-slate-200 bg-slate-100 px-6 py-6 text-center">
+    <section class="mb-8 border border-slate-200 bg-slate-100 px-4 py-6 text-center sm:px-6">
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.account.orders.title') }}</h1>
         <p class="mt-2 text-slate-600">{{ __('ui.account.orders.subtitle') }}</p>
     </section>
@@ -17,10 +17,10 @@
     <div class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
         @include('front.desktop.account.partials.nav', ['current' => 'orders'])
 
-        <div>
+        <div class="min-w-0">
             <div class="overflow-hidden border border-slate-200 bg-white">
                 <div class="overflow-x-auto">
-                    <table class="min-w-[760px] w-full text-sm">
+                    <table class="w-full min-w-[620px] text-sm">
                         <thead class="bg-slate-100/70 text-left text-xs uppercase tracking-wide text-slate-500">
                         <tr>
                             <th class="px-4 py-3">{{ __('ui.account.orders.table.order') }}</th>
@@ -33,7 +33,7 @@
                         <tbody>
                         @forelse ($orders as $order)
                             <tr class="border-t border-slate-200">
-                                <td class="px-4 py-3 font-semibold text-slate-900">{{ $order->order_number }}</td>
+                                <td class="break-all px-4 py-3 font-semibold text-slate-900">{{ $order->order_number }}</td>
                                 <td class="px-4 py-3">{{ optional($order->placed_at ?? $order->created_at)->format('Y-m-d H:i') }}</td>
                                 <td class="px-4 py-3">{{ $order->status?->name ?? __('ui.account.orders.status_new') }}</td>
                                 <td class="px-4 py-3 font-semibold">{{ \App\Support\Currency::format((float) $order->grand_total, $order->currency_code) }}</td>

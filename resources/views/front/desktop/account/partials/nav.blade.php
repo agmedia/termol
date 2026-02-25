@@ -40,7 +40,7 @@
     }
 @endphp
 
-<aside class="h-fit self-start border border-slate-200 bg-white lg:sticky lg:top-28">
+<aside class="min-w-0 h-fit self-start border border-slate-200 bg-white lg:sticky lg:top-28">
     <div class="border-b border-slate-200 px-4 py-3">
         <h2 class="text-sm font-bold uppercase tracking-wide text-slate-900">{{ __('ui.account.nav.title') }}</h2>
     </div>
@@ -52,7 +52,7 @@
                         href="{{ $item['url'] }}"
                         class="flex items-center justify-between border px-4 py-3 text-sm font-semibold transition {{ $item['active'] ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 text-slate-800 hover:bg-slate-100' }}"
                     >
-                        <span>{{ $item['label'] }}</span>
+                        <span class="min-w-0 break-words">{{ $item['label'] }}</span>
                         @if ($item['active'])
                             <span aria-hidden="true">•</span>
                         @endif

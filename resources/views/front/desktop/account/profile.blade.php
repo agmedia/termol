@@ -9,7 +9,7 @@
         ['label' => __('ui.account.profile.title')],
     ]])
 
-    <section class="mb-8 border border-slate-200 bg-slate-100 px-6 py-6 text-center">
+    <section class="mb-8 border border-slate-200 bg-slate-100 px-4 py-6 text-center sm:px-6">
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.account.profile.title') }}</h1>
         <p class="mt-2 text-slate-600">{{ __('ui.account.profile.subtitle') }}</p>
     </section>
@@ -17,7 +17,7 @@
     <div class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
         @include('front.desktop.account.partials.nav', ['current' => 'profile'])
 
-        <div class="space-y-8">
+        <div class="min-w-0 space-y-8">
             <form method="POST" action="{{ route('account.profile.update') }}" class="border border-slate-200 bg-white p-6">
                 @csrf
                 @method('PUT')
@@ -39,7 +39,7 @@
                     @php
                         $genderValue = old('gender', $user->profile?->gender);
                     @endphp
-                    <div class="flex items-center gap-6 text-sm text-slate-800">
+                    <div class="flex flex-wrap items-center gap-6 text-sm text-slate-800">
                         <label class="inline-flex items-center gap-2">
                             <input type="radio" name="gender" value="female" @checked($genderValue === 'female') class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0">
                             <span>{{ __('ui.account.gender.female') }}</span>

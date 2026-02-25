@@ -103,6 +103,7 @@ class WishlistService
                 'user_id' => $userId,
                 'product_id' => $productId,
             ]);
+            $this->flushCache();
 
             return true;
         }
@@ -112,6 +113,7 @@ class WishlistService
             $ids[] = $productId;
         }
         Session::put(self::SESSION_KEY, $ids);
+        $this->flushCache();
 
         return true;
     }
@@ -126,12 +128,14 @@ class WishlistService
                 ->where('user_id', $userId)
                 ->where('product_id', $productId)
                 ->delete();
+            $this->flushCache();
 
             return;
         }
 
         $ids = array_values(array_filter($this->sessionIds(), static fn (int $id): bool => $id !== $productId));
         Session::put(self::SESSION_KEY, $ids);
+        $this->flushCache();
     }
 
     public function clear(): void
@@ -142,6 +146,7 @@ class WishlistService
         }
 
         Session::forget(self::SESSION_KEY);
+        $this->flushCache();
     }
 
     /**
@@ -217,5 +222,11 @@ class WishlistService
         }
 
         Session::forget(self::SESSION_KEY);
+        $this->flushCache();
+    }
+
+    private function flushCache(): void
+    {
+        self::$idsCache = [];
     }
 }

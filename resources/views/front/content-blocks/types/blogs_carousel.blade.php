@@ -181,7 +181,7 @@
                                                 @endif
                                             </div>
                                             <div class="p-4">
-                                                <h3 class="text-lg font-semibold leading-tight text-slate-900">{{ $postTitle }}</h3>
+                                                <h3 class="text-center text-lg font-semibold leading-snug text-slate-900 lg:text-xl">{{ $postTitle }}</h3>
                                                 @if ($postExcerpt !== '')
                                                     <p class="mt-2 text-sm text-slate-600">{{ \Illuminate\Support\Str::limit($postExcerpt, 120, '...') }}</p>
                                                 @endif

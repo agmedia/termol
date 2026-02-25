@@ -38,7 +38,7 @@
         @endphp
         <script>
             document.addEventListener('DOMContentLoaded', function () {
-                if (!window.ShopAnalytics) {
+                if (!window.ShopAnalytics || (typeof window.canTrackAnalytics === 'function' && !window.canTrackAnalytics())) {
                     return;
                 }
 
@@ -68,7 +68,7 @@
         @if ($cartItems !== [])
             <script>
                 document.addEventListener('DOMContentLoaded', function () {
-                    if (!window.ShopAnalytics) {
+                    if (!window.ShopAnalytics || (typeof window.canTrackAnalytics === 'function' && !window.canTrackAnalytics())) {
                         return;
                     }
 
@@ -110,7 +110,7 @@
         @if ($viewListItems !== [])
             <script>
                 document.addEventListener('DOMContentLoaded', function () {
-                    if (!window.ShopAnalytics) {
+                    if (!window.ShopAnalytics || (typeof window.canTrackAnalytics === 'function' && !window.canTrackAnalytics())) {
                         return;
                     }
 

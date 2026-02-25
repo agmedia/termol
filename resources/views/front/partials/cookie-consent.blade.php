@@ -1,0 +1,131 @@
+@if ((bool) ($storeSettings['cookies']['enabled'] ?? true))
+    @php
+        $cookieTitle = trim((string) ($storeSettings['cookies']['title'] ?? 'Koristimo kolačiće'));
+        $cookieMessage = trim((string) ($storeSettings['cookies']['message'] ?? 'Koristimo kolačiće za ispravan rad sajta i bolje korisničko iskustvo.'));
+        $cookieAcceptLabel = trim((string) ($storeSettings['cookies']['accept_label'] ?? 'U redu'));
+        $cookiePolicyLabel = trim((string) ($storeSettings['cookies']['policy_label'] ?? 'Politika kolačića'));
+        $cookiePolicyUrl = trim((string) ($storeSettings['cookies']['policy_url'] ?? ''));
+        $cookiePreferencesTitle = trim((string) ($storeSettings['cookies']['preferences_title'] ?? 'Postavke kolačića'));
+        $cookiePreferencesAcceptAll = trim((string) ($storeSettings['cookies']['preferences_accept_all_label'] ?? 'Prihvati sve'));
+        $cookiePreferencesAcceptNecessary = trim((string) ($storeSettings['cookies']['preferences_accept_necessary_label'] ?? 'Samo nužni'));
+        $cookiePreferencesSave = trim((string) ($storeSettings['cookies']['preferences_save_label'] ?? 'Spremi odabir'));
+        $cookieNecessaryTitle = trim((string) ($storeSettings['cookies']['necessary_title'] ?? 'Nužni kolačići'));
+        $cookieNecessaryDescription = trim((string) ($storeSettings['cookies']['necessary_description'] ?? 'Neki kolačići na ovoj internetskoj stranici neophodni su za pravilno funkcioniranje stranice stoga ih nije moguće onemogućiti.'));
+        $cookieAnalyticsTitle = trim((string) ($storeSettings['cookies']['analytics_title'] ?? 'Analitički kolačići'));
+        $cookieAnalyticsDescription = trim((string) ($storeSettings['cookies']['analytics_description'] ?? 'Analitički kolačići nam pomažu kako bismo poboljšali našu internetsku stranicu sakupljajući i analizirajući podatke o njenoj posjećenosti.'));
+        $cookieMarketingTitle = trim((string) ($storeSettings['cookies']['marketing_title'] ?? 'Marketinški kolačići'));
+        $cookieMarketingDescription = trim((string) ($storeSettings['cookies']['marketing_description'] ?? 'Marketinški kolačići služe za praćenje posjetitelja u korištenju internet stranice u svrhu omogućavanja prikazivanja relevantnih oglasa oglašivača trećih strana.'));
+        $cookieLocale = app()->getLocale();
+        $cookieDescription = $cookieMessage;
+        if ($cookiePolicyUrl !== '') {
+            $cookieDescription .= ' <a href="'.e($cookiePolicyUrl).'">'.e($cookiePolicyLabel).'</a>';
+        }
+    @endphp
+    <button
+        type="button"
+        id="cookie-consent-floating-button"
+        class="fixed bottom-4 left-4 z-[9999] inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
+        aria-label="Cookie postavke"
+    >
+        <img src="{{ asset('front-theme/images/cookie-svg.svg') }}" alt="" class="h-6 w-6" loading="lazy" />
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/vanilla-cookieconsent@3/dist/cookieconsent.umd.js"></script>
+    <script>
+        const syncGoogleConsent = () => {
+            const analyticsGranted = window.CookieConsent.acceptedCategory('analytics');
+            const marketingGranted = window.CookieConsent.acceptedCategory('marketing');
+
+            window.cookieAnalyticsAllowed = analyticsGranted;
+            window.cookieMarketingAllowed = marketingGranted;
+            window.canTrackAnalytics = () => window.cookieAnalyticsAllowed === true;
+
+            if (typeof window.updateGoogleConsentFromCookie === 'function') {
+                window.updateGoogleConsentFromCookie(analyticsGranted, marketingGranted);
+            }
+        };
+
+        window.CookieConsent.run({
+            disablePageInteraction: true,
+            guiOptions: {
+                consentModal: {
+                    layout: 'box',
+                    position: 'middle center',
+                    equalWeightButtons: true,
+                    flipButtons: false
+                },
+                preferencesModal: {
+                    layout: 'box',
+                    position: 'middle center'
+                }
+            },
+            categories: {
+                necessary: {
+                    enabled: true,
+                    readOnly: true
+                },
+                analytics: {
+                    enabled: false,
+                    readOnly: false
+                },
+                marketing: {
+                    enabled: false,
+                    readOnly: false
+                }
+            },
+            onFirstConsent: () => syncGoogleConsent(),
+            onConsent: () => syncGoogleConsent(),
+            onChange: () => syncGoogleConsent(),
+            language: {
+                default: @json($cookieLocale),
+                translations: {
+                    @json($cookieLocale): {
+                        consentModal: {
+                            title: @json($cookieTitle),
+                            description: @json($cookieDescription),
+                            acceptAllBtn: @json($cookieAcceptLabel),
+                            acceptNecessaryBtn: @json($cookiePreferencesAcceptNecessary),
+                            showPreferencesBtn: 'Postavke'
+                        },
+                        preferencesModal: {
+                            title: @json($cookiePreferencesTitle),
+                            acceptAllBtn: @json($cookiePreferencesAcceptAll),
+                            acceptNecessaryBtn: @json($cookiePreferencesAcceptNecessary),
+                            savePreferencesBtn: @json($cookiePreferencesSave),
+                            sections: [
+                                {
+                                    title: @json($cookieNecessaryTitle),
+                                    description: @json($cookieNecessaryDescription),
+                                    linkedCategory: 'necessary'
+                                },
+                                {
+                                    title: @json($cookieAnalyticsTitle),
+                                    description: @json($cookieAnalyticsDescription),
+                                    linkedCategory: 'analytics'
+                                },
+                                {
+                                    title: @json($cookieMarketingTitle),
+                                    description: @json($cookieMarketingDescription),
+                                    linkedCategory: 'marketing'
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        });
+        syncGoogleConsent();
+        setTimeout(() => {
+            if (!window.CookieConsent.validConsent()) {
+                window.CookieConsent.show();
+            }
+        }, 40);
+
+        const cookieFloatingButton = document.getElementById('cookie-consent-floating-button');
+        if (cookieFloatingButton) {
+            cookieFloatingButton.addEventListener('click', () => {
+                window.CookieConsent.showPreferences();
+            });
+        }
+    </script>
+@endif

@@ -21,6 +21,7 @@ class StoreSettingsService
     {
         return [
             'announcement' => $this->announcement(),
+            'cookies' => $this->cookies(),
             'branding' => $this->branding(),
             'footer' => $this->footer(),
             'newsletter' => $this->newsletter(),
@@ -43,6 +44,31 @@ class StoreSettingsService
             'text' => (string) $this->settings->get('store_announcement_text', __('ui.front.desktop.promo_bar')),
             'url' => trim((string) $this->settings->get('store_announcement_url', '')),
             'new_tab' => (bool) $this->settings->get('store_announcement_new_tab', false),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function cookies(): array
+    {
+        return [
+            'enabled' => (bool) $this->settings->get('store_cookie_consent_enabled', true),
+            'title' => trim((string) $this->settings->get('store_cookie_consent_title', 'Koristimo kolačiće')),
+            'message' => trim((string) $this->settings->get('store_cookie_consent_message', 'Koristimo kolačiće za ispravan rad sajta i bolje korisničko iskustvo.')),
+            'accept_label' => trim((string) $this->settings->get('store_cookie_consent_accept_label', 'U redu')),
+            'policy_label' => trim((string) $this->settings->get('store_cookie_consent_policy_label', 'Politika kolačića')),
+            'policy_url' => trim((string) $this->settings->get('store_cookie_consent_policy_url', '')),
+            'preferences_title' => trim((string) $this->settings->get('store_cookie_preferences_title', 'Postavke kolačića')),
+            'preferences_accept_all_label' => trim((string) $this->settings->get('store_cookie_preferences_accept_all_label', 'Prihvati sve')),
+            'preferences_accept_necessary_label' => trim((string) $this->settings->get('store_cookie_preferences_accept_necessary_label', 'Samo nužni')),
+            'preferences_save_label' => trim((string) $this->settings->get('store_cookie_preferences_save_label', 'Spremi odabir')),
+            'necessary_title' => trim((string) $this->settings->get('store_cookie_necessary_title', 'Nužni kolačići')),
+            'necessary_description' => trim((string) $this->settings->get('store_cookie_necessary_description', 'Neki kolačići na ovoj internetskoj stranici neophodni su za pravilno funkcioniranje stranice stoga ih nije moguće onemogućiti.')),
+            'analytics_title' => trim((string) $this->settings->get('store_cookie_analytics_title', 'Analitički kolačići')),
+            'analytics_description' => trim((string) $this->settings->get('store_cookie_analytics_description', 'Analitički kolačići nam pomažu kako bismo poboljšali našu internetsku stranicu sakupljajući i analizirajući podatke o njenoj posjećenosti.')),
+            'marketing_title' => trim((string) $this->settings->get('store_cookie_marketing_title', 'Marketinški kolačići')),
+            'marketing_description' => trim((string) $this->settings->get('store_cookie_marketing_description', 'Marketinški kolačići služe za praćenje posjetitelja u korištenju internet stranice u svrhu omogućavanja prikazivanja relevantnih oglasa oglašivača trećih strana.')),
         ];
     }
 

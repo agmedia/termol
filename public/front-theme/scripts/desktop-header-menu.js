@@ -27,5 +27,10 @@
 
     openButtons.forEach((button) => button.addEventListener('click', openMenu));
     closeButtons.forEach((button) => button.addEventListener('click', closeMenu));
+    root.querySelectorAll('summary [data-mobile-nav-link]').forEach((link) => {
+        link.addEventListener('click', (event) => {
+            event.stopPropagation();
+        });
+    });
     root.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMenu));
 })();

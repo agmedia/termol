@@ -61,7 +61,7 @@
         </div>
     </section>
 
-    <section class="px-4 py-6 sm:px-6 lg:px-8">
+    <section class="px-4 py-6 sm:px-6 lg:px-8" data-wishlist-page data-wishlist-empty-text="{{ __('ui.wishlist.empty') }}">
         @if ($products->isEmpty())
             <div class="border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
                 {{ __('ui.wishlist.empty') }}

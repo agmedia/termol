@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
+use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Product\Product;
 use App\Models\Content\Support\Comment;
 use App\Services\Content\ContentBlockResolver;
@@ -111,12 +112,12 @@ class ProductController extends Controller
             ->firstOrFail();
 
         $categoryIds = $product->categories->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $relatedLimit = 4;
 
-        $related = Product::query()
+        $relatedBaseQuery = Product::query()
             ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
             ->where('is_active', true)
             ->where('id', '!=', $product->id)
-            ->when($categoryIds !== [], fn ($q) => $q->whereHas('categories', fn ($categoryQuery) => $categoryQuery->whereIn('categories.id', $categoryIds)))
             ->with([
                 'taxRate:id,rate,rate_type,is_active',
                 'media' => fn ($q) => $q
@@ -140,9 +141,94 @@ class ProductController extends Controller
                             ->whereIn('locale', [$locale, $fallbackLocale]),
                     ]),
             ])
-            ->orderByDesc('id')
-            ->limit(4)
-            ->get();
+            ->orderByDesc('id');
+
+        $related = collect();
+        $excludeIds = [(int) $product->id];
+
+        if ($categoryIds !== []) {
+            $productCategories = Category::query()
+                ->select(['id', 'parent_id', '_lft', '_rgt'])
+                ->whereIn('id', $categoryIds)
+                ->withDepth()
+                ->get();
+
+            $maxDepth = (int) $productCategories->max('depth');
+            $deepestCategories = $productCategories
+                ->filter(static fn (Category $category): bool => (int) ($category->depth ?? 0) === $maxDepth)
+                ->values();
+            $deepestCategoryIds = $deepestCategories->pluck('id')->map(fn ($id): int => (int) $id)->all();
+
+            if ($deepestCategoryIds !== []) {
+                $sameSubcategory = (clone $relatedBaseQuery)
+                    ->whereHas('categories', fn ($categoryQuery) => $categoryQuery->whereIn('categories.id', $deepestCategoryIds))
+                    ->limit($relatedLimit)
+                    ->get();
+
+                $related = $related->concat($sameSubcategory);
+                $excludeIds = array_values(array_unique(array_merge(
+                    $excludeIds,
+                    $sameSubcategory->pluck('id')->map(fn ($id): int => (int) $id)->all()
+                )));
+            }
+
+            if ($related->count() < $relatedLimit) {
+                $rootCategories = Category::query()
+                    ->select(['id', '_lft', '_rgt'])
+                    ->whereNull('parent_id')
+                    ->orderBy('_lft')
+                    ->get();
+
+                $rootBoundaries = [];
+                foreach ($deepestCategories as $deepestCategory) {
+                    /** @var Category|null $root */
+                    $root = $rootCategories->first(static fn (Category $candidate): bool => (int) $candidate->_lft <= (int) $deepestCategory->_lft
+                        && (int) $candidate->_rgt >= (int) $deepestCategory->_rgt);
+                    if (! $root) {
+                        continue;
+                    }
+
+                    $rootBoundaries[(int) $root->id] = [
+                        'lft' => (int) $root->_lft,
+                        'rgt' => (int) $root->_rgt,
+                    ];
+                }
+
+                if ($rootBoundaries !== []) {
+                    $fallback = (clone $relatedBaseQuery)
+                        ->whereNotIn('id', $excludeIds)
+                        ->whereHas('categories', function ($categoryQuery) use ($rootBoundaries): void {
+                            $categoryQuery->where(function ($or) use ($rootBoundaries): void {
+                                foreach ($rootBoundaries as $boundary) {
+                                    $or->orWhere(function ($nested) use ($boundary): void {
+                                        $nested
+                                            ->where('categories._lft', '>=', (int) $boundary['lft'])
+                                            ->where('categories._rgt', '<=', (int) $boundary['rgt']);
+                                    });
+                                }
+                            });
+                        })
+                        ->limit($relatedLimit - $related->count())
+                        ->get();
+
+                    $related = $related->concat($fallback);
+                    $excludeIds = array_values(array_unique(array_merge(
+                        $excludeIds,
+                        $fallback->pluck('id')->map(fn ($id): int => (int) $id)->all()
+                    )));
+                }
+            }
+        }
+
+        if ($related->count() < $relatedLimit) {
+            $latestFallback = (clone $relatedBaseQuery)
+                ->whereNotIn('id', $excludeIds)
+                ->limit($relatedLimit - $related->count())
+                ->get();
+            $related = $related->concat($latestFallback);
+        }
+
+        $related = $related->take($relatedLimit)->values();
 
         $topBlocks = app(ContentBlockResolver::class)->forPlacement(
             placement: 'product.top',

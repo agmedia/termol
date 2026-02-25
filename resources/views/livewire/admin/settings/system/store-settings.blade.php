@@ -16,6 +16,7 @@
                 'og' => 'OG / Twitter',
                 'schema' => 'Schema Markup',
                 'announcement' => 'Announcement bar',
+                'cookies' => 'Cookies',
             ] as $tabKey => $tabLabel)
                 <button type="button" wire:click="$set('tab', '{{ $tabKey }}')" class="rounded-xl border px-3 py-1.5 text-xs font-semibold {{ $tab === $tabKey ? 'border-cyan-700 bg-cyan-700 text-white' : 'border-slate-300 text-slate-700 hover:bg-slate-100' }}">
                     {{ __($tabLabel) }}
@@ -536,6 +537,83 @@
                         <input type="checkbox" wire:model="form.store_announcement_new_tab" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
                         {{ __('Open link in new tab') }}
                     </label>
+                </div>
+            @endif
+
+            @if ($tab === 'cookies')
+                <div class="grid gap-4 md:grid-cols-2">
+                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 md:col-span-2">
+                        <input type="checkbox" wire:model="form.store_cookie_consent_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                        {{ __('Prikaži cookie consent overlay') }}
+                    </label>
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <h3 class="text-sm font-bold text-slate-800">{{ __('Centered modal + screen overlay') }}</h3>
+                        <p class="mt-1 text-xs text-slate-600">{{ __('Dok korisnik ne klikne dugme prihvatanja, overlay ostaje aktivan i blokira interakciju sa stranicom.') }}</p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Naslov') }}</label>
+                        <input type="text" wire:model="form.store_cookie_consent_title" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Tekst') }}</label>
+                        <textarea wire:model="form.store_cookie_consent_message" rows="4" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Labela dugmeta') }}</label>
+                        <input type="text" wire:model="form.store_cookie_consent_accept_label" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Labela linka politike') }}</label>
+                        <input type="text" wire:model="form.store_cookie_consent_policy_label" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('URL politike kolačića (optional)') }}</label>
+                        <input type="url" wire:model="form.store_cookie_consent_policy_url" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                        @error('form.store_cookie_consent_policy_url') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <h3 class="text-sm font-bold text-slate-800">{{ __('Tekstovi za "Postavke kolačića" modal') }}</h3>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Naslov modala postavki') }}</label>
+                        <input type="text" wire:model="form.store_cookie_preferences_title" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Prihvati sve') }}</label>
+                        <input type="text" wire:model="form.store_cookie_preferences_accept_all_label" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Samo nužni') }}</label>
+                        <input type="text" wire:model="form.store_cookie_preferences_accept_necessary_label" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Spremi odabir') }}</label>
+                        <input type="text" wire:model="form.store_cookie_preferences_save_label" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Nužni - naslov') }}</label>
+                        <input type="text" wire:model="form.store_cookie_necessary_title" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Analitički - naslov') }}</label>
+                        <input type="text" wire:model="form.store_cookie_analytics_title" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Marketinški - naslov') }}</label>
+                        <input type="text" wire:model="form.store_cookie_marketing_title" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Nužni - opis') }}</label>
+                        <textarea wire:model="form.store_cookie_necessary_description" rows="3" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Analitički - opis') }}</label>
+                        <textarea wire:model="form.store_cookie_analytics_description" rows="3" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Marketinški - opis') }}</label>
+                        <textarea wire:model="form.store_cookie_marketing_description" rows="3" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    </div>
                 </div>
             @endif
 
