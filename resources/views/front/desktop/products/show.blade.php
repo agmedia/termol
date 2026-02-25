@@ -76,7 +76,7 @@
         .product-ipad-slider {
             display: block;
             margin-top: -2rem;
-            padding-bottom: 2.25rem;
+            padding-bottom: 0;
             width: 100%;
             max-width: 100%;
             overflow: hidden;
@@ -87,6 +87,10 @@
         }
 
         @media (max-width: 768px) {
+            .product-detail-layout {
+                gap: .75rem;
+            }
+
             .product-ipad-slider .splide__track {
                 overflow: hidden;
             }
@@ -107,7 +111,26 @@
             }
 
             .product-ipad-slider .splide__pagination {
-                bottom: -2rem !important;
+                bottom: .9rem !important;
+                gap: .35rem;
+                z-index: 20;
+            }
+
+            .product-ipad-slider .splide__pagination__page {
+                width: .45rem;
+                height: .45rem;
+                margin: 0;
+                opacity: .9;
+                background: rgba(15, 23, 42, 0.28);
+            }
+
+            .product-ipad-slider .splide__pagination__page.is-active {
+                transform: scale(1);
+                background: rgba(15, 23, 42, 0.82);
+            }
+
+            .product-detail-layout > aside {
+                padding-top: .5rem;
             }
         }
 

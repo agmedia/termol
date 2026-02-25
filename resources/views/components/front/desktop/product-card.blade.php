@@ -9,16 +9,24 @@
                 <div class="relative">
                     <img
                         src="{{ $imageUrl }}"
+                        srcset="{{ $imageUrl320 ?: $imageUrl }} 320w, {{ $imageUrl }} 480w"
+                        sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 24vw"
                         alt="{{ $productName }}"
                         class="{{ $flat ? 'block h-auto w-full max-w-full' : 'block h-auto w-full max-w-full rounded-xl' }} {{ $hoverImageUrl ? 'transition-opacity duration-300 group-hover:opacity-0' : '' }}"
+                        width="{{ (int) $imageWidth }}"
+                        height="{{ (int) $imageHeight }}"
                         loading="lazy"
                         decoding="async"
                     >
                     @if ($hoverImageUrl)
                         <img
                             src="{{ $hoverImageUrl }}"
+                            srcset="{{ $hoverImageUrl320 ?: $hoverImageUrl }} 320w, {{ $hoverImageUrl }} 480w"
+                            sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 24vw"
                             alt="{{ $productName }}"
                             class="absolute inset-0 h-full w-full opacity-0 transition-opacity duration-300 group-hover:opacity-100 {{ $flat ? '' : 'rounded-xl' }}"
+                            width="{{ (int) $hoverImageWidth }}"
+                            height="{{ (int) $hoverImageHeight }}"
                             loading="lazy"
                             decoding="async"
                         >

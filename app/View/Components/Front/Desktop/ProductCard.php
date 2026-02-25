@@ -59,6 +59,12 @@ class ProductCard extends Component
 
         $imageUrl = MediaUrl::conversion($mainMedia, 'card_480w', $preferWebp);
         $hoverImageUrl = MediaUrl::conversion($hoverMedia, 'card_480w', $preferWebp);
+        $imageUrl320 = MediaUrl::conversion($mainMedia, 'card_320w', $preferWebp);
+        $hoverImageUrl320 = MediaUrl::conversion($hoverMedia, 'card_320w', $preferWebp);
+        $imageWidth = max(1, (int) ($mainMedia?->width ?? 480));
+        $imageHeight = max(1, (int) ($mainMedia?->height ?? 640));
+        $hoverImageWidth = max(1, (int) ($hoverMedia?->width ?? $imageWidth));
+        $hoverImageHeight = max(1, (int) ($hoverMedia?->height ?? $imageHeight));
 
         $optionRows = $this->product->optionValues
             ->where('is_active', true)
@@ -126,7 +132,13 @@ class ProductCard extends Component
             'productBrand' => $manufacturerName,
             'productCategory' => $categoryName,
             'imageUrl' => $imageUrl,
+            'imageUrl320' => $imageUrl320,
             'hoverImageUrl' => $hoverImageUrl,
+            'hoverImageUrl320' => $hoverImageUrl320,
+            'imageWidth' => $imageWidth,
+            'imageHeight' => $imageHeight,
+            'hoverImageWidth' => $hoverImageWidth,
+            'hoverImageHeight' => $hoverImageHeight,
             'optionRows' => $optionRows,
             'isWishlisted' => app(WishlistService::class)->has((int) $this->product->id),
             'price' => $priceData['current_price'],

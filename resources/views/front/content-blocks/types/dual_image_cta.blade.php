@@ -13,6 +13,9 @@
             @foreach ($slides as $media)
                 @php
                     $imageUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1200w', $preferWebp) ?? $media->getUrl();
+                    $imageUrl960 = \App\Support\Media\MediaUrl::conversion($media, 'hero_960w', $preferWebp) ?? $imageUrl;
+                    $imageWidth = max(1, (int) ($media->width ?? 1200));
+                    $imageHeight = max(1, (int) ($media->height ?? 700));
                     $props = (array) ($media->custom_properties ?? []);
                     $slideTitle = trim((string) (
                         data_get($props, "block_title.$locale")
@@ -46,8 +49,12 @@
                 <article class="group relative overflow-hidden">
                     <img
                         src="{{ $imageUrl }}"
+                        srcset="{{ $imageUrl960 }} 960w, {{ $imageUrl }} 1200w"
+                        sizes="(max-width: 1024px) 100vw, 50vw"
                         alt="{{ $slideTitle !== '' ? $slideTitle : $block->name }}"
                         class="h-auto w-full bg-slate-100 object-contain transition duration-500 group-hover:scale-[1.02]"
+                        width="{{ $imageWidth }}"
+                        height="{{ $imageHeight }}"
                         @if ($loop->first)
                             loading="eager"
                             fetchpriority="high"

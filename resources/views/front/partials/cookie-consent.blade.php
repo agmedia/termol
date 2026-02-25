@@ -27,12 +27,15 @@
         class="fixed bottom-4 left-4 z-[9999] inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
         aria-label="Cookie postavke"
     >
-        <img src="{{ asset('front-theme/images/cookie-svg.svg') }}" alt="" class="h-6 w-6" loading="lazy" />
+        <img src="{{ asset('front-theme/images/cookie-svg.svg') }}" alt="" class="h-6 w-6" width="24" height="24" loading="lazy" />
     </button>
 
-    <script defer src="https://cdn.jsdelivr.net/npm/vanilla-cookieconsent@3/dist/cookieconsent.umd.js"></script>
     <script>
         const syncGoogleConsent = () => {
+            if (!window.CookieConsent) {
+                return;
+            }
+
             const analyticsGranted = window.CookieConsent.acceptedCategory('analytics');
             const marketingGranted = window.CookieConsent.acceptedCategory('marketing');
 
@@ -115,39 +118,82 @@
             }
         };
 
-        (function initCookieConsent() {
-            if (typeof window.CookieConsent?.run !== 'function') {
-                let attempts = 0;
-                const timer = window.setInterval(() => {
-                    attempts += 1;
-                    if (typeof window.CookieConsent?.run === 'function' || attempts > 40) {
-                        window.clearInterval(timer);
-                        if (typeof window.CookieConsent?.run === 'function') {
-                            window.CookieConsent.run(cookieConsentConfig);
-                            syncGoogleConsent();
-                            if (!window.CookieConsent.validConsent()) {
-                                window.CookieConsent.show();
-                            }
-                        }
+        const ensureCookieConsentAssets = (() => {
+            let loadingPromise = null;
+
+            return () => {
+                if (loadingPromise) {
+                    return loadingPromise;
+                }
+
+                loadingPromise = new Promise((resolve, reject) => {
+                    const cssHref = 'https://cdn.jsdelivr.net/npm/vanilla-cookieconsent@3/dist/cookieconsent.css';
+                    if (!document.querySelector('link[data-cookie-consent-css="1"]')) {
+                        const css = document.createElement('link');
+                        css.rel = 'stylesheet';
+                        css.href = cssHref;
+                        css.setAttribute('data-cookie-consent-css', '1');
+                        document.head.appendChild(css);
                     }
-                }, 100);
+
+                    if (typeof window.CookieConsent?.run === 'function') {
+                        resolve();
+                        return;
+                    }
+
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/vanilla-cookieconsent@3/dist/cookieconsent.umd.js';
+                    script.async = true;
+                    script.onload = () => resolve();
+                    script.onerror = () => reject(new Error('Failed to load cookie consent script.'));
+                    document.head.appendChild(script);
+                });
+
+                return loadingPromise;
+            };
+        })();
+
+        const runCookieConsent = () => {
+            if (typeof window.CookieConsent?.run !== 'function') {
                 return;
             }
+
+            if (window.__cookieConsentInitialized === true) {
+                return;
+            }
+            window.__cookieConsentInitialized = true;
 
             window.CookieConsent.run(cookieConsentConfig);
             syncGoogleConsent();
             if (!window.CookieConsent.validConsent()) {
                 window.CookieConsent.show();
             }
-        })();
+        };
+
+        const bootCookieConsent = () => {
+            ensureCookieConsentAssets()
+                .then(runCookieConsent)
+                .catch(() => {
+                    window.__cookieConsentInitialized = false;
+                });
+        };
 
         const cookieFloatingButton = document.getElementById('cookie-consent-floating-button');
         if (cookieFloatingButton) {
             cookieFloatingButton.addEventListener('click', () => {
-                if (typeof window.CookieConsent?.showPreferences === 'function') {
-                    window.CookieConsent.showPreferences();
-                }
+                ensureCookieConsentAssets().then(() => {
+                    runCookieConsent();
+                    if (typeof window.CookieConsent?.showPreferences === 'function') {
+                        window.CookieConsent.showPreferences();
+                    }
+                });
             });
+        }
+
+        if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(bootCookieConsent, { timeout: 1500 });
+        } else {
+            window.setTimeout(bootCookieConsent, 1200);
         }
     </script>
 @endif

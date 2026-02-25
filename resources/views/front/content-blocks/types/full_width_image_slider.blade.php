@@ -12,10 +12,23 @@
         }
     }
 
+    $firstSlide = $slides->first();
+    $firstSlidePreloadUrl = $firstSlide
+        ? (\App\Support\Media\MediaUrl::conversion($firstSlide, 'hero_960w', $preferWebp)
+            ?? \App\Support\Media\MediaUrl::conversion($firstSlide, 'hero_1200w', $preferWebp)
+            ?? $firstSlide->getUrl())
+        : null;
+
     $autoplayMs = 5000;
 @endphp
 
 @if ($slides->isNotEmpty())
+    @if ($firstSlidePreloadUrl)
+        @push('head')
+            <link rel="preload" as="image" href="{{ $firstSlidePreloadUrl }}">
+        @endpush
+    @endif
+
     @include('front.partials.splide-assets')
 
     <style>
@@ -44,6 +57,15 @@
         #{{ $sliderId }} .splide__arrow svg {
             fill: #fff;
         }
+
+        @media (max-width: 768px) {
+            #{{ $sliderId }} .hero-slide-image {
+                width: 100%;
+                aspect-ratio: 5 / 4;
+                object-fit: cover;
+                object-position: center;
+            }
+        }
     </style>
 
     <section class="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen overflow-hidden {{ $customClasses }}">
@@ -53,12 +75,15 @@
                     @foreach ($slides as $media)
                         @php
                             $slideUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1200w', $preferWebp) ?? $media->getUrl();
+                            $slideUrl960 = \App\Support\Media\MediaUrl::conversion($media, 'hero_960w', $preferWebp) ?? $slideUrl;
                             $slideLink = trim((string) (
                                 data_get($media->custom_properties, 'link_url.'.app()->getLocale())
                                 ?: data_get($media->custom_properties, 'link_url.'.config('app.locale'))
                                 ?: data_get($media->custom_properties, 'link_url_value', '')
                             ));
                             $hasSlideLink = $slideLink !== '';
+                            $slideWidth = max(1, (int) ($media->width ?? 1200));
+                            $slideHeight = max(1, (int) ($media->height ?? 700));
                         @endphp
                         <li class="splide__slide">
                             <article class="relative min-w-full">
@@ -67,8 +92,12 @@
                                 @endif
                                     <img
                                         src="{{ $slideUrl }}"
+                                        srcset="{{ $slideUrl960 }} 960w, {{ $slideUrl }} 1200w"
+                                        sizes="100vw"
                                         alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}"
-                                        class="h-auto w-full bg-slate-100 object-contain"
+                                        class="hero-slide-image h-auto w-full bg-slate-100 object-contain"
+                                        width="{{ $slideWidth }}"
+                                        height="{{ $slideHeight }}"
                                         @if ($loop->first)
                                             loading="eager"
                                             fetchpriority="high"

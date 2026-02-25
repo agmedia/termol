@@ -31,7 +31,8 @@
     @endif
     @include('front.partials.cookie-consent-head')
     <link rel="manifest" href="{{ route('front.manifest') }}">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @stack('head')
+    @vite(['resources/css/app.css'])
 </head>
 @php
     $cartSummary = app(\App\Services\Front\CartService::class)->summary();
@@ -471,9 +472,34 @@
     </div>
 </footer>
 
-<script defer src="{{ asset('front-theme/scripts/desktop-header-menu.js') }}"></script>
-<script defer src="{{ asset('front-theme/scripts/header-search-panel.js') }}"></script>
-<script defer src="{{ asset('front-theme/scripts/wishlist-toggle.js') }}?v={{ filemtime(public_path('front-theme/scripts/wishlist-toggle.js')) }}"></script>
+<script>
+    (function () {
+        const onLoadScripts = [];
+
+        @if (request()->routeIs('home') || request()->routeIs('shop.*') || request()->routeIs('categories.*') || request()->routeIs('manufacturers.*') || request()->routeIs('products.*') || request()->routeIs('blog.*') || request()->routeIs('wishlist.*') || request()->routeIs('cart.*'))
+            onLoadScripts.push(@json(asset('front-theme/scripts/desktop-header-menu.js')));
+            onLoadScripts.push(@json(asset('front-theme/scripts/header-search-panel.js')));
+            onLoadScripts.push(@json(asset('front-theme/scripts/wishlist-toggle.js').'?v='.filemtime(public_path('front-theme/scripts/wishlist-toggle.js'))));
+        @endif
+
+        function loadScript(src, module) {
+            const s = document.createElement('script');
+            s.src = src;
+            if (module) {
+                s.type = 'module';
+            } else {
+                s.defer = true;
+            }
+            document.body.appendChild(s);
+        }
+
+        window.addEventListener('load', function () {
+            onLoadScripts.forEach(function (src) {
+                loadScript(src, false);
+            });
+        }, { once: true });
+    })();
+</script>
 @include('front.partials.cookie-consent')
 @stack('scripts')
 </body>
