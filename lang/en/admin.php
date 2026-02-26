@@ -184,6 +184,12 @@ return [
                 'notify_no_media' => 'No media records found for WebP generation.',
                 'notify_finished' => 'WebP generation finished.',
             ],
+            'products' => [
+                'tab' => 'Products',
+                'title' => 'Product page features',
+                'subtitle' => 'Control optional UX blocks on product detail page.',
+                'fit_finder_enabled' => 'Enable Fit Finder on desktop product page',
+            ],
         ],
     ],
 ];

@@ -136,6 +136,7 @@ class StoreSettings extends Component
         'store_announcement_url' => '',
         'store_announcement_new_tab' => false,
         'store_images_use_webp' => false,
+        'store_product_fit_finder_enabled' => false,
 
         'store_cookie_consent_enabled' => true,
         'store_cookie_consent_title' => 'Koristimo kolačiće',
@@ -366,6 +367,7 @@ class StoreSettings extends Component
             'form.store_announcement_url' => ['nullable', 'url', 'max:2048'],
             'form.store_announcement_new_tab' => ['required', 'boolean'],
             'form.store_images_use_webp' => ['required', 'boolean'],
+            'form.store_product_fit_finder_enabled' => ['required', 'boolean'],
 
             'form.store_cookie_consent_enabled' => ['required', 'boolean'],
             'form.store_cookie_consent_title' => ['nullable', 'string', 'max:120'],

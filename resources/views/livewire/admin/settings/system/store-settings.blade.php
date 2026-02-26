@@ -13,6 +13,7 @@
                 'integrations' => 'Integrations',
                 'pricing' => 'Pricing',
                 'images' => 'Images',
+                'products' => 'admin.settings.store.products.tab',
                 'seo' => 'SEO',
                 'og' => 'OG / Twitter',
                 'schema' => 'Schema Markup',
@@ -375,6 +376,19 @@
                             @endif
                         </p>
                     </div>
+                </div>
+            @endif
+
+            @if ($tab === 'products')
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <h3 class="text-sm font-bold text-slate-800">{{ __('admin.settings.store.products.title') }}</h3>
+                        <p class="mt-1 text-xs text-slate-600">{{ __('admin.settings.store.products.subtitle') }}</p>
+                    </div>
+                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 md:col-span-2">
+                        <input type="checkbox" wire:model="form.store_product_fit_finder_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                        {{ __('admin.settings.store.products.fit_finder_enabled') }}
+                    </label>
                 </div>
             @endif
 

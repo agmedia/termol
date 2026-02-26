@@ -75,6 +75,26 @@ class InfoPageSeeder extends Seeder
                     ],
                 ],
             ],
+            [
+                'code' => 'size-guide-main',
+                'layout' => 'default',
+                'show_in_footer' => false,
+                'published_at' => now()->subDays(5),
+                'sort_order' => 80,
+                'category_codes' => [],
+                'translations' => [
+                    'en' => [
+                        'title' => 'Men Size Guide',
+                        'slug' => 'size-guide-main',
+                        'excerpt' => 'Reference measurements for men tops and jackets.',
+                    ],
+                    'hr' => [
+                        'title' => 'Vodič veličina za muškarce',
+                        'slug' => 'vodic-velicina-za-muskarce',
+                        'excerpt' => 'Referentne mjere za muške majice i jakne.',
+                    ],
+                ],
+            ],
         ];
 
         foreach ($records as $record) {

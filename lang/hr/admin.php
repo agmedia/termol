@@ -184,6 +184,12 @@ return [
                 'notify_no_media' => 'Nema media zapisa za WebP generiranje.',
                 'notify_finished' => 'WebP generiranje je završeno.',
             ],
+            'products' => [
+                'tab' => 'Proizvodi',
+                'title' => 'Funkcionalnosti stranice proizvoda',
+                'subtitle' => 'Upravljaj opcionalnim UX blokovima na detalju proizvoda.',
+                'fit_finder_enabled' => 'Omogući Fit Finder na desktop stranici proizvoda',
+            ],
         ],
     ],
 ];

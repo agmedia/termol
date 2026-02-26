@@ -8,17 +8,22 @@ use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Product\Product;
 use App\Models\Content\Page\InfoPage;
 use App\Models\Content\Support\Comment;
+use App\Models\User\UserProfile;
 use App\Services\Content\ContentBlockResolver;
 use App\Services\Front\WishlistService;
 use App\Services\Pricing\ProductPricePresentationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
     use ResolvesFrontendView;
+
+    private const FIT_FINDER_SESSION_KEY = 'front_fit_finder_profile';
 
     public function storeComment(Request $request, string $slug)
     {
@@ -259,12 +264,14 @@ class ProductController extends Controller
             ->get();
 
         $sizeGuide = $this->resolveSizeGuide($product, $locale, $fallbackLocale);
+        $fitFinderSelection = $this->resolveFitFinderSelection($request, $product);
 
         $response = response()->view($this->frontendView($request, 'products.show'), [
             'product' => $product,
             'related' => $related,
             'comments' => $comments,
             'sizeGuide' => $sizeGuide,
+            'fitFinderSelection' => $fitFinderSelection,
             'topBlocks' => $topBlocks,
             'bottomBlocks' => $bottomBlocks,
             'pricePresentation' => app(ProductPricePresentationService::class)->forProduct($product, auth()->user()),
@@ -273,6 +280,44 @@ class ProductController extends Controller
         ]);
 
         return $this->withDesktopCacheHeaders($request, $response, (int) $product->id, $slug);
+    }
+
+    public function storeFitFinderPreferences(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'product_id' => ['required', 'integer', 'exists:products,id'],
+            'size_label' => ['required', 'string', 'max:30'],
+            'height' => ['nullable', 'integer', 'min:130', 'max:230'],
+            'weight' => ['nullable', 'integer', 'min:35', 'max:220'],
+            'age' => ['nullable', 'integer', 'min:12', 'max:100'],
+            'fit' => ['nullable', 'string', 'in:tighter,average,looser'],
+            'chest' => ['nullable', 'string', 'in:slimmer,average,broader'],
+            'belly' => ['nullable', 'string', 'in:flatter,average,rounder'],
+        ]);
+
+        $selection = [
+            'product_id' => (int) $validated['product_id'],
+            'size_label' => trim((string) $validated['size_label']),
+            'height' => isset($validated['height']) ? (int) $validated['height'] : null,
+            'weight' => isset($validated['weight']) ? (int) $validated['weight'] : null,
+            'age' => isset($validated['age']) ? (int) $validated['age'] : null,
+            'fit' => trim((string) ($validated['fit'] ?? 'average')),
+            'chest' => trim((string) ($validated['chest'] ?? 'average')),
+            'belly' => trim((string) ($validated['belly'] ?? 'average')),
+            'updated_at' => now()->toIso8601String(),
+        ];
+
+        $request->session()->put(self::FIT_FINDER_SESSION_KEY, $selection);
+
+        if ($request->user()) {
+            $profile = UserProfile::query()->firstOrCreate(['user_id' => (int) $request->user()->id]);
+            $payload = is_array($profile->payload) ? $profile->payload : [];
+            $payload['fit_finder'] = $selection;
+
+            $profile->forceFill(['payload' => $payload])->save();
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     private function withDesktopCacheHeaders(Request $request, Response $response, int $productId, string $slug): Response
@@ -312,7 +357,7 @@ class ProductController extends Controller
             data_get($localeTranslation?->payload, 'size_guide_code')
             ?: data_get($fallbackTranslation?->payload, 'size_guide_code')
             ?: data_get($product->payload, 'size_guide_code')
-            ?: 'size-guide-women'
+            ?: $this->defaultSizeGuideCode($product, $locale, $fallbackLocale)
         ));
 
         if ($sizeGuideCode === '') {
@@ -346,6 +391,119 @@ class ProductController extends Controller
             'code' => $sizeGuideCode,
             'title' => trim((string) ($translation?->title ?? __('ui.product.size_guide'))),
             'body_html' => $bodyHtml,
+        ];
+    }
+
+    private function defaultSizeGuideCode(Product $product, string $locale, string $fallbackLocale): string
+    {
+        return $this->isMaleProduct($product, $locale, $fallbackLocale)
+            ? 'size-guide-main'
+            : 'size-guide-women';
+    }
+
+    private function isMaleProduct(Product $product, string $locale, string $fallbackLocale): bool
+    {
+        $localeTranslation = $product->translations->firstWhere('locale', $locale);
+        $fallbackTranslation = $product->translations->firstWhere('locale', $fallbackLocale);
+
+        if ($this->payloadSuggestsMale($localeTranslation?->payload)
+            || $this->payloadSuggestsMale($fallbackTranslation?->payload)
+            || $this->payloadSuggestsMale($product->payload)) {
+            return true;
+        }
+
+        $tokens = ['men', 'man', 'male', 'muskar', 'muski', 'muški'];
+        foreach ($product->categories as $category) {
+            foreach ($category->translations ?? [] as $categoryTranslation) {
+                $slug = (string) ($categoryTranslation->slug ?? '');
+                $name = (string) ($categoryTranslation->name ?? '');
+                $value = Str::lower($slug.' '.$name);
+                if ($value !== '' && Str::contains($value, $tokens)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function payloadSuggestsMale($payload): bool
+    {
+        if (! is_array($payload)) {
+            return false;
+        }
+
+        $tokens = ['men', 'man', 'male', 'muskar', 'muski', 'muški'];
+        $candidates = [
+            data_get($payload, 'gender'),
+            data_get($payload, 'gender_code'),
+            data_get($payload, 'target_gender'),
+            data_get($payload, 'audience'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value === '') {
+                continue;
+            }
+
+            if (Str::contains(Str::lower($value), $tokens)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{product_id:int,size_label:string,height:int|null,weight:int|null,age:int|null,fit:string,chest:string,belly:string,updated_at:string}|null
+     */
+    private function resolveFitFinderSelection(Request $request, Product $product): ?array
+    {
+        $sessionSelection = $request->session()->get(self::FIT_FINDER_SESSION_KEY);
+        if (is_array($sessionSelection)
+            && (int) ($sessionSelection['product_id'] ?? 0) === (int) $product->id
+            && trim((string) ($sessionSelection['size_label'] ?? '')) !== '') {
+            return [
+                'product_id' => (int) $sessionSelection['product_id'],
+                'size_label' => trim((string) $sessionSelection['size_label']),
+                'height' => isset($sessionSelection['height']) ? (int) $sessionSelection['height'] : null,
+                'weight' => isset($sessionSelection['weight']) ? (int) $sessionSelection['weight'] : null,
+                'age' => isset($sessionSelection['age']) ? (int) $sessionSelection['age'] : null,
+                'fit' => trim((string) ($sessionSelection['fit'] ?? 'average')),
+                'chest' => trim((string) ($sessionSelection['chest'] ?? 'average')),
+                'belly' => trim((string) ($sessionSelection['belly'] ?? 'average')),
+                'updated_at' => trim((string) ($sessionSelection['updated_at'] ?? now()->toIso8601String())),
+            ];
+        }
+
+        $user = $request->user();
+        if (! $user) {
+            return null;
+        }
+
+        $profile = $user->relationLoaded('profile') ? $user->profile : $user->profile()->first();
+        $profilePayload = is_array($profile?->payload) ? $profile->payload : [];
+        $selection = is_array($profilePayload['fit_finder'] ?? null)
+            ? $profilePayload['fit_finder']
+            : null;
+
+        if (! is_array($selection)
+            || (int) ($selection['product_id'] ?? 0) !== (int) $product->id
+            || trim((string) ($selection['size_label'] ?? '')) === '') {
+            return null;
+        }
+
+        return [
+            'product_id' => (int) $selection['product_id'],
+            'size_label' => trim((string) $selection['size_label']),
+            'height' => isset($selection['height']) ? (int) $selection['height'] : null,
+            'weight' => isset($selection['weight']) ? (int) $selection['weight'] : null,
+            'age' => isset($selection['age']) ? (int) $selection['age'] : null,
+            'fit' => trim((string) ($selection['fit'] ?? 'average')),
+            'chest' => trim((string) ($selection['chest'] ?? 'average')),
+            'belly' => trim((string) ($selection['belly'] ?? 'average')),
+            'updated_at' => trim((string) ($selection['updated_at'] ?? now()->toIso8601String())),
         ];
     }
 

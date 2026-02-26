@@ -333,6 +333,11 @@ const initQuillEditors = () => {
         return value === '<p><br></p>' ? '' : value;
     };
 
+    const bypassInlineSanitizeOnce = (textarea) => (
+        textarea instanceof HTMLTextAreaElement
+        && textarea.dataset.quillBypassInlineSanitizeOnce === '1'
+    );
+
     const stripInlineStyles = (html) => {
         const source = String(html ?? '').trim();
         if (source === '') {
@@ -351,13 +356,18 @@ const initQuillEditors = () => {
             return '';
         }
 
-        const fromValue = stripInlineStyles(normalizeHtml(textarea.value));
+        const normalizeForField = (html) => {
+            const normalized = normalizeHtml(html);
+            return bypassInlineSanitizeOnce(textarea) ? normalized : stripInlineStyles(normalized);
+        };
+
+        const fromValue = normalizeForField(textarea.value);
         if (fromValue !== '') {
             return fromValue;
         }
 
         // Livewire can occasionally hydrate <textarea> content without dispatching input/change.
-        return stripInlineStyles(normalizeHtml(textarea.textContent ?? ''));
+        return normalizeForField(textarea.textContent ?? '');
     };
 
     const bindElement = (textarea) => {
@@ -433,7 +443,7 @@ const initQuillEditors = () => {
 
         // Paste sanitization: remove inline style attributes from incoming HTML.
         quill.clipboard.addMatcher(Node.ELEMENT_NODE, (node, delta) => {
-            if (node instanceof HTMLElement && node.hasAttribute('style')) {
+            if (!bypassInlineSanitizeOnce(textarea) && node instanceof HTMLElement && node.hasAttribute('style')) {
                 node.removeAttribute('style');
             }
             return delta;
@@ -474,7 +484,8 @@ const initQuillEditors = () => {
             if (syncingFromTextarea) {
                 return;
             }
-            const html = stripInlineStyles(normalizeHtml(quill.root.innerHTML));
+            // Keep Quill HTML as-is; inline style stripping is handled on ingestion/paste.
+            const html = normalizeHtml(quill.root.innerHTML);
             if (normalizeHtml(textarea.value) === html) {
                 return;
             }
@@ -489,7 +500,7 @@ const initQuillEditors = () => {
             if (syncingFromQuill) {
                 return;
             }
-            const source = stripInlineStyles(readTextareaHtml(textarea));
+            const source = readTextareaHtml(textarea);
             const current = normalizeHtml(quill.root.innerHTML);
             if (source === current) {
                 return;
@@ -499,6 +510,9 @@ const initQuillEditors = () => {
                 quill.clipboard.dangerouslyPasteHTML(source);
             } else {
                 quill.setText('');
+            }
+            if (textarea.dataset.quillBypassInlineSanitizeOnce === '1') {
+                delete textarea.dataset.quillBypassInlineSanitizeOnce;
             }
             syncingFromTextarea = false;
         };

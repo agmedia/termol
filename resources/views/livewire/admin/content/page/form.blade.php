@@ -98,8 +98,19 @@
                 </div>
 
                 <div class="mt-3" wire:key="info-page-body-{{ $pageId ?? 'new' }}-{{ $form['locale'] }}">
-                    <label for="info-page-body-html" class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Body') }}</label>
+                    <div class="mb-1 flex items-center justify-between gap-2">
+                        <label for="info-page-body-html" class="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Body') }}</label>
+                        <div class="inline-flex items-center gap-2">
+                            <button type="button" class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-100" data-html-mode-open>
+                                HTML
+                            </button>
+                            <button type="button" class="hidden rounded-md border border-slate-300 bg-slate-900 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white hover:bg-slate-700" data-html-mode-apply>
+                                Vizualno
+                            </button>
+                        </div>
+                    </div>
                     <textarea id="info-page-body-html" rows="10" wire:model.live.debounce.300ms="form.body_html" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    <textarea rows="16" class="hidden w-full rounded-xl border border-slate-300 bg-slate-950 px-3 py-2 font-mono text-xs leading-5 text-slate-100" spellcheck="false" data-html-mode-source></textarea>
                 </div>
 
                 <div class="mt-3">
@@ -153,3 +164,67 @@
         </div>
     </form>
 </div>
+
+<script>
+    (function () {
+        const setupHtmlMode = function (root) {
+            const wrappers = root.querySelectorAll('[wire\\:key^="info-page-body-"]');
+            wrappers.forEach(function (wrapper) {
+                if (wrapper.dataset.htmlModeBound === '1') {
+                    return;
+                }
+                wrapper.dataset.htmlModeBound = '1';
+
+                const textarea = wrapper.querySelector('textarea[data-quill-editor]');
+                const source = wrapper.querySelector('[data-html-mode-source]');
+                const openBtn = wrapper.querySelector('[data-html-mode-open]');
+                const applyBtn = wrapper.querySelector('[data-html-mode-apply]');
+
+                if (!(textarea instanceof HTMLTextAreaElement) || !(source instanceof HTMLTextAreaElement) || !(openBtn instanceof HTMLButtonElement) || !(applyBtn instanceof HTMLButtonElement)) {
+                    return;
+                }
+
+                const quillWrapper = () => (textarea.nextElementSibling instanceof HTMLElement && textarea.nextElementSibling.classList.contains('admin-quill'))
+                    ? textarea.nextElementSibling
+                    : null;
+
+                const enterSource = function () {
+                    source.value = textarea.value || '';
+                    source.classList.remove('hidden');
+                    const qw = quillWrapper();
+                    if (qw) {
+                        qw.classList.add('hidden');
+                    }
+                    openBtn.classList.add('hidden');
+                    applyBtn.classList.remove('hidden');
+                    source.focus();
+                };
+
+                const exitSource = function () {
+                    textarea.value = source.value || '';
+                    textarea.dataset.quillBypassInlineSanitizeOnce = '1';
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                    source.classList.add('hidden');
+                    const qw = quillWrapper();
+                    if (qw) {
+                        qw.classList.remove('hidden');
+                    }
+                    applyBtn.classList.add('hidden');
+                    openBtn.classList.remove('hidden');
+                };
+
+                openBtn.addEventListener('click', enterSource);
+                applyBtn.addEventListener('click', exitSource);
+            });
+        };
+
+        const boot = function () {
+            setupHtmlMode(document);
+        };
+
+        document.addEventListener('DOMContentLoaded', boot);
+        document.addEventListener('livewire:navigated', boot);
+        document.addEventListener('livewire:initialized', boot);
+    })();
+</script>

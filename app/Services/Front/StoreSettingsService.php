@@ -22,6 +22,7 @@ class StoreSettingsService
         return [
             'announcement' => $this->announcement(),
             'images' => $this->images(),
+            'product' => $this->product(),
             'cookies' => $this->cookies(),
             'branding' => $this->branding(),
             'footer' => $this->footer(),
@@ -55,6 +56,16 @@ class StoreSettingsService
     {
         return [
             'use_webp' => (bool) $this->settings->get('store_images_use_webp', false),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function product(): array
+    {
+        return [
+            'fit_finder_enabled' => (bool) $this->settings->get('store_product_fit_finder_enabled', false),
         ];
     }
 
