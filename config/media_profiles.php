@@ -94,6 +94,18 @@ return [
             'quality' => 82,
             'format' => null,
         ],
+        'hero_1920w' => [
+            'fit' => 'max',
+            'width' => 1920,
+            'quality' => 84,
+            'format' => null,
+        ],
+        'hero_2560w' => [
+            'fit' => 'max',
+            'width' => 2560,
+            'quality' => 84,
+            'format' => null,
+        ],
         'hero_960w' => [
             'fit' => 'max',
             'width' => 960,
@@ -123,6 +135,20 @@ return [
             'width' => 900,
             'height' => 1200,
             'quality' => 70,
+            'format' => null,
+        ],
+        'cover_1200x1600' => [
+            'fit' => 'crop',
+            'width' => 1200,
+            'height' => 1600,
+            'quality' => 78,
+            'format' => null,
+        ],
+        'cover_1600x2133' => [
+            'fit' => 'crop',
+            'width' => 1600,
+            'height' => 2133,
+            'quality' => 80,
             'format' => null,
         ],
         'cover_680x900' => [
@@ -178,7 +204,7 @@ return [
                     'single_file' => true,
                     'max_upload_kb' => 8192,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
-                    'conversions' => ['thumb_100x100', 'card_360x240', 'hero_1440x480', 'cover_900x1200', 'cover_680x900', 'cover_520x700'],
+                    'conversions' => ['thumb_100x100', 'card_360x240', 'hero_1440x480', 'cover_1600x2133', 'cover_1200x1600', 'cover_900x1200', 'cover_680x900', 'cover_520x700'],
                     'preview_conversion' => 'card_360x240',
                 ],
                 'blog_gallery' => [
@@ -241,7 +267,7 @@ return [
                     'single_file' => true,
                     'max_upload_kb' => 8192,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
-                    'conversions' => ['card_360x240', 'hero_1440x480', 'hero_1600w', 'hero_1440w', 'hero_1360w', 'hero_1200w', 'hero_960w', 'hero_800w', 'hero_720w', 'hero_540w'],
+                    'conversions' => ['card_360x240', 'hero_1440x480', 'hero_2560w', 'hero_1920w', 'hero_1600w', 'hero_1440w', 'hero_1360w', 'hero_1200w', 'hero_960w', 'hero_800w', 'hero_720w', 'hero_540w'],
                     'preview_conversion' => 'card_360x240',
                 ],
                 'block_slides' => [
@@ -250,7 +276,7 @@ return [
                     'only_keep_latest' => 30,
                     'max_upload_kb' => 12288,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
-                    'conversions' => ['card_360x240', 'hero_1440x480', 'hero_1600w', 'hero_1440w', 'hero_1360w', 'hero_1200w', 'hero_960w', 'hero_800w', 'hero_720w', 'hero_540w'],
+                    'conversions' => ['card_360x240', 'hero_1440x480', 'hero_2560w', 'hero_1920w', 'hero_1600w', 'hero_1440w', 'hero_1360w', 'hero_1200w', 'hero_960w', 'hero_800w', 'hero_720w', 'hero_540w'],
                     'preview_conversion' => 'card_360x240',
                 ],
             ],

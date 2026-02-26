@@ -13,6 +13,9 @@
     }
 
     $firstSlide = $slides->first();
+    $firstSlideUrl2560 = \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_2560w', $preferWebp);
+    $firstSlideUrl1920 = \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_1920w', $preferWebp);
+    $firstSlideUrl1600 = \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_1600w', $preferWebp);
     $firstSlideUrl1360 = \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_1360w', $preferWebp);
     $firstSlideUrl1200 = \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_1200w', $preferWebp);
     $firstSlideUrl960 = \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_960w', $preferWebp);
@@ -26,9 +29,15 @@
         $firstSlideUrl960 ? $firstSlideUrl960.' 960w' : null,
         $firstSlideUrl1200 ? $firstSlideUrl1200.' 1200w' : null,
         $firstSlideUrl1360 ? $firstSlideUrl1360.' 1360w' : null,
+        $firstSlideUrl1600 ? $firstSlideUrl1600.' 1600w' : null,
+        $firstSlideUrl1920 ? $firstSlideUrl1920.' 1920w' : null,
+        $firstSlideUrl2560 ? $firstSlideUrl2560.' 2560w' : null,
     ])->filter()->unique()->implode(', ');
     $firstSlidePreloadUrl = $firstSlide
-        ? ($firstSlideUrl1360
+        ? ($firstSlideUrl2560
+            ?? $firstSlideUrl1920
+            ?? $firstSlideUrl1600
+            ?? $firstSlideUrl1360
             ?? $firstSlideUrl1200
             ?? $firstSlideUrl960
             ?? $firstSlideUrl800
@@ -98,13 +107,19 @@
                 <ul class="splide__list">
                     @foreach ($slides as $media)
                         @php
+                            $slideUrl2560 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_2560w', $preferWebp);
+                            $slideUrl1920 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_1920w', $preferWebp);
+                            $slideUrl1600 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_1600w', $preferWebp);
                             $slideUrl1360 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_1360w', $preferWebp);
                             $slideUrl1200 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_1200w', $preferWebp);
                             $slideUrl960 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_960w', $preferWebp);
                             $slideUrl800 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_800w', $preferWebp);
                             $slideUrl720 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_720w', $preferWebp);
                             $slideUrl540 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_540w', $preferWebp);
-                            $slideUrl = $slideUrl1360
+                            $slideUrl = $slideUrl2560
+                                ?? $slideUrl1920
+                                ?? $slideUrl1600
+                                ?? $slideUrl1360
                                 ?? $slideUrl1200
                                 ?? $slideUrl960
                                 ?? $slideUrl800
@@ -118,6 +133,9 @@
                                 $slideUrl960 ? $slideUrl960.' 960w' : null,
                                 $slideUrl1200 ? $slideUrl1200.' 1200w' : null,
                                 $slideUrl1360 ? $slideUrl1360.' 1360w' : null,
+                                $slideUrl1600 ? $slideUrl1600.' 1600w' : null,
+                                $slideUrl1920 ? $slideUrl1920.' 1920w' : null,
+                                $slideUrl2560 ? $slideUrl2560.' 2560w' : null,
                             ])->filter()->unique()->implode(', ');
                             $slideLink = trim((string) (
                                 data_get($media->custom_properties, 'link_url.'.app()->getLocale())

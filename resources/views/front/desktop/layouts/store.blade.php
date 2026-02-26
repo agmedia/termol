@@ -58,7 +58,7 @@
         </div>
     @endif
 
-    <div class="{{ request()->routeIs('home') ? 'border-b-0' : 'border-b border-slate-200' }}">
+    <div class="border-b border-slate-200">
         <div class="flex w-full items-stretch justify-between pl-2 pr-0 sm:pl-4 sm:pr-0 lg:pl-5 lg:pr-0 xl:pl-5 xl:pr-0">
             <a href="{{ route('home') }}" class="inline-flex items-center py-4 text-2xl font-black tracking-tight text-slate-900 sm:py-5 sm:text-4xl">
                 @if (!empty($storeSettings['branding']['logo_url'] ?? null))

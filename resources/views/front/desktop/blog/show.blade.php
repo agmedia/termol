@@ -12,9 +12,29 @@
         : collect();
     $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
     $coverImage = $mediaItems->firstWhere('collection_name', 'blog_cover') ?? $post->getFirstMedia('blog_cover');
-    $coverImageUrl = $coverImage
-        ? (\App\Support\Media\MediaUrl::conversion($coverImage, 'cover_900x1200', $preferWebp) ?? $coverImage->getUrl())
+    $coverImageUrl1600 = $coverImage
+        ? \App\Support\Media\MediaUrl::conversionOrNull($coverImage, 'cover_1600x2133', $preferWebp)
         : null;
+    $coverImageUrl1200 = $coverImage
+        ? \App\Support\Media\MediaUrl::conversionOrNull($coverImage, 'cover_1200x1600', $preferWebp)
+        : null;
+    $coverImageUrl900 = $coverImage
+        ? \App\Support\Media\MediaUrl::conversionOrNull($coverImage, 'cover_900x1200', $preferWebp)
+        : null;
+    $coverImageUrl680 = $coverImage
+        ? \App\Support\Media\MediaUrl::conversionOrNull($coverImage, 'cover_680x900', $preferWebp)
+        : null;
+    $coverImageUrl520 = $coverImage
+        ? \App\Support\Media\MediaUrl::conversionOrNull($coverImage, 'cover_520x700', $preferWebp)
+        : null;
+    $coverImageUrl = $coverImageUrl1600 ?? $coverImageUrl1200 ?? $coverImageUrl900 ?? $coverImageUrl680 ?? $coverImageUrl520 ?? ($coverImage?->getUrl());
+    $coverImageSrcset = collect([
+        $coverImageUrl520 ? $coverImageUrl520.' 520w' : null,
+        $coverImageUrl680 ? $coverImageUrl680.' 680w' : null,
+        $coverImageUrl900 ? $coverImageUrl900.' 900w' : null,
+        $coverImageUrl1200 ? $coverImageUrl1200.' 1200w' : null,
+        $coverImageUrl1600 ? $coverImageUrl1600.' 1600w' : null,
+    ])->filter()->unique()->implode(', ');
     $galleryItems = $mediaItems->where('collection_name', 'blog_gallery')->values();
     if ($galleryItems->isEmpty()) {
         $galleryItems = $post->getMedia('blog_gallery')
@@ -70,6 +90,8 @@
                 <figure class="mb-8">
                     <img
                         src="{{ $coverImageUrl }}"
+                        @if ($coverImageSrcset !== '') srcset="{{ $coverImageSrcset }}" @endif
+                        sizes="(max-width: 1024px) 100vw, 896px"
                         alt="{{ $translation?->title ?? $post->code }}"
                         class="h-auto w-full object-cover"
                         loading="eager"
