@@ -167,13 +167,28 @@
                                     $postCoverUrl = $postCover
                                         ? (\App\Support\Media\MediaUrl::conversion($postCover, 'cover_900x1200', $preferWebp) ?? $postCover->getUrl())
                                         : null;
+                                    $postCoverUrl680 = $postCover
+                                        ? (\App\Support\Media\MediaUrl::conversion($postCover, 'cover_680x900', $preferWebp) ?? $postCoverUrl)
+                                        : null;
+                                    $postCoverWidth = max(1, (int) ($postCover?->width ?? 900));
+                                    $postCoverHeight = max(1, (int) ($postCover?->height ?? 1200));
                                 @endphp
                                 <li class="splide__slide">
                                     <article class="group h-full bg-white">
                                         <a href="{{ $postUrl }}" class="block">
                                             <div class="overflow-hidden bg-slate-100">
                                                 @if ($postCoverUrl)
-                                                    <img src="{{ $postCoverUrl }}" alt="" class="h-auto w-full object-contain transition duration-300 group-hover:scale-[1.01]" loading="lazy" decoding="async">
+                                                    <img
+                                                        src="{{ $postCoverUrl }}"
+                                                        srcset="{{ $postCoverUrl680 }} 680w, {{ $postCoverUrl }} 900w"
+                                                        sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 25vw"
+                                                        alt=""
+                                                        class="h-auto w-full object-contain transition duration-300 group-hover:scale-[1.01]"
+                                                        width="{{ $postCoverWidth }}"
+                                                        height="{{ $postCoverHeight }}"
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                    >
                                                 @else
                                                     <div class="flex h-full w-full items-center justify-center text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.product.no_image') }}</div>
                                                 @endif

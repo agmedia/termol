@@ -14,9 +14,9 @@
 
     $firstSlide = $slides->first();
     $firstSlidePreloadUrl = $firstSlide
-        ? (\App\Support\Media\MediaUrl::conversion($firstSlide, 'hero_1600w', $preferWebp)
+        ? (\App\Support\Media\MediaUrl::conversion($firstSlide, 'hero_1200w', $preferWebp)
             ?? \App\Support\Media\MediaUrl::conversion($firstSlide, 'hero_960w', $preferWebp)
-            ?? \App\Support\Media\MediaUrl::conversion($firstSlide, 'hero_1200w', $preferWebp)
+            ?? \App\Support\Media\MediaUrl::conversion($firstSlide, 'hero_1600w', $preferWebp)
             ?? $firstSlide->getUrl())
         : null;
 
@@ -79,6 +79,7 @@
                                 ?? \App\Support\Media\MediaUrl::conversion($media, 'hero_1200w', $preferWebp)
                                 ?? $media->getUrl();
                             $slideUrl960 = \App\Support\Media\MediaUrl::conversion($media, 'hero_960w', $preferWebp) ?? $slideUrl;
+                            $slideUrl720 = \App\Support\Media\MediaUrl::conversion($media, 'hero_720w', $preferWebp) ?? $slideUrl960;
                             $slideLink = trim((string) (
                                 data_get($media->custom_properties, 'link_url.'.app()->getLocale())
                                 ?: data_get($media->custom_properties, 'link_url.'.config('app.locale'))
@@ -95,7 +96,7 @@
                                 @endif
                                     <img
                                         src="{{ $slideUrl }}"
-                                        srcset="{{ $slideUrl960 }} 960w, {{ $slideUrl }} 1600w"
+                                        srcset="{{ $slideUrl720 }} 720w, {{ $slideUrl960 }} 960w, {{ $slideUrl }} 1600w"
                                         sizes="100vw"
                                         alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}"
                                         class="hero-slide-image h-auto w-full bg-slate-100 object-contain"
