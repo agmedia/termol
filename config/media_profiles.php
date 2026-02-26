@@ -97,7 +97,7 @@ return [
         'hero_800w' => [
             'fit' => 'max',
             'width' => 800,
-            'quality' => 68,
+            'quality' => 60,
             'format' => null,
         ],
         'hero_720w' => [
@@ -116,21 +116,21 @@ return [
             'fit' => 'crop',
             'width' => 900,
             'height' => 1200,
-            'quality' => 80,
+            'quality' => 70,
             'format' => null,
         ],
         'cover_680x900' => [
             'fit' => 'crop',
             'width' => 680,
             'height' => 900,
-            'quality' => 76,
+            'quality' => 68,
             'format' => null,
         ],
         'cover_520x700' => [
             'fit' => 'crop',
             'width' => 520,
             'height' => 700,
-            'quality' => 72,
+            'quality' => 64,
             'format' => null,
         ],
     ],

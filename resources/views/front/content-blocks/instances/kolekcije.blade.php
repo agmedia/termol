@@ -61,7 +61,7 @@
                     <img
                         src="{{ $imageUrl }}"
                         @if ($imageSrcset !== '') srcset="{{ $imageSrcset }}" @endif
-                        sizes="(max-width: 767px) 100vw, (max-width: 1536px) 47vw, 720px"
+                        sizes="(max-width: 767px) 100vw, (max-width: 1536px) 45vw, 680px"
                         alt="{{ $slideTitle !== '' ? $slideTitle : $block->name }}"
                         class="h-auto w-full bg-slate-100 object-contain transition duration-500 group-hover:scale-[1.02]"
                         width="{{ $imageWidth }}"

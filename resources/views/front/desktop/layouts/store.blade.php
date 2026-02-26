@@ -62,7 +62,7 @@
         <div class="flex w-full items-stretch justify-between pl-2 pr-0 sm:pl-4 sm:pr-0 lg:pl-5 lg:pr-0 xl:pl-5 xl:pr-0">
             <a href="{{ route('home') }}" class="inline-flex items-center py-4 text-2xl font-black tracking-tight text-slate-900 sm:py-5 sm:text-4xl">
                 @if (!empty($storeSettings['branding']['logo_url'] ?? null))
-                    <img src="{{ $storeSettings['branding']['logo_url'] }}" alt="{{ $storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop') }}" class="h-9 w-auto object-contain sm:h-11">
+                    <img src="{{ $storeSettings['branding']['logo_url'] }}" alt="{{ $storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop') }}" class="h-9 w-auto object-contain sm:h-11" width="176" height="44">
                 @else
                     AMDS
                 @endif
@@ -415,25 +415,25 @@
         <div class="py-7">
             <div class="flex flex-wrap items-center justify-center gap-2.5">
                 <span class="inline-flex h-12 w-28 items-center justify-center px-1">
-                    <img src="{{ asset('assets/payments/wspay.svg') }}" alt="WSPay" class="block h-6 w-auto object-contain" loading="lazy">
+                    <img src="{{ asset('assets/payments/wspay.svg') }}" alt="WSPay" class="block h-6 w-auto object-contain" loading="lazy" width="57" height="24">
                 </span>
                 <span class="inline-flex h-12 w-28 items-center justify-center px-1">
-                    <img src="{{ asset('assets/payments/visa-brand.svg') }}" alt="Visa" class="block h-6 w-auto object-contain" loading="lazy">
+                    <img src="{{ asset('assets/payments/visa-brand.svg') }}" alt="Visa" class="block h-6 w-auto object-contain" loading="lazy" width="74" height="24">
                 </span>
                 <span class="inline-flex h-12 w-28 items-center justify-center px-1">
-                    <img src="{{ asset('assets/payments/mastercard-brand.svg') }}" alt="Mastercard" class="block h-6 w-auto object-contain" loading="lazy">
+                    <img src="{{ asset('assets/payments/mastercard-brand.svg') }}" alt="Mastercard" class="block h-6 w-auto object-contain" loading="lazy" width="31" height="24">
                 </span>
                 <span class="inline-flex h-12 w-28 items-center justify-center px-1">
-                    <img src="{{ asset('assets/payments/diners-brand.svg') }}" alt="Diners Club" class="block h-6 w-auto object-contain" loading="lazy">
+                    <img src="{{ asset('assets/payments/diners-brand.svg') }}" alt="Diners Club" class="block h-6 w-auto object-contain" loading="lazy" width="93" height="24">
                 </span>
                 <span class="inline-flex h-12 w-28 items-center justify-center px-1">
-                    <img src="{{ asset('assets/payments/maestro-brand.svg') }}" alt="Maestro" class="block h-6 w-auto object-contain" loading="lazy">
+                    <img src="{{ asset('assets/payments/maestro-brand.svg') }}" alt="Maestro" class="block h-6 w-auto object-contain" loading="lazy" width="31" height="24">
                 </span>
                 <span class="inline-flex h-12 w-28 items-center justify-center px-1">
-                    <img src="{{ asset('assets/payments/applepay.svg') }}" alt="Apple Pay" class="block h-6 w-auto object-contain" loading="lazy">
+                    <img src="{{ asset('assets/payments/applepay.svg') }}" alt="Apple Pay" class="block h-6 w-auto object-contain" loading="lazy" width="38" height="24">
                 </span>
                 <span class="inline-flex h-12 w-28 items-center justify-center px-1">
-                    <img src="{{ asset('assets/payments/googlepay.svg') }}" alt="Google Pay" class="block h-6 w-auto object-contain" loading="lazy">
+                    <img src="{{ asset('assets/payments/googlepay.svg') }}" alt="Google Pay" class="block h-6 w-auto object-contain" loading="lazy" width="45" height="24">
                 </span>
             </div>
         </div>
