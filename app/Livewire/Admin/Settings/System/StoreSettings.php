@@ -174,6 +174,7 @@ class StoreSettings extends Component
         'started_at' => null,
         'finished_at' => null,
         'last_id' => 0,
+        'cursor' => 0,
     ];
 
     public function mount(): void
@@ -489,8 +490,8 @@ class StoreSettings extends Component
             return;
         }
 
-        $modelTypes = MediaProfileRegistry::modelClasses();
-        $total = Media::query()->whereIn('model_type', $modelTypes)->count();
+        $missingIds = $this->collectMissingWebpMediaIds();
+        $total = count($missingIds);
 
         $state = [
             'running' => $total > 0,
@@ -501,6 +502,8 @@ class StoreSettings extends Component
             'started_at' => now()->toDateTimeString(),
             'finished_at' => $total === 0 ? now()->toDateTimeString() : null,
             'last_id' => 0,
+            'cursor' => 0,
+            'pending_ids' => $missingIds,
         ];
 
         Cache::put($cacheKey, $state, now()->addHours(6));
@@ -521,20 +524,15 @@ class StoreSettings extends Component
             return;
         }
 
-        $lastId = (int) ($state['last_id'] ?? 0);
-        $modelTypes = MediaProfileRegistry::modelClasses();
+        $pendingIds = array_values(array_map('intval', (array) ($state['pending_ids'] ?? [])));
+        $cursor = max(0, (int) ($state['cursor'] ?? 0));
+        $batchIds = array_slice($pendingIds, $cursor, 20);
 
-        $batch = Media::query()
-            ->whereIn('model_type', $modelTypes)
-            ->where('id', '>', $lastId)
-            ->orderBy('id')
-            ->limit(20)
-            ->get();
-
-        if ($batch->isEmpty()) {
+        if ($batchIds === []) {
             $state['running'] = false;
             $state['finished'] = true;
             $state['finished_at'] = now()->toDateTimeString();
+            unset($state['pending_ids']);
             Cache::put($cacheKey, $state, now()->addHours(6));
             $this->refreshWebpGenerationStatus();
             $this->dispatch('notify', type: 'success', message: __('admin.settings.store.images.notify_finished'));
@@ -542,11 +540,26 @@ class StoreSettings extends Component
             return;
         }
 
+        $batch = Media::query()
+            ->whereIn('id', $batchIds)
+            ->get()
+            ->keyBy(fn (Media $media): int => (int) $media->id);
+
         $queueConversionsByDefault = (bool) config('media-library.queue_conversions_by_default', true);
         config()->set('media-library.queue_conversions_by_default', false);
 
         try {
-            foreach ($batch as $media) {
+            foreach ($batchIds as $mediaId) {
+                /** @var Media|null $media */
+                $media = $batch->get((int) $mediaId);
+                if (! $media) {
+                    $state['failed'] = (int) ($state['failed'] ?? 0) + 1;
+                    $state['processed'] = (int) ($state['processed'] ?? 0) + 1;
+                    $state['cursor'] = (int) ($state['cursor'] ?? 0) + 1;
+
+                    continue;
+                }
+
                 $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type);
 
                 try {
@@ -559,6 +572,7 @@ class StoreSettings extends Component
 
                 $state['processed'] = (int) ($state['processed'] ?? 0) + 1;
                 $state['last_id'] = (int) $media->id;
+                $state['cursor'] = (int) ($state['cursor'] ?? 0) + 1;
             }
         } finally {
             config()->set('media-library.queue_conversions_by_default', $queueConversionsByDefault);
@@ -568,6 +582,7 @@ class StoreSettings extends Component
             $state['running'] = false;
             $state['finished'] = true;
             $state['finished_at'] = now()->toDateTimeString();
+            unset($state['pending_ids']);
             $this->dispatch('notify', type: 'success', message: __('admin.settings.store.images.notify_finished'));
         }
 
@@ -587,6 +602,57 @@ class StoreSettings extends Component
         }
 
         return array_map(static fn (string $name): string => $name.'_webp', $conversionNames);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function collectMissingWebpMediaIds(): array
+    {
+        $modelTypes = MediaProfileRegistry::modelClasses();
+        $ids = [];
+
+        Media::query()
+            ->whereIn('model_type', $modelTypes)
+            ->orderBy('id')
+            ->chunkById(250, function ($mediaItems) use (&$ids): void {
+                /** @var Media $media */
+                foreach ($mediaItems as $media) {
+                    if ($this->mediaHasMissingWebp($media)) {
+                        $ids[] = (int) $media->id;
+                    }
+                }
+            });
+
+        return $ids;
+    }
+
+    private function mediaHasMissingWebp(Media $media): bool
+    {
+        $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type);
+        if ($conversionNames === []) {
+            return false;
+        }
+
+        $generated = is_array($media->generated_conversions) ? $media->generated_conversions : [];
+
+        foreach ($conversionNames as $conversionName) {
+            if (($generated[$conversionName] ?? false) !== true) {
+                return true;
+            }
+
+            $absolutePath = $media->getPath($conversionName);
+            $relativePath = $absolutePath;
+            if ($rootPath = config("filesystems.disks.{$media->disk}.root")) {
+                $relativePath = str_replace($rootPath, '', $absolutePath);
+            }
+
+            if (! Storage::disk($media->disk)->exists((string) $relativePath)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function webpGenerationCacheKey(): string
