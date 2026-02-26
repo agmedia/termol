@@ -127,12 +127,20 @@
                 }
 
                 loadingPromise = new Promise((resolve, reject) => {
-                    const cssHref = @json(asset('front-theme/vendors/cookieconsent/cookieconsent.css'));
+                    const localCssHref = @json(asset('front-theme/vendors/cookieconsent/cookieconsent.css'));
+                    const cdnCssHref = 'https://cdn.jsdelivr.net/npm/vanilla-cookieconsent@3/dist/cookieconsent.css';
+                    const localScriptSrc = @json(asset('front-theme/vendors/cookieconsent/cookieconsent.umd.js'));
+                    const cdnScriptSrc = 'https://cdn.jsdelivr.net/npm/vanilla-cookieconsent@3/dist/cookieconsent.umd.js';
+
                     if (!document.querySelector('link[data-cookie-consent-css="1"]')) {
                         const css = document.createElement('link');
                         css.rel = 'stylesheet';
-                        css.href = cssHref;
+                        css.href = localCssHref;
                         css.setAttribute('data-cookie-consent-css', '1');
+                        css.onerror = () => {
+                            css.onerror = null;
+                            css.href = cdnCssHref;
+                        };
                         document.head.appendChild(css);
                     }
 
@@ -142,10 +150,13 @@
                     }
 
                     const script = document.createElement('script');
-                    script.src = @json(asset('front-theme/vendors/cookieconsent/cookieconsent.umd.js'));
+                    script.src = localScriptSrc;
                     script.async = true;
                     script.onload = () => resolve();
-                    script.onerror = () => reject(new Error('Failed to load cookie consent script.'));
+                    script.onerror = () => {
+                        script.onerror = () => reject(new Error('Failed to load cookie consent script.'));
+                        script.src = cdnScriptSrc;
+                    };
                     document.head.appendChild(script);
                 });
 
