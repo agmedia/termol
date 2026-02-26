@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin\Settings\System;
 
+use App\Jobs\GenerateWebpConversionsJob;
 use App\Models\Catalog\Category\Category;
 use App\Models\Content\Page\InfoPage;
 use App\Support\Media\MediaProfileRegistry;
@@ -12,7 +13,6 @@ use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
-use Spatie\MediaLibrary\Conversions\FileManipulator;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 
@@ -504,6 +504,7 @@ class StoreSettings extends Component
             'finished_at' => $total === 0 ? now()->toDateTimeString() : null,
             'last_id' => 0,
             'cursor' => 0,
+            'last_ping_at' => now()->toDateTimeString(),
             'pending_ids' => $missingIds,
         ];
 
@@ -512,7 +513,11 @@ class StoreSettings extends Component
 
         if ($total === 0) {
             $this->dispatch('notify', type: 'success', message: __('admin.settings.store.images.notify_no_media'));
+            return;
         }
+
+        GenerateWebpConversionsJob::dispatch((int) (auth()->id() ?? 0));
+        $this->dispatch('notify', type: 'success', message: __('WebP obrada je pokrenuta u pozadini.'));
     }
 
     public function processWebpGenerationStep(): void
@@ -525,70 +530,14 @@ class StoreSettings extends Component
             return;
         }
 
-        $pendingIds = array_values(array_map('intval', (array) ($state['pending_ids'] ?? [])));
-        $cursor = max(0, (int) ($state['cursor'] ?? 0));
-        $batchIds = array_slice($pendingIds, $cursor, 20);
-
-        if ($batchIds === []) {
-            $state['running'] = false;
-            $state['finished'] = true;
-            $state['finished_at'] = now()->toDateTimeString();
-            unset($state['pending_ids']);
+        $lastPingAt = (string) ($state['last_ping_at'] ?? '');
+        $lastPingTs = strtotime($lastPingAt) ?: 0;
+        if ($lastPingTs <= 0 || (time() - $lastPingTs) > 30) {
+            $state['last_ping_at'] = now()->toDateTimeString();
             Cache::put($cacheKey, $state, now()->addHours(6));
-            Cache::forget($this->webpCoverageCacheKey());
-            $this->refreshWebpGenerationStatus();
-            $this->dispatch('notify', type: 'success', message: __('admin.settings.store.images.notify_finished'));
-
-            return;
+            GenerateWebpConversionsJob::dispatch((int) (auth()->id() ?? 0));
         }
 
-        $batch = Media::query()
-            ->whereIn('id', $batchIds)
-            ->get()
-            ->keyBy(fn (Media $media): int => (int) $media->id);
-
-        $queueConversionsByDefault = (bool) config('media-library.queue_conversions_by_default', true);
-        config()->set('media-library.queue_conversions_by_default', false);
-
-        try {
-            foreach ($batchIds as $mediaId) {
-                /** @var Media|null $media */
-                $media = $batch->get((int) $mediaId);
-                if (! $media) {
-                    $state['failed'] = (int) ($state['failed'] ?? 0) + 1;
-                    $state['processed'] = (int) ($state['processed'] ?? 0) + 1;
-                    $state['cursor'] = (int) ($state['cursor'] ?? 0) + 1;
-
-                    continue;
-                }
-
-                $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type, (string) $media->collection_name);
-
-                try {
-                    if ($conversionNames !== []) {
-                        app(FileManipulator::class)->createDerivedFiles($media, $conversionNames, true, false, false);
-                    }
-                } catch (\Throwable) {
-                    $state['failed'] = (int) ($state['failed'] ?? 0) + 1;
-                }
-
-                $state['processed'] = (int) ($state['processed'] ?? 0) + 1;
-                $state['last_id'] = (int) $media->id;
-                $state['cursor'] = (int) ($state['cursor'] ?? 0) + 1;
-            }
-        } finally {
-            config()->set('media-library.queue_conversions_by_default', $queueConversionsByDefault);
-        }
-
-        if ((int) ($state['processed'] ?? 0) >= (int) ($state['total'] ?? 0)) {
-            $state['running'] = false;
-            $state['finished'] = true;
-            $state['finished_at'] = now()->toDateTimeString();
-            unset($state['pending_ids']);
-            $this->dispatch('notify', type: 'success', message: __('admin.settings.store.images.notify_finished'));
-        }
-
-        Cache::put($cacheKey, $state, now()->addHours(6));
         $this->refreshWebpGenerationStatus();
     }
 
