@@ -75,8 +75,9 @@
                 <ul class="splide__list">
                     @foreach ($slides as $media)
                         @php
-                            $slideUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1600w', $preferWebp)
+                            $slideUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1360w', $preferWebp)
                                 ?? \App\Support\Media\MediaUrl::conversion($media, 'hero_1200w', $preferWebp)
+                                ?? \App\Support\Media\MediaUrl::conversion($media, 'hero_1600w', $preferWebp)
                                 ?? $media->getUrl();
                             $slideUrl960 = \App\Support\Media\MediaUrl::conversion($media, 'hero_960w', $preferWebp) ?? $slideUrl;
                             $slideUrl720 = \App\Support\Media\MediaUrl::conversion($media, 'hero_720w', $preferWebp) ?? $slideUrl960;
@@ -97,7 +98,7 @@
                                 @endif
                                     <img
                                         src="{{ $slideUrl }}"
-                                        srcset="{{ $slideUrl540 }} 540w, {{ $slideUrl720 }} 720w, {{ $slideUrl960 }} 960w, {{ $slideUrl }} 1600w"
+                                        srcset="{{ $slideUrl540 }} 540w, {{ $slideUrl720 }} 720w, {{ $slideUrl960 }} 960w, {{ \App\Support\Media\MediaUrl::conversion($media, 'hero_1200w', $preferWebp) ?? $slideUrl }} 1200w, {{ $slideUrl }} 1360w, {{ \App\Support\Media\MediaUrl::conversion($media, 'hero_1600w', $preferWebp) ?? $slideUrl }} 1600w"
                                         sizes="100vw"
                                         alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}"
                                         class="hero-slide-image h-auto w-full bg-slate-100 object-contain"
