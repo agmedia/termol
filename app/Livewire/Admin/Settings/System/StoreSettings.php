@@ -481,6 +481,7 @@ class StoreSettings extends Component
     public function startWebpGeneration(): void
     {
         $this->authorizeAccess();
+        Cache::forget($this->webpCoverageCacheKey());
 
         $cacheKey = $this->webpGenerationCacheKey();
         $state = Cache::get($cacheKey, []);
@@ -534,6 +535,7 @@ class StoreSettings extends Component
             $state['finished_at'] = now()->toDateTimeString();
             unset($state['pending_ids']);
             Cache::put($cacheKey, $state, now()->addHours(6));
+            Cache::forget($this->webpCoverageCacheKey());
             $this->refreshWebpGenerationStatus();
             $this->dispatch('notify', type: 'success', message: __('admin.settings.store.images.notify_finished'));
 
@@ -671,14 +673,70 @@ class StoreSettings extends Component
         return 'settings.store.webp_generation.'.$userId;
     }
 
+    private function webpCoverageCacheKey(): string
+    {
+        return 'settings.store.webp_coverage';
+    }
+
     private function refreshWebpGenerationStatus(): void
     {
         $state = Cache::get($this->webpGenerationCacheKey(), []);
+        $coverage = $this->webpCoverageSummary();
+
         if (! is_array($state) || $state === []) {
+            $this->webpGeneration = array_merge($this->webpGeneration, [
+                'running' => false,
+                'finished' => false,
+                'processed' => (int) ($coverage['processed'] ?? 0),
+                'total' => (int) ($coverage['total'] ?? 0),
+                'failed' => 0,
+            ]);
+
             return;
         }
 
-        $this->webpGeneration = array_merge($this->webpGeneration, $state);
+        $merged = array_merge($this->webpGeneration, $state);
+        if (! ((bool) ($merged['running'] ?? false))) {
+            $merged['processed'] = (int) ($coverage['processed'] ?? 0);
+            $merged['total'] = (int) ($coverage['total'] ?? 0);
+        }
+
+        $this->webpGeneration = $merged;
+    }
+
+    /**
+     * @return array{processed:int,total:int}
+     */
+    private function webpCoverageSummary(): array
+    {
+        return Cache::remember($this->webpCoverageCacheKey(), now()->addMinutes(10), function (): array {
+            $modelTypes = MediaProfileRegistry::modelClasses();
+            $total = 0;
+            $processed = 0;
+
+            Media::query()
+                ->whereIn('model_type', $modelTypes)
+                ->orderBy('id')
+                ->chunkById(250, function ($mediaItems) use (&$total, &$processed): void {
+                    /** @var Media $media */
+                    foreach ($mediaItems as $media) {
+                        $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type, (string) $media->collection_name);
+                        if ($conversionNames === []) {
+                            continue;
+                        }
+
+                        $total++;
+                        if (! $this->mediaHasMissingWebp($media)) {
+                            $processed++;
+                        }
+                    }
+                });
+
+            return [
+                'processed' => $processed,
+                'total' => $total,
+            ];
+        });
     }
 
     /**
