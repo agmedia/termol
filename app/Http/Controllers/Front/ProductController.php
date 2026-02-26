@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Product\Product;
+use App\Models\Content\Page\InfoPage;
 use App\Models\Content\Support\Comment;
 use App\Services\Content\ContentBlockResolver;
 use App\Services\Front\WishlistService;
@@ -91,7 +92,7 @@ class ProductController extends Controller
                     ->orderBy('order_column')
                     ->orderBy('id'),
                 'translations' => fn ($q) => $q
-                    ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt', 'description'])
+                    ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt', 'description', 'payload'])
                     ->whereIn('locale', [$locale, $fallbackLocale]),
                 'categories.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
@@ -257,10 +258,13 @@ class ProductController extends Controller
             ->limit(20)
             ->get();
 
+        $sizeGuide = $this->resolveSizeGuide($product, $locale, $fallbackLocale);
+
         $response = response()->view($this->frontendView($request, 'products.show'), [
             'product' => $product,
             'related' => $related,
             'comments' => $comments,
+            'sizeGuide' => $sizeGuide,
             'topBlocks' => $topBlocks,
             'bottomBlocks' => $bottomBlocks,
             'pricePresentation' => app(ProductPricePresentationService::class)->forProduct($product, auth()->user()),
@@ -295,6 +299,54 @@ class ProductController extends Controller
         }
 
         return $response;
+    }
+
+    /**
+     * @return array{code: string, title: string, body_html: string}|null
+     */
+    private function resolveSizeGuide(Product $product, string $locale, string $fallbackLocale): ?array
+    {
+        $localeTranslation = $product->translations->firstWhere('locale', $locale);
+        $fallbackTranslation = $product->translations->firstWhere('locale', $fallbackLocale);
+        $sizeGuideCode = trim((string) (
+            data_get($localeTranslation?->payload, 'size_guide_code')
+            ?: data_get($fallbackTranslation?->payload, 'size_guide_code')
+            ?: data_get($product->payload, 'size_guide_code')
+            ?: 'size-guide-women'
+        ));
+
+        if ($sizeGuideCode === '') {
+            return null;
+        }
+
+        $page = InfoPage::query()
+            ->where('code', $sizeGuideCode)
+            ->where('is_active', true)
+            ->where(function ($q): void {
+                $q->whereNull('published_at')
+                    ->orWhere('published_at', '<=', now());
+            })
+            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+            ->first();
+
+        if (! $page) {
+            return null;
+        }
+
+        $translation = $page->translations->firstWhere('locale', $locale)
+            ?? $page->translations->firstWhere('locale', $fallbackLocale)
+            ?? $page->translations->first();
+
+        $bodyHtml = trim((string) ($translation?->body_html ?? ''));
+        if ($bodyHtml === '') {
+            return null;
+        }
+
+        return [
+            'code' => $sizeGuideCode,
+            'title' => trim((string) ($translation?->title ?? __('ui.product.size_guide'))),
+            'body_html' => $bodyHtml,
+        ];
     }
 
     private function productLastModifiedTimestamp(int $productId): int

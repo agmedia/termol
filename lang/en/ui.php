@@ -128,6 +128,7 @@ return [
         'sku' => 'SKU',
         'select_size' => 'Select size',
         'size_guide' => 'Size guide',
+        'size_guide_close' => 'Close',
         'check_store' => 'Check store availability',
         'related' => 'Related products',
         'slide_aria' => 'Slide :index',

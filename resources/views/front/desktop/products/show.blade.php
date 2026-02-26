@@ -330,7 +330,11 @@
                     <div>
                         <div class="mb-2 flex items-center justify-between gap-3">
                             <label class="text-xs font-semibold uppercase tracking-wide text-slate-900">{{ __('ui.product.select_size') }} <span class="text-rose-600">*</span></label>
-                            <a href="#" class="text-xs font-semibold uppercase tracking-wide text-slate-700 underline underline-offset-2 hover:text-slate-900">{{ __('ui.product.size_guide') }}</a>
+                            @if (!empty($sizeGuide))
+                                <button type="button" class="text-xs font-semibold uppercase tracking-wide text-slate-700 underline underline-offset-2 hover:text-slate-900" data-size-guide-open>
+                                    {{ __('ui.product.size_guide') }}
+                                </button>
+                            @endif
                         </div>
                         <div class="flex flex-wrap gap-2">
                             @foreach ($optionRows as $row)
@@ -487,6 +491,22 @@
         </aside>
     </section>
 
+    @if (!empty($sizeGuide))
+        <div class="fixed inset-0 z-[80] hidden bg-black/50 p-4" data-size-guide-modal aria-hidden="true">
+            <div class="mx-auto mt-8 max-h-[86vh] w-full max-w-5xl overflow-hidden bg-white shadow-2xl md:mt-12">
+                <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                    <h2 class="text-lg font-extrabold text-slate-900">{{ $sizeGuide['title'] ?: __('ui.product.size_guide') }}</h2>
+                    <button type="button" class="inline-flex h-9 min-w-9 items-center justify-center border border-slate-300 bg-white px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-100" data-size-guide-close>
+                        {{ __('ui.product.size_guide_close') }}
+                    </button>
+                </div>
+                <div class="max-h-[calc(86vh-64px)] overflow-y-auto px-5 py-4">
+                    <div class="content-richtext">{!! $sizeGuide['body_html'] !!}</div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if ($related->isNotEmpty())
         <section class="mt-10 px-4 sm:px-6 lg:px-8">
             <h2 class="text-2xl font-bold text-slate-900">{{ __('ui.product.related') }}</h2>
@@ -552,6 +572,49 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/css/lightgallery-bundle.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/lightgallery.min.js"></script>
     <script defer src="{{ asset('front-theme/scripts/product-detail.js') }}?v={{ md5_file(public_path('front-theme/scripts/product-detail.js')) }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modal = document.querySelector('[data-size-guide-modal]');
+            if (!modal) {
+                return;
+            }
+
+            const openButtons = document.querySelectorAll('[data-size-guide-open]');
+            const closeButtons = modal.querySelectorAll('[data-size-guide-close]');
+
+            const openModal = function () {
+                modal.classList.remove('hidden');
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('overflow-hidden');
+            };
+
+            const closeModal = function () {
+                modal.classList.add('hidden');
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('overflow-hidden');
+            };
+
+            openButtons.forEach(function (button) {
+                button.addEventListener('click', openModal);
+            });
+
+            closeButtons.forEach(function (button) {
+                button.addEventListener('click', closeModal);
+            });
+
+            modal.addEventListener('click', function (event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+                    closeModal();
+                }
+            });
+        });
+    </script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const toggle = document.querySelector('[data-comment-form-toggle]');

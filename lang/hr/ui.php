@@ -128,6 +128,7 @@ return [
         'sku' => 'Šifra',
         'select_size' => 'Odaberite veličinu',
         'size_guide' => 'Vodič za veličine',
+        'size_guide_close' => 'Zatvori',
         'check_store' => 'Provjeri dostupnost u trgovinama',
         'related' => 'Slični proizvodi',
         'slide_aria' => 'Slika :index',
