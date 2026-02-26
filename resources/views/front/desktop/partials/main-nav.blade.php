@@ -76,7 +76,7 @@
                     }
                 @endphp
 
-                <div class="invisible fixed left-1/2 top-[114px] z-50 mt-0 {{ $panelWidthClass }} -translate-x-1/2 bg-white px-7 py-5 opacity-0 shadow-[0_24px_50px_-30px_rgba(15,23,42,0.55)] transition-all duration-150 group-hover/nav:visible group-hover/nav:opacity-100">
+                <div class="invisible fixed left-1/2 z-50 mt-0 {{ $panelWidthClass }} -translate-x-1/2 bg-white px-7 py-5 opacity-0 shadow-[0_24px_50px_-30px_rgba(15,23,42,0.55)] transition-all duration-150 group-hover/nav:visible group-hover/nav:opacity-100" style="top: var(--site-header-bottom, 90px);">
                     <div class="grid items-start gap-4 {{ $hasPromo ? 'grid-cols-[minmax(0,4fr)_minmax(240px,1fr)]' : 'grid-cols-1' }}">
                         <div class="max-h-[52vh] overflow-y-auto pr-1">
                             @if ($isSpecialOffer)

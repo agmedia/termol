@@ -2,8 +2,8 @@
     $hasOptionErrorForCard = (int) old('product_id', 0) === $productId && $errors->has('product_option_value_id');
 @endphp
 
-<article class="group w-full min-w-0 overflow-hidden {{ $flat ? 'bg-white p-4' : 'rounded-2xl bg-white p-5 shadow-sm' }}" data-product-card data-product-id="{{ $productId }}">
-    <div class="relative {{ $flat ? '-mt-4 overflow-hidden' : '-mt-5 overflow-hidden rounded-t-2xl' }}">
+<article class="group w-full min-w-0 overflow-hidden {{ $flat ? 'bg-white p-0' : 'rounded-2xl bg-white p-5 shadow-sm' }}" data-product-card data-product-id="{{ $productId }}">
+    <div class="relative {{ $flat ? 'overflow-hidden' : '-mt-5 overflow-hidden rounded-t-2xl' }}">
         <a href="{{ $productUrl }}" class="group block">
             @if ($imageUrl)
                 <div class="relative">
@@ -133,33 +133,67 @@
         </form>
     </div>
 
-    <a href="{{ $productUrl }}" class="mt-4 block">
-        <h3 class="text-base font-medium leading-tight text-slate-900">{{ $productName }}</h3>
-    </a>
-
-    <div class="mt-2 flex items-end justify-between">
-        <div class="flex flex-col gap-1">
-            <p class="text-base font-bold leading-none text-slate-900">{{ $price }}</p>
-            @if (! empty($oldPrice))
-                <p class="text-sm leading-none text-slate-500 line-through">{{ $oldPrice }}</p>
-            @endif
-            @if (! empty($lowest30DaysPrice))
-                <p class="text-[11px] leading-tight text-slate-500">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
-            @endif
+    @if ($flat)
+        <div class="relative mt-3 px-2 pb-3">
+            <div>
+                <a href="{{ $productUrl }}" class="block pr-12">
+                    <h3 class="text-base font-medium leading-tight text-slate-900">{{ $productName }}</h3>
+                </a>
+            </div>
+            <button
+                type="button"
+                class="absolute right-2 top-0 inline-flex h-9 w-9 shrink-0 items-center justify-center border border-slate-900 bg-white text-slate-900 transition hover:bg-slate-100"
+                data-card-overlay-toggle
+                aria-expanded="{{ $hasOptionErrorForCard ? 'true' : 'false' }}"
+                aria-label="{{ __('ui.product.add_to_cart') }}"
+            >
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 9h10l-1 10H8L7 9Z"></path>
+                    <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
+                </svg>
+            </button>
+            <div class="mt-1.5 flex flex-col gap-1">
+                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    @if (! empty($oldPrice))
+                        <p class="text-sm leading-none text-slate-500 line-through">{{ $oldPrice }}</p>
+                    @endif
+                    <p class="text-base font-bold leading-none text-slate-900">{{ $price }}</p>
+                </div>
+                @if (! empty($lowest30DaysPrice))
+                    <p class="text-[11px] leading-tight text-slate-500">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
+                @endif
+            </div>
         </div>
-        <button
-            type="button"
-            class="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end border border-slate-900 bg-slate-900 text-white transition hover:bg-slate-700"
-            data-card-overlay-toggle
-            aria-expanded="{{ $hasOptionErrorForCard ? 'true' : 'false' }}"
-            aria-label="{{ __('ui.product.add_to_cart') }}"
-        >
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 9h10l-1 10H8L7 9Z"></path>
-                <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
-            </svg>
-        </button>
-    </div>
+    @else
+        <a href="{{ $productUrl }}" class="mt-4 block">
+            <h3 class="text-base font-medium leading-tight text-slate-900">{{ $productName }}</h3>
+        </a>
+        <div class="mt-2 flex items-end justify-between">
+            <div class="flex flex-col gap-1">
+                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    @if (! empty($oldPrice))
+                        <p class="text-sm leading-none text-slate-500 line-through">{{ $oldPrice }}</p>
+                    @endif
+                    <p class="text-base font-bold leading-none text-slate-900">{{ $price }}</p>
+                </div>
+                @if (! empty($lowest30DaysPrice))
+                    <p class="text-[11px] leading-tight text-slate-500">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
+                @endif
+            </div>
+            <button
+                type="button"
+                class="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end border border-slate-900 bg-white text-slate-900 transition hover:bg-slate-100"
+                data-card-overlay-toggle
+                aria-expanded="{{ $hasOptionErrorForCard ? 'true' : 'false' }}"
+                aria-label="{{ __('ui.product.add_to_cart') }}"
+            >
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 9h10l-1 10H8L7 9Z"></path>
+                    <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
+                </svg>
+            </button>
+        </div>
+    @endif
 
 </article>
 

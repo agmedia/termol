@@ -7,7 +7,7 @@
 <section id="categories" class="border-y border-slate-200/60 bg-slate-100/70 py-24">
     <div class="mx-auto max-w-7xl px-6">
         <div class="mb-10">
-            <h2 class="text-4xl font-extrabold tracking-tight text-slate-900">{{ $sectionTitle }}</h2>
+            <h2 class="text-[1.7rem] leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $sectionTitle }}</h2>
             @if ($sectionSubtitle !== '')
                 <p class="mt-4 max-w-2xl text-lg text-slate-600">{{ $sectionSubtitle }}</p>
             @endif

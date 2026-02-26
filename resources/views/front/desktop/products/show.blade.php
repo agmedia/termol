@@ -141,6 +141,12 @@
                 grid-template-columns: minmax(0, 1.2fr) minmax(360px, 1fr);
             }
 
+            .product-detail-layout > aside {
+                position: sticky;
+                top: 4rem;
+                align-self: start;
+            }
+
             .product-ipad-slider {
                 display: none;
                 margin-top: 0;

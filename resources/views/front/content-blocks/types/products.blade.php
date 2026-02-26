@@ -6,7 +6,7 @@
     $sectionClass = (string) ($payload['section_class'] ?? 'rounded-3xl border border-slate-200 bg-white p-6');
     $gridClass = (string) ($payload['grid_class'] ?? 'mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4');
     $cardClass = (string) ($payload['card_class'] ?? 'rounded-2xl border border-slate-200 bg-slate-50 p-4');
-    $titleClass = (string) ($payload['title_class'] ?? 'text-2xl font-extrabold tracking-tight text-slate-900');
+    $titleClass = (string) ($payload['title_class'] ?? 'text-[1.7rem] leading-[2.5rem] uppercase font-semibold text-slate-900');
     $taxPricing = app(\App\Services\Pricing\TaxPricingService::class);
 @endphp
 

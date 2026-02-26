@@ -40,29 +40,51 @@
     $mainNavigation = app(\App\Services\Front\NavigationMenuService::class)->forLocale((string) app()->getLocale());
 @endphp
 <body class="font-risingsun min-h-screen overflow-x-hidden bg-white text-slate-900 antialiased">
-<header class="sticky top-0 z-40 bg-white">
-    @if ((bool) ($storeSettings['announcement']['enabled'] ?? true))
-        <div class="bg-black py-2 text-center text-xs font-semibold uppercase tracking-wide text-white">
-            @php
-                $announcementText = (string) ($storeSettings['announcement']['text'] ?? __('ui.front.desktop.promo_bar'));
-                $announcementUrl = trim((string) ($storeSettings['announcement']['url'] ?? ''));
-                $announcementNewTab = (bool) ($storeSettings['announcement']['new_tab'] ?? false);
-            @endphp
-            @if ($announcementUrl !== '')
-                <a href="{{ $announcementUrl }}" class="hover:underline" @if($announcementNewTab) target="_blank" rel="noopener noreferrer" @endif>
-                    {{ $announcementText }}
-                </a>
-            @else
+@if ((bool) ($storeSettings['announcement']['enabled'] ?? true))
+    <div class="bg-black py-2 text-center text-xs font-semibold uppercase tracking-wide text-white">
+        @php
+            $announcementText = (string) ($storeSettings['announcement']['text'] ?? __('ui.front.desktop.promo_bar'));
+            $announcementUrl = trim((string) ($storeSettings['announcement']['url'] ?? ''));
+            $announcementNewTab = (bool) ($storeSettings['announcement']['new_tab'] ?? false);
+        @endphp
+        @if ($announcementUrl !== '')
+            <a href="{{ $announcementUrl }}" class="hover:underline" @if($announcementNewTab) target="_blank" rel="noopener noreferrer" @endif>
                 {{ $announcementText }}
-            @endif
-        </div>
-    @endif
+            </a>
+        @else
+            {{ $announcementText }}
+        @endif
+    </div>
+@endif
 
-    <div class="border-b border-slate-200">
-        <div class="flex w-full items-stretch justify-between pl-2 pr-0 sm:pl-4 sm:pr-0 lg:pl-5 lg:pr-0 xl:pl-5 xl:pr-0">
-            <a href="{{ route('home') }}" class="inline-flex items-center py-4 text-2xl font-black tracking-tight text-slate-900 sm:py-5 sm:text-4xl">
+<style>
+    @media (min-width: 1024px) {
+        .site-main-header-row {
+            height: 90px;
+            transition: height .2s ease;
+        }
+
+        .site-main-logo {
+            height: 40px;
+            transition: height .2s ease;
+        }
+
+        .site-main-header.is-sticky .site-main-header-row {
+            height: 60px;
+        }
+
+        .site-main-header.is-sticky .site-main-logo {
+            height: 30px;
+        }
+    }
+</style>
+
+<header class="site-main-header sticky top-0 z-40 bg-white">
+    <div class="border-b border-slate-200 bg-white">
+        <div class="site-main-header-row flex h-[60px] w-full items-stretch justify-between pl-2 pr-0 sm:pl-4 sm:pr-0 lg:pl-5 lg:pr-0 xl:pl-5 xl:pr-0">
+            <a href="{{ route('home') }}" class="inline-flex h-full items-center text-2xl font-black tracking-tight text-slate-900 sm:text-4xl">
                 @if (!empty($storeSettings['branding']['logo_url'] ?? null))
-                    <img src="{{ $storeSettings['branding']['logo_url'] }}" alt="{{ $storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop') }}" class="h-9 w-auto object-contain sm:h-11" width="176" height="44">
+                    <img src="{{ $storeSettings['branding']['logo_url'] }}" alt="{{ $storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop') }}" class="site-main-logo h-7 w-auto object-contain sm:h-8" width="176" height="44">
                 @else
                     AMDS
                 @endif
@@ -72,7 +94,7 @@
                 @include('front.desktop.partials.main-nav')
             </nav>
 
-            <div class="hidden min-h-[76px] items-stretch border-l border-slate-200 lg:flex">
+            <div class="hidden h-full items-stretch border-l border-slate-200 lg:flex">
                 @php
                     $activeLocale = (string) ($frontLocale ?? app()->getLocale());
                     $switchLanguage = collect($frontLanguages ?? [])->first(
@@ -136,7 +158,7 @@
                 </a>
             </div>
 
-            <div class="flex min-h-[68px] items-stretch border-l border-slate-200 lg:hidden">
+            <div class="flex h-full items-stretch border-l border-slate-200 lg:hidden">
                 <button type="button" class="inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.search') }}" data-header-search-toggle>
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                         <circle cx="11" cy="11" r="7"></circle>
@@ -474,6 +496,26 @@
 
 <script>
     (function () {
+        const mainHeader = document.querySelector('.site-main-header');
+        const headerRow = mainHeader ? mainHeader.querySelector('.site-main-header-row') : null;
+        if (mainHeader) {
+            const updateHeaderState = function () {
+                mainHeader.classList.toggle('is-sticky', window.scrollY > 0);
+
+                if (!headerRow) {
+                    return;
+                }
+
+                const rect = headerRow.getBoundingClientRect();
+                const bottom = Math.max(0, Math.round(rect.bottom));
+                document.documentElement.style.setProperty('--site-header-bottom', bottom + 'px');
+            };
+
+            updateHeaderState();
+            window.addEventListener('scroll', updateHeaderState, { passive: true });
+            window.addEventListener('resize', updateHeaderState);
+        }
+
         const onLoadScripts = [];
 
         @if (request()->routeIs('home') || request()->routeIs('shop.*') || request()->routeIs('categories.*') || request()->routeIs('manufacturers.*') || request()->routeIs('products.*') || request()->routeIs('blog.*') || request()->routeIs('wishlist.*') || request()->routeIs('cart.*'))

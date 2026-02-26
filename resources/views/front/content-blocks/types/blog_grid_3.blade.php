@@ -82,7 +82,7 @@
 <section class="rounded-2xl border border-slate-200 bg-white p-6">
     <div class="mb-4 flex items-center justify-between gap-3">
         <div>
-            <h2 class="text-xl font-semibold text-slate-900">{{ $translation->title ?? $block->name }}</h2>
+            <h2 class="text-[1.7rem] leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $translation->title ?? $block->name }}</h2>
             @if (!empty($translation?->subtitle))
                 <p class="mt-1 text-sm text-slate-600">{{ $translation->subtitle }}</p>
             @endif

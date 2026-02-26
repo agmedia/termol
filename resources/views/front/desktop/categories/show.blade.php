@@ -5,11 +5,11 @@
         ?? $category->translations->firstWhere('locale', $fallbackLocale);
     $hasSubcategories = ($subcategories ?? collect())->isNotEmpty();
     $gridClass = match ((int) ($filters['cols'] ?? 4)) {
-        1 => 'grid grid-cols-1 gap-4',
-        2 => 'grid grid-cols-2 gap-4',
-        3 => 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3',
-        5 => 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5',
-        default => 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+        1 => 'grid grid-cols-1 gap-y-3',
+        2 => 'grid grid-cols-2 gap-x-2 gap-y-3',
+        3 => 'grid gap-x-2 gap-y-3 sm:grid-cols-2 xl:grid-cols-3',
+        5 => 'grid gap-x-2 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5',
+        default => 'grid gap-x-2 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
     };
 @endphp
 

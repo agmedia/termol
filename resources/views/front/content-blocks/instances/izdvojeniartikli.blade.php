@@ -74,7 +74,7 @@
         <div class="mb-8 text-center">
             <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
                 <span class="h-px flex-1 bg-slate-300"></span>
-                <h2 class="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">{{ $displayTitle }}</h2>
+                <h2 class="text-[1.7rem] leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $displayTitle }}</h2>
                 <span class="h-px flex-1 bg-slate-300"></span>
             </div>
             @if ($displaySubtitle !== '')
@@ -116,10 +116,6 @@
                     fill: #fff;
                 }
 
-                #products-carousel-{{ $block->id }} .splide__track {
-                    min-height: 520px;
-                }
-
                 @media (hover: none) {
                     #products-carousel-{{ $block->id }} .splide__arrow {
                         opacity: 1;
@@ -128,15 +124,9 @@
                 }
 
                 @media (max-width: 1024px) {
-                    #products-carousel-{{ $block->id }} .splide__track {
-                        min-height: 430px;
-                    }
                 }
 
                 @media (max-width: 640px) {
-                    #products-carousel-{{ $block->id }} .splide__track {
-                        min-height: 360px;
-                    }
                 }
             </style>
 

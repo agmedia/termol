@@ -76,7 +76,7 @@
         <div class="mb-8 text-center">
             <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
                 <span class="h-px flex-1 bg-slate-300"></span>
-                <h2 class="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">{{ $displayTitle }}</h2>
+                <h2 class="text-[1.7rem] leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $displayTitle }}</h2>
                 <span class="h-px flex-1 bg-slate-300"></span>
             </div>
             @if ($displaySubtitle !== '')
@@ -91,42 +91,24 @@
 
         @if ($reviewRows->isNotEmpty())
             <style>
-                #reviews-carousel-{{ $block->id }} .splide__arrow {
-                    opacity: 0;
-                    width: 46px;
-                    height: 46px;
-                    border-radius: 9999px;
-                    border: 1px solid rgba(255, 255, 255, 0.75);
-                    background: rgba(15, 23, 42, 0.35);
-                    backdrop-filter: blur(6px);
-                    transform: translateY(-50%) scale(0.92);
-                    transition: opacity .25s ease, transform .25s ease, background-color .25s ease;
+                #reviews-carousel-{{ $block->id }} {
+                    padding-bottom: 2rem;
                 }
 
-                #reviews-carousel-{{ $block->id }}:hover .splide__arrow,
-                #reviews-carousel-{{ $block->id }}:focus-within .splide__arrow {
-                    opacity: 1;
-                    transform: translateY(-50%) scale(1);
-                }
-
-                #reviews-carousel-{{ $block->id }} .splide__arrow:hover {
-                    background: rgba(15, 23, 42, 0.55);
-                }
-
-                #reviews-carousel-{{ $block->id }} .splide__arrow svg {
-                    fill: #fff;
+                #reviews-carousel-{{ $block->id }} .splide__pagination {
+                    bottom: -1.2rem;
                 }
 
                 #reviews-carousel-{{ $block->id }} .review-card {
                     border: 1px solid #dbe3ef;
-                    background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+                    background: #ffffff;
                 }
 
                 #reviews-carousel-{{ $block->id }} .review-quote {
                     color: #c9d3e5;
-                    font-size: 2rem;
+                    font-size: 1.45rem;
                     line-height: 1;
-                    font-weight: 700;
+                    font-weight: 600;
                 }
 
             </style>
@@ -144,7 +126,13 @@
                                 @endphp
                                 <article class="review-card h-full p-6">
                                     <div class="flex items-center justify-between gap-2">
-                                        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-amber-500">★★★★★</p>
+                                        <div class="inline-flex items-center gap-1 text-slate-900/80" aria-label="5/5">
+                                            @for ($i = 0; $i < 5; $i++)
+                                                <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                    <path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.34 4.1a1 1 0 0 0 .95.69h4.3c.97 0 1.37 1.24.59 1.81l-3.48 2.52a1 1 0 0 0-.37 1.12l1.33 4.1c.3.92-.75 1.68-1.54 1.12l-3.48-2.53a1 1 0 0 0-1.18 0l-3.48 2.53c-.78.56-1.83-.2-1.54-1.12l1.33-4.1a1 1 0 0 0-.36-1.12L1.9 9.53c-.79-.57-.38-1.81.59-1.81h4.31a1 1 0 0 0 .95-.69l1.3-4.1Z"/>
+                                                </svg>
+                                            @endfor
+                                        </div>
                                         <span class="review-quote" aria-hidden="true">“</span>
                                     </div>
                                     <p class="mt-3 line-clamp-4 text-sm leading-relaxed text-slate-700">{{ $row->body }}</p>
@@ -184,7 +172,12 @@
                                         drag: count > 1,
                                         snap: true,
                                         pagination: count > 1,
-                                        arrows: count > 1,
+                                        arrows: false,
+                                        autoplay: count > 1,
+                                        interval: 4200,
+                                        pauseOnHover: true,
+                                        pauseOnFocus: true,
+                                        resetProgress: false,
                                         breakpoints: {
                                             1024: { perPage: Math.min(2, Math.max(1, count)) },
                                             640: { perPage: 1 },
