@@ -14,12 +14,14 @@
                 @php
                     $imageUrl1200 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_1200w', $preferWebp);
                     $imageUrl960 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_960w', $preferWebp);
+                    $imageUrl800 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_800w', $preferWebp);
                     $imageUrl720 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_720w', $preferWebp);
                     $imageUrl540 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_540w', $preferWebp);
-                    $imageUrl = $imageUrl1200 ?? $imageUrl960 ?? $imageUrl720 ?? $imageUrl540 ?? $media->getUrl();
+                    $imageUrl = $imageUrl1200 ?? $imageUrl960 ?? $imageUrl800 ?? $imageUrl720 ?? $imageUrl540 ?? $media->getUrl();
                     $imageSrcset = collect([
                         $imageUrl540 ? $imageUrl540.' 540w' : null,
                         $imageUrl720 ? $imageUrl720.' 720w' : null,
+                        $imageUrl800 ? $imageUrl800.' 800w' : null,
                         $imageUrl960 ? $imageUrl960.' 960w' : null,
                         $imageUrl1200 ? $imageUrl1200.' 1200w' : null,
                     ])->filter()->unique()->implode(', ');

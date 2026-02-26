@@ -17,6 +17,9 @@
         ? (\App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_1360w', $preferWebp)
             ?? \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_1200w', $preferWebp)
             ?? \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_960w', $preferWebp)
+            ?? \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_800w', $preferWebp)
+            ?? \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_720w', $preferWebp)
+            ?? \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_540w', $preferWebp)
             ?? $firstSlide->getUrl())
         : null;
 
@@ -78,17 +81,20 @@
                             $slideUrl1360 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_1360w', $preferWebp);
                             $slideUrl1200 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_1200w', $preferWebp);
                             $slideUrl960 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_960w', $preferWebp);
+                            $slideUrl800 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_800w', $preferWebp);
                             $slideUrl720 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_720w', $preferWebp);
                             $slideUrl540 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_540w', $preferWebp);
                             $slideUrl = $slideUrl1360
                                 ?? $slideUrl1200
                                 ?? $slideUrl960
+                                ?? $slideUrl800
                                 ?? $slideUrl720
                                 ?? $slideUrl540
                                 ?? $media->getUrl();
                             $slideSrcset = collect([
                                 $slideUrl540 ? $slideUrl540.' 540w' : null,
                                 $slideUrl720 ? $slideUrl720.' 720w' : null,
+                                $slideUrl800 ? $slideUrl800.' 800w' : null,
                                 $slideUrl960 ? $slideUrl960.' 960w' : null,
                                 $slideUrl1200 ? $slideUrl1200.' 1200w' : null,
                                 $slideUrl1360 ? $slideUrl1360.' 1360w' : null,

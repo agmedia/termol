@@ -91,7 +91,13 @@ return [
         'hero_960w' => [
             'fit' => 'max',
             'width' => 960,
-            'quality' => 74,
+            'quality' => 66,
+            'format' => null,
+        ],
+        'hero_800w' => [
+            'fit' => 'max',
+            'width' => 800,
+            'quality' => 68,
             'format' => null,
         ],
         'hero_720w' => [
@@ -229,7 +235,7 @@ return [
                     'single_file' => true,
                     'max_upload_kb' => 8192,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
-                    'conversions' => ['card_360x240', 'hero_1440x480', 'hero_1600w', 'hero_1440w', 'hero_1360w', 'hero_1200w', 'hero_960w', 'hero_720w', 'hero_540w'],
+                    'conversions' => ['card_360x240', 'hero_1440x480', 'hero_1600w', 'hero_1440w', 'hero_1360w', 'hero_1200w', 'hero_960w', 'hero_800w', 'hero_720w', 'hero_540w'],
                     'preview_conversion' => 'card_360x240',
                 ],
                 'block_slides' => [
@@ -238,7 +244,7 @@ return [
                     'only_keep_latest' => 30,
                     'max_upload_kb' => 12288,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
-                    'conversions' => ['card_360x240', 'hero_1440x480', 'hero_1600w', 'hero_1440w', 'hero_1360w', 'hero_1200w', 'hero_960w', 'hero_720w', 'hero_540w'],
+                    'conversions' => ['card_360x240', 'hero_1440x480', 'hero_1600w', 'hero_1440w', 'hero_1360w', 'hero_1200w', 'hero_960w', 'hero_800w', 'hero_720w', 'hero_540w'],
                     'preview_conversion' => 'card_360x240',
                 ],
             ],
