@@ -1,4 +1,9 @@
-document.addEventListener('DOMContentLoaded', function () {
+(() => {
+    const init = function () {
+        if (window.__productCardCartModalInit === true) {
+            return;
+        }
+        window.__productCardCartModalInit = true;
     const forms = document.querySelectorAll('[data-product-card-form]');
     if (!forms.length) {
         return;
@@ -59,7 +64,15 @@ document.addEventListener('DOMContentLoaded', function () {
             return '';
         }
 
-        const label = form.querySelector('label[for="' + checked.id + '"] span');
+        const wrappedLabel = checked.closest('label');
+        if (wrappedLabel) {
+            const textNode = wrappedLabel.querySelector('.product-size-label-text') || wrappedLabel.querySelector('span');
+            if (textNode) {
+                return String(textNode.textContent || '').trim();
+            }
+        }
+
+        const label = checked.id ? form.querySelector('label[for="' + checked.id + '"] span') : null;
         return label ? String(label.textContent || '').trim() : '';
     };
 
@@ -170,4 +183,12 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
-});
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+        return;
+    }
+
+    init();
+})();

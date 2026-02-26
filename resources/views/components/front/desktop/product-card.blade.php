@@ -94,16 +94,16 @@
                 <div class="w-full">
                     <div class="mb-2 flex flex-wrap gap-2">
                         @foreach ($optionRows as $row)
-                            @php $desktopInputId = $row['input_id'].'-desktop'; @endphp
-                            <input
-                                id="{{ $desktopInputId }}"
-                                type="radio"
-                                name="product_option_value_id"
-                                value="{{ $row['id'] }}"
-                                class="sr-only"
-                            >
-                            <label for="{{ $desktopInputId }}" class="inline-flex h-9 min-w-9 cursor-pointer items-center justify-center border border-white/55 bg-transparent px-2.5 text-xs font-semibold text-white transition hover:border-white hover:bg-white/10 has-[:checked]:border-white has-[:checked]:bg-white has-[:checked]:text-slate-900">
-                                <span>{{ $row['label'] }}</span>
+                            <label class="inline-flex cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="product_option_value_id"
+                                    value="{{ $row['id'] }}"
+                                    class="sr-only product-size-radio"
+                                >
+                                <span class="product-size-label-text inline-flex h-9 min-w-9 items-center justify-center border border-white/55 bg-transparent px-2.5 text-xs font-semibold text-white transition hover:border-white hover:bg-white/10">
+                                    {{ $row['label'] }}
+                                </span>
                             </label>
                         @endforeach
                     </div>
@@ -120,7 +120,7 @@
                 <div class="inline-flex h-10 items-stretch bg-transparent" data-qty-control>
                     <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-white/55 text-base font-semibold text-white hover:border-white hover:bg-white/10" data-qty-dec aria-label="Decrease quantity">-</button>
                     <input type="text" name="quantity" value="1" inputmode="numeric" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" class="h-10 w-10 border-y border-r border-white/55 border-l-0 bg-transparent p-0 text-center text-sm font-semibold text-white focus:ring-0" data-qty-input data-qty-value>
-                    <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-l-0 border-white/55 text-base font-semibold text-white hover:border-white hover:bg-white/10" data-qty-inc aria-label="Increase quantity">+</button>
+                    <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-white/55 text-base font-semibold text-white hover:border-white hover:bg-white/10" data-qty-inc aria-label="Increase quantity">+</button>
                 </div>
                 <button type="submit" class="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap border border-white/55 bg-transparent px-3 text-base font-semibold text-white hover:border-white hover:bg-white/10" aria-label="{{ __('ui.product.to_cart') }}">
                     <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
@@ -164,9 +164,18 @@
 </article>
 
 @once
+    @push('head')
+        <style>
+            [data-product-card-form] .product-size-radio:checked + .product-size-label-text {
+                border-color: #ffffff;
+                background: #ffffff;
+                color: #0f172a;
+            }
+        </style>
+    @endpush
     @push('scripts')
-        <script defer src="{{ asset('front-theme/scripts/product-card-options.js') }}"></script>
-        <script defer src="{{ asset('front-theme/scripts/product-card-quantity.js') }}"></script>
+        <script defer src="{{ asset('front-theme/scripts/product-card-options.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-options.js')) }}"></script>
+        <script defer src="{{ asset('front-theme/scripts/product-card-quantity.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-quantity.js')) }}"></script>
         <script defer src="{{ asset('front-theme/scripts/product-card-cart-modal.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-cart-modal.js')) }}"></script>
         <script defer src="{{ asset('front-theme/scripts/product-card-overlay-cart.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-overlay-cart.js')) }}"></script>
     @endpush

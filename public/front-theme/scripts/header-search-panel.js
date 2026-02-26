@@ -1,4 +1,10 @@
-document.addEventListener('DOMContentLoaded', function () {
+(() => {
+    const init = function () {
+        if (window.__headerSearchPanelInit === true) {
+            return;
+        }
+        window.__headerSearchPanelInit = true;
+
     const panel = document.querySelector('[data-header-search-panel]');
     const toggles = document.querySelectorAll('[data-header-search-toggle]');
     const input = document.querySelector('[data-header-search-input]');
@@ -41,4 +47,12 @@ document.addEventListener('DOMContentLoaded', function () {
             closePanel();
         }
     });
-});
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+        return;
+    }
+
+    init();
+})();

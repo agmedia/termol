@@ -124,6 +124,7 @@ class ProductCard extends Component
         }
 
         return view('components.front.desktop.product-card', [
+            'cardDomId' => 'pc-'.(int) $this->product->id.'-'.substr(str_replace('.', '', uniqid('', true)), -10),
             'productId' => (int) $this->product->id,
             'productUrl' => route('products.show', ['slug' => $translation?->slug ?? $this->product->id]),
             'productName' => $translation?->name ?? $this->product->code,

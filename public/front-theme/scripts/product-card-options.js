@@ -1,4 +1,9 @@
-document.addEventListener('DOMContentLoaded', function () {
+(() => {
+    const init = function () {
+        if (window.__productCardOptionsInit === true) {
+            return;
+        }
+        window.__productCardOptionsInit = true;
     const forms = document.querySelectorAll('[data-product-card-form]');
 
     forms.forEach(function (form) {
@@ -29,4 +34,12 @@ document.addEventListener('DOMContentLoaded', function () {
             errorEl.classList.remove('hidden');
         });
     });
-});
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+        return;
+    }
+
+    init();
+})();

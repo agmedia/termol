@@ -148,6 +148,12 @@
                 display: block;
             }
         }
+
+        [data-product-detail-form] .product-size-radio:checked + .product-size-label {
+            border-color: #0f172a;
+            background: #0f172a;
+            color: #ffffff;
+        }
     </style>
 
     @if ($topBlocks->isNotEmpty())
@@ -335,10 +341,12 @@
                                     $label = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
                                     $inputId = 'product-detail-pov-'.$product->id.'-'.$row->id;
                                 @endphp
-                                <input id="{{ $inputId }}" type="radio" name="product_option_value_id" value="{{ $row->id }}" class="sr-only">
-                                <label for="{{ $inputId }}" class="inline-flex h-10 min-w-10 cursor-pointer items-center justify-center border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:bg-slate-100 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
-                                    <span>{{ $label }}</span>
-                                </label>
+                                <span class="inline-flex">
+                                    <input id="{{ $inputId }}" type="radio" name="product_option_value_id" value="{{ $row->id }}" class="sr-only product-size-radio">
+                                    <label for="{{ $inputId }}" class="product-size-label inline-flex h-10 min-w-10 cursor-pointer items-center justify-center border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:bg-slate-100">
+                                        <span>{{ $label }}</span>
+                                    </label>
+                                </span>
                             @endforeach
                         </div>
                         <p class="hidden mt-2 text-xs font-semibold text-rose-600" data-option-error>
@@ -351,7 +359,7 @@
                     <div class="inline-flex h-10 items-stretch" data-qty-control>
                         <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 text-xl font-semibold text-slate-700 hover:bg-slate-100" data-qty-dec aria-label="Decrease quantity">-</button>
                         <input type="text" name="quantity" value="1" inputmode="numeric" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" class="h-10 w-10 border-y border-r border-slate-300 border-l-0 bg-white p-0 text-center text-base font-normal text-slate-900" data-qty-input>
-                        <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-l-0 border-slate-300 text-xl font-semibold text-slate-700 hover:bg-slate-100" data-qty-inc aria-label="Increase quantity">+</button>
+                        <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 text-xl font-semibold text-slate-700 hover:bg-slate-100" data-qty-inc aria-label="Increase quantity">+</button>
                     </div>
 
                     <button type="submit" class="inline-flex h-10 min-w-0 items-center justify-center gap-2 whitespace-nowrap border border-slate-900 bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-700" aria-label="{{ __('ui.product.add_to_cart') }}">

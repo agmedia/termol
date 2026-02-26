@@ -1,4 +1,9 @@
-document.addEventListener('DOMContentLoaded', function () {
+(() => {
+    const init = function () {
+        if (window.__productCardQtyInit === true) {
+            return;
+        }
+        window.__productCardQtyInit = true;
     const controls = document.querySelectorAll('[data-qty-control]');
 
     controls.forEach(function (control) {
@@ -30,4 +35,12 @@ document.addEventListener('DOMContentLoaded', function () {
             setValue((Number.parseInt(input.value, 10) || 1) + 1);
         });
     });
-});
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+        return;
+    }
+
+    init();
+})();

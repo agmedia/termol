@@ -1,8 +1,9 @@
-document.addEventListener('DOMContentLoaded', function () {
-    if (window.__wishlistToggleInit === true) {
-        return;
-    }
-    window.__wishlistToggleInit = true;
+(() => {
+    const init = function () {
+        if (window.__wishlistToggleInit === true) {
+            return;
+        }
+        window.__wishlistToggleInit = true;
 
     const countNodes = document.querySelectorAll('[data-wishlist-count]');
     const wishlistLinks = document.querySelectorAll('[data-wishlist-link]');
@@ -251,4 +252,12 @@ document.addEventListener('DOMContentLoaded', function () {
             event.preventDefault();
         }
     }, true);
-});
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+        return;
+    }
+
+    init();
+})();

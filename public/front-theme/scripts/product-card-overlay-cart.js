@@ -1,4 +1,9 @@
-document.addEventListener('DOMContentLoaded', function () {
+(() => {
+    const init = function () {
+        if (window.__productCardOverlayInit === true) {
+            return;
+        }
+        window.__productCardOverlayInit = true;
     const cards = document.querySelectorAll('[data-product-card]');
     if (!cards.length) {
         return;
@@ -58,4 +63,12 @@ document.addEventListener('DOMContentLoaded', function () {
             closeCardOverlay(card);
         });
     });
-});
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+        return;
+    }
+
+    init();
+})();
