@@ -1,7 +1,5 @@
 @once
     @push('head')
-        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-        <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
         <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css" onload="this.onload=null;this.rel='stylesheet'">
         <noscript>
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">

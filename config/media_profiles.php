@@ -44,6 +44,12 @@ return [
             'quality' => 84,
             'format' => null,
         ],
+        'card_720w' => [
+            'fit' => 'max',
+            'width' => 720,
+            'quality' => 76,
+            'format' => null,
+        ],
         'card_320w' => [
             'fit' => 'max',
             'width' => 320,
@@ -150,7 +156,7 @@ return [
                     'single_file' => true,
                     'max_upload_kb' => 8192,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
-                    'conversions' => ['thumb_100x100', 'card_360x240', 'card_320w', 'card_480w', 'detail_960x960'],
+                    'conversions' => ['thumb_100x100', 'card_360x240', 'card_320w', 'card_480w', 'card_720w', 'detail_960x960'],
                     'preview_conversion' => 'card_360x240',
                 ],
                 'product_gallery' => [
@@ -158,7 +164,7 @@ return [
                     'single_file' => false,
                     'max_upload_kb' => 8192,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
-                    'conversions' => ['thumb_100x100', 'card_360x240', 'card_320w', 'card_480w', 'detail_960x960'],
+                    'conversions' => ['thumb_100x100', 'card_360x240', 'card_320w', 'card_480w', 'card_720w', 'detail_960x960'],
                     'preview_conversion' => 'card_360x240',
                 ],
             ],

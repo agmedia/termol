@@ -57,22 +57,26 @@ class ProductCard extends Component
         }
         $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', false);
 
+        $imageUrl720 = MediaUrl::conversionOrNull($mainMedia, 'card_720w', $preferWebp);
         $imageUrl480 = MediaUrl::conversionOrNull($mainMedia, 'card_480w', $preferWebp);
         $imageUrl320 = MediaUrl::conversionOrNull($mainMedia, 'card_320w', $preferWebp);
+        $hoverImageUrl720 = MediaUrl::conversionOrNull($hoverMedia, 'card_720w', $preferWebp);
         $hoverImageUrl480 = MediaUrl::conversionOrNull($hoverMedia, 'card_480w', $preferWebp);
         $hoverImageUrl320 = MediaUrl::conversionOrNull($hoverMedia, 'card_320w', $preferWebp);
 
-        $imageUrl = $imageUrl480 ?? $imageUrl320 ?? ($mainMedia ? (string) $mainMedia->getUrl() : null);
-        $hoverImageUrl = $hoverImageUrl480 ?? $hoverImageUrl320 ?? ($hoverMedia ? (string) $hoverMedia->getUrl() : null);
+        $imageUrl = $imageUrl720 ?? $imageUrl480 ?? $imageUrl320 ?? ($mainMedia ? (string) $mainMedia->getUrl() : null);
+        $hoverImageUrl = $hoverImageUrl720 ?? $hoverImageUrl480 ?? $hoverImageUrl320 ?? ($hoverMedia ? (string) $hoverMedia->getUrl() : null);
 
         $imageSrcset = collect([
             $imageUrl320 ? $imageUrl320.' 320w' : null,
             $imageUrl480 ? $imageUrl480.' 480w' : null,
+            $imageUrl720 ? $imageUrl720.' 720w' : null,
         ])->filter()->unique()->implode(', ');
 
         $hoverImageSrcset = collect([
             $hoverImageUrl320 ? $hoverImageUrl320.' 320w' : null,
             $hoverImageUrl480 ? $hoverImageUrl480.' 480w' : null,
+            $hoverImageUrl720 ? $hoverImageUrl720.' 720w' : null,
         ])->filter()->unique()->implode(', ');
         $imageWidth = max(1, (int) ($mainMedia?->width ?? 480));
         $imageHeight = max(1, (int) ($mainMedia?->height ?? 640));

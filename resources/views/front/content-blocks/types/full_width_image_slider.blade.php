@@ -13,13 +13,27 @@
     }
 
     $firstSlide = $slides->first();
+    $firstSlideUrl1360 = \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_1360w', $preferWebp);
+    $firstSlideUrl1200 = \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_1200w', $preferWebp);
+    $firstSlideUrl960 = \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_960w', $preferWebp);
+    $firstSlideUrl800 = \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_800w', $preferWebp);
+    $firstSlideUrl720 = \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_720w', $preferWebp);
+    $firstSlideUrl540 = \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_540w', $preferWebp);
+    $firstSlideSrcset = collect([
+        $firstSlideUrl540 ? $firstSlideUrl540.' 540w' : null,
+        $firstSlideUrl720 ? $firstSlideUrl720.' 720w' : null,
+        $firstSlideUrl800 ? $firstSlideUrl800.' 800w' : null,
+        $firstSlideUrl960 ? $firstSlideUrl960.' 960w' : null,
+        $firstSlideUrl1200 ? $firstSlideUrl1200.' 1200w' : null,
+        $firstSlideUrl1360 ? $firstSlideUrl1360.' 1360w' : null,
+    ])->filter()->unique()->implode(', ');
     $firstSlidePreloadUrl = $firstSlide
-        ? (\App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_1360w', $preferWebp)
-            ?? \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_1200w', $preferWebp)
-            ?? \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_960w', $preferWebp)
-            ?? \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_800w', $preferWebp)
-            ?? \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_720w', $preferWebp)
-            ?? \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_540w', $preferWebp)
+        ? ($firstSlideUrl1360
+            ?? $firstSlideUrl1200
+            ?? $firstSlideUrl960
+            ?? $firstSlideUrl800
+            ?? $firstSlideUrl720
+            ?? $firstSlideUrl540
             ?? $firstSlide->getUrl())
         : null;
 
@@ -29,7 +43,13 @@
 @if ($slides->isNotEmpty())
     @if ($firstSlidePreloadUrl)
         @push('head')
-            <link rel="preload" as="image" href="{{ $firstSlidePreloadUrl }}">
+            <link
+                rel="preload"
+                as="image"
+                href="{{ $firstSlidePreloadUrl }}"
+                @if ($firstSlideSrcset !== '') imagesrcset="{{ $firstSlideSrcset }}" imagesizes="100vw" @endif
+                fetchpriority="high"
+            >
         @endpush
     @endif
 
