@@ -201,12 +201,28 @@
             });
         }
 
+        const hasStoredCookieConsent = () => document.cookie.split(';').some((entry) => entry.trim().startsWith('cc_cookie='));
+
         const scheduleCookieConsentBoot = () => {
-            if ('requestIdleCallback' in window) {
-                window.requestIdleCallback(bootCookieConsent, { timeout: 4000 });
-            } else {
-                window.setTimeout(bootCookieConsent, 3200);
+            if (hasStoredCookieConsent()) {
+                return;
             }
+
+            let booted = false;
+            const runBootOnce = () => {
+                if (booted) {
+                    return;
+                }
+                booted = true;
+                bootCookieConsent();
+            };
+
+            const interactionEvents = ['pointerdown', 'keydown', 'touchstart', 'scroll'];
+            interactionEvents.forEach((eventName) => {
+                window.addEventListener(eventName, runBootOnce, { once: true, passive: true });
+            });
+
+            window.setTimeout(runBootOnce, 6000);
         };
 
         if (document.readyState === 'complete') {
