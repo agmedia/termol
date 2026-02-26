@@ -560,7 +560,7 @@ class StoreSettings extends Component
                     continue;
                 }
 
-                $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type);
+                $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type, (string) $media->collection_name);
 
                 try {
                     if ($conversionNames !== []) {
@@ -593,9 +593,18 @@ class StoreSettings extends Component
     /**
      * @return array<int, string>
      */
-    private function webpConversionNamesForModel(string $modelType): array
+    private function webpConversionNamesForModel(string $modelType, ?string $collectionName = null): array
     {
         $map = MediaProfileRegistry::conversionMapForModel($modelType);
+
+        if ($collectionName !== null && $collectionName !== '') {
+            $map = array_filter($map, static function (array $config) use ($collectionName): bool {
+                $collections = array_values(array_filter((array) ($config['collections'] ?? [])));
+
+                return in_array($collectionName, $collections, true);
+            });
+        }
+
         $conversionNames = array_keys($map);
         if ($conversionNames === []) {
             return [];
@@ -629,7 +638,7 @@ class StoreSettings extends Component
 
     private function mediaHasMissingWebp(Media $media): bool
     {
-        $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type);
+        $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type, (string) $media->collection_name);
         if ($conversionNames === []) {
             return false;
         }

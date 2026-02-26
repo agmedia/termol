@@ -80,6 +80,7 @@
                                 ?? $media->getUrl();
                             $slideUrl960 = \App\Support\Media\MediaUrl::conversion($media, 'hero_960w', $preferWebp) ?? $slideUrl;
                             $slideUrl720 = \App\Support\Media\MediaUrl::conversion($media, 'hero_720w', $preferWebp) ?? $slideUrl960;
+                            $slideUrl540 = \App\Support\Media\MediaUrl::conversion($media, 'hero_540w', $preferWebp) ?? $slideUrl720;
                             $slideLink = trim((string) (
                                 data_get($media->custom_properties, 'link_url.'.app()->getLocale())
                                 ?: data_get($media->custom_properties, 'link_url.'.config('app.locale'))
@@ -96,7 +97,7 @@
                                 @endif
                                     <img
                                         src="{{ $slideUrl }}"
-                                        srcset="{{ $slideUrl720 }} 720w, {{ $slideUrl960 }} 960w, {{ $slideUrl }} 1600w"
+                                        srcset="{{ $slideUrl540 }} 540w, {{ $slideUrl720 }} 720w, {{ $slideUrl960 }} 960w, {{ $slideUrl }} 1600w"
                                         sizes="100vw"
                                         alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}"
                                         class="hero-slide-image h-auto w-full bg-slate-100 object-contain"

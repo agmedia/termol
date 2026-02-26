@@ -170,6 +170,9 @@
                                     $postCoverUrl680 = $postCover
                                         ? (\App\Support\Media\MediaUrl::conversion($postCover, 'cover_680x900', $preferWebp) ?? $postCoverUrl)
                                         : null;
+                                    $postCoverUrl520 = $postCover
+                                        ? (\App\Support\Media\MediaUrl::conversion($postCover, 'cover_520x700', $preferWebp) ?? $postCoverUrl680)
+                                        : null;
                                     $postCoverWidth = max(1, (int) ($postCover?->width ?? 900));
                                     $postCoverHeight = max(1, (int) ($postCover?->height ?? 1200));
                                 @endphp
@@ -180,7 +183,7 @@
                                                 @if ($postCoverUrl)
                                                     <img
                                                         src="{{ $postCoverUrl }}"
-                                                        srcset="{{ $postCoverUrl680 }} 680w, {{ $postCoverUrl }} 900w"
+                                                        srcset="{{ $postCoverUrl520 }} 520w, {{ $postCoverUrl680 }} 680w, {{ $postCoverUrl }} 900w"
                                                         sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 25vw"
                                                         alt=""
                                                         class="h-auto w-full object-contain transition duration-300 group-hover:scale-[1.01]"
