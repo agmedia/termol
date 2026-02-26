@@ -96,10 +96,7 @@
             <p class="kicker">Maintenance Mode</p>
             <h1 id="offline-title">Trenutno offline</h1>
             <p>Stranica je trenutno offline zbog održavanja. Vraćamo se uskoro.</p>
-            <div class="actions">
-                <a class="btn" href="/">Pokušaj ponovno</a>
-                <a class="btn btn-ghost" href="/contact">Kontakt</a>
-            </div>
+
         </div>
     </section>
 </body>
