@@ -57,10 +57,23 @@ class ProductCard extends Component
         }
         $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', false);
 
-        $imageUrl = MediaUrl::conversion($mainMedia, 'card_480w', $preferWebp);
-        $hoverImageUrl = MediaUrl::conversion($hoverMedia, 'card_480w', $preferWebp);
-        $imageUrl320 = MediaUrl::conversion($mainMedia, 'card_320w', $preferWebp);
-        $hoverImageUrl320 = MediaUrl::conversion($hoverMedia, 'card_320w', $preferWebp);
+        $imageUrl480 = MediaUrl::conversionOrNull($mainMedia, 'card_480w', $preferWebp);
+        $imageUrl320 = MediaUrl::conversionOrNull($mainMedia, 'card_320w', $preferWebp);
+        $hoverImageUrl480 = MediaUrl::conversionOrNull($hoverMedia, 'card_480w', $preferWebp);
+        $hoverImageUrl320 = MediaUrl::conversionOrNull($hoverMedia, 'card_320w', $preferWebp);
+
+        $imageUrl = $imageUrl480 ?? $imageUrl320 ?? ($mainMedia ? (string) $mainMedia->getUrl() : null);
+        $hoverImageUrl = $hoverImageUrl480 ?? $hoverImageUrl320 ?? ($hoverMedia ? (string) $hoverMedia->getUrl() : null);
+
+        $imageSrcset = collect([
+            $imageUrl320 ? $imageUrl320.' 320w' : null,
+            $imageUrl480 ? $imageUrl480.' 480w' : null,
+        ])->filter()->unique()->implode(', ');
+
+        $hoverImageSrcset = collect([
+            $hoverImageUrl320 ? $hoverImageUrl320.' 320w' : null,
+            $hoverImageUrl480 ? $hoverImageUrl480.' 480w' : null,
+        ])->filter()->unique()->implode(', ');
         $imageWidth = max(1, (int) ($mainMedia?->width ?? 480));
         $imageHeight = max(1, (int) ($mainMedia?->height ?? 640));
         $hoverImageWidth = max(1, (int) ($hoverMedia?->width ?? $imageWidth));
@@ -134,8 +147,10 @@ class ProductCard extends Component
             'productCategory' => $categoryName,
             'imageUrl' => $imageUrl,
             'imageUrl320' => $imageUrl320,
+            'imageSrcset' => $imageSrcset,
             'hoverImageUrl' => $hoverImageUrl,
             'hoverImageUrl320' => $hoverImageUrl320,
+            'hoverImageSrcset' => $hoverImageSrcset,
             'imageWidth' => $imageWidth,
             'imageHeight' => $imageHeight,
             'hoverImageWidth' => $hoverImageWidth,

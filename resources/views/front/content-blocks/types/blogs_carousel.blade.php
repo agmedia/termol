@@ -164,15 +164,21 @@
                                     $postSlug = (string) ($postTranslation?->slug ?? $post->id);
                                     $postUrl = route('blog.show', ['slug' => $postSlug]);
                                     $postCover = $post->getFirstMedia('blog_cover');
-                                    $postCoverUrl = $postCover
-                                        ? (\App\Support\Media\MediaUrl::conversion($postCover, 'cover_900x1200', $preferWebp) ?? $postCover->getUrl())
+                                    $postCoverUrl900 = $postCover
+                                        ? \App\Support\Media\MediaUrl::conversionOrNull($postCover, 'cover_900x1200', $preferWebp)
                                         : null;
                                     $postCoverUrl680 = $postCover
-                                        ? (\App\Support\Media\MediaUrl::conversion($postCover, 'cover_680x900', $preferWebp) ?? $postCoverUrl)
+                                        ? \App\Support\Media\MediaUrl::conversionOrNull($postCover, 'cover_680x900', $preferWebp)
                                         : null;
                                     $postCoverUrl520 = $postCover
-                                        ? (\App\Support\Media\MediaUrl::conversion($postCover, 'cover_520x700', $preferWebp) ?? $postCoverUrl680)
+                                        ? \App\Support\Media\MediaUrl::conversionOrNull($postCover, 'cover_520x700', $preferWebp)
                                         : null;
+                                    $postCoverUrl = $postCoverUrl900 ?? $postCoverUrl680 ?? $postCoverUrl520 ?? ($postCover?->getUrl());
+                                    $postCoverSrcset = collect([
+                                        $postCoverUrl520 ? $postCoverUrl520.' 520w' : null,
+                                        $postCoverUrl680 ? $postCoverUrl680.' 680w' : null,
+                                        $postCoverUrl900 ? $postCoverUrl900.' 900w' : null,
+                                    ])->filter()->unique()->implode(', ');
                                     $postCoverWidth = max(1, (int) ($postCover?->width ?? 900));
                                     $postCoverHeight = max(1, (int) ($postCover?->height ?? 1200));
                                 @endphp
@@ -183,7 +189,7 @@
                                                 @if ($postCoverUrl)
                                                     <img
                                                         src="{{ $postCoverUrl }}"
-                                                        srcset="{{ $postCoverUrl520 }} 520w, {{ $postCoverUrl680 }} 680w, {{ $postCoverUrl }} 900w"
+                                                        @if ($postCoverSrcset !== '') srcset="{{ $postCoverSrcset }}" @endif
                                                         sizes="(max-width: 767px) 100vw, (max-width: 1279px) 46vw, (max-width: 1536px) 23vw, 340px"
                                                         alt=""
                                                         class="h-auto w-full object-contain transition duration-300 group-hover:scale-[1.01]"

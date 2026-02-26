@@ -6,7 +6,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MediaUrl
 {
-    public static function conversion(?Media $media, string $conversion, bool $preferWebp = false): ?string
+    public static function conversionOrNull(?Media $media, string $conversion, bool $preferWebp = false): ?string
     {
         if (! $media) {
             return null;
@@ -14,7 +14,7 @@ class MediaUrl
 
         $baseConversion = trim($conversion);
         if ($baseConversion === '') {
-            return (string) $media->getUrl();
+            return null;
         }
 
         $webpConversion = $baseConversion.'_webp';
@@ -31,7 +31,21 @@ class MediaUrl
             return (string) $media->getUrl($webpConversion);
         }
 
-        return (string) $media->getUrl();
+        return null;
+    }
+
+    public static function conversion(?Media $media, string $conversion, bool $preferWebp = false): ?string
+    {
+        if (! $media) {
+            return null;
+        }
+
+        $baseConversion = trim($conversion);
+        if ($baseConversion === '') {
+            return (string) $media->getUrl();
+        }
+
+        return self::conversionOrNull($media, $baseConversion, $preferWebp) ?? (string) $media->getUrl();
     }
 
     private static function hasUsableConversion(Media $media, string $conversionName): bool

@@ -14,9 +14,9 @@
 
     $firstSlide = $slides->first();
     $firstSlidePreloadUrl = $firstSlide
-        ? (\App\Support\Media\MediaUrl::conversion($firstSlide, 'hero_1200w', $preferWebp)
-            ?? \App\Support\Media\MediaUrl::conversion($firstSlide, 'hero_960w', $preferWebp)
-            ?? \App\Support\Media\MediaUrl::conversion($firstSlide, 'hero_1600w', $preferWebp)
+        ? (\App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_1360w', $preferWebp)
+            ?? \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_1200w', $preferWebp)
+            ?? \App\Support\Media\MediaUrl::conversionOrNull($firstSlide, 'hero_960w', $preferWebp)
             ?? $firstSlide->getUrl())
         : null;
 
@@ -75,13 +75,24 @@
                 <ul class="splide__list">
                     @foreach ($slides as $media)
                         @php
-                            $slideUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1360w', $preferWebp)
-                                ?? \App\Support\Media\MediaUrl::conversion($media, 'hero_1200w', $preferWebp)
-                                ?? \App\Support\Media\MediaUrl::conversion($media, 'hero_1600w', $preferWebp)
+                            $slideUrl1360 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_1360w', $preferWebp);
+                            $slideUrl1200 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_1200w', $preferWebp);
+                            $slideUrl960 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_960w', $preferWebp);
+                            $slideUrl720 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_720w', $preferWebp);
+                            $slideUrl540 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_540w', $preferWebp);
+                            $slideUrl = $slideUrl1360
+                                ?? $slideUrl1200
+                                ?? $slideUrl960
+                                ?? $slideUrl720
+                                ?? $slideUrl540
                                 ?? $media->getUrl();
-                            $slideUrl960 = \App\Support\Media\MediaUrl::conversion($media, 'hero_960w', $preferWebp) ?? $slideUrl;
-                            $slideUrl720 = \App\Support\Media\MediaUrl::conversion($media, 'hero_720w', $preferWebp) ?? $slideUrl960;
-                            $slideUrl540 = \App\Support\Media\MediaUrl::conversion($media, 'hero_540w', $preferWebp) ?? $slideUrl720;
+                            $slideSrcset = collect([
+                                $slideUrl540 ? $slideUrl540.' 540w' : null,
+                                $slideUrl720 ? $slideUrl720.' 720w' : null,
+                                $slideUrl960 ? $slideUrl960.' 960w' : null,
+                                $slideUrl1200 ? $slideUrl1200.' 1200w' : null,
+                                $slideUrl1360 ? $slideUrl1360.' 1360w' : null,
+                            ])->filter()->unique()->implode(', ');
                             $slideLink = trim((string) (
                                 data_get($media->custom_properties, 'link_url.'.app()->getLocale())
                                 ?: data_get($media->custom_properties, 'link_url.'.config('app.locale'))
@@ -98,7 +109,7 @@
                                 @endif
                                     <img
                                         src="{{ $slideUrl }}"
-                                        srcset="{{ $slideUrl540 }} 540w, {{ $slideUrl720 }} 720w, {{ $slideUrl960 }} 960w, {{ \App\Support\Media\MediaUrl::conversion($media, 'hero_1200w', $preferWebp) ?? $slideUrl }} 1200w, {{ $slideUrl }} 1360w, {{ \App\Support\Media\MediaUrl::conversion($media, 'hero_1600w', $preferWebp) ?? $slideUrl }} 1600w"
+                                        @if ($slideSrcset !== '') srcset="{{ $slideSrcset }}" @endif
                                         sizes="100vw"
                                         alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}"
                                         class="hero-slide-image h-auto w-full bg-slate-100 object-contain"

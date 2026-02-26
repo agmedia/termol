@@ -116,10 +116,26 @@
                     fill: #fff;
                 }
 
+                #products-carousel-{{ $block->id }} .splide__track {
+                    min-height: 520px;
+                }
+
                 @media (hover: none) {
                     #products-carousel-{{ $block->id }} .splide__arrow {
                         opacity: 1;
                         transform: translateY(-50%) scale(1);
+                    }
+                }
+
+                @media (max-width: 1024px) {
+                    #products-carousel-{{ $block->id }} .splide__track {
+                        min-height: 430px;
+                    }
+                }
+
+                @media (max-width: 640px) {
+                    #products-carousel-{{ $block->id }} .splide__track {
+                        min-height: 360px;
                     }
                 }
             </style>

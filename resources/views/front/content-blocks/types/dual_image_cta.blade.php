@@ -12,10 +12,17 @@
         <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
             @foreach ($slides as $media)
                 @php
-                    $imageUrl = \App\Support\Media\MediaUrl::conversion($media, 'hero_1200w', $preferWebp) ?? $media->getUrl();
-                    $imageUrl960 = \App\Support\Media\MediaUrl::conversion($media, 'hero_960w', $preferWebp) ?? $imageUrl;
-                    $imageUrl720 = \App\Support\Media\MediaUrl::conversion($media, 'hero_720w', $preferWebp) ?? $imageUrl960;
-                    $imageUrl540 = \App\Support\Media\MediaUrl::conversion($media, 'hero_540w', $preferWebp) ?? $imageUrl720;
+                    $imageUrl1200 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_1200w', $preferWebp);
+                    $imageUrl960 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_960w', $preferWebp);
+                    $imageUrl720 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_720w', $preferWebp);
+                    $imageUrl540 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_540w', $preferWebp);
+                    $imageUrl = $imageUrl1200 ?? $imageUrl960 ?? $imageUrl720 ?? $imageUrl540 ?? $media->getUrl();
+                    $imageSrcset = collect([
+                        $imageUrl540 ? $imageUrl540.' 540w' : null,
+                        $imageUrl720 ? $imageUrl720.' 720w' : null,
+                        $imageUrl960 ? $imageUrl960.' 960w' : null,
+                        $imageUrl1200 ? $imageUrl1200.' 1200w' : null,
+                    ])->filter()->unique()->implode(', ');
                     $imageWidth = max(1, (int) ($media->width ?? 1200));
                     $imageHeight = max(1, (int) ($media->height ?? 700));
                     $props = (array) ($media->custom_properties ?? []);
@@ -51,7 +58,7 @@
                 <article class="group relative overflow-hidden">
                     <img
                         src="{{ $imageUrl }}"
-                        srcset="{{ $imageUrl540 }} 540w, {{ $imageUrl720 }} 720w, {{ $imageUrl960 }} 960w, {{ $imageUrl }} 1200w"
+                        @if ($imageSrcset !== '') srcset="{{ $imageSrcset }}" @endif
                         sizes="(max-width: 767px) 100vw, (max-width: 1536px) 47vw, 720px"
                         alt="{{ $slideTitle !== '' ? $slideTitle : $block->name }}"
                         class="h-auto w-full bg-slate-100 object-contain transition duration-500 group-hover:scale-[1.02]"

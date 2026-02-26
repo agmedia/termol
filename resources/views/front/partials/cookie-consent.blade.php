@@ -190,10 +190,18 @@
             });
         }
 
-        if ('requestIdleCallback' in window) {
-            window.requestIdleCallback(bootCookieConsent, { timeout: 1500 });
+        const scheduleCookieConsentBoot = () => {
+            if ('requestIdleCallback' in window) {
+                window.requestIdleCallback(bootCookieConsent, { timeout: 4000 });
+            } else {
+                window.setTimeout(bootCookieConsent, 3200);
+            }
+        };
+
+        if (document.readyState === 'complete') {
+            scheduleCookieConsentBoot();
         } else {
-            window.setTimeout(bootCookieConsent, 1200);
+            window.addEventListener('load', scheduleCookieConsentBoot, { once: true });
         }
     </script>
 @endif

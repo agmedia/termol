@@ -709,34 +709,49 @@ class StoreSettings extends Component
      */
     private function webpCoverageSummary(): array
     {
-        return Cache::remember($this->webpCoverageCacheKey(), now()->addMinutes(10), function (): array {
-            $modelTypes = MediaProfileRegistry::modelClasses();
-            $total = 0;
-            $processed = 0;
-
-            Media::query()
-                ->whereIn('model_type', $modelTypes)
-                ->orderBy('id')
-                ->chunkById(250, function ($mediaItems) use (&$total, &$processed): void {
-                    /** @var Media $media */
-                    foreach ($mediaItems as $media) {
-                        $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type, (string) $media->collection_name);
-                        if ($conversionNames === []) {
-                            continue;
-                        }
-
-                        $total++;
-                        if (! $this->mediaHasMissingWebp($media)) {
-                            $processed++;
-                        }
-                    }
-                });
-
+        $cached = Cache::get($this->webpCoverageCacheKey());
+        if (is_array($cached) && (int) ($cached['total'] ?? 0) > 0) {
             return [
-                'processed' => $processed,
-                'total' => $total,
+                'processed' => (int) ($cached['processed'] ?? 0),
+                'total' => (int) ($cached['total'] ?? 0),
             ];
-        });
+        }
+
+        $modelTypes = MediaProfileRegistry::modelClasses();
+        $total = 0;
+        $processed = 0;
+
+        Media::query()
+            ->whereIn('model_type', $modelTypes)
+            ->orderBy('id')
+            ->chunkById(250, function ($mediaItems) use (&$total, &$processed): void {
+                /** @var Media $media */
+                foreach ($mediaItems as $media) {
+                    $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type, (string) $media->collection_name);
+                    if ($conversionNames === []) {
+                        continue;
+                    }
+
+                    $total++;
+                    if (! $this->mediaHasMissingWebp($media)) {
+                        $processed++;
+                    }
+                }
+            });
+
+        $summary = [
+            'processed' => $processed,
+            'total' => $total,
+        ];
+
+        // Avoid keeping stale 0/0 snapshots for long; recompute next time if still empty.
+        if ($total > 0) {
+            Cache::put($this->webpCoverageCacheKey(), $summary, now()->addMinutes(5));
+        } else {
+            Cache::forget($this->webpCoverageCacheKey());
+        }
+
+        return $summary;
     }
 
     /**
