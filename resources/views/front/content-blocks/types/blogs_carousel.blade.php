@@ -95,7 +95,7 @@
 @endphp
 
 <section class="relative left-1/2 w-screen -translate-x-1/2 bg-white py-8">
-    <div class="w-full px-4 sm:px-6 lg:px-8">
+    <div class="w-full px-3 sm:px-4 lg:px-6">
         <div class="mb-8 text-center">
             <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
                 <span class="h-px flex-1 bg-slate-300"></span>

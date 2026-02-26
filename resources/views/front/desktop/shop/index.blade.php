@@ -14,7 +14,7 @@
         };
     @endphp
 
-    <section class="px-4 text-center sm:px-6 lg:px-8">
+    <section class="px-3 text-center sm:px-4 lg:px-6">
         <nav aria-label="Breadcrumb" class="mb-3">
             <ol class="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
                 <li>
@@ -28,7 +28,7 @@
         <p class="mt-2 text-slate-600">{{ __('ui.shop.subtitle') }}</p>
     </section>
 
-    <section class="mt-6 border-y border-slate-200 bg-slate-50 px-4 py-4 sm:px-6 lg:px-8">
+    <section class="mt-6 border-y border-slate-200 bg-slate-50 px-3 py-4 sm:px-4 lg:px-6">
         <details class="group md:hidden">
             <summary class="flex h-[42px] w-full list-none cursor-pointer items-center justify-center gap-2 border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -212,7 +212,7 @@
         </form>
     </section>
 
-    <section class="px-4 py-6 sm:px-6 lg:px-8">
+    <section class="px-3 py-6 sm:px-4 lg:px-6">
         @if ($products->isEmpty())
             <div class="border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
                 {{ __('ui.shop.empty') }}
