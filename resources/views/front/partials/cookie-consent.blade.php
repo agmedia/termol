@@ -127,7 +127,7 @@
                 }
 
                 loadingPromise = new Promise((resolve, reject) => {
-                    const cssHref = 'https://cdn.jsdelivr.net/npm/vanilla-cookieconsent@3/dist/cookieconsent.css';
+                    const cssHref = @json(asset('front-theme/vendors/cookieconsent/cookieconsent.css'));
                     if (!document.querySelector('link[data-cookie-consent-css="1"]')) {
                         const css = document.createElement('link');
                         css.rel = 'stylesheet';
@@ -142,7 +142,7 @@
                     }
 
                     const script = document.createElement('script');
-                    script.src = 'https://cdn.jsdelivr.net/npm/vanilla-cookieconsent@3/dist/cookieconsent.umd.js';
+                    script.src = @json(asset('front-theme/vendors/cookieconsent/cookieconsent.umd.js'));
                     script.async = true;
                     script.onload = () => resolve();
                     script.onerror = () => reject(new Error('Failed to load cookie consent script.'));
