@@ -184,7 +184,7 @@
                                                     <img
                                                         src="{{ $postCoverUrl }}"
                                                         srcset="{{ $postCoverUrl520 }} 520w, {{ $postCoverUrl680 }} 680w, {{ $postCoverUrl }} 900w"
-                                                        sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 25vw"
+                                                        sizes="(max-width: 767px) 100vw, (max-width: 1279px) 46vw, (max-width: 1536px) 23vw, 340px"
                                                         alt=""
                                                         class="h-auto w-full object-contain transition duration-300 group-hover:scale-[1.01]"
                                                         width="{{ $postCoverWidth }}"

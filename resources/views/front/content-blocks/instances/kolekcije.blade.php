@@ -52,7 +52,7 @@
                     <img
                         src="{{ $imageUrl }}"
                         srcset="{{ $imageUrl540 }} 540w, {{ $imageUrl720 }} 720w, {{ $imageUrl960 }} 960w, {{ $imageUrl }} 1200w"
-                        sizes="(max-width: 767px) 100vw, 50vw"
+                        sizes="(max-width: 767px) 100vw, (max-width: 1536px) 47vw, 720px"
                         alt="{{ $slideTitle !== '' ? $slideTitle : $block->name }}"
                         class="h-auto w-full bg-slate-100 object-contain transition duration-500 group-hover:scale-[1.02]"
                         width="{{ $imageWidth }}"
