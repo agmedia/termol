@@ -10,7 +10,7 @@
                     <img
                         src="{{ $imageUrl }}"
                         @if (!empty($imageSrcset)) srcset="{{ $imageSrcset }}" @endif
-                        sizes="(max-width: 767px) 44vw, (max-width: 1279px) 30vw, 24vw"
+                        sizes="(max-width: 767px) 88vw, (max-width: 1279px) 30vw, 24vw"
                         alt="{{ $productName }}"
                         class="{{ $flat ? 'block h-auto w-full max-w-full' : 'block h-auto w-full max-w-full rounded-xl' }} {{ $hoverImageUrl ? 'transition-opacity duration-300 group-hover:opacity-0' : '' }}"
                         width="{{ (int) $imageWidth }}"
@@ -22,7 +22,7 @@
                         <img
                             src="{{ $hoverImageUrl }}"
                             @if (!empty($hoverImageSrcset)) srcset="{{ $hoverImageSrcset }}" @endif
-                            sizes="(max-width: 767px) 44vw, (max-width: 1279px) 30vw, 24vw"
+                            sizes="(max-width: 767px) 88vw, (max-width: 1279px) 30vw, 24vw"
                             alt="{{ $productName }}"
                             class="absolute inset-0 h-full w-full opacity-0 transition-opacity duration-300 group-hover:opacity-100 {{ $flat ? '' : 'rounded-xl' }}"
                             width="{{ (int) $hoverImageWidth }}"
