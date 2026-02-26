@@ -176,6 +176,100 @@
             width: 0;
             transition: width .3s ease;
         }
+
+        [data-fit-finder-modal] [data-fit-finder-timeline] {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            align-items: center;
+            gap: .6rem;
+            margin-top: .75rem;
+        }
+
+        [data-fit-finder-modal] [data-fit-finder-timeline]::before {
+            content: "";
+            position: absolute;
+            left: .35rem;
+            right: .35rem;
+            top: .38rem;
+            height: 1px;
+            background: #cbd5e1;
+            z-index: 0;
+        }
+
+        [data-fit-finder-modal] [data-fit-timeline-point] {
+            position: relative;
+            z-index: 1;
+            width: .78rem;
+            height: .78rem;
+            border: 1px solid #94a3b8;
+            background: #ffffff;
+        }
+
+        [data-fit-finder-modal] [data-fit-timeline-label] {
+            margin-top: .35rem;
+            font-size: 10px;
+            line-height: 1.2;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+
+        [data-fit-finder-modal] [data-fit-timeline-item].is-current [data-fit-timeline-point] {
+            border-color: #0f172a;
+            background: #0f172a;
+        }
+
+        [data-fit-finder-modal] [data-fit-timeline-item].is-done [data-fit-timeline-point] {
+            border-color: #0f172a;
+            background: #e2e8f0;
+        }
+
+        [data-fit-finder-modal] [data-fit-timeline-item].is-current [data-fit-timeline-label] {
+            color: #0f172a;
+        }
+
+        [data-fit-finder-modal] .fit-finder-range {
+            height: 1.15rem;
+        }
+
+        [data-fit-finder-modal] .fit-finder-range::-webkit-slider-runnable-track {
+            height: 2px;
+            background: #cbd5e1;
+        }
+
+        [data-fit-finder-modal] .fit-finder-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            margin-top: -5px;
+            border: 1px solid #0f172a;
+            border-radius: 0;
+            background: #0f172a;
+            cursor: pointer;
+        }
+
+        [data-fit-finder-modal] .fit-finder-range::-moz-range-track {
+            height: 2px;
+            background: #cbd5e1;
+            border: 0;
+        }
+
+        [data-fit-finder-modal] .fit-finder-range::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            border: 1px solid #0f172a;
+            border-radius: 0;
+            background: #0f172a;
+            cursor: pointer;
+        }
+
+        @media (min-width: 1024px) {
+            [data-fit-finder-modal] [data-fit-step] {
+                padding-right: .25rem;
+            }
+        }
     </style>
 
     @if ($topBlocks->isNotEmpty())
@@ -435,6 +529,8 @@
                     data-text-recommendation-ready="{{ __('ui.product.fit_finder.recommendation_ready') }}"
                     data-text-summary-template="{{ __('ui.product.fit_finder.summary', ['size' => '__SIZE__', 'percent' => '__PERCENT__']) }}"
                     data-text-cta-template="{{ __('ui.product.fit_finder.add_cta', ['size' => '__SIZE__']) }}"
+                    data-text-trigger="{{ __('ui.product.fit_finder.trigger') }}"
+                    data-text-saved-prefix="{{ __('ui.product.fit_finder.saved_size_prefix') }}"
                     data-fit-save-url="{{ route('products.fit_finder.preferences') }}"
                     data-fit-product-id="{{ (int) $product->id }}"
                     data-fit-initial-height="{{ (string) ($fitFinderSelection['height'] ?? '') }}"
@@ -446,115 +542,170 @@
                     data-fit-initial-size="{{ $fitFinderSavedSize }}"
                     aria-hidden="true"
                 >
-                    <div class="mx-auto mt-4 flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl md:mt-8">
-                        <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4">
-                            <div>
-                                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{{ __('ui.product.fit_finder.title') }}</p>
-                                <p class="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700" data-fit-finder-progress>{{ __('ui.product.fit_finder.step_of', ['current' => 1, 'total' => 5]) }}</p>
+                    <div class="mx-auto mt-4 flex w-full max-w-2xl flex-col overflow-hidden border border-slate-200 bg-white shadow-2xl md:mt-8">
+                        <div class="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                            <div class="flex items-start justify-between gap-3">
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{{ __('ui.product.fit_finder.title') }}</p>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 opacity-0 transition-opacity" data-fit-save-indicator aria-live="polite">Spremljeno</span>
+                                    <button type="button" class="inline-flex h-8 w-8 items-center justify-center border border-slate-300 text-base text-slate-700 hover:bg-slate-100" data-fit-finder-close aria-label="{{ __('ui.product.size_guide_close') }}">
+                                        ×
+                                    </button>
+                                </div>
                             </div>
-                            <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 text-lg text-slate-700 hover:bg-slate-100" data-fit-finder-close aria-label="{{ __('ui.product.size_guide_close') }}">
-                                ×
-                            </button>
+
+                            <div class="mt-2" data-fit-finder-timeline>
+                                <div class="flex flex-col items-center" data-fit-timeline-item>
+                                    <span data-fit-timeline-point></span>
+                                    <span data-fit-timeline-label>Mjere</span>
+                                </div>
+                                <div class="flex flex-col items-center" data-fit-timeline-item>
+                                    <span data-fit-timeline-point></span>
+                                    <span data-fit-timeline-label>Dob</span>
+                                </div>
+                                <div class="flex flex-col items-center" data-fit-timeline-item>
+                                    <span data-fit-timeline-point></span>
+                                    <span data-fit-timeline-label>Fit</span>
+                                </div>
+                                <div class="flex flex-col items-center" data-fit-timeline-item>
+                                    <span data-fit-timeline-point></span>
+                                    <span data-fit-timeline-label>Prsa</span>
+                                </div>
+                                <div class="flex flex-col items-center" data-fit-timeline-item>
+                                    <span data-fit-timeline-point></span>
+                                    <span data-fit-timeline-label>Trbuh</span>
+                                </div>
+                                <div class="flex flex-col items-center" data-fit-timeline-item>
+                                    <span data-fit-timeline-point></span>
+                                    <span data-fit-timeline-label>Rezultat</span>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="sr-only" data-fit-finder-progress>{{ __('ui.product.fit_finder.step_of', ['current' => 1, 'total' => 5]) }}</p>
+                            </div>
                         </div>
 
-                        <div class="grid gap-8 p-6 lg:grid-cols-[120px_minmax(0,1fr)]">
-                            <div class="hidden lg:block">
+                        <div class="grid gap-7 p-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-stretch">
+                            <div class="hidden lg:block lg:h-[290px]">
                                 @if ($gallery->isNotEmpty())
-                                    <img src="{{ (string) (($gallery->first()['display'] ?? $gallery->first()['full'] ?? '') ?: '') }}" alt="{{ $translation?->name ?? $product->code }}" class="w-full border border-slate-200 bg-slate-50">
+                                    <img src="{{ (string) (($gallery->first()['display'] ?? $gallery->first()['full'] ?? '') ?: '') }}" alt="{{ $translation?->name ?? $product->code }}" class="h-full w-full border border-slate-200 bg-slate-50 object-cover object-top">
                                 @endif
                             </div>
 
-                            <div class="space-y-6">
-                                <section data-fit-step="0">
-                                    <h3 class="text-3xl font-extrabold text-slate-900">{{ __('ui.product.fit_finder.measurements_title') }}</h3>
-                                    <p class="mb-1 text-sm text-slate-600">{{ __('ui.product.fit_finder.measurements_desc') }}</p>
-                                    <div class="grid gap-3 sm:grid-cols-2">
-                                        <label class="space-y-1">
-                                            <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.product.fit_finder.height') }}</span>
-                                            <input type="number" min="130" max="230" step="1" class="h-11 w-full border border-slate-300 px-3 text-sm focus:border-slate-500 focus:outline-none" data-fit-height>
+                            <div class="flex flex-col lg:h-[290px]">
+                                <div class="flex-1" data-fit-steps-wrap>
+                                    <section data-fit-step="0">
+                                    <h3 class="text-base font-semibold uppercase tracking-[0.08em] text-slate-900">{{ __('ui.product.fit_finder.measurements_title') }}</h3>
+                                    <p class="mb-4 text-xs text-slate-600">{{ __('ui.product.fit_finder.measurements_desc') }}</p>
+                                    <div class="grid gap-5 sm:grid-cols-2">
+                                        <label class="space-y-2">
+                                            <div class="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                                <span>{{ __('ui.product.fit_finder.height') }}</span>
+                                                <span class="text-slate-800" data-fit-height-value>130</span>
+                                            </div>
+                                            <input type="range" min="130" max="230" step="1" class="fit-finder-range w-full appearance-none bg-transparent p-0 focus:outline-none" data-fit-height>
+                                            <div class="flex items-center justify-between text-[10px] text-slate-400">
+                                                <span>130</span>
+                                                <span>230</span>
+                                            </div>
                                         </label>
-                                        <label class="space-y-1">
-                                            <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.product.fit_finder.weight') }}</span>
-                                            <input type="number" min="35" max="220" step="1" class="h-11 w-full border border-slate-300 px-3 text-sm focus:border-slate-500 focus:outline-none" data-fit-weight>
+                                        <label class="space-y-2">
+                                            <div class="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                                <span>{{ __('ui.product.fit_finder.weight') }}</span>
+                                                <span class="text-slate-800" data-fit-weight-value>35</span>
+                                            </div>
+                                            <input type="range" min="35" max="220" step="1" class="fit-finder-range w-full appearance-none bg-transparent p-0 focus:outline-none" data-fit-weight>
+                                            <div class="flex items-center justify-between text-[10px] text-slate-400">
+                                                <span>35</span>
+                                                <span>220</span>
+                                            </div>
                                         </label>
                                     </div>
                                     <p class="hidden text-xs font-semibold text-rose-600" data-fit-error></p>
-                                </section>
+                                    </section>
 
-                                <section data-fit-step="1" class="hidden">
-                                    <h3 class="text-3xl font-extrabold text-slate-900">{{ __('ui.product.fit_finder.age_title') }}</h3>
-                                    <label class="mt-1 block max-w-[240px] space-y-1">
-                                        <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.product.fit_finder.age') }}</span>
-                                        <input type="number" min="12" max="100" step="1" class="h-11 w-full border border-slate-300 px-3 text-sm focus:border-slate-500 focus:outline-none" data-fit-age>
+                                    <section data-fit-step="1" class="hidden">
+                                    <h3 class="text-base font-semibold uppercase tracking-[0.08em] text-slate-900">{{ __('ui.product.fit_finder.age_title') }}</h3>
+                                    <label class="mt-3 block max-w-[280px] space-y-2">
+                                        <div class="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                            <span>{{ __('ui.product.fit_finder.age') }}</span>
+                                            <span class="text-slate-800" data-fit-age-value>12</span>
+                                        </div>
+                                        <input type="range" min="12" max="100" step="1" class="fit-finder-range w-full appearance-none bg-transparent p-0 focus:outline-none" data-fit-age>
+                                        <div class="flex items-center justify-between text-[10px] text-slate-400">
+                                            <span>12</span>
+                                            <span>100</span>
+                                        </div>
                                     </label>
-                                    <p class="mb-1 text-sm text-slate-600">{{ __('ui.product.fit_finder.age_desc') }}</p>
+                                    <p class="mt-4 mb-2 text-xs text-slate-600">{{ __('ui.product.fit_finder.age_desc') }}</p>
                                     <p class="hidden text-xs font-semibold text-rose-600" data-fit-error></p>
-                                </section>
+                                    </section>
 
-                                <section data-fit-step="2" class="hidden">
-                                    <h3 class="text-3xl font-extrabold text-slate-900">{{ __('ui.product.fit_finder.fit_title') }}</h3>
-                                    <p class="mb-1 text-sm text-slate-600">{{ __('ui.product.fit_finder.fit_desc') }}</p>
+                                    <section data-fit-step="2" class="hidden">
+                                    <h3 class="text-base font-semibold uppercase tracking-[0.08em] text-slate-900">{{ __('ui.product.fit_finder.fit_title') }}</h3>
+                                    <p class="mb-4 text-xs text-slate-600">{{ __('ui.product.fit_finder.fit_desc') }}</p>
                                     <div class="grid gap-2 sm:grid-cols-3">
-                                        <button type="button" class="h-11 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-fit="tighter">{{ __('ui.product.fit_finder.fit_tighter') }}</button>
-                                        <button type="button" class="h-11 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-fit="average" aria-pressed="true">{{ __('ui.product.fit_finder.fit_average') }}</button>
-                                        <button type="button" class="h-11 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-fit="looser">{{ __('ui.product.fit_finder.fit_looser') }}</button>
+                                        <button type="button" class="h-10 border border-slate-300 text-xs font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-fit="tighter">{{ __('ui.product.fit_finder.fit_tighter') }}</button>
+                                        <button type="button" class="h-10 border border-slate-300 text-xs font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-fit="average" aria-pressed="true">{{ __('ui.product.fit_finder.fit_average') }}</button>
+                                        <button type="button" class="h-10 border border-slate-300 text-xs font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-fit="looser">{{ __('ui.product.fit_finder.fit_looser') }}</button>
                                     </div>
-                                </section>
+                                    </section>
 
-                                <section data-fit-step="3" class="hidden">
-                                    <h3 class="text-3xl font-extrabold text-slate-900">{{ __('ui.product.fit_finder.chest_title') }}</h3>
-                                    <p class="mb-1 text-sm text-slate-600">{{ __('ui.product.fit_finder.chest_desc') }}</p>
+                                    <section data-fit-step="3" class="hidden">
+                                    <h3 class="text-base font-semibold uppercase tracking-[0.08em] text-slate-900">{{ __('ui.product.fit_finder.chest_title') }}</h3>
+                                    <p class="mb-4 text-xs text-slate-600">{{ __('ui.product.fit_finder.chest_desc') }}</p>
                                     <div class="grid gap-2 sm:grid-cols-3">
-                                        <button type="button" class="h-11 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-chest="slimmer">{{ __('ui.product.fit_finder.chest_slimmer') }}</button>
-                                        <button type="button" class="h-11 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-chest="average" aria-pressed="true">{{ __('ui.product.fit_finder.chest_average') }}</button>
-                                        <button type="button" class="h-11 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-chest="broader">{{ __('ui.product.fit_finder.chest_broader') }}</button>
+                                        <button type="button" class="h-10 border border-slate-300 text-xs font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-chest="slimmer">{{ __('ui.product.fit_finder.chest_slimmer') }}</button>
+                                        <button type="button" class="h-10 border border-slate-300 text-xs font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-chest="average" aria-pressed="true">{{ __('ui.product.fit_finder.chest_average') }}</button>
+                                        <button type="button" class="h-10 border border-slate-300 text-xs font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-chest="broader">{{ __('ui.product.fit_finder.chest_broader') }}</button>
                                     </div>
-                                </section>
+                                    </section>
 
-                                <section data-fit-step="4" class="hidden">
-                                    <h3 class="text-3xl font-extrabold text-slate-900">{{ __('ui.product.fit_finder.belly_title') }}</h3>
-                                    <p class="mb-1 text-sm text-slate-600">{{ __('ui.product.fit_finder.belly_desc') }}</p>
+                                    <section data-fit-step="4" class="hidden">
+                                    <h3 class="text-base font-semibold uppercase tracking-[0.08em] text-slate-900">{{ __('ui.product.fit_finder.belly_title') }}</h3>
+                                    <p class="mb-4 text-xs text-slate-600">{{ __('ui.product.fit_finder.belly_desc') }}</p>
                                     <div class="grid gap-2 sm:grid-cols-3">
-                                        <button type="button" class="h-11 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-belly="flatter">{{ __('ui.product.fit_finder.belly_flatter') }}</button>
-                                        <button type="button" class="h-11 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-belly="average" aria-pressed="true">{{ __('ui.product.fit_finder.belly_average') }}</button>
-                                        <button type="button" class="h-11 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-belly="rounder">{{ __('ui.product.fit_finder.belly_rounder') }}</button>
+                                        <button type="button" class="h-10 border border-slate-300 text-xs font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-belly="flatter">{{ __('ui.product.fit_finder.belly_flatter') }}</button>
+                                        <button type="button" class="h-10 border border-slate-300 text-xs font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-belly="average" aria-pressed="true">{{ __('ui.product.fit_finder.belly_average') }}</button>
+                                        <button type="button" class="h-10 border border-slate-300 text-xs font-semibold text-slate-700 hover:border-slate-900" data-fit-finder-option data-fit-belly="rounder">{{ __('ui.product.fit_finder.belly_rounder') }}</button>
                                     </div>
-                                </section>
+                                    </section>
 
-                                <section data-fit-step="5" class="hidden">
-                                    <h3 class="text-3xl font-extrabold text-slate-900">{{ __('ui.product.fit_finder.result_title') }}</h3>
-                                    <p class="mb-1 text-sm text-slate-600">{{ __('ui.product.fit_finder.result_desc') }}</p>
+                                    <section data-fit-step="5" class="hidden">
+                                    <h3 class="text-base font-semibold uppercase tracking-[0.08em] text-slate-900">{{ __('ui.product.fit_finder.result_title') }}</h3>
+                                    <p class="mb-4 text-xs text-slate-600">{{ __('ui.product.fit_finder.result_desc') }}</p>
                                     <div class="space-y-2">
-                                        <div class="rounded-xl border border-slate-300 p-3" data-fit-finder-result-row="0">
+                                        <div class="border border-slate-300 p-3" data-fit-finder-result-row="0">
                                             <div class="flex items-center justify-between">
-                                                <p class="text-lg font-bold text-slate-900" data-fit-finder-result-size="0"></p>
-                                                <p class="text-sm font-semibold text-emerald-700" data-fit-finder-result-percent="0"></p>
+                                                <p class="text-base font-bold text-slate-900" data-fit-finder-result-size="0"></p>
+                                                <p class="text-xs font-semibold text-emerald-700" data-fit-finder-result-percent="0"></p>
                                             </div>
                                             <div class="mt-2 h-2 bg-slate-200">
                                                 <div class="h-2 bg-emerald-700" data-fit-finder-result-bar="0"></div>
                                             </div>
                                         </div>
-                                        <div class="rounded-xl border border-slate-300 p-3" data-fit-finder-result-row="1">
+                                        <div class="border border-slate-300 p-3" data-fit-finder-result-row="1">
                                             <div class="flex items-center justify-between">
-                                                <p class="text-lg font-bold text-slate-700" data-fit-finder-result-size="1"></p>
-                                                <p class="text-sm font-semibold text-slate-600" data-fit-finder-result-percent="1"></p>
+                                                <p class="text-base font-bold text-slate-700" data-fit-finder-result-size="1"></p>
+                                                <p class="text-xs font-semibold text-slate-600" data-fit-finder-result-percent="1"></p>
                                             </div>
                                             <div class="mt-2 h-2 bg-slate-200">
                                                 <div class="h-2 bg-slate-400" data-fit-finder-result-bar="1"></div>
                                             </div>
                                         </div>
                                     </div>
-                                    <p class="mt-3 text-sm text-slate-600" data-fit-finder-summary></p>
-                                </section>
+                                    <p class="mt-4 text-xs text-slate-600" data-fit-finder-summary></p>
+                                    </section>
+                                </div>
 
-                                <div class="mt-2 flex items-center justify-between gap-2 border-t border-slate-200 pt-5">
-                                    <button type="button" class="inline-flex h-11 items-center rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100" data-fit-prev>
+                                <div class="mt-4 flex items-center justify-between gap-2 border-t border-slate-200 pt-5">
+                                    <button type="button" class="inline-flex h-10 items-center border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100" data-fit-prev>
                                         {{ __('ui.product.fit_finder.actions.back') }}
                                     </button>
-                                    <button type="button" class="inline-flex h-11 items-center rounded-lg border border-slate-900 bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-700" data-fit-next>
+                                    <button type="button" class="inline-flex h-10 items-center border border-slate-900 bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-700" data-fit-next>
                                         {{ __('ui.product.fit_finder.actions.continue') }}
                                     </button>
-                                    <button type="button" class="hidden h-11 items-center rounded-lg border border-slate-900 bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-700" data-fit-apply>
+                                    <button type="button" class="hidden h-10 items-center border border-slate-900 bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-700" data-fit-apply>
                                         {{ __('ui.product.fit_finder.add_cta', ['size' => '']) }}
                                     </button>
                                 </div>
@@ -798,6 +949,7 @@
 
             const closeButtons = fitModal.querySelectorAll('[data-fit-finder-close]');
             const steps = Array.from(fitModal.querySelectorAll('[data-fit-step]'));
+            const timelineItems = Array.from(fitModal.querySelectorAll('[data-fit-timeline-item]'));
             const progress = fitModal.querySelector('[data-fit-finder-progress]');
             const nextButton = fitModal.querySelector('[data-fit-next]');
             const prevButton = fitModal.querySelector('[data-fit-prev]');
@@ -806,6 +958,9 @@
             const inputHeight = fitModal.querySelector('[data-fit-height]');
             const inputWeight = fitModal.querySelector('[data-fit-weight]');
             const inputAge = fitModal.querySelector('[data-fit-age]');
+            const inputHeightValue = fitModal.querySelector('[data-fit-height-value]');
+            const inputWeightValue = fitModal.querySelector('[data-fit-weight-value]');
+            const inputAgeValue = fitModal.querySelector('[data-fit-age-value]');
 
             const resultSize = [
                 fitModal.querySelector('[data-fit-finder-result-size="0"]'),
@@ -831,9 +986,12 @@
             const textRecommendationReady = String(fitModal.dataset.textRecommendationReady || 'Recommendation ready');
             const textSummaryTemplate = String(fitModal.dataset.textSummaryTemplate || 'Recommended size is __SIZE__ with confidence __PERCENT__%.');
             const textCtaTemplate = String(fitModal.dataset.textCtaTemplate || 'Add size __SIZE__ to cart');
+            const textTrigger = String(fitModal.dataset.textTrigger || 'Find size');
+            const textSavedPrefix = String(fitModal.dataset.textSavedPrefix || 'Your size is');
             const fitSaveUrl = String(fitModal.dataset.fitSaveUrl || '');
             const fitProductId = Number(fitModal.dataset.fitProductId || 0);
             const initialSizeLabel = String(fitModal.dataset.fitInitialSize || '').trim().toUpperCase();
+            const saveIndicator = fitModal.querySelector('[data-fit-save-indicator]');
 
             const state = {
                 step: 0,
@@ -867,8 +1025,70 @@
                 return Math.max(min, Math.min(max, value));
             };
 
+            const updateFitFinderOpenButtons = function (sizeLabel) {
+                const cleaned = String(sizeLabel || '').trim().toUpperCase();
+                openButtons.forEach(function (button) {
+                    if (cleaned === '') {
+                        button.textContent = textTrigger;
+                        return;
+                    }
+
+                    button.textContent = textSavedPrefix + ' ' + cleaned;
+                });
+            };
+
+            const syncRangeValue = function (input, output) {
+                if (!input || !output) {
+                    return;
+                }
+                output.textContent = String(input.value || '');
+            };
+
+            let persistTimer = null;
+            let saveIndicatorTimer = null;
+
+            const setSaveIndicator = function (status) {
+                if (!saveIndicator) {
+                    return;
+                }
+
+                if (saveIndicatorTimer) {
+                    window.clearTimeout(saveIndicatorTimer);
+                    saveIndicatorTimer = null;
+                }
+
+                if (status === 'saving') {
+                    saveIndicator.textContent = 'Spremanje...';
+                    saveIndicator.classList.remove('text-emerald-700', 'text-rose-600', 'opacity-0');
+                    saveIndicator.classList.add('text-slate-500');
+                    return;
+                }
+
+                if (status === 'saved') {
+                    saveIndicator.textContent = 'Spremljeno';
+                    saveIndicator.classList.remove('text-slate-500', 'text-rose-600', 'opacity-0');
+                    saveIndicator.classList.add('text-emerald-700');
+                    saveIndicatorTimer = window.setTimeout(function () {
+                        saveIndicator.classList.add('opacity-0');
+                    }, 1200);
+                    return;
+                }
+
+                if (status === 'error') {
+                    saveIndicator.textContent = 'Greška spremanja';
+                    saveIndicator.classList.remove('text-slate-500', 'text-emerald-700', 'opacity-0');
+                    saveIndicator.classList.add('text-rose-600');
+                    saveIndicatorTimer = window.setTimeout(function () {
+                        saveIndicator.classList.add('opacity-0');
+                    }, 2200);
+                    return;
+                }
+
+                saveIndicator.classList.add('opacity-0');
+            };
+
             const persistFitPreference = function (sizeLabel) {
-                if (!fitSaveUrl || !fitProductId || !sizeLabel) {
+                if (!fitSaveUrl || !fitProductId) {
                     return;
                 }
 
@@ -877,11 +1097,12 @@
                 if (!token) {
                     return;
                 }
+                setSaveIndicator('saving');
 
                 const payload = new URLSearchParams();
                 payload.set('_token', token);
                 payload.set('product_id', String(fitProductId));
-                payload.set('size_label', String(sizeLabel));
+                payload.set('size_label', String(sizeLabel || ''));
                 payload.set('height', String(inputHeight.value || ''));
                 payload.set('weight', String(inputWeight.value || ''));
                 payload.set('age', String(inputAge.value || ''));
@@ -892,6 +1113,7 @@
                 if (typeof navigator.sendBeacon === 'function') {
                     const blob = new Blob([payload.toString()], { type: 'application/x-www-form-urlencoded;charset=UTF-8' });
                     navigator.sendBeacon(fitSaveUrl, blob);
+                    setSaveIndicator('saved');
                     return;
                 }
 
@@ -904,7 +1126,28 @@
                     body: payload.toString(),
                     credentials: 'same-origin',
                     keepalive: true,
-                }).catch(function () {});
+                })
+                    .then(function (response) {
+                        if (response && response.ok) {
+                            setSaveIndicator('saved');
+                            return;
+                        }
+                        setSaveIndicator('error');
+                    })
+                    .catch(function () {
+                        setSaveIndicator('error');
+                    });
+            };
+
+            const schedulePersist = function () {
+                if (persistTimer) {
+                    window.clearTimeout(persistTimer);
+                }
+
+                persistTimer = window.setTimeout(function () {
+                    persistTimer = null;
+                    persistFitPreference('');
+                }, 300);
             };
 
             const clearStepErrors = function () {
@@ -1031,11 +1274,30 @@
                     .replace('__SIZE__', state.recommendation.primary.label)
                     .replace('__PERCENT__', String(state.recommendation.primary.percent));
                 applyButton.textContent = textCtaTemplate.replace('__SIZE__', state.recommendation.primary.label);
+
+                if (state.recommendation.primary.input) {
+                    const selectedSize = state.recommendation.primary.input;
+                    if (!selectedSize.checked) {
+                        selectedSize.checked = true;
+                        selectedSize.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+
+                    const recommendedLabel = String(state.recommendation.primary.label || '').trim();
+                    if (recommendedLabel !== '') {
+                        updateFitFinderOpenButtons(recommendedLabel);
+                        persistFitPreference(recommendedLabel);
+                    }
+                }
             };
 
             const renderStep = function () {
                 steps.forEach(function (step, index) {
                     step.classList.toggle('hidden', index !== state.step);
+                });
+
+                timelineItems.forEach(function (item, index) {
+                    item.classList.toggle('is-current', index === state.step);
+                    item.classList.toggle('is-done', index < state.step);
                 });
 
                 const totalInputSteps = 5;
@@ -1064,6 +1326,7 @@
             };
 
             const closeModal = function () {
+                schedulePersist();
                 fitModal.classList.add('hidden');
                 fitModal.setAttribute('aria-hidden', 'true');
                 document.body.classList.remove('overflow-hidden');
@@ -1090,6 +1353,7 @@
                 if (state.step < steps.length - 1) {
                     state.step += 1;
                     renderStep();
+                    schedulePersist();
                 }
             });
 
@@ -1098,6 +1362,7 @@
                     clearStepErrors();
                     state.step -= 1;
                     renderStep();
+                    schedulePersist();
                 }
             });
 
@@ -1105,6 +1370,7 @@
                 button.addEventListener('click', function () {
                     state.fit = button.dataset.fitFit || 'average';
                     setPressed('data-fit-fit', state.fit);
+                    schedulePersist();
                 });
             });
 
@@ -1112,6 +1378,7 @@
                 button.addEventListener('click', function () {
                     state.chest = button.dataset.fitChest || 'average';
                     setPressed('data-fit-chest', state.chest);
+                    schedulePersist();
                 });
             });
 
@@ -1119,6 +1386,7 @@
                 button.addEventListener('click', function () {
                     state.belly = button.dataset.fitBelly || 'average';
                     setPressed('data-fit-belly', state.belly);
+                    schedulePersist();
                 });
             });
 
@@ -1148,6 +1416,16 @@
             setPressed('data-fit-chest', state.chest);
             setPressed('data-fit-belly', state.belly);
 
+            if (!inputHeight.value) {
+                inputHeight.value = '170';
+            }
+            if (!inputWeight.value) {
+                inputWeight.value = '70';
+            }
+            if (!inputAge.value) {
+                inputAge.value = '30';
+            }
+
             if (fitModal.dataset.fitInitialHeight) {
                 inputHeight.value = String(fitModal.dataset.fitInitialHeight);
             }
@@ -1157,6 +1435,24 @@
             if (fitModal.dataset.fitInitialAge) {
                 inputAge.value = String(fitModal.dataset.fitInitialAge);
             }
+
+            syncRangeValue(inputHeight, inputHeightValue);
+            syncRangeValue(inputWeight, inputWeightValue);
+            syncRangeValue(inputAge, inputAgeValue);
+
+            inputHeight.addEventListener('input', function () {
+                syncRangeValue(inputHeight, inputHeightValue);
+                schedulePersist();
+            });
+            inputWeight.addEventListener('input', function () {
+                syncRangeValue(inputWeight, inputWeightValue);
+                schedulePersist();
+            });
+            inputAge.addEventListener('input', function () {
+                syncRangeValue(inputAge, inputAgeValue);
+                schedulePersist();
+            });
+
             if (initialSizeLabel !== '') {
                 const savedSizeInput = sizeInputs.find(function (sizeInput) {
                     return String(sizeInput.dataset.sizeLabel || '').trim().toUpperCase() === initialSizeLabel;
@@ -1165,7 +1461,9 @@
                     savedSizeInput.checked = true;
                     savedSizeInput.dispatchEvent(new Event('change', { bubbles: true }));
                 }
+                updateFitFinderOpenButtons(initialSizeLabel);
             }
+
         });
     </script>
     <script>

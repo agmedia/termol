@@ -286,7 +286,7 @@ class ProductController extends Controller
     {
         $validated = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
-            'size_label' => ['required', 'string', 'max:30'],
+            'size_label' => ['nullable', 'string', 'max:30'],
             'height' => ['nullable', 'integer', 'min:130', 'max:230'],
             'weight' => ['nullable', 'integer', 'min:35', 'max:220'],
             'age' => ['nullable', 'integer', 'min:12', 'max:100'],
@@ -297,7 +297,7 @@ class ProductController extends Controller
 
         $selection = [
             'product_id' => (int) $validated['product_id'],
-            'size_label' => trim((string) $validated['size_label']),
+            'size_label' => trim((string) ($validated['size_label'] ?? '')),
             'height' => isset($validated['height']) ? (int) $validated['height'] : null,
             'weight' => isset($validated['weight']) ? (int) $validated['weight'] : null,
             'age' => isset($validated['age']) ? (int) $validated['age'] : null,
@@ -462,11 +462,10 @@ class ProductController extends Controller
     {
         $sessionSelection = $request->session()->get(self::FIT_FINDER_SESSION_KEY);
         if (is_array($sessionSelection)
-            && (int) ($sessionSelection['product_id'] ?? 0) === (int) $product->id
-            && trim((string) ($sessionSelection['size_label'] ?? '')) !== '') {
+            && (int) ($sessionSelection['product_id'] ?? 0) === (int) $product->id) {
             return [
                 'product_id' => (int) $sessionSelection['product_id'],
-                'size_label' => trim((string) $sessionSelection['size_label']),
+                'size_label' => trim((string) ($sessionSelection['size_label'] ?? '')),
                 'height' => isset($sessionSelection['height']) ? (int) $sessionSelection['height'] : null,
                 'weight' => isset($sessionSelection['weight']) ? (int) $sessionSelection['weight'] : null,
                 'age' => isset($sessionSelection['age']) ? (int) $sessionSelection['age'] : null,
@@ -489,14 +488,13 @@ class ProductController extends Controller
             : null;
 
         if (! is_array($selection)
-            || (int) ($selection['product_id'] ?? 0) !== (int) $product->id
-            || trim((string) ($selection['size_label'] ?? '')) === '') {
+            || (int) ($selection['product_id'] ?? 0) !== (int) $product->id) {
             return null;
         }
 
         return [
             'product_id' => (int) $selection['product_id'],
-            'size_label' => trim((string) $selection['size_label']),
+            'size_label' => trim((string) ($selection['size_label'] ?? '')),
             'height' => isset($selection['height']) ? (int) $selection['height'] : null,
             'weight' => isset($selection['weight']) ? (int) $selection['weight'] : null,
             'age' => isset($selection['age']) ? (int) $selection['age'] : null,
