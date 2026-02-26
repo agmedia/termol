@@ -66,17 +66,21 @@ class ProductCard extends Component
 
         $imageUrl = $imageUrl720 ?? $imageUrl480 ?? $imageUrl320 ?? ($mainMedia ? (string) $mainMedia->getUrl() : null);
         $hoverImageUrl = $hoverImageUrl720 ?? $hoverImageUrl480 ?? $hoverImageUrl320 ?? ($hoverMedia ? (string) $hoverMedia->getUrl() : null);
+        $imageOriginalUrl = $mainMedia ? (string) $mainMedia->getUrl() : null;
+        $hoverImageOriginalUrl = $hoverMedia ? (string) $hoverMedia->getUrl() : null;
 
         $imageSrcset = collect([
             $imageUrl320 ? $imageUrl320.' 320w' : null,
             $imageUrl480 ? $imageUrl480.' 480w' : null,
             $imageUrl720 ? $imageUrl720.' 720w' : null,
+            $imageOriginalUrl ? $imageOriginalUrl.' '.max(1, (int) ($mainMedia?->width ?? 1000)).'w' : null,
         ])->filter()->unique()->implode(', ');
 
         $hoverImageSrcset = collect([
             $hoverImageUrl320 ? $hoverImageUrl320.' 320w' : null,
             $hoverImageUrl480 ? $hoverImageUrl480.' 480w' : null,
             $hoverImageUrl720 ? $hoverImageUrl720.' 720w' : null,
+            $hoverImageOriginalUrl ? $hoverImageOriginalUrl.' '.max(1, (int) ($hoverMedia?->width ?? 1000)).'w' : null,
         ])->filter()->unique()->implode(', ');
         $imageWidth = max(1, (int) ($mainMedia?->width ?? 480));
         $imageHeight = max(1, (int) ($mainMedia?->height ?? 640));
