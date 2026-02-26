@@ -9,6 +9,10 @@
 
         <title>{{ $title ? $title.' | '.config('app.name') : config('app.name') }}</title>
 
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <style>
             summary::-webkit-details-marker { display: none; }
@@ -998,7 +1002,7 @@
         </style>
         @stack('page-styles')
     </head>
-    <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+    <body class="min-h-screen bg-slate-100 text-slate-900 antialiased" style="font-family: 'Manrope', 'Noto Sans', 'Segoe UI', Roboto, Arial, sans-serif;">
         <div class="min-h-screen">
             <aside class="admin-sidebar admin-sidebar-rail fixed inset-y-0 left-0 z-30 hidden w-72 overflow-y-auto border-r border-slate-200 bg-white md:block">
                 <div class="flex h-16 items-center border-b border-slate-200 px-6">
