@@ -457,8 +457,8 @@
                             </button>
                         </div>
 
-                        <div class="grid gap-8 p-6 md:grid-cols-[120px_minmax(0,1fr)]">
-                            <div class="hidden md:block">
+                        <div class="grid gap-8 p-6 lg:grid-cols-[120px_minmax(0,1fr)]">
+                            <div class="hidden lg:block">
                                 @if ($gallery->isNotEmpty())
                                     <img src="{{ (string) (($gallery->first()['display'] ?? $gallery->first()['full'] ?? '') ?: '') }}" alt="{{ $translation?->name ?? $product->code }}" class="w-full border border-slate-200 bg-slate-50">
                                 @endif
