@@ -69,7 +69,7 @@
         }
     </style>
 
-    <section class="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen overflow-hidden {{ $customClasses }}">
+    <section class="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden {{ $customClasses }}">
         <div id="{{ $sliderId }}" class="splide" data-fullwidth-splide>
             <div class="splide__track">
                 <ul class="splide__list">

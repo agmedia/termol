@@ -71,7 +71,7 @@
     $reviewRows = ($comments ?? collect())->take($itemsLimit);
 @endphp
 
-<section class="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-8">
+<section class="relative left-1/2 w-screen -translate-x-1/2 bg-white py-8">
     <div class="w-full px-4 sm:px-6 lg:px-8">
         <div class="mb-8 text-center">
             <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">

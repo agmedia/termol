@@ -8,7 +8,7 @@
 @endphp
 
 @if ($slides->isNotEmpty())
-    <section class="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen {{ $customClasses }}">
+    <section class="relative left-1/2 w-screen -translate-x-1/2 {{ $customClasses }}">
         <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
             @foreach ($slides as $media)
                 @php
