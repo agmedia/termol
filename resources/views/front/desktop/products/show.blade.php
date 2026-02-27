@@ -325,9 +325,26 @@
         <div class="bg-white xl:pl-8">
             @if ($gallery->isNotEmpty())
                 @php
-                    $displayGallery = $gallery->take(5)->values();
+                    $displayGallery = $gallery->values();
                     $topGallery = $displayGallery->take(2)->values();
-                    $bottomGallery = $displayGallery->slice(2, 3)->values();
+                    $bottomGallery = $displayGallery->slice(2)->values();
+                    $bottomCount = $bottomGallery->count();
+                    $middleBottomCount = $bottomCount;
+                    $tailBottomCount = 0;
+
+                    if ($bottomCount > 0) {
+                        $remainder = $bottomCount % 3;
+                        if ($remainder === 1 && $bottomCount >= 4) {
+                            $tailBottomCount = 4;
+                            $middleBottomCount = $bottomCount - 4;
+                        } elseif ($remainder === 2) {
+                            $tailBottomCount = 2;
+                            $middleBottomCount = $bottomCount - 2;
+                        }
+                    }
+
+                    $middleBottomGallery = $bottomGallery->take($middleBottomCount)->values();
+                    $tailBottomGallery = $bottomGallery->slice($middleBottomCount)->values();
                 @endphp
 
                 <div id="product-mobile-splide" class="product-ipad-slider splide slider-no-arrows" data-product-splide>
@@ -384,30 +401,58 @@
                         @endforeach
                     </div>
 
-                    @if ($bottomGallery->isNotEmpty())
-                        <div class="mt-1 grid grid-cols-3 gap-1">
-                            @foreach ($bottomGallery as $bottomIndex => $image)
-                                @php $index = $bottomIndex + 2; @endphp
-                                <button
-                                    type="button"
-                                    class="overflow-hidden border border-slate-200 bg-slate-50"
-                                    data-gallery-thumb
-                                    data-index="{{ $index }}"
-                                    data-full="{{ $image['full'] }}"
-                                    data-alt="{{ $image['alt'] }}"
-                                    data-gallery-open="{{ $index }}"
-                                    aria-label="{{ $image['alt'] }}"
-                                >
-                                    <img
-                                        src="{{ $image['display'] }}"
-                                        alt="{{ $image['alt'] }}"
-                                        class="block h-auto w-full bg-slate-50"
-                                        loading="lazy"
-                                        decoding="async"
+                    @if ($middleBottomGallery->isNotEmpty() || $tailBottomGallery->isNotEmpty())
+                        @if ($middleBottomGallery->isNotEmpty())
+                            <div class="mt-1 grid grid-cols-3 gap-1">
+                                @foreach ($middleBottomGallery as $bottomIndex => $image)
+                                    @php $index = $bottomIndex + 2; @endphp
+                                    <button
+                                        type="button"
+                                        class="overflow-hidden border border-slate-200 bg-slate-50"
+                                        data-gallery-thumb
+                                        data-index="{{ $index }}"
+                                        data-full="{{ $image['full'] }}"
+                                        data-alt="{{ $image['alt'] }}"
+                                        data-gallery-open="{{ $index }}"
+                                        aria-label="{{ $image['alt'] }}"
                                     >
-                                </button>
-                            @endforeach
-                        </div>
+                                        <img
+                                            src="{{ $image['display'] }}"
+                                            alt="{{ $image['alt'] }}"
+                                            class="block h-auto w-full bg-slate-50"
+                                            loading="lazy"
+                                            decoding="async"
+                                        >
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        @if ($tailBottomGallery->isNotEmpty())
+                            <div class="mt-1 grid grid-cols-2 gap-1">
+                                @foreach ($tailBottomGallery as $tailIndex => $image)
+                                    @php $index = $tailIndex + 2 + $middleBottomCount; @endphp
+                                    <button
+                                        type="button"
+                                        class="overflow-hidden border border-slate-200 bg-slate-50"
+                                        data-gallery-thumb
+                                        data-index="{{ $index }}"
+                                        data-full="{{ $image['full'] }}"
+                                        data-alt="{{ $image['alt'] }}"
+                                        data-gallery-open="{{ $index }}"
+                                        aria-label="{{ $image['alt'] }}"
+                                    >
+                                        <img
+                                            src="{{ $image['display'] }}"
+                                            alt="{{ $image['alt'] }}"
+                                            class="block h-auto w-full bg-slate-50"
+                                            loading="lazy"
+                                            decoding="async"
+                                        >
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
                     @endif
                 </div>
             @else
@@ -1008,6 +1053,70 @@
                     </div>
                 </div>
             </div>
+        </section>
+    @endif
+
+    @if (($recentlyViewed ?? collect())->isNotEmpty())
+        @php
+            $recentlyViewedCount = ($recentlyViewed ?? collect())->count();
+        @endphp
+        <section class="mt-10 px-4 sm:px-6 lg:px-8">
+            <h2 class="text-2xl font-bold text-slate-900">{{ __('ui.product.recently_viewed') }}</h2>
+            @if ($recentlyViewedCount <= 1)
+                <div class="mt-4 grid gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                    @foreach ($recentlyViewed as $recentlyViewedProduct)
+                        @include('front.desktop.partials.product-card', ['product' => $recentlyViewedProduct, 'locale' => $locale, 'fallbackLocale' => $fallbackLocale, 'flat' => true])
+                    @endforeach
+                </div>
+            @else
+                <style>
+                    #recently-viewed-products-carousel-{{ $product->id }} .splide__arrow {
+                        opacity: 0;
+                        width: 46px;
+                        height: 46px;
+                        border-radius: 9999px;
+                        border: 1px solid rgba(255, 255, 255, 0.75);
+                        background: rgba(15, 23, 42, 0.35);
+                        backdrop-filter: blur(6px);
+                        transform: translateY(-50%) scale(0.92);
+                        transition: opacity .25s ease, transform .25s ease, background-color .25s ease;
+                    }
+
+                    #recently-viewed-products-carousel-{{ $product->id }}:hover .splide__arrow,
+                    #recently-viewed-products-carousel-{{ $product->id }}:focus-within .splide__arrow {
+                        opacity: 1;
+                        transform: translateY(-50%) scale(1);
+                    }
+
+                    #recently-viewed-products-carousel-{{ $product->id }} .splide__arrow:hover {
+                        background: rgba(15, 23, 42, 0.55);
+                    }
+
+                    #recently-viewed-products-carousel-{{ $product->id }} .splide__arrow svg {
+                        fill: #fff;
+                    }
+
+                    @media (hover: none) {
+                        #recently-viewed-products-carousel-{{ $product->id }} .splide__arrow {
+                            opacity: 1;
+                            transform: translateY(-50%) scale(1);
+                        }
+                    }
+                </style>
+                <div class="mt-4">
+                    <div id="recently-viewed-products-carousel-{{ $product->id }}" class="splide" data-related-products-splide>
+                        <div class="splide__track">
+                            <ul class="splide__list">
+                                @foreach ($recentlyViewed as $recentlyViewedProduct)
+                                    <li class="splide__slide">
+                                        @include('front.desktop.partials.product-card', ['product' => $recentlyViewedProduct, 'locale' => $locale, 'fallbackLocale' => $fallbackLocale, 'flat' => true])
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            @endif
         </section>
     @endif
 

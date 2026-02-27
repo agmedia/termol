@@ -38,6 +38,7 @@ return [
     'category' => [
         'fallback_name' => 'Kategorija',
         'products_suffix' => 'proizvodi',
+        'total_suffix' => 'ukupno',
         'back_to_categories' => 'Natrag na kategorije',
         'default_description' => 'Proizvodi dodijeljeni ovoj kategoriji.',
         'empty' => 'Nema proizvoda u ovoj kategoriji.',
@@ -138,6 +139,7 @@ return [
         'size_guide_close' => 'Zatvori',
         'check_store' => 'Provjeri dostupnost u trgovinama',
         'related' => 'Slični proizvodi',
+        'recently_viewed' => 'Zadnje pregledano',
         'slide_aria' => 'Slika :index',
         'add_to_cart' => 'Dodaj u košaricu',
         'to_cart' => 'U košaricu',

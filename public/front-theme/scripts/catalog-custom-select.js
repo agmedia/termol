@@ -14,6 +14,8 @@
     const setLabel = (select, button) => {
         const selected = select.options[select.selectedIndex];
         button.textContent = selected ? selected.textContent || '' : '';
+        const isPlaceholder = !selected || String(selected.value || '').trim() === '';
+        button.classList.toggle('is-placeholder', isPlaceholder);
     };
 
     const buildCustomSelect = (select) => {
@@ -29,6 +31,9 @@
         const custom = document.createElement('div');
         custom.className = 'catalog-filter-custom';
         custom.setAttribute('data-custom-select', '');
+        if (select.classList.contains('catalog-filter-sort')) {
+            custom.classList.add('is-sort');
+        }
 
         const button = document.createElement('button');
         button.type = 'button';
@@ -46,6 +51,9 @@
             item.className = 'catalog-filter-custom-item';
             item.textContent = option.textContent || '';
             item.dataset.value = option.value;
+            if (String(option.value || '').trim() === '') {
+                item.classList.add('is-placeholder');
+            }
             if (option.disabled) {
                 item.disabled = true;
             }
@@ -153,4 +161,3 @@
     }
     window.addEventListener('pageshow', init);
 })();
-

@@ -22,9 +22,9 @@
             </ol>
         </nav>
         <div class="bg-slate-100 px-8 py-8 text-center">
-            <h1 class="text-4xl font-extrabold tracking-tight text-slate-900">{{ $translation?->title ?? $page->code }}</h1>
+            <h1 class="text-2xl font-extrabold uppercase tracking-tight text-slate-900">{{ $translation?->title ?? $page->code }}</h1>
             @if (!empty($translation?->excerpt))
-                <p class="mt-2 text-slate-600">{{ $translation->excerpt }}</p>
+                <p class="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{{ $translation->excerpt }}</p>
             @endif
         </div>
     </section>

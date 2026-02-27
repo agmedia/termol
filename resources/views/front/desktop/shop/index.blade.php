@@ -47,8 +47,10 @@
                 background-size: 14px 14px;
                 padding: 0 .8rem;
                 padding-right: 2.2rem;
-                font-size: .95rem;
+                font-size: .86rem;
                 color: #0f172a;
+                text-transform: uppercase;
+                letter-spacing: .02em;
                 transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
             }
 
@@ -80,13 +82,21 @@
                 padding: 0 .8rem;
                 padding-right: 2.2rem;
                 text-align: left;
-                font-size: .95rem;
+                font-size: .86rem;
                 color: #0f172a;
+                text-transform: uppercase;
+                letter-spacing: .02em;
                 transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
                 background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%23475569' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
                 background-repeat: no-repeat;
                 background-position: right .75rem center;
                 background-size: 14px 14px;
+            }
+
+            .catalog-filter-custom-button.is-placeholder {
+                font-size: .78rem;
+                letter-spacing: .03em;
+                color: #475569;
             }
 
             .catalog-filter-custom-button:hover {
@@ -125,8 +135,29 @@
                 background: #fff;
                 padding: .55rem .8rem;
                 text-align: left;
-                font-size: .9rem;
+                font-size: .84rem;
                 color: #1e293b;
+                text-transform: uppercase;
+                letter-spacing: .02em;
+            }
+
+            .catalog-filter-custom-item.is-placeholder {
+                font-size: .78rem;
+                letter-spacing: .03em;
+                color: #475569;
+            }
+
+            .catalog-filter-select.catalog-filter-sort {
+                font-size: .8rem;
+                letter-spacing: .03em;
+                color: #475569;
+            }
+
+            .catalog-filter-custom.is-sort .catalog-filter-custom-button,
+            .catalog-filter-custom.is-sort .catalog-filter-custom-item {
+                font-size: .8rem;
+                letter-spacing: .03em;
+                color: #475569;
             }
 
             .catalog-filter-custom-item:hover {
@@ -154,7 +185,7 @@
             </ol>
         </nav>
         <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">{{ __('ui.shop.title') }}</h1>
-        <p class="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{{ (int) $products->total() }} {{ __('ui.category.products_suffix') }}</p>
+        <p class="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{{ (int) $products->total() }} {{ __('ui.cart.summary.total') }}</p>
         </div>
     </section>
 
@@ -256,7 +287,7 @@
                 @endforeach
                 <div>
                     <label for="shop-sort-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.sort') }}</label>
-                    <select id="shop-sort-mobile" name="sort" class="h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
+                    <select id="shop-sort-mobile" name="sort" class="catalog-filter-sort h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
                         <option value="newest" @selected($filters['sort'] === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
                         <option value="oldest" @selected($filters['sort'] === 'oldest')>{{ __('ui.shop.filters.oldest') }}</option>
                         <option value="price_low" @selected($filters['sort'] === 'price_low')>{{ __('ui.shop.filters.price_low') }}</option>
@@ -345,7 +376,7 @@
             @endforeach
             <div>
                 <label for="shop-sort" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.sort') }}</label>
-                <select id="shop-sort" name="sort" class="catalog-filter-select h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
+                <select id="shop-sort" name="sort" class="catalog-filter-select catalog-filter-sort h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
                     <option value="newest" @selected($filters['sort'] === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
                     <option value="oldest" @selected($filters['sort'] === 'oldest')>{{ __('ui.shop.filters.oldest') }}</option>
                     <option value="price_low" @selected($filters['sort'] === 'price_low')>{{ __('ui.shop.filters.price_low') }}</option>

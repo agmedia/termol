@@ -48,6 +48,12 @@
         $galleryCount === 4 => 'grid-cols-1 md:grid-cols-2',
         default => 'grid-cols-1 md:grid-cols-3',
     };
+    $mobileDefaultCols = in_array((int) ($storeSettings['product']['mobile_default_cols'] ?? 2), [1, 2], true)
+        ? (int) ($storeSettings['product']['mobile_default_cols'] ?? 2)
+        : 2;
+    $preferredGridCols = in_array((int) request()->cookie('front_grid_cols', 4), [1, 2, 3, 4, 5], true)
+        ? (int) request()->cookie('front_grid_cols', 4)
+        : 4;
 @endphp
 
 @section('title', $translation?->title ?? __('ui.blog.page_title'))
@@ -139,7 +145,7 @@
                 <div class="mb-8 text-center">
                     <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
                         <span class="h-px flex-1 bg-slate-300"></span>
-                        <h2 class="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">{{ __('Povezani artikli') }}</h2>
+                        <h2 class="text-[1.35rem] font-semibold uppercase leading-[1.95rem] text-slate-900 sm:text-[1.7rem] sm:leading-[2.5rem]">{{ __('ui.product.related') }}</h2>
                         <span class="h-px flex-1 bg-slate-300"></span>
                     </div>
                 </div>
@@ -228,12 +234,14 @@
                 el.dataset.splideReady = '1';
 
                 const count = el.querySelectorAll('.splide__slide').length;
-                const mobilePerPage = {{ in_array((int) ($storeSettings['product']['mobile_default_cols'] ?? 2), [1, 2], true) ? (int) ($storeSettings['product']['mobile_default_cols'] ?? 2) : 2 }};
+                const mobilePerPage = {{ $mobileDefaultCols }};
+                const preferredDesktopPerPage = {{ $preferredGridCols }};
+                const desktopGap = preferredDesktopPerPage >= 5 ? '1rem' : '1.25rem';
                 new window.Splide(el, {
                     type: count > 1 ? 'loop' : 'slide',
-                    perPage: Math.min(4, Math.max(1, count)),
+                    perPage: Math.min(Math.max(1, preferredDesktopPerPage), Math.max(1, count)),
                     perMove: 1,
-                    gap: '1.25rem',
+                    gap: desktopGap,
                     drag: count > 1,
                     snap: true,
                     pagination: false,
@@ -241,8 +249,9 @@
                     updateOnMove: true,
                     speed: 520,
                     breakpoints: {
-                        1280: { perPage: Math.min(3, Math.max(1, count)) },
-                        1024: { perPage: Math.min(2, Math.max(1, count)) },
+                        1536: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 5), Math.max(1, count)) },
+                        1280: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 4), Math.max(1, count)) },
+                        1024: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 3), Math.max(1, count)) },
                         860: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '1rem' },
                         640: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '0.8rem' },
                     },

@@ -70,7 +70,7 @@
         <form
             method="POST"
             action="{{ route('cart.items.store') }}"
-            class="pointer-events-none absolute inset-x-0 bottom-0 z-20 space-y-3 bg-black/80 p-3 opacity-0 transition-all duration-200 {{ $hasOptionErrorForCard ? 'opacity-100 pointer-events-auto' : '' }}"
+            class="pointer-events-none absolute inset-x-0 bottom-0 z-20 space-y-2.5 bg-black/80 p-2.5 opacity-0 transition-all duration-200 {{ $hasOptionErrorForCard ? 'opacity-100 pointer-events-auto' : '' }}"
             data-card-overlay
             data-product-card-form
             data-auto-submit-on-option="{{ $optionRows !== [] ? '1' : '0' }}"
@@ -93,7 +93,7 @@
             <input type="hidden" name="product_id" value="{{ $productId }}">
             @if ($optionRows !== [])
                 <div class="w-full">
-                    <div class="mb-2 flex flex-wrap gap-2">
+                    <div class="mb-1.5 flex flex-wrap gap-1.5">
                         @foreach ($optionRows as $row)
                             <label class="inline-flex cursor-pointer">
                                 <input
@@ -102,7 +102,7 @@
                                     value="{{ $row['id'] }}"
                                     class="sr-only product-size-radio"
                                 >
-                                <span class="product-size-label-text inline-flex h-9 min-w-9 items-center justify-center border border-white/55 bg-transparent px-2.5 text-xs font-semibold text-white transition hover:border-white hover:bg-white/10">
+                                <span class="product-size-label-text inline-flex h-8 min-w-8 items-center justify-center border border-white/55 bg-transparent px-2 text-[11px] font-semibold text-white transition hover:border-white hover:bg-white/10">
                                     {{ $row['label'] }}
                                 </span>
                             </label>
@@ -117,15 +117,15 @@
                     </p>
                 </div>
             @endif
-            <div class="flex items-center gap-2">
-                <div class="inline-flex h-10 items-stretch bg-transparent" data-qty-control>
-                    <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-white/55 text-base font-semibold text-white hover:border-white hover:bg-white/10" data-qty-dec aria-label="Decrease quantity">-</button>
-                    <input type="text" name="quantity" value="1" inputmode="numeric" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" class="h-10 w-10 border-y border-r border-white/55 border-l-0 bg-transparent p-0 text-center text-sm font-semibold text-white focus:ring-0" data-qty-input data-qty-value>
-                    <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-white/55 text-base font-semibold text-white hover:border-white hover:bg-white/10" data-qty-inc aria-label="Increase quantity">+</button>
+            <div class="flex items-center gap-1.5">
+                <div class="inline-flex h-8 items-stretch bg-transparent" data-qty-control>
+                    <button type="button" class="inline-flex h-8 w-8 items-center justify-center border border-white/55 text-sm font-semibold text-white hover:border-white hover:bg-white/10" data-qty-dec aria-label="Decrease quantity">-</button>
+                    <input type="text" name="quantity" value="1" inputmode="numeric" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" class="h-8 w-8 border-y border-r border-white/55 border-l-0 bg-transparent p-0 text-center text-xs font-semibold text-white focus:ring-0" data-qty-input data-qty-value>
+                    <button type="button" class="inline-flex h-8 w-8 items-center justify-center border border-white/55 text-sm font-semibold text-white hover:border-white hover:bg-white/10" data-qty-inc aria-label="Increase quantity">+</button>
                 </div>
                 @if ($optionRows === [])
-                    <button type="submit" class="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap border border-white/55 bg-transparent px-3 text-sm font-semibold text-white hover:border-white hover:bg-white/10 sm:text-base" aria-label="{{ __('ui.product.to_cart') }}">
-                        <svg class="h-4 w-4 shrink-0 sm:h-5 sm:w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                    <button type="submit" class="inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap border border-white/55 bg-transparent px-2.5 text-xs font-semibold text-white hover:border-white hover:bg-white/10 sm:text-sm" aria-label="{{ __('ui.product.to_cart') }}">
+                        <svg class="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M7 9h10l-1 10H8L7 9Z"></path>
                             <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
                         </svg>
@@ -140,7 +140,7 @@
         <div class="relative mt-3 px-2 pb-3">
             <div>
                 <a href="{{ $productUrl }}" class="block pr-12">
-                    <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-base">{{ $productName }}</h3>
+                    <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-[15px]">{{ $productName }}</h3>
                 </a>
             </div>
             <button
@@ -158,9 +158,9 @@
             <div class="mt-1.5 flex flex-col gap-1">
                 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                     @if (! empty($oldPrice))
-                        <p class="text-[11px] leading-none text-slate-500 line-through sm:text-sm">{{ $oldPrice }}</p>
+                        <p class="text-[11px] leading-none text-slate-500 line-through sm:text-[13px]">{{ $oldPrice }}</p>
                     @endif
-                    <p class="text-[13px] font-bold leading-none text-slate-900 sm:text-base">{{ $price }}</p>
+                    <p class="text-[13px] font-bold leading-none text-slate-900 sm:text-[15px]">{{ $price }}</p>
                 </div>
                 @if (! empty($lowest30DaysPrice))
                     <p class="text-[10px] leading-tight text-slate-500 sm:text-[11px]">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
@@ -169,15 +169,15 @@
         </div>
     @else
         <a href="{{ $productUrl }}" class="mt-4 block">
-            <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-base">{{ $productName }}</h3>
+            <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-[15px]">{{ $productName }}</h3>
         </a>
         <div class="mt-2 flex items-end justify-between">
             <div class="flex flex-col gap-1">
                 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                     @if (! empty($oldPrice))
-                        <p class="text-[11px] leading-none text-slate-500 line-through sm:text-sm">{{ $oldPrice }}</p>
+                        <p class="text-[11px] leading-none text-slate-500 line-through sm:text-[13px]">{{ $oldPrice }}</p>
                     @endif
-                    <p class="text-[13px] font-bold leading-none text-slate-900 sm:text-base">{{ $price }}</p>
+                    <p class="text-[13px] font-bold leading-none text-slate-900 sm:text-[15px]">{{ $price }}</p>
                 </div>
                 @if (! empty($lowest30DaysPrice))
                     <p class="text-[10px] leading-tight text-slate-500 sm:text-[11px]">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>

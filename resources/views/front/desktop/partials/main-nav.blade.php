@@ -15,7 +15,7 @@
             $href = (string) ($item['url'] ?? '#');
             $target = !empty($item['open_in_new_tab']) ? '_blank' : null;
             $rel = !empty($item['open_in_new_tab']) ? 'noopener noreferrer' : null;
-            $topItemWeightClass = $loop->index < 4 ? 'font-semibold' : 'font-normal';
+            $topItemWeightClass = 'font-semibold';
         @endphp
 
         @if ($hasChildren)

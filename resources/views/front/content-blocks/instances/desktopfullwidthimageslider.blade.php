@@ -71,12 +71,19 @@
 
         #{{ $sliderId }} .splide__track {
             overflow: hidden;
+            height: 100%;
+        }
+
+        #{{ $sliderId }} .splide__list,
+        #{{ $sliderId }} .splide__slide {
+            height: 100%;
         }
 
         #{{ $sliderId }} .hero-slide-frame {
             position: relative;
             aspect-ratio: 1920 / 700;
             background: #f1f5f9;
+            height: 100%;
         }
 
         #{{ $sliderId }} .hero-slide-image {

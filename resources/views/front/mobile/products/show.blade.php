@@ -320,6 +320,17 @@
         @endforeach
     @endif
 
+    @if (($recentlyViewed ?? collect())->isNotEmpty())
+        <div class="card card-style">
+            <div class="content mb-1">
+                <h4>{{ __('ui.product.recently_viewed') }}</h4>
+            </div>
+        </div>
+        @foreach ($recentlyViewed as $product)
+            @include('front.mobile.partials.product-card', ['product' => $product, 'locale' => $locale, 'fallbackLocale' => $fallbackLocale])
+        @endforeach
+    @endif
+
     @if ($bottomBlocks->isNotEmpty())
         @include('components.content-placement', ['items' => $bottomBlocks])
     @endif

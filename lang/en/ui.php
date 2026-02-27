@@ -38,6 +38,7 @@ return [
     'category' => [
         'fallback_name' => 'Category',
         'products_suffix' => 'products',
+        'total_suffix' => 'total',
         'back_to_categories' => 'Back to categories',
         'default_description' => 'Products assigned to this category.',
         'empty' => 'No products in this category yet.',
@@ -138,6 +139,7 @@ return [
         'size_guide_close' => 'Close',
         'check_store' => 'Check store availability',
         'related' => 'Related products',
+        'recently_viewed' => 'Recently viewed',
         'slide_aria' => 'Slide :index',
         'add_to_cart' => 'Add to cart',
         'to_cart' => 'To cart',

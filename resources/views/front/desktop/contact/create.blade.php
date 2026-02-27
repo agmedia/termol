@@ -14,8 +14,8 @@
         </p>
         <div class="border border-slate-200 bg-slate-100 px-6 py-10 text-center sm:px-10">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{{ __('contact.eyebrow') }}</p>
-            <h1 class="mt-3 text-4xl font-extrabold tracking-tight text-slate-900">{{ __('contact.heading') }}</h1>
-            <p class="mx-auto mt-3 max-w-2xl text-base text-slate-600">{{ __('contact.subheading') }}</p>
+            <h1 class="mt-2 text-2xl font-extrabold uppercase tracking-tight text-slate-900">{{ __('contact.heading') }}</h1>
+            <p class="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{{ __('contact.subheading') }}</p>
         </div>
     </section>
 

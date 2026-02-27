@@ -374,6 +374,34 @@ class CatalogController extends Controller
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+        $subcategories->transform(function (Category $subCategory): Category {
+            $subTreeIds = Category::query()
+                ->descendantsAndSelf($subCategory->id)
+                ->where('scope', Category::SCOPE_CATALOG)
+                ->where('is_active', true)
+                ->pluck('id');
+
+            if ($subTreeIds->isEmpty()) {
+                $subCategory->setAttribute('products_count', 0);
+
+                return $subCategory;
+            }
+
+            $recursiveCount = Product::query()
+                ->where('is_active', true)
+                ->whereHas('categories', function ($categoryQuery) use ($subTreeIds): void {
+                    $categoryQuery
+                        ->where('scope', Category::SCOPE_CATALOG)
+                        ->where('is_active', true)
+                        ->whereIn('categories.id', $subTreeIds);
+                })
+                ->distinct('products.id')
+                ->count('products.id');
+
+            $subCategory->setAttribute('products_count', $recursiveCount);
+
+            return $subCategory;
+        });
 
         $breadcrumbCategories = $category->ancestors()
             ->where('scope', Category::SCOPE_CATALOG)

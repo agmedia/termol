@@ -12,8 +12,8 @@
             </ol>
         </nav>
         <div class="bg-slate-100 px-8 py-8 text-center">
-            <h1 class="text-4xl font-extrabold tracking-tight text-slate-900">{{ __('ui.blog.title') }}</h1>
-            <p class="mt-2 text-slate-600">{{ __('ui.blog.subtitle') }}</p>
+            <h1 class="text-2xl font-extrabold uppercase tracking-tight text-slate-900">{{ __('ui.blog.title') }}</h1>
+            <p class="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{{ __('ui.blog.subtitle') }}</p>
         </div>
     </section>
 

@@ -28,6 +28,8 @@ class ProductController extends Controller
     private const FIT_FINDER_SESSION_KEY = 'front_fit_finder_profile';
     private const FIT_FINDER_COOKIE_KEY = 'front_fit_finder_profile';
     private const FIT_FINDER_COOKIE_MINUTES = 525600; // 365 days
+    private const RECENTLY_VIEWED_SESSION_KEY = 'front_recently_viewed_products';
+    private const RECENTLY_VIEWED_MAX = 24;
 
     public function storeComment(Request $request, string $slug)
     {
@@ -251,6 +253,37 @@ class ProductController extends Controller
         }
 
         $related = $related->take($relatedLimit)->values();
+        $recentlyViewedIds = collect((array) $request->session()->get(self::RECENTLY_VIEWED_SESSION_KEY, []))
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->reject(fn (int $id): bool => $id === (int) $product->id)
+            ->values();
+
+        $recentlyViewed = collect();
+        if ($recentlyViewedIds->isNotEmpty()) {
+            $recentlyViewedLookupIds = $recentlyViewedIds
+                ->take(12)
+                ->values()
+                ->all();
+
+            $recentlyViewed = (clone $relatedBaseQuery)
+                ->whereIn('id', $recentlyViewedLookupIds)
+                ->get()
+                ->sortBy(function (Product $row) use ($recentlyViewedLookupIds): int {
+                    $position = array_search((int) $row->id, $recentlyViewedLookupIds, true);
+
+                    return $position === false ? PHP_INT_MAX : (int) $position;
+                })
+                ->values();
+        }
+
+        $updatedRecentlyViewedIds = collect([(int) $product->id])
+            ->concat($recentlyViewedIds)
+            ->unique()
+            ->take(self::RECENTLY_VIEWED_MAX)
+            ->values()
+            ->all();
+        $request->session()->put(self::RECENTLY_VIEWED_SESSION_KEY, $updatedRecentlyViewedIds);
 
         $topBlocks = app(ContentBlockResolver::class)->forPlacement(
             placement: 'product.top',
@@ -285,6 +318,7 @@ class ProductController extends Controller
         $response = response()->view($this->frontendView($request, 'products.show'), [
             'product' => $product,
             'related' => $related,
+            'recentlyViewed' => $recentlyViewed,
             'comments' => $comments,
             'sizeGuide' => $sizeGuide,
             'fitFinderSelection' => $fitFinderSelection,
