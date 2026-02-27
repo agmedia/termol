@@ -127,6 +127,18 @@
             height: 100%;
         }
 
+        #{{ $sliderId }} .splide__list {
+            display: flex;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        #{{ $sliderId }} .splide__slide {
+            flex: 0 0 100%;
+            min-width: 0;
+        }
+
         #{{ $sliderId }} .splide__list,
         #{{ $sliderId }} .splide__slide {
             height: 100%;
