@@ -1004,6 +1004,7 @@
                 fit: String(fitModal.dataset.fitInitialFit || 'average'),
                 chest: String(fitModal.dataset.fitInitialChest || 'average'),
                 belly: String(fitModal.dataset.fitInitialBelly || 'average'),
+                savedSizeLabel: initialSizeLabel,
                 recommendation: null,
             };
 
@@ -1106,9 +1107,10 @@
                 setSaveIndicator('saving');
 
                 const payload = new URLSearchParams();
+                const normalizedSizeLabel = String(sizeLabel || state.savedSizeLabel || '').trim().toUpperCase();
                 payload.set('_token', token);
                 payload.set('product_id', String(fitProductId));
-                payload.set('size_label', String(sizeLabel || ''));
+                payload.set('size_label', normalizedSizeLabel);
                 payload.set('height', String(inputHeight.value || ''));
                 payload.set('weight', String(inputWeight.value || ''));
                 payload.set('age', String(inputAge.value || ''));
@@ -1152,7 +1154,7 @@
 
                 persistTimer = window.setTimeout(function () {
                     persistTimer = null;
-                    persistFitPreference('');
+                    persistFitPreference(state.savedSizeLabel);
                 }, 300);
             };
 
@@ -1290,6 +1292,7 @@
 
                     const recommendedLabel = String(state.recommendation.primary.label || '').trim();
                     if (recommendedLabel !== '') {
+                        state.savedSizeLabel = recommendedLabel.toUpperCase();
                         updateFitFinderOpenButtons(recommendedLabel);
                         persistFitPreference(recommendedLabel);
                     }
@@ -1403,6 +1406,7 @@
 
                 state.recommendation.primary.input.checked = true;
                 state.recommendation.primary.input.dispatchEvent(new Event('change', { bubbles: true }));
+                state.savedSizeLabel = String(state.recommendation.primary.label || '').trim().toUpperCase();
                 persistFitPreference(state.recommendation.primary.label);
                 closeModal();
 
@@ -1467,6 +1471,7 @@
                     savedSizeInput.checked = true;
                     savedSizeInput.dispatchEvent(new Event('change', { bubbles: true }));
                 }
+                state.savedSizeLabel = initialSizeLabel;
                 updateFitFinderOpenButtons(initialSizeLabel);
             }
 
