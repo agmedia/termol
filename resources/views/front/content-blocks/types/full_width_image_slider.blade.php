@@ -65,6 +65,27 @@
     @include('front.partials.splide-assets')
 
     <style>
+        #{{ $sliderId }}.splide {
+            visibility: visible;
+        }
+
+        #{{ $sliderId }} .splide__track {
+            overflow: hidden;
+        }
+
+        #{{ $sliderId }} .hero-slide-frame {
+            position: relative;
+            aspect-ratio: 1920 / 700;
+            background: #f1f5f9;
+        }
+
+        #{{ $sliderId }} .hero-slide-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+
         #{{ $sliderId }} .splide__arrow {
             opacity: 0;
             width: 46px;
@@ -91,12 +112,34 @@
             fill: #fff;
         }
 
+        #{{ $sliderId }} .splide__pagination {
+            bottom: 1rem;
+            gap: 0.45rem;
+        }
+
+        #{{ $sliderId }} .splide__pagination__page {
+            width: 10px;
+            height: 10px;
+            margin: 0;
+            opacity: 0.95;
+            background: #ffffff !important;
+            border: 2px solid transparent;
+            transition: transform 0.2s linear, background-color 0.2s linear, border-color 0.2s linear;
+        }
+
+        #{{ $sliderId }} .splide__pagination__page.is-active {
+            transform: none;
+            background: #0f172a !important;
+            border-color: #ffffff;
+        }
+
         @media (max-width: 768px) {
-            #{{ $sliderId }} .hero-slide-image {
-                width: 100%;
+            #{{ $sliderId }} .hero-slide-frame {
                 aspect-ratio: 5 / 4;
-                object-fit: cover;
-                object-position: center;
+            }
+
+            #{{ $sliderId }} .hero-slide-image {
+                height: 100%;
             }
         }
     </style>
@@ -147,16 +190,16 @@
                             $slideHeight = max(1, (int) ($media->height ?? 700));
                         @endphp
                         <li class="splide__slide">
-                            <article class="relative min-w-full">
+                            <article class="relative min-w-full hero-slide-frame">
                                 @if ($hasSlideLink)
-                                    <a href="{{ $slideLink }}" class="block">
+                                    <a href="{{ $slideLink }}" class="block h-full">
                                 @endif
                                     <img
                                         src="{{ $slideUrl }}"
                                         @if ($slideSrcset !== '') srcset="{{ $slideSrcset }}" @endif
                                         sizes="100vw"
                                         alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}"
-                                        class="hero-slide-image h-auto w-full bg-slate-100 object-contain"
+                                        class="hero-slide-image bg-slate-100"
                                         width="{{ $slideWidth }}"
                                         height="{{ $slideHeight }}"
                                         @if ($loop->first)

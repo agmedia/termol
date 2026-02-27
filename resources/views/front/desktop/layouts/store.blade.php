@@ -499,21 +499,64 @@
         const mainHeader = document.querySelector('.site-main-header');
         const headerRow = mainHeader ? mainHeader.querySelector('.site-main-header-row') : null;
         if (mainHeader) {
-            const updateHeaderState = function () {
-                mainHeader.classList.toggle('is-sticky', window.scrollY > 0);
+            let syncFrame = 0;
 
-                if (!headerRow) {
-                    return;
-                }
-
-                const rect = headerRow.getBoundingClientRect();
+            const syncHeaderBottom = function () {
+                const rect = mainHeader.getBoundingClientRect();
                 const bottom = Math.max(0, Math.round(rect.bottom));
                 document.documentElement.style.setProperty('--site-header-bottom', bottom + 'px');
+            };
+
+            const syncDuringTransition = function (durationMs) {
+                const duration = Math.max(0, durationMs || 0);
+                const startedAt = performance.now();
+
+                if (syncFrame) {
+                    cancelAnimationFrame(syncFrame);
+                    syncFrame = 0;
+                }
+
+                const tick = function (now) {
+                    syncHeaderBottom();
+                    if (now - startedAt < duration) {
+                        syncFrame = requestAnimationFrame(tick);
+                    } else {
+                        syncFrame = 0;
+                    }
+                };
+
+                syncFrame = requestAnimationFrame(tick);
+            };
+
+            const updateHeaderState = function () {
+                const nextSticky = window.scrollY > 0;
+                const changed = mainHeader.classList.contains('is-sticky') !== nextSticky;
+                mainHeader.classList.toggle('is-sticky', nextSticky);
+
+                syncHeaderBottom();
+                if (changed) {
+                    // Keep dropdown top aligned while header height animates (90px -> 60px and back).
+                    syncDuringTransition(260);
+                }
             };
 
             updateHeaderState();
             window.addEventListener('scroll', updateHeaderState, { passive: true });
             window.addEventListener('resize', updateHeaderState);
+            window.addEventListener('orientationchange', updateHeaderState);
+
+            if (headerRow) {
+                headerRow.addEventListener('transitionrun', function (event) {
+                    if (event.propertyName === 'height') {
+                        syncDuringTransition(260);
+                    }
+                });
+                headerRow.addEventListener('transitionend', function (event) {
+                    if (event.propertyName === 'height') {
+                        syncHeaderBottom();
+                    }
+                });
+            }
         }
 
         const onLoadScripts = [];

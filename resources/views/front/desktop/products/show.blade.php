@@ -120,16 +120,18 @@
             }
 
             .product-ipad-slider .splide__pagination__page {
-                width: .45rem;
-                height: .45rem;
+                width: 10px;
+                height: 10px;
                 margin: 0;
-                opacity: .9;
-                background: rgba(15, 23, 42, 0.28);
+                opacity: .95;
+                background: #fff !important;
+                border: 2px solid transparent;
             }
 
             .product-ipad-slider .splide__pagination__page.is-active {
-                transform: scale(1);
-                background: rgba(15, 23, 42, 0.82);
+                transform: none;
+                background: #0f172a !important;
+                border-color: #fff;
             }
 
             .product-detail-layout > aside {
@@ -1615,6 +1617,7 @@
                     el.dataset.splideReady = '1';
 
                     const count = el.querySelectorAll('.splide__slide').length;
+                    const mobilePerPage = {{ in_array((int) ($storeSettings['product']['mobile_default_cols'] ?? 2), [1, 2], true) ? (int) ($storeSettings['product']['mobile_default_cols'] ?? 2) : 2 }};
                     new window.Splide(el, {
                         type: count > 1 ? 'loop' : 'slide',
                         perPage: Math.min(4, Math.max(1, count)),
@@ -1629,8 +1632,8 @@
                         breakpoints: {
                             1280: { perPage: Math.min(3, Math.max(1, count)) },
                             1024: { perPage: Math.min(2, Math.max(1, count)) },
-                            860: { perPage: 1, gap: '1rem' },
-                            640: { perPage: 1, gap: '0.8rem' },
+                            860: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '1rem' },
+                            640: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '0.8rem' },
                         },
                     }).mount();
                 });

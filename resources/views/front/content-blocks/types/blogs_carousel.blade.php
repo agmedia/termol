@@ -94,12 +94,12 @@
     $posts = $postsQuery->limit($limit)->get();
 @endphp
 
-<section class="relative left-1/2 w-screen -translate-x-1/2 bg-white py-8">
+<section class="relative left-1/2 w-screen -translate-x-1/2 bg-white max-[540px]:py-5 py-8">
     <div class="w-full px-3 sm:px-4 lg:px-6">
-        <div class="mb-8 text-center">
+        <div class="max-[540px]:mb-5 mb-8 text-center">
             <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
                 <span class="h-px flex-1 bg-slate-300"></span>
-                <h2 class="text-[1.7rem] leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $displayTitle }}</h2>
+                <h2 class="max-[540px]:text-[1.18rem] max-[540px]:leading-[1.65rem] text-[1.35rem] leading-[1.95rem] sm:text-[1.7rem] sm:leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $displayTitle }}</h2>
                 <span class="h-px flex-1 bg-slate-300"></span>
             </div>
             @if ($displaySubtitle !== '')
@@ -139,6 +139,27 @@
 
                 #blogs-carousel-{{ $block->id }} .splide__arrow svg {
                     fill: #fff;
+                }
+
+                #blogs-carousel-{{ $block->id }} .splide__pagination {
+                    bottom: -1.1rem;
+                    gap: 0.4rem;
+                }
+
+                #blogs-carousel-{{ $block->id }} .splide__pagination__page {
+                    width: 10px;
+                    height: 10px;
+                    margin: 0;
+                    opacity: 0.95;
+                    background: #ffffff !important;
+                    border: 2px solid transparent;
+                    transition: transform 0.2s linear, background-color 0.2s linear, border-color 0.2s linear;
+                }
+
+                #blogs-carousel-{{ $block->id }} .splide__pagination__page.is-active {
+                    transform: none;
+                    background: #0f172a !important;
+                    border-color: #ffffff;
                 }
 
                 @media (hover: none) {
@@ -211,7 +232,7 @@
                                                 @endif
                                             </div>
                                             <div class="p-4">
-                                                <h3 class="text-center text-lg font-semibold leading-snug text-slate-900 lg:text-xl">{{ $postTitle }}</h3>
+                                                <h3 class="text-center text-[1.02rem] leading-[1.4rem] font-semibold text-slate-900 min-[541px]:text-lg min-[541px]:leading-snug lg:text-xl">{{ $postTitle }}</h3>
                                                 @if ($postExcerpt !== '')
                                                     <p class="mt-2 text-sm text-slate-600">{{ \Illuminate\Support\Str::limit($postExcerpt, 120, '...') }}</p>
                                                 @endif

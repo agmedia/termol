@@ -67,14 +67,17 @@
     $ctaRoute = (string) ($mergedPayload['cta_route'] ?? '');
     $ctaRouteParams = $mergedPayload['cta_route_params'] ?? [];
     $ctaUrl = $resolveRouteUrl($ctaRoute, $ctaRouteParams, $ctaFallbackUrl);
+    $mobileDefaultCols = in_array((int) ($storeSettings['product']['mobile_default_cols'] ?? 2), [1, 2], true)
+        ? (int) ($storeSettings['product']['mobile_default_cols'] ?? 2)
+        : 2;
 @endphp
 
-<section class="relative left-1/2 w-screen -translate-x-1/2 bg-white py-8">
+<section class="relative left-1/2 w-screen -translate-x-1/2 bg-white max-[540px]:py-5 py-8">
     <div class="w-full px-3 sm:px-4 lg:px-6">
-        <div class="mb-8 text-center">
+        <div class="max-[540px]:mb-5 mb-8 text-center">
             <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
                 <span class="h-px flex-1 bg-slate-300"></span>
-                <h2 class="text-[1.7rem] leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $displayTitle }}</h2>
+                <h2 class="text-[1.35rem] leading-[1.95rem] sm:text-[1.7rem] sm:leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $displayTitle }}</h2>
                 <span class="h-px flex-1 bg-slate-300"></span>
             </div>
             @if ($displaySubtitle !== '')
@@ -157,7 +160,7 @@
                     }
 
                     #products-carousel-{{ $block->id }} .splide__slide {
-                        flex-basis: 100%;
+                        flex-basis: {{ $mobileDefaultCols === 2 ? 'calc((100% - 0.8rem) / 2)' : '100%' }};
                     }
 
                 }
@@ -202,6 +205,7 @@
                                     el.dataset.splideReady = '1';
 
                                     const count = el.querySelectorAll('.splide__slide').length;
+                                    const mobilePerPage = {{ $mobileDefaultCols }};
                                     new window.Splide(el, {
                                         type: count > 1 ? 'loop' : 'slide',
                                         perPage: Math.min(4, Math.max(1, count)),
@@ -216,8 +220,8 @@
                                         breakpoints: {
                                             1280: { perPage: Math.min(3, Math.max(1, count)) },
                                             1024: { perPage: Math.min(2, Math.max(1, count)) },
-                                            860: { perPage: 1, gap: '1rem' },
-                                            640: { perPage: 1, gap: '0.8rem' },
+                                            860: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '1rem' },
+                                            640: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '0.8rem' },
                                         },
                                     }).mount();
                                 });

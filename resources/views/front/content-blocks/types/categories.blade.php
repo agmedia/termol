@@ -9,7 +9,7 @@
 @endphp
 
 <section class="{{ $sectionClass }}">
-    <h2 class="text-[1.7rem] leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $translation?->title ?: $block->name }}</h2>
+    <h2 class="text-[1.35rem] leading-[1.95rem] sm:text-[1.7rem] sm:leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $translation?->title ?: $block->name }}</h2>
     @if (!empty($translation?->subtitle))
         <p class="mt-2 text-sm text-slate-600">{{ $translation->subtitle }}</p>
     @endif
