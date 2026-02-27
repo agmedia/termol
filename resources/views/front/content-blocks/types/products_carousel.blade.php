@@ -70,6 +70,9 @@
     $mobileDefaultCols = in_array((int) ($storeSettings['product']['mobile_default_cols'] ?? 2), [1, 2], true)
         ? (int) ($storeSettings['product']['mobile_default_cols'] ?? 2)
         : 2;
+    $preferredGridCols = in_array((int) request()->cookie('front_grid_cols', 4), [1, 2, 3, 4, 5], true)
+        ? (int) request()->cookie('front_grid_cols', 4)
+        : 4;
 @endphp
 
 <section class="relative left-1/2 w-screen -translate-x-1/2 bg-white max-[540px]:py-5 py-8">
@@ -132,7 +135,7 @@
                 }
 
                 #products-carousel-{{ $block->id }} .splide__slide {
-                    flex: 0 0 calc((100% - 3 * 1.25rem) / 4);
+                    flex: 0 0 calc((100% - ({{ max(1, $preferredGridCols) }} - 1) * 1.25rem) / {{ max(1, $preferredGridCols) }});
                     min-width: 0;
                 }
 
@@ -206,9 +209,10 @@
 
                                     const count = el.querySelectorAll('.splide__slide').length;
                                     const mobilePerPage = {{ $mobileDefaultCols }};
+                                    const preferredDesktopPerPage = {{ $preferredGridCols }};
                                     new window.Splide(el, {
                                         type: count > 1 ? 'loop' : 'slide',
-                                        perPage: Math.min(4, Math.max(1, count)),
+                                        perPage: Math.min(Math.max(1, preferredDesktopPerPage), Math.max(1, count)),
                                         perMove: 1,
                                         gap: '1.25rem',
                                         drag: count > 1,
@@ -218,8 +222,9 @@
                                         updateOnMove: true,
                                         speed: 520,
                                         breakpoints: {
-                                            1280: { perPage: Math.min(3, Math.max(1, count)) },
-                                            1024: { perPage: Math.min(2, Math.max(1, count)) },
+                                            1536: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 5), Math.max(1, count)) },
+                                            1280: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 4), Math.max(1, count)) },
+                                            1024: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 3), Math.max(1, count)) },
                                             860: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '1rem' },
                                             640: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '0.8rem' },
                                         },

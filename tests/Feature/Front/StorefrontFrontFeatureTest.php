@@ -6,7 +6,10 @@ use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Category\CategoryTranslation;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Manufacturer\ManufacturerTranslation;
+use App\Models\Catalog\Option\Option;
+use App\Models\Catalog\Option\OptionValue;
 use App\Models\Catalog\Product\Product;
+use App\Models\Catalog\Product\ProductOptionValue;
 use App\Models\Catalog\Product\ProductTranslation;
 use App\Models\Content\Blog\BlogPost;
 use App\Models\Content\Blog\BlogPostTranslation;
@@ -227,6 +230,112 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertDatabaseMissing('orders', [
             'customer_email' => 'missing@example.test',
         ]);
+    }
+
+    public function test_category_shows_only_option_filters_available_in_that_category_scope(): void
+    {
+        [$categoryA, $slugA] = $this->seedCategory();
+        [$categoryB, $slugB] = $this->seedCategory();
+        [$productA] = $this->seedProduct($categoryA->id);
+        [$productB] = $this->seedProduct($categoryB->id);
+
+        $user = User::factory()->create();
+
+        $colorOption = Option::query()->create([
+            'code' => 'color-scope',
+            'type' => Option::TYPE_SELECT,
+            'is_active' => true,
+            'sort_order' => 1,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $colorOption->translations()->create([
+            'locale' => 'en',
+            'name' => 'Color Scope',
+            'slug' => 'color-scope',
+        ]);
+
+        $sizeOption = Option::query()->create([
+            'code' => 'size-scope',
+            'type' => Option::TYPE_SELECT,
+            'is_active' => true,
+            'sort_order' => 2,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $sizeOption->translations()->create([
+            'locale' => 'en',
+            'name' => 'Size Scope',
+            'slug' => 'size-scope',
+        ]);
+
+        $black = OptionValue::query()->create([
+            'option_id' => $colorOption->id,
+            'code' => 'black-scope',
+            'is_active' => true,
+            'sort_order' => 1,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $black->translations()->create([
+            'locale' => 'en',
+            'name' => 'Black Scope',
+            'slug' => 'black-scope',
+        ]);
+
+        $medium = OptionValue::query()->create([
+            'option_id' => $sizeOption->id,
+            'code' => 'm-scope',
+            'is_active' => true,
+            'sort_order' => 1,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $medium->translations()->create([
+            'locale' => 'en',
+            'name' => 'M Scope',
+            'slug' => 'm-scope',
+        ]);
+
+        ProductOptionValue::query()->create([
+            'product_id' => $productA->id,
+            'option_value_id' => $black->id,
+            'parent_option_value_id' => null,
+            'mode' => 'single',
+            'combination_hash' => hash('sha256', 's:'.$black->id),
+            'sku' => 'A-BLACK',
+            'stock_qty' => 10,
+            'is_active' => true,
+            'sort_order' => 1,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+
+        ProductOptionValue::query()->create([
+            'product_id' => $productB->id,
+            'option_value_id' => $medium->id,
+            'parent_option_value_id' => null,
+            'mode' => 'single',
+            'combination_hash' => hash('sha256', 's:'.$medium->id),
+            'sku' => 'B-M',
+            'stock_qty' => 10,
+            'is_active' => true,
+            'sort_order' => 1,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+
+        app(SystemSettingsService::class)->put('store_product_filter_option_ids', [$colorOption->id, $sizeOption->id]);
+
+        $this->get('/category/'.$slugA)
+            ->assertOk()
+            ->assertSee('Color Scope')
+            ->assertDontSee('Size Scope');
+
+        $this->get('/category/'.$slugB)
+            ->assertOk()
+            ->assertSee('Size Scope')
+            ->assertDontSee('Color Scope');
     }
 
     /**

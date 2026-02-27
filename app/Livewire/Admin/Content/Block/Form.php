@@ -61,6 +61,7 @@ class Form extends Component
     ];
 
     public ?int $pickerItemId = null;
+    public string $pickerSearch = '';
     public string $lastType = '';
 
     public function mount(?int $blockId = null): void
@@ -112,19 +113,20 @@ class Form extends Component
 
     public function getSelectedItemsProperty(): Collection
     {
-        $optionsById = $this->itemOptions->keyBy('id');
-
-        return collect((array) ($this->form['selected_item_ids'] ?? []))
+        $selectedIds = collect((array) ($this->form['selected_item_ids'] ?? []))
             ->map(fn ($id) => (int) $id)
             ->filter()
-            ->values()
-            ->map(function (int $id, int $index) use ($optionsById): array {
-                $row = $optionsById->get($id);
+            ->values();
+        $labelsById = $this->loadItemLabelsByIds($this->currentItemType, $selectedIds->all());
+
+        return $selectedIds
+            ->map(function (int $id, int $index) use ($labelsById): array {
+                $label = $labelsById->get($id);
 
                 return [
                     'id' => $id,
                     'index' => $index,
-                    'label' => (string) ($row['label'] ?? ('#'.$id)),
+                    'label' => (string) ($label ?? ('#'.$id)),
                 ];
             });
     }
@@ -151,6 +153,7 @@ class Form extends Component
         if ($currentItemType !== $existingType) {
             $this->form['selected_item_ids'] = [];
             $this->pickerItemId = null;
+            $this->pickerSearch = '';
         }
 
         $currentTemplate = (string) ($this->form['template_body'] ?? '');
@@ -657,32 +660,58 @@ class Form extends Component
     {
         $locale = (string) ($this->form['locale'] ?? config('app.locale'));
         $fallbackLocale = config('app.locale');
+        $search = trim($this->pickerSearch);
+        $like = '%'.$search.'%';
+        $normalizedSearch = preg_replace('/[^[:alnum:]]/u', '', mb_strtolower($search));
+        $normalizedLike = '%'.$normalizedSearch.'%';
 
         if ($itemType === 'product') {
-            return Product::query()
-                ->where('is_active', true)
-                ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
-                ->orderByDesc('id')
-                ->limit(300)
+            $query = Product::query()
+                ->with(['translations'])
+                ->orderByDesc('id');
+
+            if ($search !== '') {
+                $query->where(function ($q) use ($search, $like, $normalizedSearch, $normalizedLike): void {
+                    if (ctype_digit($search)) {
+                        $q->orWhere('id', (int) $search);
+                    }
+
+                    $q->orWhere('code', 'like', $like)
+                        ->orWhere('sku', 'like', $like)
+                        ->orWhereHas('translations', function ($translationQuery) use ($like): void {
+                            $translationQuery->where('name', 'like', $like);
+                        });
+
+                    if ($normalizedSearch !== '') {
+                        $q->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(LOWER(code), ' ', ''), '.', ''), '-', ''), '/', '') LIKE ?", [$normalizedLike])
+                            ->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(LOWER(sku), ' ', ''), '.', ''), '-', ''), '/', '') LIKE ?", [$normalizedLike])
+                            ->orWhereHas('translations', function ($translationQuery) use ($normalizedLike): void {
+                                $translationQuery->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(LOWER(name), ' ', ''), '.', ''), '-', ''), '/', '') LIKE ?", [$normalizedLike]);
+                            });
+                    }
+                });
+            }
+
+            return $query
                 ->get()
                 ->map(function (Product $row) use ($locale, $fallbackLocale): array {
-                    $translation = $row->translations->firstWhere('locale', $locale)
-                        ?? $row->translations->firstWhere('locale', $fallbackLocale);
-                    $name = $translation?->name ?: $row->code;
+                    $name = $this->resolveBestProductName($row, $locale, $fallbackLocale);
+                    $status = (bool) $row->is_active ? '' : ' [inactive]';
+                    $code = trim((string) ($row->code ?? ''));
+                    $sku = trim((string) ($row->sku ?? ''));
 
-                    return ['id' => (int) $row->id, 'label' => '#'.$row->id.' - '.$name];
+                    return ['id' => (int) $row->id, 'label' => '#'.$row->id.' - '.$name.' ['.$code.($sku !== '' ? ' | '.$sku : '').']'.$status];
                 });
         }
 
         if ($itemType === 'category') {
             return Category::query()
-                ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+                ->with(['translations'])
                 ->orderByDesc('id')
                 ->limit(300)
                 ->get()
                 ->map(function (Category $row) use ($locale, $fallbackLocale): array {
-                    $translation = $row->translations->firstWhere('locale', $locale)
-                        ?? $row->translations->firstWhere('locale', $fallbackLocale);
+                    $translation = $this->resolveBestTranslation($row->translations, $locale, $fallbackLocale, ['name']);
                     $name = $translation?->name ?: $row->code;
 
                     return ['id' => (int) $row->id, 'label' => '#'.$row->id.' - '.$name.' ('.$row->scope.')'];
@@ -692,13 +721,12 @@ class Form extends Component
         if ($itemType === 'manufacturer') {
             return Manufacturer::query()
                 ->where('is_active', true)
-                ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+                ->with(['translations'])
                 ->orderByDesc('id')
                 ->limit(300)
                 ->get()
                 ->map(function (Manufacturer $row) use ($locale, $fallbackLocale): array {
-                    $translation = $row->translations->firstWhere('locale', $locale)
-                        ?? $row->translations->firstWhere('locale', $fallbackLocale);
+                    $translation = $this->resolveBestTranslation($row->translations, $locale, $fallbackLocale, ['name']);
                     $name = $translation?->name ?: $row->code;
 
                     return ['id' => (int) $row->id, 'label' => '#'.$row->id.' - '.$name];
@@ -708,13 +736,12 @@ class Form extends Component
         if ($itemType === 'blog') {
             return BlogPost::query()
                 ->where('is_active', true)
-                ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+                ->with(['translations'])
                 ->orderByDesc('id')
                 ->limit(300)
                 ->get()
                 ->map(function (BlogPost $row) use ($locale, $fallbackLocale): array {
-                    $translation = $row->translations->firstWhere('locale', $locale)
-                        ?? $row->translations->firstWhere('locale', $fallbackLocale);
+                    $translation = $this->resolveBestTranslation($row->translations, $locale, $fallbackLocale, ['title']);
                     $title = $translation?->title ?: $row->code;
 
                     return ['id' => (int) $row->id, 'label' => '#'.$row->id.' - '.$title];
@@ -722,6 +749,126 @@ class Form extends Component
         }
 
         return collect();
+    }
+
+    /**
+     * @param  array<int, int>  $ids
+     * @return Collection<int, string>
+     */
+    private function loadItemLabelsByIds(?string $itemType, array $ids): Collection
+    {
+        if ($itemType === null || $ids === []) {
+            return collect();
+        }
+
+        $locale = (string) ($this->form['locale'] ?? config('app.locale'));
+        $fallbackLocale = (string) config('app.locale');
+
+        if ($itemType === 'product') {
+            return Product::query()
+                ->whereIn('id', $ids)
+                ->with(['translations'])
+                ->get()
+                ->mapWithKeys(function (Product $row) use ($locale, $fallbackLocale): array {
+                    $name = $this->resolveBestProductName($row, $locale, $fallbackLocale);
+                    $status = (bool) $row->is_active ? '' : ' [inactive]';
+                    $code = trim((string) ($row->code ?? ''));
+                    $sku = trim((string) ($row->sku ?? ''));
+
+                    return [(int) $row->id => '#'.$row->id.' - '.$name.' ['.$code.($sku !== '' ? ' | '.$sku : '').']'.$status];
+                });
+        }
+
+        if ($itemType === 'category') {
+            return Category::query()
+                ->whereIn('id', $ids)
+                ->with(['translations'])
+                ->get()
+                ->mapWithKeys(function (Category $row) use ($locale, $fallbackLocale): array {
+                    $translation = $this->resolveBestTranslation($row->translations, $locale, $fallbackLocale, ['name']);
+                    $name = $translation?->name ?: $row->code;
+
+                    return [(int) $row->id => '#'.$row->id.' - '.$name.' ('.$row->scope.')'];
+                });
+        }
+
+        if ($itemType === 'manufacturer') {
+            return Manufacturer::query()
+                ->whereIn('id', $ids)
+                ->with(['translations'])
+                ->get()
+                ->mapWithKeys(function (Manufacturer $row) use ($locale, $fallbackLocale): array {
+                    $translation = $this->resolveBestTranslation($row->translations, $locale, $fallbackLocale, ['name']);
+                    $name = $translation?->name ?: $row->code;
+
+                    return [(int) $row->id => '#'.$row->id.' - '.$name];
+                });
+        }
+
+        if ($itemType === 'blog') {
+            return BlogPost::query()
+                ->whereIn('id', $ids)
+                ->with(['translations'])
+                ->get()
+                ->mapWithKeys(function (BlogPost $row) use ($locale, $fallbackLocale): array {
+                    $translation = $this->resolveBestTranslation($row->translations, $locale, $fallbackLocale, ['title']);
+                    $title = $translation?->title ?: $row->code;
+
+                    return [(int) $row->id => '#'.$row->id.' - '.$title];
+                });
+        }
+
+        return collect();
+    }
+
+    private function resolveBestProductName(Product $row, string $locale, string $fallbackLocale): string
+    {
+        $translations = $row->translations instanceof Collection
+            ? $row->translations
+            : collect($row->translations ?? []);
+
+        $ordered = collect();
+        $preferred = $translations->firstWhere('locale', $locale);
+        $fallback = $translations->firstWhere('locale', $fallbackLocale);
+
+        if ($preferred) {
+            $ordered->push($preferred);
+        }
+        if ($fallback && $fallback !== $preferred) {
+            $ordered->push($fallback);
+        }
+        $translations->each(function ($translation) use ($ordered): void {
+            if (! $ordered->contains($translation)) {
+                $ordered->push($translation);
+            }
+        });
+
+        $firstNonEmpty = '';
+        foreach ($ordered as $translation) {
+            $name = trim((string) data_get($translation, 'name', ''));
+            if ($name === '') {
+                continue;
+            }
+            if ($firstNonEmpty === '') {
+                $firstNonEmpty = $name;
+            }
+            if (! $this->isGenericProductName($name)) {
+                return $name;
+            }
+        }
+
+        if ($firstNonEmpty !== '') {
+            return $firstNonEmpty;
+        }
+
+        return trim((string) ($row->code ?? '')) !== '' ? (string) $row->code : ('#'.(int) $row->id);
+    }
+
+    private function isGenericProductName(string $name): bool
+    {
+        $normalized = mb_strtolower(trim($name));
+
+        return (bool) preg_match('/^demo\\s+product\\b/u', $normalized);
     }
 
     /**
@@ -751,6 +898,45 @@ class Form extends Component
         }
 
         return [];
+    }
+
+    /**
+     * @param  Collection<int, mixed>  $translations
+     * @param  array<int, string>  $fields
+     */
+    private function resolveBestTranslation(Collection $translations, string $locale, string $fallbackLocale, array $fields): mixed
+    {
+        $preferred = $translations->firstWhere('locale', $locale);
+        if ($this->translationHasAnyField($preferred, $fields)) {
+            return $preferred;
+        }
+
+        $fallback = $translations->firstWhere('locale', $fallbackLocale);
+        if ($this->translationHasAnyField($fallback, $fields)) {
+            return $fallback;
+        }
+
+        return $translations->first(function ($row) use ($fields): bool {
+            return $this->translationHasAnyField($row, $fields);
+        });
+    }
+
+    /**
+     * @param  array<int, string>  $fields
+     */
+    private function translationHasAnyField(mixed $translation, array $fields): bool
+    {
+        if (! $translation) {
+            return false;
+        }
+
+        foreach ($fields as $field) {
+            if (trim((string) data_get($translation, $field, '')) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function savePrimarySlot(ContentBlock $block, array $validated, ?int $userId): void

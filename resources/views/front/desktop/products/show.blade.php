@@ -95,6 +95,9 @@
     $fitFinderEnabled = (bool) ($storeSettings['product']['fit_finder_enabled'] ?? false);
     $fitFinderSavedSize = trim((string) ($fitFinderSelection['size_label'] ?? ''));
     $fitFinderSavedSignature = trim((string) ($fitFinderSelection['size_signature'] ?? ''));
+    $preferredGridCols = in_array((int) request()->cookie('front_grid_cols', 4), [1, 2, 3, 4, 5], true)
+        ? (int) request()->cookie('front_grid_cols', 4)
+        : 4;
 @endphp
 
 @section('title', $translation?->name ?? 'Product')
@@ -825,9 +828,9 @@
             </button>
 
             @if (! empty($translation?->description))
-                <div class="mt-6 text-slate-700">{!! $translation->description !!}</div>
+                <div class="mt-6 px-1 pb-2 text-[0.9rem] leading-[1.55] text-slate-700 [&_p]:mb-[15px] [&_p:last-child]:mb-0">{!! $translation->description !!}</div>
             @elseif (! empty($translation?->excerpt))
-                <p class="mt-6 text-slate-700">{{ $translation->excerpt }}</p>
+                <p class="mt-6 px-1 pb-2 text-[0.9rem] leading-[1.55] text-slate-700">{{ $translation->excerpt }}</p>
             @endif
 
             @php
@@ -1737,9 +1740,10 @@
 
                     const count = el.querySelectorAll('.splide__slide').length;
                     const mobilePerPage = {{ in_array((int) ($storeSettings['product']['mobile_default_cols'] ?? 2), [1, 2], true) ? (int) ($storeSettings['product']['mobile_default_cols'] ?? 2) : 2 }};
+                    const preferredDesktopPerPage = {{ $preferredGridCols }};
                     new window.Splide(el, {
                         type: count > 1 ? 'loop' : 'slide',
-                        perPage: Math.min(4, Math.max(1, count)),
+                        perPage: Math.min(Math.max(1, preferredDesktopPerPage), Math.max(1, count)),
                         perMove: 1,
                         gap: '1.25rem',
                         drag: count > 1,
@@ -1749,8 +1753,9 @@
                         updateOnMove: true,
                         speed: 520,
                         breakpoints: {
-                            1280: { perPage: Math.min(3, Math.max(1, count)) },
-                            1024: { perPage: Math.min(2, Math.max(1, count)) },
+                            1536: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 5), Math.max(1, count)) },
+                            1280: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 4), Math.max(1, count)) },
+                            1024: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 3), Math.max(1, count)) },
                             860: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '1rem' },
                             640: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '0.8rem' },
                         },

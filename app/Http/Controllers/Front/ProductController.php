@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
+use App\Http\Controllers\Front\Concerns\ResolvesGridColumns;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Product\Product;
 use App\Models\Content\Page\InfoPage;
@@ -22,6 +23,7 @@ use Illuminate\Support\Str;
 class ProductController extends Controller
 {
     use ResolvesFrontendView;
+    use ResolvesGridColumns;
 
     private const FIT_FINDER_SESSION_KEY = 'front_fit_finder_profile';
     private const FIT_FINDER_COOKIE_KEY = 'front_fit_finder_profile';
@@ -126,7 +128,7 @@ class ProductController extends Controller
             ->firstOrFail();
 
         $categoryIds = $product->categories->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $relatedLimit = 4;
+        $relatedLimit = max(4, $this->resolveGridCols($request, 4));
 
         $relatedBaseQuery = Product::query()
             ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])

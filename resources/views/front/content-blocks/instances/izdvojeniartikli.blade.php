@@ -70,9 +70,12 @@
     $mobileDefaultCols = in_array((int) ($storeSettings['product']['mobile_default_cols'] ?? 2), [1, 2], true)
         ? (int) ($storeSettings['product']['mobile_default_cols'] ?? 2)
         : 2;
+    $preferredGridCols = in_array((int) request()->cookie('front_grid_cols', 4), [1, 2, 3, 4, 5], true)
+        ? (int) request()->cookie('front_grid_cols', 4)
+        : 4;
 @endphp
 
-<section class="relative left-1/2 w-screen -translate-x-1/2 bg-white max-[540px]:py-5 py-8">
+<section class="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-x-hidden bg-white max-[540px]:py-5 py-8">
     <div class="w-full px-3 sm:px-4 lg:px-6">
         <div class="max-[540px]:mb-5 mb-8 text-center">
             <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
@@ -117,6 +120,10 @@
 
                 #products-carousel-{{ $block->id }} .splide__arrow svg {
                     fill: #fff;
+                }
+
+                #products-carousel-{{ $block->id }} .splide__track {
+                    overflow: hidden;
                 }
 
                 @media (hover: none) {
@@ -172,11 +179,13 @@
 
                                     const count = el.querySelectorAll('.splide__slide').length;
                                     const mobilePerPage = {{ $mobileDefaultCols }};
+                                    const preferredDesktopPerPage = {{ $preferredGridCols }};
+                                    const desktopGap = preferredDesktopPerPage >= 5 ? '1rem' : '1.25rem';
                                     new window.Splide(el, {
                                         type: count > 1 ? 'loop' : 'slide',
-                                        perPage: Math.min(4, Math.max(1, count)),
+                                        perPage: Math.min(Math.max(1, preferredDesktopPerPage), Math.max(1, count)),
                                         perMove: 1,
-                                        gap: '1.25rem',
+                                        gap: desktopGap,
                                         drag: count > 1,
                                         snap: true,
                                         pagination: false,
@@ -184,8 +193,9 @@
                                         updateOnMove: true,
                                         speed: 520,
                                         breakpoints: {
-                                            1280: { perPage: Math.min(3, Math.max(1, count)) },
-                                            1024: { perPage: Math.min(2, Math.max(1, count)) },
+                                            1536: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 5), Math.max(1, count)) },
+                                            1280: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 4), Math.max(1, count)) },
+                                            1024: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 3), Math.max(1, count)) },
                                             860: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '1rem' },
                                             640: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '0.8rem' },
                                         },

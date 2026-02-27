@@ -216,7 +216,13 @@
                 <div class="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                     <div>
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Available') }}</label>
-                        <select wire:model="pickerItemId" data-tom-select class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                        <input
+                            type="text"
+                            wire:model.live.debounce.300ms="pickerSearch"
+                            class="mb-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                            placeholder="{{ __('Search all items from database...') }}"
+                        />
+                        <select wire:key="picker-select-{{ md5(($this->currentItemType ?? 'none').'|'.$pickerSearch.'|'.($this->itemOptions->count())) }}" wire:model="pickerItemId" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
                             <option value="">{{ __('Select item...') }}</option>
                             @foreach ($this->itemOptions as $option)
                                 <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>
