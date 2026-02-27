@@ -39,9 +39,12 @@
                         ?: data_get($props, "cta_1_label.$fallbackLocale")
                         ?: __('ui.content_blocks.dual_image_cta.default_cta_1')
                     ));
+                    $cta1UrlMap = (array) data_get($props, 'cta_1_url', []);
                     $cta1Url = trim((string) (
                         data_get($props, "cta_1_url.$locale")
                         ?: data_get($props, "cta_1_url.$fallbackLocale")
+                        ?: data_get($props, 'cta_1_url_value')
+                        ?: collect($cta1UrlMap)->first(fn ($value) => trim((string) $value) !== '')
                         ?: '#'
                     ));
 
@@ -50,9 +53,12 @@
                         ?: data_get($props, "cta_2_label.$fallbackLocale")
                         ?: __('ui.content_blocks.dual_image_cta.default_cta_2')
                     ));
+                    $cta2UrlMap = (array) data_get($props, 'cta_2_url', []);
                     $cta2Url = trim((string) (
                         data_get($props, "cta_2_url.$locale")
                         ?: data_get($props, "cta_2_url.$fallbackLocale")
+                        ?: data_get($props, 'cta_2_url_value')
+                        ?: collect($cta2UrlMap)->first(fn ($value) => trim((string) $value) !== '')
                         ?: '#'
                     ));
                 @endphp
