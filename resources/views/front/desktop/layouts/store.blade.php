@@ -561,11 +561,9 @@
 
         const onLoadScripts = [];
 
-        @if (request()->routeIs('home') || request()->routeIs('shop.*') || request()->routeIs('categories.*') || request()->routeIs('manufacturers.*') || request()->routeIs('products.*') || request()->routeIs('blog.*') || request()->routeIs('wishlist.*') || request()->routeIs('cart.*'))
-            onLoadScripts.push(@json(asset('front-theme/scripts/desktop-header-menu.js').'?v='.filemtime(public_path('front-theme/scripts/desktop-header-menu.js'))));
-            onLoadScripts.push(@json(asset('front-theme/scripts/header-search-panel.js').'?v='.filemtime(public_path('front-theme/scripts/header-search-panel.js'))));
-            onLoadScripts.push(@json(asset('front-theme/scripts/wishlist-toggle.js').'?v='.filemtime(public_path('front-theme/scripts/wishlist-toggle.js'))));
-        @endif
+        onLoadScripts.push(@json(asset('front-theme/scripts/desktop-header-menu.js').'?v='.filemtime(public_path('front-theme/scripts/desktop-header-menu.js'))));
+        onLoadScripts.push(@json(asset('front-theme/scripts/header-search-panel.js').'?v='.filemtime(public_path('front-theme/scripts/header-search-panel.js'))));
+        onLoadScripts.push(@json(asset('front-theme/scripts/wishlist-toggle.js').'?v='.filemtime(public_path('front-theme/scripts/wishlist-toggle.js'))));
 
         function loadScript(src, module) {
             const s = document.createElement('script');
