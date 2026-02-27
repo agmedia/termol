@@ -63,6 +63,7 @@
         ?? $firstCategory?->translations?->firstWhere('locale', $fallbackLocale);
     $fitFinderEnabled = (bool) ($storeSettings['product']['fit_finder_enabled'] ?? false);
     $fitFinderSavedSize = trim((string) ($fitFinderSelection['size_label'] ?? ''));
+    $fitFinderSavedSignature = trim((string) ($fitFinderSelection['size_signature'] ?? ''));
 @endphp
 
 @section('title', $translation?->name ?? 'Product')
@@ -546,6 +547,7 @@
                     data-fit-initial-chest="{{ (string) ($fitFinderSelection['chest'] ?? 'average') }}"
                     data-fit-initial-belly="{{ (string) ($fitFinderSelection['belly'] ?? 'average') }}"
                     data-fit-initial-size="{{ $fitFinderSavedSize }}"
+                    data-fit-initial-size-signature="{{ $fitFinderSavedSignature }}"
                     aria-hidden="true"
                 >
                     <div class="mx-auto flex w-full max-w-2xl flex-col overflow-hidden border border-slate-200 bg-white shadow-2xl">
@@ -997,6 +999,7 @@
             const fitSaveUrl = String(fitModal.dataset.fitSaveUrl || '');
             const fitProductId = Number(fitModal.dataset.fitProductId || 0);
             const initialSizeLabel = String(fitModal.dataset.fitInitialSize || '').trim().toUpperCase();
+            const initialSizeSignature = String(fitModal.dataset.fitInitialSizeSignature || '').trim();
             const saveIndicator = fitModal.querySelector('[data-fit-save-indicator]');
 
             const state = {
@@ -1027,6 +1030,16 @@
                 const rank = Object.prototype.hasOwnProperty.call(sizeRankMap, key) ? sizeRankMap[key] : (index + 3);
                 return { input, label, rank };
             });
+            const currentSizeSignature = sizeOptions
+                .map(function (option) {
+                    return String(option.label || '').trim().toUpperCase();
+                })
+                .filter(function (label) {
+                    return label !== '';
+                })
+                .sort()
+                .join('|');
+            state.savedSizeSignature = currentSizeSignature;
 
             const clamp = function (value, min, max) {
                 return Math.max(min, Math.min(max, value));
@@ -1107,10 +1120,12 @@
                 setSaveIndicator('saving');
 
                 const payload = new URLSearchParams();
-                const normalizedSizeLabel = String(sizeLabel || state.savedSizeLabel || '').trim().toUpperCase();
+                const normalizedCandidate = String(sizeLabel || state.savedSizeLabel || '').trim().toUpperCase();
+                const normalizedSizeLabel = state.savedSizeSignature === currentSizeSignature ? normalizedCandidate : '';
                 payload.set('_token', token);
                 payload.set('product_id', String(fitProductId));
                 payload.set('size_label', normalizedSizeLabel);
+                payload.set('size_signature', currentSizeSignature);
                 payload.set('height', String(inputHeight.value || ''));
                 payload.set('weight', String(inputWeight.value || ''));
                 payload.set('age', String(inputAge.value || ''));
@@ -1292,6 +1307,7 @@
 
                     const recommendedLabel = String(state.recommendation.primary.label || '').trim();
                     if (recommendedLabel !== '') {
+                        state.savedSizeSignature = currentSizeSignature;
                         state.savedSizeLabel = recommendedLabel.toUpperCase();
                         updateFitFinderOpenButtons(recommendedLabel);
                         persistFitPreference(recommendedLabel);
@@ -1406,6 +1422,7 @@
 
                 state.recommendation.primary.input.checked = true;
                 state.recommendation.primary.input.dispatchEvent(new Event('change', { bubbles: true }));
+                state.savedSizeSignature = currentSizeSignature;
                 state.savedSizeLabel = String(state.recommendation.primary.label || '').trim().toUpperCase();
                 persistFitPreference(state.recommendation.primary.label);
                 closeModal();
@@ -1464,15 +1481,21 @@
             });
 
             if (initialSizeLabel !== '') {
-                const savedSizeInput = sizeInputs.find(function (sizeInput) {
+                const signatureMatches = initialSizeSignature !== '' && initialSizeSignature === currentSizeSignature;
+                const savedSizeInput = signatureMatches ? sizeInputs.find(function (sizeInput) {
                     return String(sizeInput.dataset.sizeLabel || '').trim().toUpperCase() === initialSizeLabel;
-                });
+                }) : null;
+
                 if (savedSizeInput) {
                     savedSizeInput.checked = true;
                     savedSizeInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    state.savedSizeSignature = currentSizeSignature;
+                    state.savedSizeLabel = initialSizeLabel;
+                    updateFitFinderOpenButtons(initialSizeLabel);
+                } else {
+                    state.savedSizeLabel = '';
+                    updateFitFinderOpenButtons('');
                 }
-                state.savedSizeLabel = initialSizeLabel;
-                updateFitFinderOpenButtons(initialSizeLabel);
             }
 
         });

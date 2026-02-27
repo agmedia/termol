@@ -24,6 +24,8 @@ class ProductController extends Controller
     use ResolvesFrontendView;
 
     private const FIT_FINDER_SESSION_KEY = 'front_fit_finder_profile';
+    private const FIT_FINDER_COOKIE_KEY = 'front_fit_finder_profile';
+    private const FIT_FINDER_COOKIE_MINUTES = 525600; // 365 days
 
     public function storeComment(Request $request, string $slug)
     {
@@ -287,6 +289,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'size_label' => ['nullable', 'string', 'max:30'],
+            'size_signature' => ['nullable', 'string', 'max:255'],
             'height' => ['nullable', 'integer', 'min:130', 'max:230'],
             'weight' => ['nullable', 'integer', 'min:35', 'max:220'],
             'age' => ['nullable', 'integer', 'min:12', 'max:100'],
@@ -298,6 +301,7 @@ class ProductController extends Controller
         $selection = [
             'product_id' => (int) $validated['product_id'],
             'size_label' => trim((string) ($validated['size_label'] ?? '')),
+            'size_signature' => trim((string) ($validated['size_signature'] ?? '')),
             'height' => isset($validated['height']) ? (int) $validated['height'] : null,
             'weight' => isset($validated['weight']) ? (int) $validated['weight'] : null,
             'age' => isset($validated['age']) ? (int) $validated['age'] : null,
@@ -317,7 +321,13 @@ class ProductController extends Controller
             $profile->forceFill(['payload' => $payload])->save();
         }
 
-        return response()->json(['ok' => true]);
+        return response()
+            ->json(['ok' => true])
+            ->cookie(
+                self::FIT_FINDER_COOKIE_KEY,
+                json_encode($selection, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                self::FIT_FINDER_COOKIE_MINUTES
+            );
     }
 
     private function withDesktopCacheHeaders(Request $request, Response $response, int $productId, string $slug): Response
@@ -463,22 +473,30 @@ class ProductController extends Controller
         $sessionSelection = $request->session()->get(self::FIT_FINDER_SESSION_KEY);
         if (is_array($sessionSelection)
             && (int) ($sessionSelection['product_id'] ?? 0) === (int) $product->id) {
-            return [
-                'product_id' => (int) $sessionSelection['product_id'],
-                'size_label' => trim((string) ($sessionSelection['size_label'] ?? '')),
-                'height' => isset($sessionSelection['height']) ? (int) $sessionSelection['height'] : null,
-                'weight' => isset($sessionSelection['weight']) ? (int) $sessionSelection['weight'] : null,
-                'age' => isset($sessionSelection['age']) ? (int) $sessionSelection['age'] : null,
-                'fit' => trim((string) ($sessionSelection['fit'] ?? 'average')),
-                'chest' => trim((string) ($sessionSelection['chest'] ?? 'average')),
-                'belly' => trim((string) ($sessionSelection['belly'] ?? 'average')),
-                'updated_at' => trim((string) ($sessionSelection['updated_at'] ?? now()->toIso8601String())),
-            ];
+            return $this->normalizeFitFinderSelection($sessionSelection);
         }
+
+        $cookieSelectionRaw = $request->cookie(self::FIT_FINDER_COOKIE_KEY);
+        $cookieSelection = is_string($cookieSelectionRaw)
+            ? json_decode($cookieSelectionRaw, true)
+            : null;
 
         $user = $request->user();
         if (! $user) {
-            return null;
+            if (! is_array($cookieSelection)
+                || (int) ($cookieSelection['product_id'] ?? 0) !== (int) $product->id) {
+                if (is_array($sessionSelection)) {
+                    return $this->normalizeFitFinderSelection($sessionSelection);
+                }
+
+                if (is_array($cookieSelection)) {
+                    return $this->normalizeFitFinderSelection($cookieSelection);
+                }
+
+                return null;
+            }
+
+            return $this->normalizeFitFinderSelection($cookieSelection);
         }
 
         $profile = $user->relationLoaded('profile') ? $user->profile : $user->profile()->first();
@@ -489,12 +507,34 @@ class ProductController extends Controller
 
         if (! is_array($selection)
             || (int) ($selection['product_id'] ?? 0) !== (int) $product->id) {
+            if (is_array($sessionSelection)) {
+                return $this->normalizeFitFinderSelection($sessionSelection);
+            }
+
+            if (is_array($selection)) {
+                return $this->normalizeFitFinderSelection($selection);
+            }
+
+            if (is_array($cookieSelection)) {
+                return $this->normalizeFitFinderSelection($cookieSelection);
+            }
+
             return null;
         }
 
+        return $this->normalizeFitFinderSelection($selection);
+    }
+
+    /**
+     * @param  array<string,mixed>  $selection
+     * @return array{product_id:int,size_label:string,size_signature:string,height:int|null,weight:int|null,age:int|null,fit:string,chest:string,belly:string,updated_at:string}
+     */
+    private function normalizeFitFinderSelection(array $selection): array
+    {
         return [
             'product_id' => (int) $selection['product_id'],
             'size_label' => trim((string) ($selection['size_label'] ?? '')),
+            'size_signature' => trim((string) ($selection['size_signature'] ?? '')),
             'height' => isset($selection['height']) ? (int) $selection['height'] : null,
             'weight' => isset($selection['weight']) ? (int) $selection['weight'] : null,
             'age' => isset($selection['age']) ? (int) $selection['age'] : null,
@@ -531,7 +571,7 @@ class ProductController extends Controller
     private function productEtag(Request $request, string $slug, int $productId, int $lastModifiedTs): string
     {
         $wishlistHash = sha1(implode(',', app(WishlistService::class)->ids()));
-        $fitFinderHash = $this->fitFinderEtagFragment($request, $productId);
+        $fitFinderHash = $this->fitFinderEtagFragment($request);
 
         return '"'.sha1(implode('|', [
             'desktop-product',
@@ -545,16 +585,24 @@ class ProductController extends Controller
         ])).'"';
     }
 
-    private function fitFinderEtagFragment(Request $request, int $productId): string
+    private function fitFinderEtagFragment(Request $request): string
     {
         $selection = $request->session()->get(self::FIT_FINDER_SESSION_KEY);
-        if (! is_array($selection) || (int) ($selection['product_id'] ?? 0) !== $productId) {
+        if (! is_array($selection)) {
+            $cookieSelectionRaw = $request->cookie(self::FIT_FINDER_COOKIE_KEY);
+            $selection = is_string($cookieSelectionRaw)
+                ? json_decode($cookieSelectionRaw, true)
+                : null;
+        }
+
+        if (! is_array($selection)) {
             return 'fit:none';
         }
 
         return sha1(json_encode([
             'product_id' => (int) ($selection['product_id'] ?? 0),
             'size_label' => trim((string) ($selection['size_label'] ?? '')),
+            'size_signature' => trim((string) ($selection['size_signature'] ?? '')),
             'height' => isset($selection['height']) ? (int) $selection['height'] : null,
             'weight' => isset($selection['weight']) ? (int) $selection['weight'] : null,
             'age' => isset($selection['age']) ? (int) $selection['age'] : null,
