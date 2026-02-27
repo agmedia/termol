@@ -54,6 +54,9 @@
     $preferredGridCols = in_array((int) request()->cookie('front_grid_cols', 4), [1, 2, 3, 4, 5], true)
         ? (int) request()->cookie('front_grid_cols', 4)
         : 4;
+    $hotspotProductsById = collect($hotspotProducts ?? [])->mapWithKeys(
+        fn ($row, $id) => [(int) $id => (array) $row]
+    );
 @endphp
 
 @section('title', $translation?->title ?? __('ui.blog.page_title'))
@@ -119,21 +122,82 @@
                 @foreach ($galleryItems as $mediaItem)
                     @php
                         $galleryImageUrl = \App\Support\Media\MediaUrl::conversion($mediaItem, 'detail_960x960', $preferWebp) ?? $mediaItem->getUrl();
+                        $galleryHotspots = collect((array) data_get($mediaItem->custom_properties, 'product_hotspots', []))
+                            ->map(function ($row) use ($hotspotProductsById): ?array {
+                                $row = is_array($row) ? $row : [];
+                                $productId = (int) ($row['product_id'] ?? 0);
+                                $product = (array) ($hotspotProductsById->get($productId) ?? []);
+                                if ($productId <= 0 || $product === []) {
+                                    return null;
+                                }
+
+                                return [
+                                    'product' => $product,
+                                    'x' => max(0, min(100, (float) ($row['x'] ?? 50))),
+                                    'y' => max(0, min(100, (float) ($row['y'] ?? 50))),
+                                ];
+                            })
+                            ->filter()
+                            ->values()
+                            ->take(3);
                     @endphp
-                    <a
-                        href="{{ $galleryImageUrl }}"
-                        class="block aspect-[3/4] overflow-hidden bg-slate-100"
-                        data-blog-gallery-item
-                        data-sub-html="{{ $translation?->title ?? $post->code }}"
-                    >
-                        <img
-                            src="{{ $galleryImageUrl }}"
-                            alt="{{ $translation?->title ?? $post->code }}"
-                            class="h-full w-full object-cover"
-                            loading="lazy"
-                            decoding="async"
+                    <div class="relative block aspect-[3/4] overflow-hidden bg-slate-100" data-blog-gallery-hotspot-root>
+                        <a
+                            href="{{ $galleryImageUrl }}"
+                            class="block h-full w-full"
+                            data-blog-gallery-item
+                            data-sub-html="{{ $translation?->title ?? $post->code }}"
                         >
-                    </a>
+                            <img
+                                src="{{ $galleryImageUrl }}"
+                                alt="{{ $translation?->title ?? $post->code }}"
+                                class="h-full w-full object-cover"
+                                loading="lazy"
+                                decoding="async"
+                            >
+                        </a>
+
+                        @foreach ($galleryHotspots as $hotspotIndex => $hotspot)
+                            @php
+                                $hotspotDomId = 'blog-hotspot-'.$post->id.'-'.$mediaItem->id.'-'.$hotspotIndex;
+                                $hotspotProduct = (array) ($hotspot['product'] ?? []);
+                            @endphp
+                            <button
+                                type="button"
+                                class="absolute z-20 inline-flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/90 bg-white text-[22px] font-light leading-none text-slate-900 shadow-md transition-colors hover:bg-slate-200"
+                                style="left: {{ number_format(max(3, min(97, (float) ($hotspot['x'] ?? 50))), 2, '.', '') }}%; top: {{ number_format(max(3, min(97, (float) ($hotspot['y'] ?? 50))), 2, '.', '') }}%;"
+                                data-blog-hotspot-toggle
+                                data-target="{{ $hotspotDomId }}"
+                                aria-expanded="false"
+                                aria-controls="{{ $hotspotDomId }}"
+                            >
+                                +
+                            </button>
+
+                            <div
+                                id="{{ $hotspotDomId }}"
+                                class="absolute z-30 hidden w-[210px] rounded-xl border border-slate-200 bg-white shadow-xl"
+                                data-anchor-x="{{ number_format(max(3, min(97, (float) ($hotspot['x'] ?? 50))), 2, '.', '') }}"
+                                data-anchor-y="{{ number_format(max(3, min(97, (float) ($hotspot['y'] ?? 50))), 2, '.', '') }}"
+                                data-blog-hotspot-panel
+                            >
+                                <span
+                                    class="absolute h-3 w-3 rotate-45 bg-white"
+                                    data-blog-hotspot-caret
+                                    aria-hidden="true"
+                                ></span>
+                                <a href="{{ $hotspotProduct['url'] ?? '#' }}" class="flex items-center gap-2.5 p-2.5">
+                                    @if (!empty($hotspotProduct['image_url']))
+                                        <img src="{{ $hotspotProduct['image_url'] }}" alt="{{ $hotspotProduct['name'] ?? '' }}" class="h-14 w-12 rounded-md object-cover">
+                                    @endif
+                                    <div class="min-w-0">
+                                        <p class="line-clamp-2 text-[14px] leading-tight text-slate-800">{{ $hotspotProduct['name'] ?? '' }}</p>
+                                        <p class="mt-1.5 text-[14px] font-medium leading-none text-slate-800">{{ $hotspotProduct['price'] ?? '' }}</p>
+                                    </div>
+                                </a>
+                            </div>
+                        @endforeach
+                    </div>
                 @endforeach
             </div>
         </section>
@@ -224,6 +288,107 @@
                 selector: '[data-blog-gallery-item]',
                 download: false,
                 counter: true,
+            });
+
+            const hotspotToggles = document.querySelectorAll('[data-blog-hotspot-toggle]');
+            const positionHotspotPanel = function (btn, panel) {
+                const root = btn.closest('[data-blog-gallery-hotspot-root]');
+                const caret = panel.querySelector('[data-blog-hotspot-caret]');
+                if (!root) {
+                    return;
+                }
+
+                const rootRect = root.getBoundingClientRect();
+                const btnRect = btn.getBoundingClientRect();
+                const panelWidth = panel.offsetWidth;
+                const panelHeight = panel.offsetHeight;
+                const gap = 28;
+                const minPad = 8;
+                const maxLeft = Math.max(minPad, rootRect.width - panelWidth - minPad);
+                const maxTop = Math.max(minPad, rootRect.height - panelHeight - minPad);
+
+                const anchorX = (btnRect.left - rootRect.left) + (btnRect.width / 2);
+                const anchorY = (btnRect.top - rootRect.top) + (btnRect.height / 2);
+                const roomRight = rootRect.width - anchorX - gap;
+                const roomLeft = anchorX - gap;
+                const side = roomRight >= panelWidth || roomRight >= roomLeft ? 'right' : 'left';
+
+                const rawLeft = side === 'right'
+                    ? anchorX + gap
+                    : anchorX - gap - panelWidth;
+                const left = Math.max(minPad, Math.min(maxLeft, rawLeft));
+                const top = Math.max(minPad, Math.min(maxTop, anchorY - (panelHeight / 2)));
+
+                panel.style.left = left + 'px';
+                panel.style.top = top + 'px';
+
+                if (!caret) {
+                    return;
+                }
+
+                const caretTop = Math.max(10, Math.min(panelHeight - 14, anchorY - top - 6));
+                caret.style.top = caretTop + 'px';
+                if (side === 'right') {
+                    caret.style.left = '-7px';
+                    caret.style.right = '';
+                    caret.style.borderTop = '1px solid rgb(226 232 240)';
+                    caret.style.borderLeft = '1px solid rgb(226 232 240)';
+                    caret.style.borderRight = '0';
+                    caret.style.borderBottom = '0';
+                } else {
+                    caret.style.right = '-7px';
+                    caret.style.left = '';
+                    caret.style.borderBottom = '1px solid rgb(226 232 240)';
+                    caret.style.borderRight = '1px solid rgb(226 232 240)';
+                    caret.style.borderTop = '0';
+                    caret.style.borderLeft = '0';
+                }
+            };
+
+            const closeAllHotspots = function () {
+                document.querySelectorAll('[data-blog-hotspot-panel]').forEach(function (panel) {
+                    panel.classList.add('hidden');
+                });
+                document.querySelectorAll('[data-blog-hotspot-toggle]').forEach(function (btn) {
+                    btn.setAttribute('aria-expanded', 'false');
+                });
+            };
+
+            hotspotToggles.forEach(function (btn) {
+                btn.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const targetId = btn.getAttribute('data-target') || '';
+                    if (!targetId) {
+                        return;
+                    }
+
+                    const panel = document.getElementById(targetId);
+                    if (!panel) {
+                        return;
+                    }
+
+                    const willOpen = panel.classList.contains('hidden');
+                    closeAllHotspots();
+                    if (willOpen) {
+                        panel.classList.remove('hidden');
+                        positionHotspotPanel(btn, panel);
+                        btn.setAttribute('aria-expanded', 'true');
+                    }
+                });
+            });
+
+            document.addEventListener('click', function (event) {
+                if (event.target.closest('[data-blog-hotspot-panel]') || event.target.closest('[data-blog-hotspot-toggle]')) {
+                    return;
+                }
+                closeAllHotspots();
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    closeAllHotspots();
+                }
             });
 
             const sliders = document.querySelectorAll('[data-blog-related-products-splide]');

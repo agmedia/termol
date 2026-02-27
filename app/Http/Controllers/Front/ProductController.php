@@ -90,7 +90,7 @@ class ProductController extends Controller
         $variant = $this->frontendVariant($request);
 
         $product = Product::query()
-            ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
+            ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active', 'payload'])
             ->where('is_active', true)
             ->whereHas('translations', function ($q) use ($locale, $fallbackLocale, $slug): void {
                 $q->whereIn('locale', [$locale, $fallbackLocale])

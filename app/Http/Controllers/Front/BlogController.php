@@ -8,6 +8,9 @@ use App\Models\Catalog\Product\Product;
 use App\Models\Content\Blog\BlogPost;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
+use App\Services\Pricing\ProductPricePresentationService;
+use App\Services\Settings\SystemSettingsService;
+use App\Support\Media\MediaUrl;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -119,10 +122,69 @@ class BlogController extends Controller
                 ->values();
         }
 
+        $hotspotProductIds = collect($post->media)
+            ->where('collection_name', 'blog_gallery')
+            ->flatMap(function ($media): array {
+                return collect((array) data_get($media->custom_properties, 'product_hotspots', []))
+                    ->pluck('product_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $hotspotProducts = collect();
+        if ($hotspotProductIds !== []) {
+            $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', false);
+            $pricing = app(ProductPricePresentationService::class);
+            $viewer = auth()->user();
+
+            $hotspotProducts = Product::query()
+                ->where('is_active', true)
+                ->whereIn('id', $hotspotProductIds)
+                ->with([
+                    'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                    'media',
+                ])
+                ->get()
+                ->mapWithKeys(function (Product $product) use ($locale, $fallbackLocale, $preferWebp, $pricing, $viewer): array {
+                    $translation = $product->translations->firstWhere('locale', $locale)
+                        ?? $product->translations->firstWhere('locale', $fallbackLocale);
+
+                    if ($translation === null) {
+                        return [];
+                    }
+
+                    $mainMedia = $product->media->firstWhere('collection_name', 'product_main')
+                        ?? $product->media->firstWhere('collection_name', 'product_gallery')
+                        ?? $product->getFirstMedia('product_main')
+                        ?? $product->getFirstMedia('product_gallery');
+
+                    $price = $pricing->forProduct($product, $viewer);
+                    $imageUrl = MediaUrl::conversionOrNull($mainMedia, 'card_320w', $preferWebp)
+                        ?? MediaUrl::conversionOrNull($mainMedia, 'card_480w', $preferWebp)
+                        ?? ($mainMedia ? (string) $mainMedia->getUrl() : null);
+
+                    return [
+                        (int) $product->id => [
+                            'id' => (int) $product->id,
+                            'name' => (string) $translation->name,
+                            'slug' => (string) $translation->slug,
+                            'url' => route('products.show', ['slug' => $translation->slug]),
+                            'price' => number_format((float) ($price['current_gross'] ?? 0), 2).' €',
+                            'image_url' => $imageUrl,
+                        ],
+                    ];
+                });
+        }
+
         return view($this->frontendView($request, 'blog.show'), [
             'post' => $post,
             'related' => $related,
             'relatedProducts' => $relatedProducts,
+            'hotspotProducts' => $hotspotProducts,
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
         ]);

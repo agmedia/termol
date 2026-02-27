@@ -79,6 +79,19 @@
                                 @forelse ($collectionMedia as $media)
                                     @php
                                         $mediaMeta = (array) ($meta[$media->id] ?? []);
+                                        $hotspots = collect((array) ($mediaMeta['hotspots'] ?? []))
+                                            ->map(function ($row): array {
+                                                $row = is_array($row) ? $row : [];
+
+                                                return [
+                                                    'product_id' => (int) ($row['product_id'] ?? 0),
+                                                    'x' => max(0, min(100, (float) ($row['x'] ?? 50))),
+                                                    'y' => max(0, min(100, (float) ($row['y'] ?? 50))),
+                                                ];
+                                            })
+                                            ->filter(fn (array $row): bool => (int) ($row['product_id'] ?? 0) > 0)
+                                            ->values()
+                                            ->take(3);
                                         $focalX = (float) ($mediaMeta['focal_x'] ?? 50);
                                         $focalY = (float) ($mediaMeta['focal_y'] ?? 50);
                                         $cropEnabled = (bool) ($mediaMeta['crop_enabled'] ?? false);
@@ -92,7 +105,45 @@
                                     @endphp
                                     <tr wire:key="media-{{ $collectionName }}-{{ $media->id }}">
                                         <td class="px-3 py-3 align-top">
-                                            <img src="{{ $previewUrl }}" alt="" class="h-20 w-28 rounded-lg border border-slate-200 bg-slate-100 object-cover" />
+                                            @if (($isBlogPostMedia && $collectionName === 'blog_gallery') || ($isLinkableSliderBlock && $collectionName === 'block_slides'))
+                                                <div
+                                                    class="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
+                                                    style="width: 280px; max-width: 100%;"
+                                                    data-hotspot-preview-root
+                                                    data-media-id="{{ $media->id }}"
+                                                >
+                                                    <img
+                                                        src="{{ $previewUrl }}"
+                                                        alt=""
+                                                        class="block h-auto w-full cursor-crosshair object-cover"
+                                                        draggable="false"
+                                                        data-hotspot-preview-image
+                                                        data-media-id="{{ $media->id }}"
+                                                        data-active-index="0"
+                                                    />
+                                                    @for ($hotspotIndex = 0; $hotspotIndex < 3; $hotspotIndex++)
+                                                        @php
+                                                            $previewPin = $hotspots->get($hotspotIndex);
+                                                            $previewX = max(3, min(97, (float) ($previewPin['x'] ?? 50)));
+                                                            $previewY = max(3, min(97, (float) ($previewPin['y'] ?? 50)));
+                                                            $hasPreviewPin = (int) ($previewPin['product_id'] ?? 0) > 0;
+                                                        @endphp
+                                                        <button
+                                                            type="button"
+                                                            class="absolute z-10 inline-flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded-full border border-white bg-slate-900 text-[10px] font-semibold text-white shadow"
+                                                            style="left: {{ $previewX }}%; top: {{ $previewY }}%; display: {{ $hasPreviewPin ? 'inline-flex' : 'none' }};"
+                                                            data-hotspot-preview-pin
+                                                            data-media-id="{{ $media->id }}"
+                                                            data-pin-index="{{ $hotspotIndex }}"
+                                                            aria-label="Pin {{ $hotspotIndex + 1 }}"
+                                                        >
+                                                            {{ $hotspotIndex + 1 }}
+                                                        </button>
+                                                    @endfor
+                                                </div>
+                                            @else
+                                                <img src="{{ $previewUrl }}" alt="" class="h-20 w-28 rounded-lg border border-slate-200 bg-slate-100 object-cover" />
+                                            @endif
                                             <p class="mt-1 text-[11px] text-slate-500">{{ $media->file_name }}</p>
                                         </td>
                                         <td class="px-3 py-3 align-top">
@@ -113,6 +164,69 @@
                                                         <input type="text" wire:model.defer="meta.{{ $media->id }}.link_url" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" placeholder="{{ __('Link URL') }} ({{ $locale }})" />
                                                     @endif
                                                 </div>
+
+                                                @if ($supportsProductHotspots && (($isBlogPostMedia && $collectionName === 'blog_gallery') || ($isLinkableSliderBlock && $collectionName === 'block_slides')))
+                                                    <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                                        <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Product Pins (max 3)') }}</p>
+                                                        <p class="mt-1 text-[11px] text-slate-500">{{ __('Select pin slot, then click on image preview to set exact pin position.') }}</p>
+                                                        <div class="mt-2 space-y-2">
+                                                            @for ($hotspotIndex = 0; $hotspotIndex < 3; $hotspotIndex++)
+                                                                <div
+                                                                    class="grid items-center gap-2 md:grid-cols-[90px_minmax(0,1fr)_78px_78px]"
+                                                                    data-hotspot-row
+                                                                    data-media-id="{{ $media->id }}"
+                                                                    data-pin-index="{{ $hotspotIndex }}"
+                                                                >
+                                                                    <button
+                                                                        type="button"
+                                                                        class="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                                                                        data-hotspot-select
+                                                                        data-media-id="{{ $media->id }}"
+                                                                        data-pin-index="{{ $hotspotIndex }}"
+                                                                    >
+                                                                        {{ __('Pin') }} {{ $hotspotIndex + 1 }}
+                                                                    </button>
+                                                                    <select
+                                                                        wire:model.defer="meta.{{ $media->id }}.hotspots.{{ $hotspotIndex }}.product_id"
+                                                                        class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs"
+                                                                        data-hotspot-product
+                                                                        data-media-id="{{ $media->id }}"
+                                                                        data-pin-index="{{ $hotspotIndex }}"
+                                                                    >
+                                                                        <option value="">{{ __('No product') }}</option>
+                                                                        @foreach ($hotspotProductOptions as $option)
+                                                                            <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>
+                                                                        @endforeach
+                                                                    </select>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        max="100"
+                                                                        step="0.1"
+                                                                        wire:model.defer="meta.{{ $media->id }}.hotspots.{{ $hotspotIndex }}.x"
+                                                                        class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs"
+                                                                        placeholder="X %"
+                                                                        data-hotspot-x
+                                                                        data-media-id="{{ $media->id }}"
+                                                                        data-pin-index="{{ $hotspotIndex }}"
+                                                                    />
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        max="100"
+                                                                        step="0.1"
+                                                                        wire:model.defer="meta.{{ $media->id }}.hotspots.{{ $hotspotIndex }}.y"
+                                                                        class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs"
+                                                                        placeholder="Y %"
+                                                                        data-hotspot-y
+                                                                        data-media-id="{{ $media->id }}"
+                                                                        data-pin-index="{{ $hotspotIndex }}"
+                                                                    />
+                                                                </div>
+                                                            @endfor
+                                                        </div>
+                                                    </div>
+                                                @endif
                                             @endif
                                             <p class="mt-1 text-[11px] text-slate-500">
                                                 {{ number_format($media->size / 1024, 0) }} KB
@@ -184,3 +298,258 @@
         </div>
     @endif
 </div>
+
+@once
+    <script>
+        (function () {
+            if (window.__adminHotspotBindingsReady === true) {
+                return;
+            }
+            window.__adminHotspotBindingsReady = true;
+
+            const init = function () {
+            const activeByMedia = {};
+            let dragState = null;
+            const closestFromEvent = function (event, selector) {
+                const target = event.target;
+                if (!(target instanceof Element)) {
+                    return null;
+                }
+
+                return target.closest(selector);
+            };
+
+            const syncPreviewPin = function (mediaId, pinIndex) {
+                const pin = document.querySelector('[data-hotspot-preview-pin][data-media-id="' + mediaId + '"][data-pin-index="' + pinIndex + '"]');
+                const xInput = document.querySelector('[data-hotspot-x][data-media-id="' + mediaId + '"][data-pin-index="' + pinIndex + '"]');
+                const yInput = document.querySelector('[data-hotspot-y][data-media-id="' + mediaId + '"][data-pin-index="' + pinIndex + '"]');
+                const productSelect = document.querySelector('[data-hotspot-product][data-media-id="' + mediaId + '"][data-pin-index="' + pinIndex + '"]');
+                if (!pin || !xInput || !yInput || !productSelect) {
+                    return;
+                }
+
+                const hasProduct = Number(productSelect.value || 0) > 0;
+                if (!hasProduct) {
+                    pin.style.display = 'none';
+                    return;
+                }
+
+                const x = Math.max(3, Math.min(97, Number(xInput.value || 50)));
+                const y = Math.max(3, Math.min(97, Number(yInput.value || 50)));
+                pin.style.display = 'inline-flex';
+                pin.style.left = x + '%';
+                pin.style.top = y + '%';
+            };
+
+            const setActivePin = function (mediaId, pinIndex) {
+                activeByMedia[mediaId] = String(pinIndex);
+                document.querySelectorAll('[data-hotspot-row][data-media-id="' + mediaId + '"]').forEach(function (row) {
+                    const isActive = row.dataset.pinIndex === String(pinIndex);
+                    row.classList.toggle('ring-2', isActive);
+                    row.classList.toggle('ring-cyan-500', isActive);
+                    row.classList.toggle('rounded-lg', isActive);
+                });
+                document.querySelectorAll('[data-hotspot-preview-pin][data-media-id="' + mediaId + '"]').forEach(function (pin) {
+                    const isActive = pin.dataset.pinIndex === String(pinIndex);
+                    pin.classList.toggle('ring-2', isActive);
+                    pin.classList.toggle('ring-cyan-300', isActive);
+                });
+            };
+
+            const updatePinFromPoint = function (mediaId, pinIndex, clientX, clientY) {
+                const image = document.querySelector('[data-hotspot-preview-image][data-media-id="' + mediaId + '"]');
+                const xInput = document.querySelector('[data-hotspot-x][data-media-id="' + mediaId + '"][data-pin-index="' + pinIndex + '"]');
+                const yInput = document.querySelector('[data-hotspot-y][data-media-id="' + mediaId + '"][data-pin-index="' + pinIndex + '"]');
+                if (!image || !xInput || !yInput) {
+                    return;
+                }
+
+                const bounds = image.getBoundingClientRect();
+                if (bounds.width <= 0 || bounds.height <= 0) {
+                    return;
+                }
+
+                const x = Math.max(0, Math.min(100, ((clientX - bounds.left) / bounds.width) * 100));
+                const y = Math.max(0, Math.min(100, ((clientY - bounds.top) / bounds.height) * 100));
+
+                xInput.value = x.toFixed(2);
+                yInput.value = y.toFixed(2);
+                xInput.dispatchEvent(new Event('input', { bubbles: true }));
+                yInput.dispatchEvent(new Event('input', { bubbles: true }));
+                syncPreviewPin(mediaId, pinIndex);
+            };
+
+            const initRows = function () {
+                document.querySelectorAll('[data-hotspot-preview-root]').forEach(function (root) {
+                    const mediaId = root.dataset.mediaId;
+                    if (!mediaId) {
+                        return;
+                    }
+
+                    if (typeof activeByMedia[mediaId] === 'undefined') {
+                        setActivePin(mediaId, '0');
+                    } else {
+                        setActivePin(mediaId, activeByMedia[mediaId]);
+                    }
+
+                    ['0', '1', '2'].forEach(function (pinIndex) {
+                        syncPreviewPin(mediaId, pinIndex);
+                    });
+                });
+            };
+
+            const bindDragHandlers = function () {
+                document.querySelectorAll('[data-hotspot-preview-root]').forEach(function (root) {
+                    if (root.dataset.dragBound === '1') {
+                        return;
+                    }
+                    root.dataset.dragBound = '1';
+
+                    root.addEventListener('pointerdown', function (event) {
+                        const targetPin = closestFromEvent(event, '[data-hotspot-preview-pin]');
+                        const targetImage = closestFromEvent(event, '[data-hotspot-preview-image]');
+                        if (!targetPin && !targetImage) {
+                            return;
+                        }
+
+                        if ((event.button ?? 0) !== 0) {
+                            return;
+                        }
+
+                        const mediaId = (targetPin?.dataset.mediaId || targetImage?.dataset.mediaId || root.dataset.mediaId || '');
+                        const pinIndex = targetPin?.dataset.pinIndex || String(activeByMedia[mediaId] ?? '0');
+                        startDrag(mediaId, pinIndex, event.clientX, event.clientY, event.pointerId);
+                        try {
+                            root.setPointerCapture(event.pointerId);
+                        } catch (_e) {
+                        }
+                        event.preventDefault();
+                    });
+
+                    root.addEventListener('pointermove', function (event) {
+                        if (!dragState) {
+                            return;
+                        }
+                        if (dragState.pointerId !== null && event.pointerId !== dragState.pointerId) {
+                            return;
+                        }
+                        updatePinFromPoint(dragState.mediaId, dragState.pinIndex, event.clientX, event.clientY);
+                    });
+
+                    const finishPointer = function (event) {
+                        if (!dragState) {
+                            return;
+                        }
+                        if (dragState.pointerId !== null && event.pointerId !== dragState.pointerId) {
+                            return;
+                        }
+                        finishDrag(dragState);
+                    };
+
+                    root.addEventListener('pointerup', finishPointer);
+                    root.addEventListener('pointercancel', finishPointer);
+                    root.addEventListener('lostpointercapture', finishPointer);
+                });
+            };
+
+            document.addEventListener('click', function (event) {
+                const selectButton = closestFromEvent(event, '[data-hotspot-select]');
+                if (selectButton) {
+                    setActivePin(selectButton.dataset.mediaId || '', selectButton.dataset.pinIndex || '0');
+                    return;
+                }
+
+                const previewPin = closestFromEvent(event, '[data-hotspot-preview-pin]');
+                if (previewPin) {
+                    setActivePin(previewPin.dataset.mediaId || '', previewPin.dataset.pinIndex || '0');
+                    return;
+                }
+
+                const previewImage = closestFromEvent(event, '[data-hotspot-preview-image]');
+                if (previewImage) {
+                    const mediaId = previewImage.dataset.mediaId || '';
+                    const pinIndex = String(activeByMedia[mediaId] ?? '0');
+                    updatePinFromPoint(mediaId, pinIndex, event.clientX, event.clientY);
+                }
+            });
+
+            document.addEventListener('input', function (event) {
+                const target = event.target;
+                if (!(target instanceof HTMLElement)) {
+                    return;
+                }
+
+                if (target.matches('[data-hotspot-x],[data-hotspot-y],[data-hotspot-product]')) {
+                    syncPreviewPin(target.dataset.mediaId || '', target.dataset.pinIndex || '0');
+                }
+            });
+
+            document.addEventListener('change', function (event) {
+                const target = event.target;
+                if (!(target instanceof HTMLElement)) {
+                    return;
+                }
+
+                if (target.matches('[data-hotspot-x],[data-hotspot-y],[data-hotspot-product]')) {
+                    syncPreviewPin(target.dataset.mediaId || '', target.dataset.pinIndex || '0');
+                }
+            });
+
+            const finishDrag = function (state) {
+                const current = state || dragState;
+                if (!current) {
+                    return;
+                }
+
+                const xInput = document.querySelector('[data-hotspot-x][data-media-id="' + current.mediaId + '"][data-pin-index="' + current.pinIndex + '"]');
+                const yInput = document.querySelector('[data-hotspot-y][data-media-id="' + current.mediaId + '"][data-pin-index="' + current.pinIndex + '"]');
+                if (xInput) {
+                    xInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                if (yInput) {
+                    yInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                const pin = document.querySelector('[data-hotspot-preview-pin][data-media-id="' + current.mediaId + '"][data-pin-index="' + current.pinIndex + '"]');
+                if (pin) {
+                    pin.style.cursor = '';
+                }
+
+                dragState = null;
+            };
+
+            const startDrag = function (mediaId, pinIndex, clientX, clientY, pointerId) {
+                setActivePin(mediaId, pinIndex);
+                dragState = { mediaId: mediaId, pinIndex: pinIndex, pointerId: pointerId ?? null };
+                const pin = document.querySelector('[data-hotspot-preview-pin][data-media-id="' + mediaId + '"][data-pin-index="' + pinIndex + '"]');
+                if (pin) {
+                    pin.style.cursor = 'grabbing';
+                }
+                updatePinFromPoint(mediaId, pinIndex, clientX, clientY);
+            };
+
+            document.addEventListener('dragstart', function (event) {
+                const pin = closestFromEvent(event, '[data-hotspot-preview-pin]');
+                const image = closestFromEvent(event, '[data-hotspot-preview-image]');
+                if (pin || image) {
+                    event.preventDefault();
+                }
+            });
+
+            initRows();
+            bindDragHandlers();
+            const observer = new MutationObserver(function () {
+                initRows();
+                bindDragHandlers();
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            };
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init, { once: true });
+            } else {
+                init();
+            }
+        })();
+    </script>
+@endonce

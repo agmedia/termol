@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Admin\Media;
 
+use App\Models\Catalog\Product\Product;
+use App\Models\Content\Blog\BlogPost;
 use App\Support\Media\MediaProfileRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
@@ -36,6 +38,7 @@ class Manager extends Component
      *     cta_1_url: string,
      *     cta_2_label: string,
      *     cta_2_url: string,
+     *     hotspots: array<int, array{product_id:int|string|null,x:float|int|string,y:float|int|string}>,
      *     focal_x: float|int,
      *     focal_y: float|int,
      *     crop_enabled: bool,
@@ -190,6 +193,7 @@ class Manager extends Component
         $cta1Url = trim((string) ($meta['cta_1_url'] ?? ''));
         $cta2Label = trim((string) ($meta['cta_2_label'] ?? ''));
         $cta2Url = trim((string) ($meta['cta_2_url'] ?? ''));
+        $hotspots = is_array($meta['hotspots'] ?? null) ? $meta['hotspots'] : [];
 
         $custom = (array) ($media->custom_properties ?? []);
         $locale = trim($this->locale) !== '' ? $this->locale : (string) config('app.locale', 'en');
@@ -242,6 +246,39 @@ class Manager extends Component
             Arr::forget($custom, "cta_2_url.$locale");
         } else {
             data_set($custom, "cta_2_url.$locale", $cta2Url);
+        }
+
+        $normalizedHotspots = collect($hotspots)
+            ->map(function (mixed $row): array {
+                $row = is_array($row) ? $row : [];
+
+                return [
+                    'product_id' => (int) ($row['product_id'] ?? 0),
+                    'x' => $this->normalizePercent($row['x'] ?? 50, 50),
+                    'y' => $this->normalizePercent($row['y'] ?? 50, 50),
+                ];
+            })
+            ->filter(fn (array $row): bool => (int) ($row['product_id'] ?? 0) > 0)
+            ->values()
+            ->take(3);
+
+        if ($normalizedHotspots->isNotEmpty()) {
+            $validIds = Product::query()
+                ->whereIn('id', $normalizedHotspots->pluck('product_id')->all())
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $normalizedHotspots = $normalizedHotspots
+                ->filter(fn (array $row): bool => in_array((int) $row['product_id'], $validIds, true))
+                ->values()
+                ->take(3);
+        }
+
+        if ($normalizedHotspots->isEmpty()) {
+            Arr::forget($custom, 'product_hotspots');
+        } else {
+            data_set($custom, 'product_hotspots', $normalizedHotspots->all());
         }
 
         $media->name = $name !== '' ? $name : $media->name;
@@ -346,6 +383,8 @@ class Manager extends Component
         $blockType = $isContentBlock ? (string) ($record->type ?? '') : '';
         $isDualImageCtaBlock = $blockType === 'dual_image_cta';
         $isLinkableSliderBlock = in_array($blockType, ['full_width_image_slider', 'desktopfullwidthimageslider'], true);
+        $isBlogPostMedia = $record instanceof BlogPost;
+        $supportsProductHotspots = $isBlogPostMedia || $isLinkableSliderBlock;
 
         return view('livewire.admin.media.manager', [
             'collections' => $this->collections,
@@ -354,7 +393,73 @@ class Manager extends Component
             'recordExists' => (bool) $this->record,
             'isDualImageCtaBlock' => $isDualImageCtaBlock,
             'isLinkableSliderBlock' => $isLinkableSliderBlock,
+            'isBlogPostMedia' => $isBlogPostMedia,
+            'supportsProductHotspots' => $supportsProductHotspots,
+            'hotspotProductOptions' => $supportsProductHotspots ? $this->hotspotProductOptions : collect(),
         ]);
+    }
+
+    public function getHotspotProductOptionsProperty(): Collection
+    {
+        $locale = trim($this->locale) !== '' ? $this->locale : (string) config('app.locale', 'en');
+        $fallbackLocale = (string) config('app.locale', 'en');
+        $record = $this->record;
+
+        $pinnedIds = collect();
+        if ($record) {
+            $pinnedIds = $record->media()
+                ->get()
+                ->flatMap(function (Media $media): array {
+                    return collect((array) data_get($media->custom_properties, 'product_hotspots', []))
+                        ->pluck('product_id')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+                })
+                ->filter()
+                ->unique()
+                ->values();
+        }
+
+        $recentIds = Product::query()
+            ->where('is_active', true)
+            ->orderByDesc('id')
+            ->limit(400)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id);
+
+        $optionIds = $recentIds
+            ->concat($pinnedIds)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return Product::query()
+            ->select(['id', 'code', 'sku'])
+            ->where('is_active', true)
+            ->when($optionIds !== [], fn ($q) => $q->whereIn('id', $optionIds))
+            ->with([
+                'translations' => fn ($q) => $q
+                    ->whereIn('locale', [$locale, $fallbackLocale])
+                    ->select(['product_id', 'locale', 'name']),
+            ])
+            ->orderByDesc('id')
+            ->limit(max(400, count($optionIds)))
+            ->get()
+            ->map(function (Product $product) use ($locale, $fallbackLocale): array {
+                $translation = $product->translations->firstWhere('locale', $locale)
+                    ?? $product->translations->firstWhere('locale', $fallbackLocale);
+
+                $name = trim((string) ($translation?->name ?? $product->code));
+                $sku = trim((string) ($product->sku ?? ''));
+                $code = trim((string) ($product->code ?? ''));
+                $suffix = trim(($sku !== '' ? '/ '.$sku.' ' : '').($code !== '' ? '('.$code.')' : ''));
+
+                return [
+                    'id' => (int) $product->id,
+                    'label' => trim($name.' '.$suffix),
+                ];
+            });
     }
 
     public function getRecordProperty(): ?Model
@@ -387,6 +492,20 @@ class Manager extends Component
                 $edit = (array) data_get($custom, 'image_edit', []);
                 $focal = (array) ($edit['focal_point'] ?? []);
                 $crop = (array) ($edit['crop_box'] ?? []);
+                $hotspots = collect((array) data_get($custom, 'product_hotspots', []))
+                    ->map(function (mixed $row): array {
+                        $row = is_array($row) ? $row : [];
+
+                        return [
+                            'product_id' => (int) ($row['product_id'] ?? 0),
+                            'x' => $this->normalizePercent($row['x'] ?? 50, 50),
+                            'y' => $this->normalizePercent($row['y'] ?? 50, 50),
+                        ];
+                    })
+                    ->filter(fn (array $row): bool => (int) ($row['product_id'] ?? 0) > 0)
+                    ->values()
+                    ->take(3)
+                    ->all();
 
                 $this->meta[$media->id] = [
                     'name' => (string) $media->name,
@@ -401,6 +520,7 @@ class Manager extends Component
                     'cta_1_url' => (string) data_get($custom, "cta_1_url.$locale", ''),
                     'cta_2_label' => (string) data_get($custom, "cta_2_label.$locale", ''),
                     'cta_2_url' => (string) data_get($custom, "cta_2_url.$locale", ''),
+                    'hotspots' => $hotspots,
                     'focal_x' => $this->normalizePercent($focal['x'] ?? 50, 50),
                     'focal_y' => $this->normalizePercent($focal['y'] ?? 50, 50),
                     'crop_enabled' => (bool) ($crop['enabled'] ?? false),
