@@ -57,6 +57,37 @@
         ->values();
 
     $optionRows = $product->optionValues->where('is_active', true)->values();
+    $hasLinkedOptions = $optionRows->contains(fn ($row) => (int) ($row->parent_option_value_id ?? 0) > 0);
+    $primaryOptionLabel = __('ui.cart.modal.option');
+    $secondaryOptionLabel = __('ui.cart.modal.option');
+    $linkedPrimaryValues = collect();
+    if ($hasLinkedOptions) {
+        $firstLinkedRow = $optionRows->first(fn ($row) => (int) ($row->parent_option_value_id ?? 0) > 0);
+        $parentOptionTranslation = $firstLinkedRow?->parentOptionValue?->option?->translations?->firstWhere('locale', $locale)
+            ?? $firstLinkedRow?->parentOptionValue?->option?->translations?->firstWhere('locale', $fallbackLocale)
+            ?? $firstLinkedRow?->parentOptionValue?->option?->translations?->first();
+        $childOptionTranslation = $firstLinkedRow?->optionValue?->option?->translations?->firstWhere('locale', $locale)
+            ?? $firstLinkedRow?->optionValue?->option?->translations?->firstWhere('locale', $fallbackLocale)
+            ?? $firstLinkedRow?->optionValue?->option?->translations?->first();
+        $primaryOptionLabel = trim((string) ($parentOptionTranslation?->name ?? '')) ?: __('ui.cart.modal.option');
+        $secondaryOptionLabel = trim((string) ($childOptionTranslation?->name ?? '')) ?: __('ui.cart.modal.option');
+
+        $linkedPrimaryValues = $optionRows
+            ->filter(fn ($row) => (int) ($row->parent_option_value_id ?? 0) > 0)
+            ->map(function ($row) use ($locale, $fallbackLocale): array {
+                $translation = $row->parentOptionValue?->translations?->firstWhere('locale', $locale)
+                    ?? $row->parentOptionValue?->translations?->firstWhere('locale', $fallbackLocale)
+                    ?? $row->parentOptionValue?->translations?->first();
+                $label = trim((string) ($translation?->name ?? $row->parentOptionValue?->code ?? ''));
+
+                return [
+                    'id' => (int) ($row->parent_option_value_id ?? 0),
+                    'label' => $label,
+                ];
+            })
+            ->unique('id')
+            ->values();
+    }
 
     $firstCategory = $product->categories->first();
     $firstCategoryTranslation = $firstCategory?->translations?->firstWhere('locale', $locale)
@@ -447,6 +478,8 @@
                 data-modal-go-cart="{{ __('ui.cart.modal.go_to_cart') }}"
                 data-modal-option="{{ __('ui.cart.modal.option') }}"
                 data-modal-quantity="{{ __('ui.cart.modal.quantity') }}"
+                data-option-error-required="{{ __('ui.cart.errors.select_size') }}"
+                data-option-error-unavailable="{{ __('ui.cart.status.unavailable') }}"
             >
                 @csrf
                 <input type="hidden" name="product_id" value="{{ $product->id }}">
@@ -454,7 +487,7 @@
                 @if ($optionRows->isNotEmpty())
                     <div>
                         <div class="mb-4 flex flex-col items-start gap-2 sm:mb-3 sm:flex-row sm:items-center sm:justify-between">
-                            <label class="text-xs font-semibold uppercase tracking-wide text-slate-900">{{ __('ui.product.select_size') }} <span class="text-rose-600">*</span></label>
+                            <label class="text-xs font-semibold uppercase tracking-wide text-slate-900">{{ $hasLinkedOptions ? __('ui.product.select_options') : __('ui.product.select_size') }} <span class="text-rose-600">*</span></label>
                             <div class="flex w-full flex-wrap items-center gap-x-3 gap-y-1 sm:w-auto sm:justify-end">
                                 @if ($fitFinderEnabled && $optionRows->count() > 1)
                                     @if ($fitFinderSavedSize !== '')
@@ -475,23 +508,52 @@
                                 @endif
                             </div>
                         </div>
-                        <div class="flex flex-wrap gap-2">
-                            @foreach ($optionRows as $row)
-                                @php
-                                    $valueTranslation = $row->optionValue?->translations?->firstWhere('locale', $locale)
-                                        ?? $row->optionValue?->translations?->firstWhere('locale', $fallbackLocale)
-                                        ?? $row->optionValue?->translations?->first();
-                                    $label = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
-                                    $inputId = 'product-detail-pov-'.$product->id.'-'.$row->id;
-                                @endphp
-                                <span class="inline-flex">
-                                    <input id="{{ $inputId }}" type="radio" name="product_option_value_id" value="{{ $row->id }}" class="sr-only product-size-radio" data-size-label="{{ $label }}">
-                                    <label for="{{ $inputId }}" class="product-size-label inline-flex h-10 min-w-10 cursor-pointer items-center justify-center border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:bg-slate-100">
-                                        <span>{{ $label }}</span>
-                                    </label>
-                                </span>
-                            @endforeach
-                        </div>
+                        @if ($hasLinkedOptions)
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $primaryOptionLabel }}</label>
+                                    <select class="h-10 w-full border border-slate-300 bg-white px-3 text-sm text-slate-700" data-linked-option-primary>
+                                        <option value="">{{ __('ui.shop.filters.select_option') }}</option>
+                                        @foreach ($linkedPrimaryValues as $primaryValue)
+                                            <option value="{{ $primaryValue['id'] }}">{{ $primaryValue['label'] }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $secondaryOptionLabel }}</label>
+                                    <select name="product_option_value_id" class="h-10 w-full border border-slate-300 bg-white px-3 text-sm text-slate-700" data-linked-option-secondary disabled>
+                                        <option value="">{{ __('ui.shop.filters.select_option') }}</option>
+                                        @foreach ($optionRows as $row)
+                                            @php
+                                                $valueTranslation = $row->optionValue?->translations?->firstWhere('locale', $locale)
+                                                    ?? $row->optionValue?->translations?->firstWhere('locale', $fallbackLocale)
+                                                    ?? $row->optionValue?->translations?->first();
+                                                $secondaryLabel = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
+                                            @endphp
+                                            <option value="{{ $row->id }}" data-parent-id="{{ (int) ($row->parent_option_value_id ?? 0) }}">{{ $secondaryLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                        @else
+                            <div class="flex flex-wrap gap-2">
+                                @foreach ($optionRows as $row)
+                                    @php
+                                        $valueTranslation = $row->optionValue?->translations?->firstWhere('locale', $locale)
+                                            ?? $row->optionValue?->translations?->firstWhere('locale', $fallbackLocale)
+                                            ?? $row->optionValue?->translations?->first();
+                                        $label = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
+                                        $inputId = 'product-detail-pov-'.$product->id.'-'.$row->id;
+                                    @endphp
+                                    <span class="inline-flex">
+                                        <input id="{{ $inputId }}" type="radio" name="product_option_value_id" value="{{ $row->id }}" class="sr-only product-size-radio" data-size-label="{{ $label }}">
+                                        <label for="{{ $inputId }}" class="product-size-label inline-flex h-10 min-w-10 cursor-pointer items-center justify-center border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:bg-slate-100">
+                                            <span>{{ $label }}</span>
+                                        </label>
+                                    </span>
+                                @endforeach
+                            </div>
+                        @endif
                         <p class="hidden mt-2 text-xs font-semibold text-rose-600" data-option-error>
                             {{ __('ui.cart.errors.select_size') }}
                         </p>
@@ -968,9 +1030,9 @@
             }
 
             const sizeInputs = Array.from(form.querySelectorAll('input[name="product_option_value_id"][data-size-label]'));
-            if (sizeInputs.length < 2) {
-                return;
-            }
+            const linkedPrimarySelect = form.querySelector('[data-linked-option-primary]');
+            const linkedSecondarySelect = form.querySelector('[data-linked-option-secondary]');
+            const hasLinkedSelectors = !!(linkedPrimarySelect && linkedSecondarySelect);
 
             const closeButtons = fitModal.querySelectorAll('[data-fit-finder-close]');
             const helpToggleButton = fitModal.querySelector('[data-fit-finder-help-toggle]');
@@ -1045,12 +1107,41 @@
                 '5XL': 10,
             };
 
-            const sizeOptions = sizeInputs.map(function (input, index) {
-                const label = String(input.dataset.sizeLabel || '').trim();
-                const key = label.toUpperCase();
-                const rank = Object.prototype.hasOwnProperty.call(sizeRankMap, key) ? sizeRankMap[key] : (index + 3);
-                return { input, label, rank };
-            });
+            const sizeOptions = (function () {
+                if (sizeInputs.length >= 2) {
+                    return sizeInputs.map(function (input, index) {
+                        const label = String(input.dataset.sizeLabel || '').trim();
+                        const key = label.toUpperCase();
+                        const rank = Object.prototype.hasOwnProperty.call(sizeRankMap, key) ? sizeRankMap[key] : (index + 3);
+                        return { input, label, rank };
+                    });
+                }
+
+                if (hasLinkedSelectors) {
+                    return Array.from(linkedPrimarySelect.options)
+                        .filter(function (option) {
+                            return String(option.value || '').trim() !== '';
+                        })
+                        .map(function (option, index) {
+                            const label = String(option.textContent || '').trim();
+                            const key = label.toUpperCase();
+                            const rank = Object.prototype.hasOwnProperty.call(sizeRankMap, key) ? sizeRankMap[key] : (index + 3);
+                            return {
+                                input: {
+                                    __linked: true,
+                                    parentId: String(option.value || '').trim(),
+                                },
+                                label,
+                                rank,
+                            };
+                        });
+                }
+
+                return [];
+            })();
+            if (sizeOptions.length < 2) {
+                return;
+            }
             const currentSizeSignature = sizeOptions
                 .map(function (option) {
                     return String(option.label || '').trim().toUpperCase();
@@ -1298,6 +1389,35 @@
                 };
             };
 
+            const applyRecommendedInput = function (inputRef) {
+                if (!inputRef) {
+                    return false;
+                }
+
+                if (inputRef.__linked) {
+                    if (!hasLinkedSelectors) {
+                        return false;
+                    }
+
+                    const parentId = String(inputRef.parentId || '').trim();
+                    if (parentId === '') {
+                        return false;
+                    }
+
+                    linkedPrimarySelect.value = parentId;
+                    linkedPrimarySelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    return true;
+                }
+
+                if (inputRef.checked) {
+                    return true;
+                }
+
+                inputRef.checked = true;
+                inputRef.dispatchEvent(new Event('change', { bubbles: true }));
+                return true;
+            };
+
             const renderResults = function () {
                 calculateRecommendation();
                 if (!state.recommendation) {
@@ -1320,12 +1440,7 @@
                 applyButton.textContent = textCtaTemplate.replace('__SIZE__', state.recommendation.primary.label);
 
                 if (state.recommendation.primary.input) {
-                    const selectedSize = state.recommendation.primary.input;
-                    if (!selectedSize.checked) {
-                        selectedSize.checked = true;
-                        selectedSize.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-
+                    applyRecommendedInput(state.recommendation.primary.input);
                     const recommendedLabel = String(state.recommendation.primary.label || '').trim();
                     if (recommendedLabel !== '') {
                         state.savedSizeSignature = currentSizeSignature;
@@ -1469,16 +1584,21 @@
                     return;
                 }
 
-                state.recommendation.primary.input.checked = true;
-                state.recommendation.primary.input.dispatchEvent(new Event('change', { bubbles: true }));
+                applyRecommendedInput(state.recommendation.primary.input);
                 state.savedSizeSignature = currentSizeSignature;
                 state.savedSizeLabel = String(state.recommendation.primary.label || '').trim().toUpperCase();
                 persistFitPreference(state.recommendation.primary.label);
                 closeModal();
 
-                const submitButton = form.querySelector('button[type="submit"]:not([form])');
-                if (submitButton) {
-                    form.requestSubmit(submitButton);
+                const selectedOptionSelect = form.querySelector('select[name="product_option_value_id"]');
+                const hasSelectedForSubmit = selectedOptionSelect
+                    ? (!selectedOptionSelect.disabled && String(selectedOptionSelect.value || '').trim() !== '')
+                    : !!form.querySelector('input[name="product_option_value_id"]:checked');
+                if (hasSelectedForSubmit) {
+                    const submitButton = form.querySelector('button[type="submit"]:not([form])');
+                    if (submitButton) {
+                        form.requestSubmit(submitButton);
+                    }
                 }
             });
 
@@ -1531,13 +1651,12 @@
 
             if (initialSizeLabel !== '') {
                 const signatureMatches = initialSizeSignature !== '' && initialSizeSignature === currentSizeSignature;
-                const savedSizeInput = signatureMatches ? sizeInputs.find(function (sizeInput) {
-                    return String(sizeInput.dataset.sizeLabel || '').trim().toUpperCase() === initialSizeLabel;
+                const savedSizeInput = signatureMatches ? sizeOptions.find(function (sizeOption) {
+                    return String(sizeOption.label || '').trim().toUpperCase() === initialSizeLabel;
                 }) : null;
 
                 if (savedSizeInput) {
-                    savedSizeInput.checked = true;
-                    savedSizeInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    applyRecommendedInput(savedSizeInput.input);
                     state.savedSizeSignature = currentSizeSignature;
                     state.savedSizeLabel = initialSizeLabel;
                     updateFitFinderOpenButtons(initialSizeLabel);

@@ -25,11 +25,14 @@
         <div class="flex flex-wrap items-end justify-between gap-3">
             <div class="w-full max-w-3xl">
                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Assigned Option Groups') }}</label>
-                <select wire:model="selectedOptionIds" multiple size="8" class="admin-multiselect w-full rounded-xl border border-slate-300 text-sm">
+                <div class="max-h-64 space-y-1 overflow-auto rounded-xl border border-slate-300 bg-white p-2">
                     @foreach ($availableOptions as $option)
-                        <option value="{{ $option['id'] }}">{{ $option['label'] }} ({{ $option['values_count'] }} values)</option>
+                        <label class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                            <input type="checkbox" value="{{ $option['id'] }}" wire:model="selectedOptionIds" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500">
+                            <span>{{ $option['label'] }} ({{ $option['values_count'] }} values)</span>
+                        </label>
                     @endforeach
-                </select>
+                </div>
                 @error('selectedOptionIds.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 <p class="mt-2 text-xs text-slate-500">{{ __('Order controls primary/secondary defaults in linked mode. Save groups before editing rows.') }}</p>
             </div>

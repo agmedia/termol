@@ -14,10 +14,12 @@
         $paginationMode = (string) ($storeSettings['product']['catalog_pagination_mode'] ?? 'pagination');
         $useAsyncPagination = in_array($paginationMode, ['load_more', 'infinite'], true);
         $isInfinitePagination = $paginationMode === 'infinite';
+        $desktopFilterSelectCount = 1 + ($showManufacturers ? 1 : 0) + count($optionFilters ?? []) + count($attributeFilters ?? []) + 1;
         $hasActiveFilters = trim((string) ($filters['q'] ?? '')) !== ''
             || trim((string) ($filters['category'] ?? '')) !== ''
             || trim((string) ($filters['manufacturer'] ?? '')) !== ''
-            || trim((string) ($filters['size'] ?? '')) !== ''
+            || collect(array_keys(request()->query()))
+                ->contains(fn ($key): bool => str_starts_with((string) $key, 'opt_') || str_starts_with((string) $key, 'attr_'))
             || (string) ($filters['sort'] ?? 'newest') !== 'newest';
         $gridClass = match ($currentCols) {
             1 => 'grid grid-cols-1 gap-y-5',
@@ -212,7 +214,7 @@
                 @if ($showManufacturers)
                     <div>
                         <label for="shop-manufacturer-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.manufacturer') }}</label>
-                        <select id="shop-manufacturer-mobile" name="manufacturer" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
+                        <select id="shop-manufacturer-mobile" name="manufacturer" class="h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
                             <option value="">{{ __('ui.shop.filters.all_manufacturers') }}</option>
                             @foreach ($manufacturers as $manufacturer)
                                 @php
@@ -226,24 +228,35 @@
                         </select>
                     </div>
                 @endif
-                <div>
-                    <label for="shop-size-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.size') }}</label>
-                    <select id="shop-size-mobile" name="size" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
-                        <option value="">{{ __('ui.shop.filters.all_sizes') }}</option>
-                        @foreach ($sizes as $size)
-                            @php
-                                $sizeTranslation = $size->translations->firstWhere('locale', $locale)
-                                    ?? $size->translations->firstWhere('locale', $fallbackLocale);
-                            @endphp
-                            <option value="{{ $size->id }}" @selected((string) $filters['size'] === (string) $size->id)>
-                                {{ $sizeTranslation?->name ?? $size->code }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
+                @foreach (($optionFilters ?? []) as $filterOption)
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $filterOption['label'] }}</label>
+                        <select name="{{ $filterOption['query_key'] }}" class="h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
+                            <option value="">{{ __('ui.shop.filters.select_option') }}</option>
+                            @foreach (($filterOption['values'] ?? []) as $value)
+                                <option value="{{ $value['id'] }}" @selected((string) ($filterOption['selected'] ?? '') === (string) $value['id'])>
+                                    {{ $value['label'] }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endforeach
+                @foreach (($attributeFilters ?? []) as $attributeFilter)
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $attributeFilter['label'] }}</label>
+                        <select name="{{ $attributeFilter['query_key'] }}" class="h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
+                            <option value="">{{ __('ui.shop.filters.select_option') }}</option>
+                            @foreach (($attributeFilter['values'] ?? []) as $value)
+                                <option value="{{ $value['id'] }}" @selected((string) ($attributeFilter['selected'] ?? '') === (string) $value['id'])>
+                                    {{ $value['label'] }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endforeach
                 <div>
                     <label for="shop-sort-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.sort') }}</label>
-                    <select id="shop-sort-mobile" name="sort" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
+                    <select id="shop-sort-mobile" name="sort" class="h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
                         <option value="newest" @selected($filters['sort'] === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
                         <option value="oldest" @selected($filters['sort'] === 'oldest')>{{ __('ui.shop.filters.oldest') }}</option>
                         <option value="price_low" @selected($filters['sort'] === 'price_low')>{{ __('ui.shop.filters.price_low') }}</option>
@@ -254,7 +267,7 @@
                 <input type="hidden" name="cols" value="{{ $mobileCols }}">
                 @if ($hasActiveFilters)
                     <div class="flex items-end justify-end">
-                        <a href="{{ route('shop.index') }}" class="inline-flex h-[42px] items-center justify-center gap-2 border border-rose-600 px-4 text-sm font-semibold text-rose-600 hover:bg-rose-50">
+                        <a href="{{ route('shop.index') }}" class="inline-flex h-[42px] items-center justify-center gap-2 whitespace-nowrap border border-rose-600 px-4 text-sm font-semibold text-rose-600 hover:bg-rose-50">
                             <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
                                 <path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5"></path>
                             </svg>
@@ -265,7 +278,7 @@
             </form>
         </div>
 
-        <form method="GET" action="{{ route('shop.index') }}" class="hidden gap-3 min-[1025px]:grid {{ $showManufacturers ? 'min-[1025px]:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]' : 'min-[1025px]:grid-cols-[1fr_1fr_1fr_auto_auto]' }}" data-desktop-filter-form>
+        <form method="GET" action="{{ route('shop.index') }}" class="hidden gap-3 min-[1025px]:grid" style="grid-template-columns: repeat({{ max(1, $desktopFilterSelectCount) }}, minmax(0, 1fr)) auto auto;" data-desktop-filter-form>
             <input type="hidden" name="q" value="{{ $filters['q'] }}">
             <div>
                 <label for="shop-category" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.category') }}</label>
@@ -290,7 +303,7 @@
             @if ($showManufacturers)
                 <div>
                     <label for="shop-manufacturer" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.manufacturer') }}</label>
-                    <select id="shop-manufacturer" name="manufacturer" class="catalog-filter-select h-[42px] w-full rounded-none border-slate-300 text-sm">
+                    <select id="shop-manufacturer" name="manufacturer" class="catalog-filter-select h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
                         <option value="">{{ __('ui.shop.filters.all_manufacturers') }}</option>
                         @foreach ($manufacturers as $manufacturer)
                             @php
@@ -304,24 +317,35 @@
                     </select>
                 </div>
             @endif
-            <div>
-                <label for="shop-size" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.size') }}</label>
-                <select id="shop-size" name="size" class="catalog-filter-select h-[42px] w-full rounded-none border-slate-300 text-sm">
-                    <option value="">{{ __('ui.shop.filters.all_sizes') }}</option>
-                    @foreach ($sizes as $size)
-                        @php
-                            $sizeTranslation = $size->translations->firstWhere('locale', $locale)
-                                ?? $size->translations->firstWhere('locale', $fallbackLocale);
-                        @endphp
-                        <option value="{{ $size->id }}" @selected((string) $filters['size'] === (string) $size->id)>
-                            {{ $sizeTranslation?->name ?? $size->code }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+            @foreach (($optionFilters ?? []) as $filterOption)
+                <div>
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $filterOption['label'] }}</label>
+                    <select name="{{ $filterOption['query_key'] }}" class="catalog-filter-select h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
+                        <option value="">{{ __('ui.shop.filters.select_option') }}</option>
+                        @foreach (($filterOption['values'] ?? []) as $value)
+                            <option value="{{ $value['id'] }}" @selected((string) ($filterOption['selected'] ?? '') === (string) $value['id'])>
+                                {{ $value['label'] }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            @endforeach
+            @foreach (($attributeFilters ?? []) as $attributeFilter)
+                <div>
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $attributeFilter['label'] }}</label>
+                    <select name="{{ $attributeFilter['query_key'] }}" class="catalog-filter-select h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
+                        <option value="">{{ __('ui.shop.filters.select_option') }}</option>
+                        @foreach (($attributeFilter['values'] ?? []) as $value)
+                            <option value="{{ $value['id'] }}" @selected((string) ($attributeFilter['selected'] ?? '') === (string) $value['id'])>
+                                {{ $value['label'] }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            @endforeach
             <div>
                 <label for="shop-sort" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.sort') }}</label>
-                <select id="shop-sort" name="sort" class="catalog-filter-select h-[42px] w-full rounded-none border-slate-300 text-sm">
+                <select id="shop-sort" name="sort" class="catalog-filter-select h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
                     <option value="newest" @selected($filters['sort'] === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
                     <option value="oldest" @selected($filters['sort'] === 'oldest')>{{ __('ui.shop.filters.oldest') }}</option>
                     <option value="price_low" @selected($filters['sort'] === 'price_low')>{{ __('ui.shop.filters.price_low') }}</option>
@@ -334,7 +358,6 @@
                 <div class="flex h-[42px]">
                     @foreach ([3, 4, 5] as $cols)
                         <a
-                            href="{{ route('shop.index', array_merge(request()->query(), ['cols' => $cols])) }}"
                             class="{{ $cols === 5 ? 'hidden 2xl:inline-flex' : 'inline-flex' }} h-full w-11 items-center justify-center border border-slate-300 {{ (int) ($filters['cols'] ?? 4) === $cols ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-100' }}"
                             aria-label="{{ __('ui.shop.filters.grid') }} {{ $cols }}"
                         >
@@ -350,7 +373,7 @@
             <div class="flex items-end gap-2">
                 <input type="hidden" name="cols" value="{{ (int) ($filters['cols'] ?? 4) }}">
                 @if ($hasActiveFilters)
-                    <a href="{{ route('shop.index') }}" class="inline-flex h-[42px] items-center justify-center gap-2 border border-rose-600 px-4 text-sm font-semibold text-rose-600 hover:bg-rose-50">
+                    <a href="{{ route('shop.index') }}" class="inline-flex h-[42px] items-center justify-center gap-2 whitespace-nowrap border border-rose-600 px-4 text-sm font-semibold text-rose-600 hover:bg-rose-50">
                         <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
                             <path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5"></path>
                         </svg>
@@ -433,7 +456,7 @@
                     });
                 });
 
-                document.querySelectorAll('select[name="manufacturer"], select[name="size"], select[name="sort"]').forEach((select) => {
+                document.querySelectorAll('[data-auto-submit-filter]').forEach((select) => {
                     if (select.dataset.autoSortInit === '1') {
                         return;
                     }

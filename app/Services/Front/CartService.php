@@ -430,10 +430,24 @@ class CartService
 
         $childLabel = trim((string) ($child?->name ?? $optionRow->optionValue?->code ?? ''));
         $parentLabel = trim((string) ($parent?->name ?? $optionRow->parentOptionValue?->code ?? ''));
-        $optionTranslation = $optionRow->optionValue?->option?->translations?->firstWhere('locale', $locale)
+        $childOptionTranslation = $optionRow->optionValue?->option?->translations?->firstWhere('locale', $locale)
             ?? $optionRow->optionValue?->option?->translations?->firstWhere('locale', $fallbackLocale)
             ?? $optionRow->optionValue?->option?->translations?->first();
-        $optionName = trim((string) ($optionTranslation?->name ?? ''));
+        $parentOptionTranslation = $optionRow->parentOptionValue?->option?->translations?->firstWhere('locale', $locale)
+            ?? $optionRow->parentOptionValue?->option?->translations?->firstWhere('locale', $fallbackLocale)
+            ?? $optionRow->parentOptionValue?->option?->translations?->first();
+        $childOptionName = trim((string) ($childOptionTranslation?->name ?? ''));
+        $parentOptionName = trim((string) ($parentOptionTranslation?->name ?? ''));
+
+        if ($parentOptionName !== '' && $parentLabel !== '' && $childOptionName !== '' && $childLabel !== '') {
+            return [
+                'name' => $childOptionName,
+                'value' => $childLabel,
+                'label' => $parentOptionName.': '.$parentLabel.' / '.$childOptionName.': '.$childLabel,
+            ];
+        }
+
+        $optionName = $childOptionName;
         $valueLabel = $childLabel !== '' ? $childLabel : $parentLabel;
 
         if ($optionName !== '' && $valueLabel !== '') {

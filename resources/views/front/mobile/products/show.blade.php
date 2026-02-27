@@ -48,6 +48,37 @@
         ->values();
 
     $optionRows = $product->optionValues->where('is_active', true)->values();
+    $hasLinkedOptions = $optionRows->contains(fn ($row) => (int) ($row->parent_option_value_id ?? 0) > 0);
+    $primaryOptionLabel = __('ui.cart.modal.option');
+    $secondaryOptionLabel = __('ui.cart.modal.option');
+    $linkedPrimaryValues = collect();
+    if ($hasLinkedOptions) {
+        $firstLinkedRow = $optionRows->first(fn ($row) => (int) ($row->parent_option_value_id ?? 0) > 0);
+        $parentOptionTranslation = $firstLinkedRow?->parentOptionValue?->option?->translations?->firstWhere('locale', $locale)
+            ?? $firstLinkedRow?->parentOptionValue?->option?->translations?->firstWhere('locale', $fallbackLocale)
+            ?? $firstLinkedRow?->parentOptionValue?->option?->translations?->first();
+        $childOptionTranslation = $firstLinkedRow?->optionValue?->option?->translations?->firstWhere('locale', $locale)
+            ?? $firstLinkedRow?->optionValue?->option?->translations?->firstWhere('locale', $fallbackLocale)
+            ?? $firstLinkedRow?->optionValue?->option?->translations?->first();
+        $primaryOptionLabel = trim((string) ($parentOptionTranslation?->name ?? '')) ?: __('ui.cart.modal.option');
+        $secondaryOptionLabel = trim((string) ($childOptionTranslation?->name ?? '')) ?: __('ui.cart.modal.option');
+
+        $linkedPrimaryValues = $optionRows
+            ->filter(fn ($row) => (int) ($row->parent_option_value_id ?? 0) > 0)
+            ->map(function ($row) use ($locale, $fallbackLocale): array {
+                $translation = $row->parentOptionValue?->translations?->firstWhere('locale', $locale)
+                    ?? $row->parentOptionValue?->translations?->firstWhere('locale', $fallbackLocale)
+                    ?? $row->parentOptionValue?->translations?->first();
+                $label = trim((string) ($translation?->name ?? $row->parentOptionValue?->code ?? ''));
+
+                return [
+                    'id' => (int) ($row->parent_option_value_id ?? 0),
+                    'label' => $label,
+                ];
+            })
+            ->unique('id')
+            ->values();
+    }
 @endphp
 
 @section('title', $translation?->name ?? __('ui.product.sku'))
@@ -126,26 +157,57 @@
                 data-modal-go-cart="{{ __('ui.cart.modal.go_to_cart') }}"
                 data-modal-option="{{ __('ui.cart.modal.option') }}"
                 data-modal-quantity="{{ __('ui.cart.modal.quantity') }}"
+                data-option-error-required="{{ __('ui.cart.errors.select_size') }}"
+                data-option-error-unavailable="{{ __('ui.cart.status.unavailable') }}"
             >
                 @csrf
                 <input type="hidden" name="product_id" value="{{ $product->id }}">
                 @if ($optionRows->isNotEmpty())
-                    <div class="input-style has-borders no-icon input-style-always-active mb-3">
-                        <label for="product-option" class="color-highlight">{{ __('ui.product.select_size') }}</label>
-                        <select id="product-option" name="product_option_value_id">
-                            <option value="">--</option>
-                            @foreach ($optionRows as $row)
-                                @php
-                                    $valueTranslation = $row->optionValue?->translations?->firstWhere('locale', $locale)
-                                        ?? $row->optionValue?->translations?->firstWhere('locale', $fallbackLocale)
-                                        ?? $row->optionValue?->translations?->first();
-                                    $label = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
-                                @endphp
-                                <option value="{{ $row->id }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <span><i class="fa fa-chevron-down"></i></span>
-                    </div>
+                    @if ($hasLinkedOptions)
+                        <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                            <label class="color-highlight">{{ $primaryOptionLabel }}</label>
+                            <select data-linked-option-primary>
+                                <option value="">{{ __('ui.shop.filters.select_option') }}</option>
+                                @foreach ($linkedPrimaryValues as $primaryValue)
+                                    <option value="{{ $primaryValue['id'] }}">{{ $primaryValue['label'] }}</option>
+                                @endforeach
+                            </select>
+                            <span><i class="fa fa-chevron-down"></i></span>
+                        </div>
+                        <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                            <label class="color-highlight">{{ $secondaryOptionLabel }}</label>
+                            <select name="product_option_value_id" data-linked-option-secondary disabled>
+                                <option value="">{{ __('ui.shop.filters.select_option') }}</option>
+                                @foreach ($optionRows as $row)
+                                    @php
+                                        $valueTranslation = $row->optionValue?->translations?->firstWhere('locale', $locale)
+                                            ?? $row->optionValue?->translations?->firstWhere('locale', $fallbackLocale)
+                                            ?? $row->optionValue?->translations?->first();
+                                        $label = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
+                                    @endphp
+                                    <option value="{{ $row->id }}" data-parent-id="{{ (int) ($row->parent_option_value_id ?? 0) }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <span><i class="fa fa-chevron-down"></i></span>
+                        </div>
+                    @else
+                        <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                            <label for="product-option" class="color-highlight">{{ __('ui.product.select_size') }}</label>
+                            <select id="product-option" name="product_option_value_id">
+                                <option value="">{{ __('ui.shop.filters.select_option') }}</option>
+                                @foreach ($optionRows as $row)
+                                    @php
+                                        $valueTranslation = $row->optionValue?->translations?->firstWhere('locale', $locale)
+                                            ?? $row->optionValue?->translations?->firstWhere('locale', $fallbackLocale)
+                                            ?? $row->optionValue?->translations?->first();
+                                        $label = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
+                                    @endphp
+                                    <option value="{{ $row->id }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <span><i class="fa fa-chevron-down"></i></span>
+                        </div>
+                    @endif
                     <p class="font-11 color-red-dark mb-3 d-none" data-option-error>{{ __('ui.cart.errors.select_size') }}</p>
                 @endif
 

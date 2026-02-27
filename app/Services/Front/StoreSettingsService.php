@@ -68,6 +68,13 @@ class StoreSettingsService
             'fit_finder_enabled' => (bool) $this->settings->get('store_product_fit_finder_enabled', false),
             'mobile_default_cols' => $this->settings->getInt('store_product_mobile_default_cols', 2, 1, 2),
             'catalog_pagination_mode' => (string) $this->settings->get('store_product_catalog_pagination_mode', 'pagination'),
+            'filter_option_ids' => $this->normalizeIdList($this->settings->get('store_product_filter_option_ids', [])),
+            'filter_attribute_group_codes' => collect($this->settings->get('store_product_filter_attribute_group_codes', []))
+                ->map(fn ($code): string => trim((string) $code))
+                ->filter(fn (string $code): bool => $code !== '')
+                ->unique()
+                ->values()
+                ->all(),
         ];
     }
 

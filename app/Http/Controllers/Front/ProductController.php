@@ -112,8 +112,14 @@ class ProductController extends Controller
                         'optionValue.translations' => fn ($tq) => $tq
                             ->select(['id', 'option_value_id', 'locale', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
+                        'optionValue.option.translations' => fn ($oq) => $oq
+                            ->select(['id', 'option_id', 'locale', 'name'])
+                            ->whereIn('locale', [$locale, $fallbackLocale]),
                         'parentOptionValue.translations' => fn ($tq) => $tq
                             ->select(['id', 'option_value_id', 'locale', 'name'])
+                            ->whereIn('locale', [$locale, $fallbackLocale]),
+                        'parentOptionValue.option.translations' => fn ($oq) => $oq
+                            ->select(['id', 'option_id', 'locale', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
                     ]),
             ])
@@ -144,8 +150,14 @@ class ProductController extends Controller
                         'optionValue.translations' => fn ($tq) => $tq
                             ->select(['id', 'option_value_id', 'locale', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
+                        'optionValue.option.translations' => fn ($oq) => $oq
+                            ->select(['id', 'option_id', 'locale', 'name'])
+                            ->whereIn('locale', [$locale, $fallbackLocale]),
                         'parentOptionValue.translations' => fn ($tq) => $tq
                             ->select(['id', 'option_value_id', 'locale', 'name'])
+                            ->whereIn('locale', [$locale, $fallbackLocale]),
+                        'parentOptionValue.option.translations' => fn ($oq) => $oq
+                            ->select(['id', 'option_id', 'locale', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
                     ]),
             ])

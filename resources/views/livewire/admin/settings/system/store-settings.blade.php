@@ -421,6 +421,24 @@
                             </label>
                         </div>
                     </div>
+                    <div class="rounded-xl border border-slate-200 p-4">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.settings.store.products.filter_options_label') }}</label>
+                        <p class="mb-3 text-xs text-slate-600">{{ __('admin.settings.store.products.filter_options_help') }}</p>
+                        <select wire:model="form.store_product_filter_option_ids" multiple size="7" class="admin-multiselect w-full rounded-xl border border-slate-300 text-sm">
+                            @foreach (($optionFilterOptions ?? []) as $option)
+                                <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="rounded-xl border border-slate-200 p-4">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.settings.store.products.filter_attribute_groups_label') }}</label>
+                        <p class="mb-3 text-xs text-slate-600">{{ __('admin.settings.store.products.filter_attribute_groups_help') }}</p>
+                        <select wire:model="form.store_product_filter_attribute_group_codes" multiple size="7" class="admin-multiselect w-full rounded-xl border border-slate-300 text-sm">
+                            @foreach (($attributeFilterGroupOptions ?? []) as $group)
+                                <option value="{{ $group['group_code'] }}">{{ $group['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
             @endif
 

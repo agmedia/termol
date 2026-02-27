@@ -16,6 +16,8 @@ return [
             'search_placeholder' => 'Naziv, sažetak, opis',
             'category' => 'Kategorija',
             'all_categories' => 'Sve kategorije',
+            'all_generic' => 'Sve :label',
+            'select_option' => 'Odaberite opciju',
             'size' => 'Veličina',
             'all_sizes' => 'Sve veličine',
             'manufacturer' => 'Proizvođač',
@@ -130,6 +132,8 @@ return [
         'stock' => 'Zaliha :qty',
         'sku' => 'Šifra',
         'select_size' => 'Odaberite veličinu',
+        'select_options' => 'Odaberite opcije',
+        'select_option' => 'Odaberite :option',
         'size_guide' => 'Vodič za veličine',
         'size_guide_close' => 'Zatvori',
         'check_store' => 'Provjeri dostupnost u trgovinama',
@@ -256,8 +260,8 @@ return [
             'coupon_invalid' => 'Kupon nije valjan.',
         ],
         'errors' => [
-            'select_size' => 'Odaberite veličinu prije dodavanja u košaricu.',
-            'invalid_size' => 'Odabrana veličina nije dostupna.',
+            'select_size' => 'Odaberite opciju prije dodavanja u košaricu.',
+            'invalid_size' => 'Odabrana opcija nije dostupna.',
         ],
         'validation' => [
             'coupon_required' => 'Polje kupon je obavezno.',

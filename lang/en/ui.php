@@ -16,6 +16,8 @@ return [
             'search_placeholder' => 'Name, excerpt, description',
             'category' => 'Category',
             'all_categories' => 'All categories',
+            'all_generic' => 'All :label',
+            'select_option' => 'Select option',
             'size' => 'Size',
             'all_sizes' => 'All sizes',
             'manufacturer' => 'Manufacturer',
@@ -130,6 +132,8 @@ return [
         'stock' => 'Stock :qty',
         'sku' => 'SKU',
         'select_size' => 'Select size',
+        'select_options' => 'Select options',
+        'select_option' => 'Select option',
         'size_guide' => 'Size guide',
         'size_guide_close' => 'Close',
         'check_store' => 'Check store availability',
@@ -256,8 +260,8 @@ return [
             'coupon_invalid' => 'Coupon is invalid.',
         ],
         'errors' => [
-            'select_size' => 'Select size before adding to cart.',
-            'invalid_size' => 'Selected size is unavailable.',
+            'select_size' => 'Select an option before adding to cart.',
+            'invalid_size' => 'Selected option is unavailable.',
         ],
         'validation' => [
             'coupon_required' => 'Coupon field is required.',

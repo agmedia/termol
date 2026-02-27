@@ -20,6 +20,7 @@ return [
         'image' => 'Slika',
         'product' => 'Artikl',
         'sku' => 'SKU',
+        'option' => 'Opcija',
         'qty' => 'Količina',
         'price' => 'Cijena',
         'total' => 'Ukupno',

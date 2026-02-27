@@ -123,6 +123,9 @@
                                     @if (!empty($item['sku']))
                                         <div class="sku">{{ __('mail.orders.sku') }}: {{ $item['sku'] }}</div>
                                     @endif
+                                    @if (!empty($item['option_label']))
+                                        <div class="sku">{{ __('mail.orders.option') }}: {{ $item['option_label'] }}</div>
+                                    @endif
                                 </td>
                                 <td class="num">{{ $item['quantity'] }}</td>
                                 <td class="num">{{ $item['unit_price'] }}</td>

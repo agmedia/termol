@@ -20,6 +20,7 @@ return [
         'image' => 'Image',
         'product' => 'Product',
         'sku' => 'SKU',
+        'option' => 'Option',
         'qty' => 'Quantity',
         'price' => 'Price',
         'total' => 'Total',

@@ -45,10 +45,27 @@
                     $valueTranslation = $item->productOptionValue?->optionValue?->translations?->firstWhere('locale', app()->getLocale())
                         ?? $item->productOptionValue?->optionValue?->translations?->firstWhere('locale', config('app.locale'))
                         ?? $item->productOptionValue?->optionValue?->translations?->first();
+                    $valueOptionTranslation = $item->productOptionValue?->optionValue?->option?->translations?->firstWhere('locale', app()->getLocale())
+                        ?? $item->productOptionValue?->optionValue?->option?->translations?->firstWhere('locale', config('app.locale'))
+                        ?? $item->productOptionValue?->optionValue?->option?->translations?->first();
                     $parentTranslation = $item->productOptionValue?->parentOptionValue?->translations?->firstWhere('locale', app()->getLocale())
                         ?? $item->productOptionValue?->parentOptionValue?->translations?->firstWhere('locale', config('app.locale'))
                         ?? $item->productOptionValue?->parentOptionValue?->translations?->first();
-                    $optionLabel = trim((string) (($parentTranslation?->name ? $parentTranslation->name.': ' : '').($valueTranslation?->name ?? '')));
+                    $parentOptionTranslation = $item->productOptionValue?->parentOptionValue?->option?->translations?->firstWhere('locale', app()->getLocale())
+                        ?? $item->productOptionValue?->parentOptionValue?->option?->translations?->firstWhere('locale', config('app.locale'))
+                        ?? $item->productOptionValue?->parentOptionValue?->option?->translations?->first();
+                    $parentOptionName = trim((string) ($parentOptionTranslation?->name ?? ''));
+                    $parentValueName = trim((string) ($parentTranslation?->name ?? ''));
+                    $valueOptionName = trim((string) ($valueOptionTranslation?->name ?? ''));
+                    $valueName = trim((string) ($valueTranslation?->name ?? ''));
+                    $optionParts = [];
+                    if ($parentOptionName !== '' && $parentValueName !== '') {
+                        $optionParts[] = $parentOptionName.': '.$parentValueName;
+                    }
+                    if ($valueOptionName !== '' && $valueName !== '') {
+                        $optionParts[] = $valueOptionName.': '.$valueName;
+                    }
+                    $optionLabel = $optionParts !== [] ? implode(' / ', $optionParts) : ($valueName !== '' ? $valueName : $parentValueName);
                 @endphp
                 <div class="d-flex mb-2">
                     <div class="w-100 pe-3">

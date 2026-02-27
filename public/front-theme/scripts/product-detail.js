@@ -248,6 +248,37 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
+    const initLinkedOptionSelectors = function (form) {
+        const primary = form.querySelector('[data-linked-option-primary]');
+        const secondary = form.querySelector('[data-linked-option-secondary]');
+
+        if (!primary || !secondary) {
+            return;
+        }
+
+        const options = Array.from(secondary.querySelectorAll('option[data-parent-id]'));
+        const update = function () {
+            const selectedParentId = String(primary.value || '').trim();
+            const hasParent = selectedParentId !== '';
+
+            secondary.disabled = !hasParent;
+            options.forEach(function (option) {
+                const matches = hasParent && String(option.dataset.parentId || '') === selectedParentId;
+                option.hidden = !matches;
+                option.disabled = !matches;
+            });
+
+            const selectedOption = secondary.options[secondary.selectedIndex];
+            if (selectedOption && selectedOption.disabled) {
+                secondary.value = '';
+            }
+            secondary.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+
+        primary.addEventListener('change', update);
+        update();
+    };
+
     const cartCountNodes = document.querySelectorAll('[data-cart-count]');
     let modal = null;
 
@@ -298,6 +329,31 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const selectedOptionLabel = function (form) {
+        const linkedPrimary = form.querySelector('[data-linked-option-primary]');
+        const linkedSecondary = form.querySelector('[data-linked-option-secondary]');
+        if (linkedPrimary && linkedSecondary && String(linkedSecondary.value || '').trim() !== '') {
+            const primaryOption = linkedPrimary.options[linkedPrimary.selectedIndex];
+            const secondaryOption = linkedSecondary.options[linkedSecondary.selectedIndex];
+            const primaryLabelEl = linkedPrimary.closest('div') ? linkedPrimary.closest('div').querySelector('label') : null;
+            const secondaryLabelEl = linkedSecondary.closest('div') ? linkedSecondary.closest('div').querySelector('label') : null;
+            const primaryLabel = String(primaryLabelEl ? primaryLabelEl.textContent : '').trim();
+            const secondaryLabel = String(secondaryLabelEl ? secondaryLabelEl.textContent : '').trim();
+            const primaryValue = String(primaryOption ? primaryOption.textContent : '').trim();
+            const secondaryValue = String(secondaryOption ? secondaryOption.textContent : '').trim();
+            const parts = [];
+
+            if (primaryLabel !== '' && primaryValue !== '') {
+                parts.push(primaryLabel + ': ' + primaryValue);
+            }
+            if (secondaryLabel !== '' && secondaryValue !== '') {
+                parts.push(secondaryLabel + ': ' + secondaryValue);
+            }
+
+            if (parts.length) {
+                return parts.join(' / ');
+            }
+        }
+
         const radioChecked = form.querySelector('input[name="product_option_value_id"]:checked');
         if (radioChecked) {
             const label = form.querySelector('label[for="' + radioChecked.id + '"] span');
@@ -327,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const select = form.querySelector('select[name="product_option_value_id"]');
-        return !!(select && String(select.value || '').trim() !== '');
+        return !!(select && !select.disabled && String(select.value || '').trim() !== '');
     };
 
     const currentQty = function (form) {
@@ -382,12 +438,15 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     forms.forEach(function (form) {
+        initLinkedOptionSelectors(form);
+
         form.addEventListener('submit', async function (event) {
             event.preventDefault();
 
             const optionError = form.querySelector('[data-option-error]');
             if (hasOptions(form) && !optionSelected(form)) {
                 if (optionError) {
+                    optionError.textContent = String(form.dataset.optionErrorRequired || optionError.textContent || '');
                     optionError.classList.remove('hidden', 'd-none');
                 }
                 return;
@@ -409,9 +468,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     body: formData,
                 });
 
-                const payload = await response.json();
+                const payload = await response.json().catch(function () { return null; });
                 if (!response.ok || !payload.ok) {
-                    if (optionError && payload && payload.errors && payload.errors.product_option_value_id) {
+                    if (optionError) {
+                        const optionErrorMessage = payload && payload.errors && payload.errors.product_option_value_id
+                            ? String(payload.errors.product_option_value_id[0] || '')
+                            : String((payload && payload.message) || form.dataset.optionErrorUnavailable || optionError.textContent || '');
+                        if (optionErrorMessage !== '') {
+                            optionError.textContent = optionErrorMessage;
+                        }
                         optionError.classList.remove('hidden', 'd-none');
                     }
                     return;

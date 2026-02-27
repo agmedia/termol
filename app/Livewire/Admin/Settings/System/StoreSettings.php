@@ -3,7 +3,9 @@
 namespace App\Livewire\Admin\Settings\System;
 
 use App\Jobs\GenerateWebpConversionsJob;
+use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Category\Category;
+use App\Models\Catalog\Option\Option;
 use App\Models\Content\Page\InfoPage;
 use App\Support\Media\MediaProfileRegistry;
 use App\Services\Settings\SystemSettingsService;
@@ -139,6 +141,8 @@ class StoreSettings extends Component
         'store_product_fit_finder_enabled' => false,
         'store_product_mobile_default_cols' => 2,
         'store_product_catalog_pagination_mode' => 'pagination',
+        'store_product_filter_option_ids' => [],
+        'store_product_filter_attribute_group_codes' => [],
 
         'store_cookie_consent_enabled' => true,
         'store_cookie_consent_title' => 'Koristimo kolačiće',
@@ -196,6 +200,13 @@ class StoreSettings extends Component
             $this->form[$pageKey] = $this->normalizeIdList($this->form[$pageKey] ?? []);
         }
         $this->form['store_footer_bottom_link_page_ids'] = $this->normalizeIdList($this->form['store_footer_bottom_link_page_ids'] ?? []);
+        $this->form['store_product_filter_option_ids'] = $this->normalizeIdList($this->form['store_product_filter_option_ids'] ?? []);
+        $this->form['store_product_filter_attribute_group_codes'] = collect($this->form['store_product_filter_attribute_group_codes'] ?? [])
+            ->map(fn ($code): string => trim((string) $code))
+            ->filter(fn (string $code): bool => $code !== '')
+            ->unique()
+            ->values()
+            ->all();
 
         if (trim((string) $this->form['store_announcement_text']) === '') {
             $this->form['store_announcement_text'] = (string) __('ui.front.desktop.promo_bar');
@@ -218,6 +229,13 @@ class StoreSettings extends Component
             $payload['store_footer_col_'.$col.'_page_ids'] = $this->normalizeIdList($payload['store_footer_col_'.$col.'_page_ids'] ?? []);
         }
         $payload['store_footer_bottom_link_page_ids'] = $this->normalizeIdList($payload['store_footer_bottom_link_page_ids'] ?? []);
+        $payload['store_product_filter_option_ids'] = $this->normalizeIdList($payload['store_product_filter_option_ids'] ?? []);
+        $payload['store_product_filter_attribute_group_codes'] = collect($payload['store_product_filter_attribute_group_codes'] ?? [])
+            ->map(fn ($code): string => trim((string) $code))
+            ->filter(fn (string $code): bool => $code !== '')
+            ->unique()
+            ->values()
+            ->all();
 
         if ($this->logoUpload) {
             $payload['store_brand_logo_path'] = $this->logoUpload->store('store-settings', 'public');
@@ -372,6 +390,13 @@ class StoreSettings extends Component
             'form.store_product_fit_finder_enabled' => ['required', 'boolean'],
             'form.store_product_mobile_default_cols' => ['required', 'integer', 'in:1,2'],
             'form.store_product_catalog_pagination_mode' => ['required', 'string', 'in:pagination,load_more,infinite'],
+            'form.store_product_filter_option_ids' => ['nullable', 'array'],
+            'form.store_product_filter_option_ids.*' => [
+                'integer',
+                Rule::exists('catalog_options', 'id')->where(fn ($q) => $q->where('is_active', true)),
+            ],
+            'form.store_product_filter_attribute_group_codes' => ['nullable', 'array'],
+            'form.store_product_filter_attribute_group_codes.*' => ['string', 'max:120'],
 
             'form.store_cookie_consent_enabled' => ['required', 'boolean'],
             'form.store_cookie_consent_title' => ['nullable', 'string', 'max:120'],
@@ -469,9 +494,57 @@ class StoreSettings extends Component
             ->values()
             ->all();
 
+        $optionFilterOptions = Option::query()
+            ->where('is_active', true)
+            ->withCount('values')
+            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(function (Option $option) use ($locale, $fallbackLocale): array {
+                $translation = $option->translations->firstWhere('locale', $locale)
+                    ?? $option->translations->firstWhere('locale', $fallbackLocale)
+                    ?? $option->translations->first();
+
+                return [
+                    'id' => (int) $option->id,
+                    'label' => (string) (($translation?->name ?? $option->code).' ('.(int) $option->values_count.')'),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $attributeFilterGroupOptions = Attribute::query()
+            ->where('is_active', true)
+            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+            ->orderBy('group_code')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->groupBy(fn (Attribute $attribute): string => (string) $attribute->group_code)
+            ->map(function ($rows, string $groupCode) use ($locale, $fallbackLocale): array {
+                $first = $rows->first();
+                $firstTranslation = $first?->translations?->firstWhere('locale', $locale)
+                    ?? $first?->translations?->firstWhere('locale', $fallbackLocale)
+                    ?? $first?->translations?->first();
+                $groupName = trim((string) ($firstTranslation?->name ?? ''));
+                if ($groupName === '') {
+                    $groupName = ucfirst(str_replace('_', ' ', $groupCode));
+                }
+
+                return [
+                    'group_code' => $groupCode,
+                    'label' => $groupName.' ('.$groupCode.')',
+                ];
+            })
+            ->values()
+            ->all();
+
         return view('livewire.admin.settings.system.store-settings', [
             'catalogCategoryOptions' => $catalogCategoryOptions,
             'pageOptions' => $pageOptions,
+            'optionFilterOptions' => $optionFilterOptions,
+            'attributeFilterGroupOptions' => $attributeFilterGroupOptions,
         ]);
     }
 

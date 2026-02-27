@@ -119,6 +119,10 @@ class StoreNotificationService
     {
         $order->loadMissing([
             'items.product.media',
+            'items.productOptionValue.optionValue.translations',
+            'items.productOptionValue.optionValue.option.translations',
+            'items.productOptionValue.parentOptionValue.translations',
+            'items.productOptionValue.parentOptionValue.option.translations',
         ]);
         $bankTransfer = app(BankTransferUpiService::class)->ensureForOrder($order);
 
@@ -141,9 +145,12 @@ class StoreNotificationService
                     ?: $item->product->getFirstMediaUrl('product_gallery'));
             }
 
+            $optionLabel = $this->buildOrderItemOptionLabel($item);
+
             return [
                 'name' => (string) $item->name,
                 'sku' => (string) $item->sku,
+                'option_label' => $optionLabel,
                 'quantity' => (int) $item->quantity,
                 'unit_price' => $this->formatMoney((float) $item->unit_price, $currency),
                 'line_total' => $this->formatMoney((float) $item->line_total, $currency),
@@ -205,6 +212,45 @@ class StoreNotificationService
                 'city' => trim((string) ($boxNow['city'] ?? '')),
             ] : null,
         ];
+    }
+
+    private function buildOrderItemOptionLabel(OrderItem $item): string
+    {
+        $locale = app()->getLocale();
+        $fallbackLocale = (string) config('app.locale');
+
+        $childValueTranslation = $item->productOptionValue?->optionValue?->translations?->firstWhere('locale', $locale)
+            ?? $item->productOptionValue?->optionValue?->translations?->firstWhere('locale', $fallbackLocale)
+            ?? $item->productOptionValue?->optionValue?->translations?->first();
+        $childOptionTranslation = $item->productOptionValue?->optionValue?->option?->translations?->firstWhere('locale', $locale)
+            ?? $item->productOptionValue?->optionValue?->option?->translations?->firstWhere('locale', $fallbackLocale)
+            ?? $item->productOptionValue?->optionValue?->option?->translations?->first();
+
+        $parentValueTranslation = $item->productOptionValue?->parentOptionValue?->translations?->firstWhere('locale', $locale)
+            ?? $item->productOptionValue?->parentOptionValue?->translations?->firstWhere('locale', $fallbackLocale)
+            ?? $item->productOptionValue?->parentOptionValue?->translations?->first();
+        $parentOptionTranslation = $item->productOptionValue?->parentOptionValue?->option?->translations?->firstWhere('locale', $locale)
+            ?? $item->productOptionValue?->parentOptionValue?->option?->translations?->firstWhere('locale', $fallbackLocale)
+            ?? $item->productOptionValue?->parentOptionValue?->option?->translations?->first();
+
+        $parts = [];
+        $parentOptionName = trim((string) ($parentOptionTranslation?->name ?? ''));
+        $parentValueName = trim((string) ($parentValueTranslation?->name ?? ''));
+        $childOptionName = trim((string) ($childOptionTranslation?->name ?? ''));
+        $childValueName = trim((string) ($childValueTranslation?->name ?? ''));
+
+        if ($parentOptionName !== '' && $parentValueName !== '') {
+            $parts[] = $parentOptionName.': '.$parentValueName;
+        }
+        if ($childOptionName !== '' && $childValueName !== '') {
+            $parts[] = $childOptionName.': '.$childValueName;
+        }
+
+        if ($parts !== []) {
+            return implode(' / ', $parts);
+        }
+
+        return $childValueName !== '' ? $childValueName : $parentValueName;
     }
 
     private function formatMoney(float $value, string $currencyCode): string

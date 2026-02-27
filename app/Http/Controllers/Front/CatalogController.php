@@ -7,6 +7,8 @@ use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Http\Controllers\Front\Concerns\ResolvesGridColumns;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
+use App\Models\Catalog\Attribute\Attribute;
+use App\Models\Catalog\Option\Option;
 use App\Models\Catalog\Option\OptionValue;
 use App\Models\Catalog\Product\Product;
 use App\Services\Content\ContentBlockResolver;
@@ -17,6 +19,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class CatalogController extends Controller
@@ -31,8 +34,26 @@ class CatalogController extends Controller
         $search = trim((string) $request->query('q', ''));
         $categorySlug = trim((string) $request->query('category', ''));
         $manufacturerSlug = trim((string) $request->query('manufacturer', ''));
-        $sizeId = (int) $request->query('size', 0);
         $sort = (string) $request->query('sort', 'newest');
+        $configuredOptionIds = $this->configuredFilterOptionIds();
+        $configuredAttributeGroups = $this->configuredFilterAttributeGroups();
+        $optionFilters = $this->catalogOptionFilters($locale, $fallbackLocale, $configuredOptionIds);
+        $attributeFilters = $this->catalogAttributeFilters($locale, $fallbackLocale, $configuredAttributeGroups);
+
+        if ($optionFilters === []) {
+            $optionFilters = $this->legacySizeFallbackFilter($locale, $fallbackLocale);
+        }
+
+        $selectedOptionFilters = [];
+        foreach ($optionFilters as $filter) {
+            $valueId = (int) $request->query((string) $filter['query_key'], 0);
+            $selectedOptionFilters[(string) $filter['query_key']] = $valueId > 0 ? $valueId : null;
+        }
+        $selectedAttributeFilters = [];
+        foreach ($attributeFilters as $filter) {
+            $valueId = (int) $request->query((string) $filter['query_key'], 0);
+            $selectedAttributeFilters[(string) $filter['query_key']] = $valueId > 0 ? $valueId : null;
+        }
         $gridCols = $this->resolveGridCols($request, 4);
         $this->queueGridColsCookie($gridCols);
         if ($request->query->has('cols')) {
@@ -105,15 +126,21 @@ class CatalogController extends Controller
             });
         }
 
-        if ($sizeId > 0) {
-            $query->whereHas('optionValues', function ($optionQuery) use ($sizeId): void {
-                $optionQuery
-                    ->where('is_active', true)
-                    ->where(function ($sizeQuery) use ($sizeId): void {
-                        $sizeQuery
-                            ->where('option_value_id', $sizeId)
-                            ->orWhere('parent_option_value_id', $sizeId);
-                    });
+        foreach ($selectedOptionFilters as $selectedOptionValueId) {
+            if ($selectedOptionValueId && $selectedOptionValueId > 0) {
+                $this->applyOptionValueFilter($query, $selectedOptionValueId);
+            }
+        }
+
+        foreach ($attributeFilters as $attributeFilter) {
+            $queryKey = (string) $attributeFilter['query_key'];
+            $selectedAttributeId = (int) ($selectedAttributeFilters[$queryKey] ?? 0);
+            if ($selectedAttributeId <= 0) {
+                continue;
+            }
+
+            $query->whereHas('attributes', function ($attributeQuery) use ($selectedAttributeId): void {
+                $attributeQuery->where('catalog_attributes.id', $selectedAttributeId);
             });
         }
 
@@ -131,18 +158,16 @@ class CatalogController extends Controller
 
         $categories = $this->cachedCatalogCategories($locale, $fallbackLocale);
         $manufacturers = $this->cachedCatalogManufacturers($locale, $fallbackLocale);
-        $sizes = $this->cachedCatalogSizes($locale, $fallbackLocale);
-
         $response = response()->view($this->frontendView($request, 'shop.index'), [
             'products' => $products,
             'categories' => $categories,
             'manufacturers' => $manufacturers,
-            'sizes' => $sizes,
+            'optionFilters' => $this->withSelectedFilters($optionFilters, $selectedOptionFilters),
+            'attributeFilters' => $this->withSelectedFilters($attributeFilters, $selectedAttributeFilters),
             'filters' => [
                 'q' => $search,
                 'category' => $categorySlug,
                 'manufacturer' => $manufacturerSlug,
-                'size' => $sizeId > 0 ? $sizeId : '',
                 'sort' => $sort,
                 'cols' => $gridCols,
             ],
@@ -195,7 +220,6 @@ class CatalogController extends Controller
         $search = trim((string) $request->query('q', ''));
         $categorySlug = $slug;
         $manufacturerSlug = trim((string) $request->query('manufacturer', ''));
-        $sizeId = (int) $request->query('size', 0);
         $sort = (string) $request->query('sort', 'newest');
         $gridCols = $this->resolveGridCols($request, 4);
         $this->queueGridColsCookie($gridCols);
@@ -221,6 +245,31 @@ class CatalogController extends Controller
             ->where('is_active', true)
             ->pluck('id');
         $categoryTreeIds->prepend($category->id);
+        $categoryScopeIds = $categoryTreeIds
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $configuredOptionIds = $this->configuredFilterOptionIds();
+        $configuredAttributeGroups = $this->configuredFilterAttributeGroups();
+        $optionFilters = $this->catalogOptionFilters($locale, $fallbackLocale, $configuredOptionIds, $categoryScopeIds);
+        $attributeFilters = $this->catalogAttributeFilters($locale, $fallbackLocale, $configuredAttributeGroups, $categoryScopeIds);
+
+        if ($optionFilters === []) {
+            $optionFilters = $this->legacySizeFallbackFilter($locale, $fallbackLocale, $categoryScopeIds);
+        }
+
+        $selectedOptionFilters = [];
+        foreach ($optionFilters as $filter) {
+            $valueId = (int) $request->query((string) $filter['query_key'], 0);
+            $selectedOptionFilters[(string) $filter['query_key']] = $valueId > 0 ? $valueId : null;
+        }
+        $selectedAttributeFilters = [];
+        foreach ($attributeFilters as $filter) {
+            $valueId = (int) $request->query((string) $filter['query_key'], 0);
+            $selectedAttributeFilters[(string) $filter['query_key']] = $valueId > 0 ? $valueId : null;
+        }
 
         $productsQuery = Product::query()
             ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
@@ -282,15 +331,21 @@ class CatalogController extends Controller
             });
         }
 
-        if ($sizeId > 0) {
-            $productsQuery->whereHas('optionValues', function ($optionQuery) use ($sizeId): void {
-                $optionQuery
-                    ->where('is_active', true)
-                    ->where(function ($sizeQuery) use ($sizeId): void {
-                        $sizeQuery
-                            ->where('option_value_id', $sizeId)
-                            ->orWhere('parent_option_value_id', $sizeId);
-                    });
+        foreach ($selectedOptionFilters as $selectedOptionValueId) {
+            if ($selectedOptionValueId && $selectedOptionValueId > 0) {
+                $this->applyOptionValueFilter($productsQuery, $selectedOptionValueId);
+            }
+        }
+
+        foreach ($attributeFilters as $attributeFilter) {
+            $queryKey = (string) $attributeFilter['query_key'];
+            $selectedAttributeId = (int) ($selectedAttributeFilters[$queryKey] ?? 0);
+            if ($selectedAttributeId <= 0) {
+                continue;
+            }
+
+            $productsQuery->whereHas('attributes', function ($attributeQuery) use ($selectedAttributeId): void {
+                $attributeQuery->where('catalog_attributes.id', $selectedAttributeId);
             });
         }
 
@@ -308,7 +363,6 @@ class CatalogController extends Controller
 
         $categories = $this->cachedCatalogCategories($locale, $fallbackLocale);
         $manufacturers = $this->cachedCatalogManufacturers($locale, $fallbackLocale);
-        $sizes = $this->cachedCatalogSizes($locale, $fallbackLocale);
 
         $subcategories = $category->children()
             ->where('scope', Category::SCOPE_CATALOG)
@@ -352,7 +406,8 @@ class CatalogController extends Controller
             'products' => $products,
             'categories' => $categories,
             'manufacturers' => $manufacturers,
-            'sizes' => $sizes,
+            'optionFilters' => $this->withSelectedFilters($optionFilters, $selectedOptionFilters),
+            'attributeFilters' => $this->withSelectedFilters($attributeFilters, $selectedAttributeFilters),
             'subcategories' => $subcategories,
             'breadcrumbCategories' => $breadcrumbCategories,
             'topBlocks' => $topBlocks,
@@ -360,7 +415,6 @@ class CatalogController extends Controller
             'filters' => [
                 'q' => $search,
                 'manufacturer' => $manufacturerSlug,
-                'size' => $sizeId > 0 ? $sizeId : '',
                 'sort' => $sort,
                 'cols' => $gridCols,
             ],
@@ -409,17 +463,311 @@ class CatalogController extends Controller
         });
     }
 
-    private function cachedCatalogSizes(string $locale, string $fallbackLocale)
+    /**
+     * @return array<int, int>
+     */
+    private function configuredFilterOptionIds(): array
     {
-        $cacheKey = sprintf('front:catalog:sizes:%s:%s', $locale, $fallbackLocale);
+        $raw = app(SystemSettingsService::class)->get('store_product_filter_option_ids', []);
 
-        return Cache::remember($cacheKey, now()->addMinutes(10), static function () use ($locale, $fallbackLocale) {
+        return collect(is_array($raw) ? $raw : [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function configuredFilterAttributeGroups(): array
+    {
+        $raw = app(SystemSettingsService::class)->get('store_product_filter_attribute_group_codes', []);
+
+        return collect(is_array($raw) ? $raw : [])
+            ->map(fn ($code): string => trim((string) $code))
+            ->filter(fn (string $code): bool => $code !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, int>  $optionIds
+     * @return array<int, array{label:string,query_key:string,values:array<int, array{id:int,label:string}>}>
+     */
+    private function catalogOptionFilters(string $locale, string $fallbackLocale, array $optionIds, ?array $categoryScopeIds = null): array
+    {
+        if ($optionIds === []) {
+            return [];
+        }
+
+        $categoryKey = $categoryScopeIds !== null && $categoryScopeIds !== []
+            ? sha1(implode(',', array_map(static fn ($id): int => (int) $id, $categoryScopeIds)))
+            : 'all';
+        $cacheKey = sprintf('front:catalog:option-filters:%s:%s:%s:%s', $locale, $fallbackLocale, sha1(implode(',', $optionIds)), $categoryKey);
+
+        $rows = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($locale, $fallbackLocale, $optionIds, $categoryScopeIds): array {
+            $scopeIds = collect($categoryScopeIds ?? [])
+                ->map(fn ($id): int => (int) $id)
+                ->filter(fn (int $id): bool => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
+            $options = Option::query()
+                ->whereIn('id', $optionIds)
+                ->where('is_active', true)
+                ->with([
+                    'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                    'values' => fn ($valueQuery) => $valueQuery
+                        ->where('is_active', true)
+                        ->whereHas('productOptionValues', function ($productOptionQuery) use ($scopeIds): void {
+                            $productOptionQuery
+                                ->where('is_active', true)
+                                ->whereHas('product', function ($productQuery) use ($scopeIds): void {
+                                    $productQuery->where('is_active', true);
+                                    if ($scopeIds !== []) {
+                                        $productQuery->whereHas('categories', function ($categoryQuery) use ($scopeIds): void {
+                                            $categoryQuery
+                                                ->where('scope', Category::SCOPE_CATALOG)
+                                                ->where('is_active', true)
+                                                ->whereIn('categories.id', $scopeIds);
+                                        });
+                                    }
+                                });
+                        })
+                        ->with(['translations' => fn ($tq) => $tq->whereIn('locale', [$locale, $fallbackLocale])]),
+                ])
+                ->get()
+                ->keyBy('id');
+
+            $filters = [];
+            foreach ($optionIds as $optionId) {
+                /** @var Option|null $option */
+                $option = $options->get($optionId);
+                if (!$option) {
+                    continue;
+                }
+
+                $optionTranslation = $option->translations->firstWhere('locale', $locale)
+                    ?? $option->translations->firstWhere('locale', $fallbackLocale)
+                    ?? $option->translations->first();
+                $label = trim((string) ($optionTranslation?->name ?? $option->code));
+                if ($label === '') {
+                    $label = __('ui.shop.filters.size');
+                }
+
+                $values = $option->values
+                    ->map(function (OptionValue $value) use ($locale, $fallbackLocale): array {
+                        $valueTranslation = $value->translations->firstWhere('locale', $locale)
+                            ?? $value->translations->firstWhere('locale', $fallbackLocale)
+                            ?? $value->translations->first();
+                        $valueLabel = trim((string) ($valueTranslation?->name ?? $value->code));
+
+                        return [
+                            'id' => (int) $value->id,
+                            'label' => $valueLabel !== '' ? $valueLabel : (string) $value->code,
+                        ];
+                    })
+                    ->values()
+                    ->all();
+
+                if ($values === []) {
+                    continue;
+                }
+
+                $filters[] = [
+                    'label' => $label,
+                    'query_key' => 'opt_'.$option->id,
+                    'values' => $values,
+                ];
+            }
+
+            return $filters;
+        });
+
+        return is_array($rows) ? $rows : [];
+    }
+
+    /**
+     * @param  array<int, string>  $groupCodes
+     * @return array<int, array{label:string,query_key:string,values:array<int, array{id:int,label:string}>}>
+     */
+    private function catalogAttributeFilters(string $locale, string $fallbackLocale, array $groupCodes, ?array $categoryScopeIds = null): array
+    {
+        if ($groupCodes === []) {
+            return [];
+        }
+
+        $categoryKey = $categoryScopeIds !== null && $categoryScopeIds !== []
+            ? sha1(implode(',', array_map(static fn ($id): int => (int) $id, $categoryScopeIds)))
+            : 'all';
+        $cacheKey = sprintf('front:catalog:attribute-filters:%s:%s:%s:%s', $locale, $fallbackLocale, sha1(implode(',', $groupCodes)), $categoryKey);
+
+        $rows = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($locale, $fallbackLocale, $groupCodes, $categoryScopeIds): array {
+            $scopeIds = collect($categoryScopeIds ?? [])
+                ->map(fn ($id): int => (int) $id)
+                ->filter(fn (int $id): bool => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
+            $attributes = Attribute::query()
+                ->whereIn('group_code', $groupCodes)
+                ->where('is_active', true)
+                ->whereHas('products', function ($productQuery) use ($scopeIds): void {
+                    $productQuery->where('products.is_active', true);
+                    if ($scopeIds !== []) {
+                        $productQuery->whereHas('categories', function ($categoryQuery) use ($scopeIds): void {
+                            $categoryQuery
+                                ->where('scope', Category::SCOPE_CATALOG)
+                                ->where('is_active', true)
+                                ->whereIn('categories.id', $scopeIds);
+                        });
+                    }
+                })
+                ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+                ->orderBy('group_code')
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+                ->groupBy('group_code');
+
+            $filters = [];
+            foreach ($groupCodes as $groupCode) {
+                $groupRows = $attributes->get($groupCode);
+                if (!$groupRows || $groupRows->isEmpty()) {
+                    continue;
+                }
+
+                $label = ucfirst(str_replace('_', ' ', $groupCode));
+                $values = $groupRows
+                    ->map(function (Attribute $attribute) use ($locale, $fallbackLocale): array {
+                        $translation = $attribute->translations->firstWhere('locale', $locale)
+                            ?? $attribute->translations->firstWhere('locale', $fallbackLocale)
+                            ?? $attribute->translations->first();
+                        $valueLabel = trim((string) ($translation?->name ?? $attribute->code));
+
+                        return [
+                            'id' => (int) $attribute->id,
+                            'label' => $valueLabel !== '' ? $valueLabel : (string) $attribute->code,
+                        ];
+                    })
+                    ->values()
+                    ->all();
+
+                if ($values === []) {
+                    continue;
+                }
+
+                $filters[] = [
+                    'label' => $label,
+                    'query_key' => 'attr_'.Str::slug($groupCode, '_'),
+                    'values' => $values,
+                ];
+            }
+
+            return $filters;
+        });
+
+        return is_array($rows) ? $rows : [];
+    }
+
+    /**
+     * @return array<int, array{label:string,query_key:string,values:array<int, array{id:int,label:string}>}>
+     */
+    private function legacySizeFallbackFilter(string $locale, string $fallbackLocale, ?array $categoryScopeIds = null): array
+    {
+        $sizes = $this->cachedCatalogSizes($locale, $fallbackLocale, $categoryScopeIds);
+
+        $values = $sizes
+            ->map(function (OptionValue $size) use ($locale, $fallbackLocale): array {
+                $translation = $size->translations->firstWhere('locale', $locale)
+                    ?? $size->translations->firstWhere('locale', $fallbackLocale)
+                    ?? $size->translations->first();
+
+                return [
+                    'id' => (int) $size->id,
+                    'label' => trim((string) ($translation?->name ?? $size->code)),
+                ];
+            })
+            ->values()
+            ->all();
+
+        if ($values === []) {
+            return [];
+        }
+
+        return [[
+            'label' => __('ui.shop.filters.size'),
+            'query_key' => 'size',
+            'values' => $values,
+        ]];
+    }
+
+    private function applyOptionValueFilter($query, int $optionValueId): void
+    {
+        $query->whereHas('optionValues', function ($optionQuery) use ($optionValueId): void {
+            $optionQuery
+                ->where('is_active', true)
+                ->where(function ($sizeQuery) use ($optionValueId): void {
+                    $sizeQuery
+                        ->where('option_value_id', $optionValueId)
+                        ->orWhere('parent_option_value_id', $optionValueId);
+                });
+        });
+    }
+
+    /**
+     * @param  array<int, array{label:string,query_key:string,values:array<int, array{id:int,label:string}>}>  $filters
+     * @param  array<string, int|null>  $selectedMap
+     * @return array<int, array{label:string,query_key:string,selected:int|null,values:array<int, array{id:int,label:string}>}>
+     */
+    private function withSelectedFilters(array $filters, array $selectedMap): array
+    {
+        return array_map(function (array $filter) use ($selectedMap): array {
+            $queryKey = (string) $filter['query_key'];
+            $selected = (int) ($selectedMap[$queryKey] ?? 0);
+
+            return [
+                'label' => (string) $filter['label'],
+                'query_key' => $queryKey,
+                'selected' => $selected > 0 ? $selected : null,
+                'values' => $filter['values'],
+            ];
+        }, $filters);
+    }
+
+    private function cachedCatalogSizes(string $locale, string $fallbackLocale, ?array $categoryScopeIds = null)
+    {
+        $categoryKey = $categoryScopeIds !== null && $categoryScopeIds !== []
+            ? sha1(implode(',', array_map(static fn ($id): int => (int) $id, $categoryScopeIds)))
+            : 'all';
+        $cacheKey = sprintf('front:catalog:sizes:%s:%s:%s', $locale, $fallbackLocale, $categoryKey);
+
+        return Cache::remember($cacheKey, now()->addMinutes(10), static function () use ($locale, $fallbackLocale, $categoryScopeIds) {
+            $scopeIds = collect($categoryScopeIds ?? [])
+                ->map(fn ($id): int => (int) $id)
+                ->filter(fn (int $id): bool => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
             return OptionValue::query()
                 ->select(['id', 'code', 'sort_order'])
                 ->where('is_active', true)
-                ->whereHas('productOptionValues', function ($q): void {
+                ->whereHas('productOptionValues', function ($q) use ($scopeIds): void {
                     $q->where('is_active', true)
-                        ->whereHas('product', fn ($productQuery) => $productQuery->where('is_active', true));
+                        ->whereHas('product', function ($productQuery) use ($scopeIds): void {
+                            $productQuery->where('is_active', true);
+                            if ($scopeIds !== []) {
+                                $productQuery->whereHas('categories', function ($categoryQuery) use ($scopeIds): void {
+                                    $categoryQuery
+                                        ->where('scope', Category::SCOPE_CATALOG)
+                                        ->where('is_active', true)
+                                        ->whereIn('categories.id', $scopeIds);
+                                });
+                            }
+                        });
                 })
                 ->with(['translations' => fn ($q) => $q
                     ->select(['id', 'option_value_id', 'locale', 'name'])
