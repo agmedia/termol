@@ -76,7 +76,7 @@
         <div class="mb-8 text-center">
             <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
                 <span class="h-px flex-1 bg-slate-300"></span>
-                <h2 class="text-[1.7rem] leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $displayTitle }}</h2>
+                <h2 class="text-slate-900" style="font-size:1.7rem;line-height:2.5rem;text-transform:uppercase;font-weight:600;">{{ $displayTitle }}</h2>
                 <span class="h-px flex-1 bg-slate-300"></span>
             </div>
             @if ($displaySubtitle !== '')
