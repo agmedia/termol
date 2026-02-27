@@ -526,7 +526,7 @@
 
             @if ($fitFinderEnabled && $optionRows->count() > 1)
                 <div
-                    class="fixed inset-0 z-[90] hidden bg-black/55 p-4 backdrop-blur-[2px]"
+                    class="fixed inset-0 z-[90] hidden flex items-center justify-center overflow-y-auto bg-black/55 p-4 backdrop-blur-[2px]"
                     data-fit-finder-modal
                     data-text-error-height="{{ __('ui.product.fit_finder.errors.height') }}"
                     data-text-error-weight="{{ __('ui.product.fit_finder.errors.weight') }}"
@@ -548,7 +548,7 @@
                     data-fit-initial-size="{{ $fitFinderSavedSize }}"
                     aria-hidden="true"
                 >
-                    <div class="mx-auto mt-4 flex w-full max-w-2xl flex-col overflow-hidden border border-slate-200 bg-white shadow-2xl md:mt-8">
+                    <div class="mx-auto flex w-full max-w-2xl flex-col overflow-hidden border border-slate-200 bg-white shadow-2xl">
                         <div class="border-b border-slate-200 bg-slate-50 px-4 py-3">
                             <div class="flex items-start justify-between gap-3">
                                 <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{{ __('ui.product.fit_finder.title') }}</p>
@@ -859,8 +859,8 @@
                 font-weight: 700;
             }
         </style>
-        <div class="fixed inset-0 z-[80] hidden bg-black/50 p-4" data-size-guide-modal aria-hidden="true">
-            <div class="mx-auto mt-8 max-h-[86vh] w-full max-w-5xl overflow-hidden bg-white shadow-2xl md:mt-12">
+        <div class="fixed inset-0 z-[80] hidden flex items-center justify-center overflow-y-auto bg-black/50 p-4" data-size-guide-modal aria-hidden="true">
+            <div class="mx-auto max-h-[86vh] w-full max-w-5xl overflow-hidden bg-white shadow-2xl">
                 <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                     <h2 class="text-lg font-extrabold text-slate-900">{{ $sizeGuide['title'] ?: __('ui.product.size_guide') }}</h2>
                     <button type="button" class="inline-flex h-9 min-w-9 items-center justify-center border border-slate-300 bg-white px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-100" data-size-guide-close>

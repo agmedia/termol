@@ -3,6 +3,7 @@ import laravel from 'laravel-vite-plugin';
 
 export default defineConfig({
     build: {
+        minify: false,
         cssMinify: false,
     },
     plugins: [
