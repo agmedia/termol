@@ -73,6 +73,7 @@
             class="pointer-events-none absolute inset-x-0 bottom-0 z-20 space-y-3 bg-black/80 p-3 opacity-0 transition-all duration-200 {{ $hasOptionErrorForCard ? 'opacity-100 pointer-events-auto' : '' }}"
             data-card-overlay
             data-product-card-form
+            data-auto-submit-on-option="{{ $optionRows !== [] ? '1' : '0' }}"
             data-ga4-add-to-cart-form
             data-ga4-item-id="{{ $productSku }}"
             data-ga4-item-name="{{ $productName }}"
@@ -122,13 +123,15 @@
                     <input type="text" name="quantity" value="1" inputmode="numeric" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" class="h-10 w-10 border-y border-r border-white/55 border-l-0 bg-transparent p-0 text-center text-sm font-semibold text-white focus:ring-0" data-qty-input data-qty-value>
                     <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-white/55 text-base font-semibold text-white hover:border-white hover:bg-white/10" data-qty-inc aria-label="Increase quantity">+</button>
                 </div>
-                <button type="submit" class="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap border border-white/55 bg-transparent px-3 text-base font-semibold text-white hover:border-white hover:bg-white/10" aria-label="{{ __('ui.product.to_cart') }}">
-                    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M7 9h10l-1 10H8L7 9Z"></path>
-                        <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
-                    </svg>
-                    <span class="truncate">{{ __('ui.product.to_cart') }}</span>
-                </button>
+                @if ($optionRows === [])
+                    <button type="submit" class="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap border border-white/55 bg-transparent px-3 text-sm font-semibold text-white hover:border-white hover:bg-white/10 sm:text-base" aria-label="{{ __('ui.product.to_cart') }}">
+                        <svg class="h-4 w-4 shrink-0 sm:h-5 sm:w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M7 9h10l-1 10H8L7 9Z"></path>
+                            <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
+                        </svg>
+                        <span class="truncate">{{ __('ui.product.to_cart') }}</span>
+                    </button>
+                @endif
             </div>
         </form>
     </div>
@@ -137,17 +140,17 @@
         <div class="relative mt-3 px-2 pb-3">
             <div>
                 <a href="{{ $productUrl }}" class="block pr-12">
-                    <h3 class="text-base font-medium leading-tight text-slate-900">{{ $productName }}</h3>
+                    <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-base">{{ $productName }}</h3>
                 </a>
             </div>
             <button
                 type="button"
-                class="absolute right-2 top-0 inline-flex h-9 w-9 shrink-0 items-center justify-center border border-slate-900 bg-white text-slate-900 transition hover:bg-slate-100"
+                class="absolute right-2 top-0 inline-flex h-8 w-8 shrink-0 items-center justify-center border border-slate-900 bg-white text-slate-900 transition hover:bg-slate-100 sm:h-9 sm:w-9"
                 data-card-overlay-toggle
                 aria-expanded="{{ $hasOptionErrorForCard ? 'true' : 'false' }}"
                 aria-label="{{ __('ui.product.add_to_cart') }}"
             >
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                <svg class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M7 9h10l-1 10H8L7 9Z"></path>
                     <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
                 </svg>
@@ -155,39 +158,39 @@
             <div class="mt-1.5 flex flex-col gap-1">
                 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                     @if (! empty($oldPrice))
-                        <p class="text-sm leading-none text-slate-500 line-through">{{ $oldPrice }}</p>
+                        <p class="text-[11px] leading-none text-slate-500 line-through sm:text-sm">{{ $oldPrice }}</p>
                     @endif
-                    <p class="text-base font-bold leading-none text-slate-900">{{ $price }}</p>
+                    <p class="text-[13px] font-bold leading-none text-slate-900 sm:text-base">{{ $price }}</p>
                 </div>
                 @if (! empty($lowest30DaysPrice))
-                    <p class="text-[11px] leading-tight text-slate-500">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
+                    <p class="text-[10px] leading-tight text-slate-500 sm:text-[11px]">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
                 @endif
             </div>
         </div>
     @else
         <a href="{{ $productUrl }}" class="mt-4 block">
-            <h3 class="text-base font-medium leading-tight text-slate-900">{{ $productName }}</h3>
+            <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-base">{{ $productName }}</h3>
         </a>
         <div class="mt-2 flex items-end justify-between">
             <div class="flex flex-col gap-1">
                 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                     @if (! empty($oldPrice))
-                        <p class="text-sm leading-none text-slate-500 line-through">{{ $oldPrice }}</p>
+                        <p class="text-[11px] leading-none text-slate-500 line-through sm:text-sm">{{ $oldPrice }}</p>
                     @endif
-                    <p class="text-base font-bold leading-none text-slate-900">{{ $price }}</p>
+                    <p class="text-[13px] font-bold leading-none text-slate-900 sm:text-base">{{ $price }}</p>
                 </div>
                 @if (! empty($lowest30DaysPrice))
-                    <p class="text-[11px] leading-tight text-slate-500">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
+                    <p class="text-[10px] leading-tight text-slate-500 sm:text-[11px]">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
                 @endif
             </div>
             <button
                 type="button"
-                class="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end border border-slate-900 bg-white text-slate-900 transition hover:bg-slate-100"
+                class="inline-flex h-8 w-8 shrink-0 items-center justify-center self-end border border-slate-900 bg-white text-slate-900 transition hover:bg-slate-100 sm:h-9 sm:w-9"
                 data-card-overlay-toggle
                 aria-expanded="{{ $hasOptionErrorForCard ? 'true' : 'false' }}"
                 aria-label="{{ __('ui.product.add_to_cart') }}"
             >
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                <svg class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M7 9h10l-1 10H8L7 9Z"></path>
                     <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
                 </svg>

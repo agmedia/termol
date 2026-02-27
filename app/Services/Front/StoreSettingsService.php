@@ -66,6 +66,8 @@ class StoreSettingsService
     {
         return [
             'fit_finder_enabled' => (bool) $this->settings->get('store_product_fit_finder_enabled', false),
+            'mobile_default_cols' => $this->settings->getInt('store_product_mobile_default_cols', 2, 1, 2),
+            'catalog_pagination_mode' => (string) $this->settings->get('store_product_catalog_pagination_mode', 'pagination'),
         ];
     }
 

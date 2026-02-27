@@ -4,11 +4,6 @@
             return;
         }
         window.__productCardOverlayInit = true;
-    const cards = document.querySelectorAll('[data-product-card]');
-    if (!cards.length) {
-        return;
-    }
-
     const closeCardOverlay = function (card) {
         const panel = card.querySelector('[data-card-overlay]');
         const toggle = card.querySelector('[data-card-overlay-toggle]');
@@ -33,7 +28,17 @@
         toggle.setAttribute('aria-expanded', 'true');
     };
 
-    cards.forEach(function (card) {
+    const bind = function (scope) {
+        const cards = (scope || document).querySelectorAll('[data-product-card]');
+        if (!cards.length) {
+            return;
+        }
+
+        cards.forEach(function (card) {
+        if (card.dataset.overlayInit === '1') {
+            return;
+        }
+        card.dataset.overlayInit = '1';
         const toggle = card.querySelector('[data-card-overlay-toggle]');
         const panel = card.querySelector('[data-card-overlay]');
         if (!toggle || !panel) {
@@ -43,7 +48,7 @@
         toggle.addEventListener('click', function () {
             const isOpen = toggle.getAttribute('aria-expanded') === 'true';
 
-            cards.forEach(function (otherCard) {
+            document.querySelectorAll('[data-product-card]').forEach(function (otherCard) {
                 if (otherCard !== card) {
                     closeCardOverlay(otherCard);
                 }
@@ -57,9 +62,15 @@
             openCardOverlay(card);
         });
     });
+    };
+
+    bind(document);
+    document.addEventListener('catalog:items-appended', function (event) {
+        bind(event.detail?.container || document);
+    });
 
     document.addEventListener('product-card-overlay:close-all', function () {
-        cards.forEach(function (card) {
+        document.querySelectorAll('[data-product-card]').forEach(function (card) {
             closeCardOverlay(card);
         });
     });

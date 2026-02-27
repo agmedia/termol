@@ -389,6 +389,38 @@
                         <input type="checkbox" wire:model="form.store_product_fit_finder_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
                         {{ __('admin.settings.store.products.fit_finder_enabled') }}
                     </label>
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 p-4">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.settings.store.products.mobile_default_grid_label') }}</label>
+                        <p class="mb-3 text-xs text-slate-600">{{ __('admin.settings.store.products.mobile_default_grid_help') }}</p>
+                        <div class="inline-flex overflow-hidden rounded-xl border border-slate-300">
+                            <label class="inline-flex cursor-pointer items-center gap-2 border-r border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                                <input type="radio" wire:model="form.store_product_mobile_default_cols" value="1" class="border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                {{ __('admin.settings.store.products.mobile_grid_one') }}
+                            </label>
+                            <label class="inline-flex cursor-pointer items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700">
+                                <input type="radio" wire:model="form.store_product_mobile_default_cols" value="2" class="border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                {{ __('admin.settings.store.products.mobile_grid_two') }}
+                            </label>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 p-4">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.settings.store.products.catalog_pagination_label') }}</label>
+                        <p class="mb-3 text-xs text-slate-600">{{ __('admin.settings.store.products.catalog_pagination_help') }}</p>
+                        <div class="inline-flex overflow-hidden rounded-xl border border-slate-300">
+                            <label class="inline-flex cursor-pointer items-center gap-2 border-r border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                                <input type="radio" wire:model="form.store_product_catalog_pagination_mode" value="pagination" class="border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                {{ __('admin.settings.store.products.catalog_pagination_mode_pagination') }}
+                            </label>
+                            <label class="inline-flex cursor-pointer items-center gap-2 border-r border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                                <input type="radio" wire:model="form.store_product_catalog_pagination_mode" value="load_more" class="border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                {{ __('admin.settings.store.products.catalog_pagination_mode_load_more') }}
+                            </label>
+                            <label class="inline-flex cursor-pointer items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700">
+                                <input type="radio" wire:model="form.store_product_catalog_pagination_mode" value="infinite" class="border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                {{ __('admin.settings.store.products.catalog_pagination_mode_infinite') }}
+                            </label>
+                        </div>
+                    </div>
                 </div>
             @endif
 

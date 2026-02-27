@@ -8,6 +8,9 @@ return [
         'page_title' => 'Shop',
         'title' => 'Shop Proizvodi',
         'subtitle' => 'Pretraži i filtriraj aktivni katalog.',
+        'load_more' => 'Učitaj još',
+        'loading' => 'Učitavanje...',
+        'end_of_list' => 'Nema više artikala.',
         'filters' => [
             'search' => 'Pretraga',
             'search_placeholder' => 'Naziv, sažetak, opis',
@@ -189,6 +192,9 @@ return [
             'result_desc' => 'Preporuka na temelju unesenih podataka.',
             'summary' => 'Preporučena veličina je :size uz procjenu :percent%.',
             'add_cta' => 'Dodaj veličinu :size u košaricu',
+            'help_toggle' => 'Kako računamo veličinu',
+            'help_title' => 'Kako određujemo preporučenu veličinu?',
+            'help_body' => 'Preporuka se izračunava na temelju unesenih mjera (visina, težina, dob), uključujući i procjenu indeksa tjelesne mase (BMI), te odabira preferiranog kroja (fit, prsa, trbuh). Prikazani rezultat predstavlja informativnu procjenu optimalnog uklapanja među dostupnim veličinama za ovaj artikl.',
             'actions' => [
                 'back' => 'Natrag',
                 'continue' => 'Nastavi',

@@ -1,12 +1,12 @@
 (() => {
-    const init = function () {
-        if (window.__productCardQtyInit === true) {
-            return;
-        }
-        window.__productCardQtyInit = true;
-    const controls = document.querySelectorAll('[data-qty-control]');
+    const bind = function (scope) {
+    const controls = (scope || document).querySelectorAll('[data-qty-control]');
 
     controls.forEach(function (control) {
+        if (control.dataset.qtyInit === '1') {
+            return;
+        }
+        control.dataset.qtyInit = '1';
         const input = control.querySelector('[data-qty-input]');
         const valueEl = control.querySelector('[data-qty-value]');
         const dec = control.querySelector('[data-qty-dec]');
@@ -35,6 +35,17 @@
             setValue((Number.parseInt(input.value, 10) || 1) + 1);
         });
     });
+    };
+
+    const init = function () {
+        if (window.__productCardQtyInit === true) {
+            return;
+        }
+        window.__productCardQtyInit = true;
+        bind(document);
+        document.addEventListener('catalog:items-appended', function (event) {
+            bind(event.detail?.container || document);
+        });
     };
 
     if (document.readyState === 'loading') {

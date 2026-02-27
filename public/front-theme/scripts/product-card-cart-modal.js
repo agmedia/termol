@@ -4,11 +4,6 @@
             return;
         }
         window.__productCardCartModalInit = true;
-    const forms = document.querySelectorAll('[data-product-card-form]');
-    if (!forms.length) {
-        return;
-    }
-
     const cartCountNodes = document.querySelectorAll('[data-cart-count]');
     let modal = null;
 
@@ -129,7 +124,17 @@
         document.body.classList.add('overflow-hidden');
     };
 
-    forms.forEach(function (form) {
+    const bind = function (scope) {
+        const forms = (scope || document).querySelectorAll('[data-product-card-form]');
+        if (!forms.length) {
+            return;
+        }
+
+        forms.forEach(function (form) {
+        if (form.dataset.cartModalInit === '1') {
+            return;
+        }
+        form.dataset.cartModalInit = '1';
         form.addEventListener('submit', async function (event) {
             event.preventDefault();
 
@@ -182,6 +187,12 @@
                 // Keep UI stable on network errors.
             }
         });
+    });
+    };
+
+    bind(document);
+    document.addEventListener('catalog:items-appended', function (event) {
+        bind(event.detail?.container || document);
     });
     };
 

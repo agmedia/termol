@@ -8,6 +8,9 @@ return [
         'page_title' => 'Shop',
         'title' => 'Shop Products',
         'subtitle' => 'Search and filter your live catalog.',
+        'load_more' => 'Load more',
+        'loading' => 'Loading...',
+        'end_of_list' => 'No more products.',
         'filters' => [
             'search' => 'Search',
             'search_placeholder' => 'Name, excerpt, description',
@@ -189,6 +192,9 @@ return [
             'result_desc' => 'Recommendation based on your details.',
             'summary' => 'Recommended size is :size with confidence :percent%.',
             'add_cta' => 'Add size :size to cart',
+            'help_toggle' => 'How we calculate size',
+            'help_title' => 'How do we calculate the size recommendation?',
+            'help_body' => 'The recommendation is calculated from your measurements (height, weight, age) and fit preferences (fit, chest, belly). The result is an estimate of the best match within available sizes for this product.',
             'actions' => [
                 'back' => 'Back',
                 'continue' => 'Continue',

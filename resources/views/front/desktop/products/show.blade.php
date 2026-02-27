@@ -556,10 +556,25 @@
                                 <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{{ __('ui.product.fit_finder.title') }}</p>
                                 <div class="flex items-center gap-3">
                                     <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 opacity-0 transition-opacity" data-fit-save-indicator aria-live="polite">Spremljeno</span>
+                                    <button
+                                        type="button"
+                                        class="inline-flex h-8 w-8 items-center justify-center border border-slate-300 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                                        data-fit-finder-help-toggle
+                                        aria-expanded="false"
+                                        aria-controls="fit-finder-help-panel-{{ $product->id }}"
+                                        aria-label="{{ __('ui.product.fit_finder.help_toggle') }}"
+                                    >
+                                        <span data-fit-help-icon-closed>?</span>
+                                        <span class="hidden text-xs leading-none" data-fit-help-icon-open>▴</span>
+                                    </button>
                                     <button type="button" class="inline-flex h-8 w-8 items-center justify-center border border-slate-300 text-base text-slate-700 hover:bg-slate-100" data-fit-finder-close aria-label="{{ __('ui.product.size_guide_close') }}">
                                         ×
                                     </button>
                                 </div>
+                            </div>
+                            <div id="fit-finder-help-panel-{{ $product->id }}" class="mt-3 hidden border border-slate-200 bg-white p-3 text-left" data-fit-finder-help-panel>
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-700">{{ __('ui.product.fit_finder.help_title') }}</p>
+                                <p class="mt-1 text-xs leading-relaxed text-slate-600">{{ __('ui.product.fit_finder.help_body') }}</p>
                             </div>
 
                             <div class="mt-2" data-fit-finder-timeline>
@@ -956,6 +971,10 @@
             }
 
             const closeButtons = fitModal.querySelectorAll('[data-fit-finder-close]');
+            const helpToggleButton = fitModal.querySelector('[data-fit-finder-help-toggle]');
+            const helpPanel = fitModal.querySelector('[data-fit-finder-help-panel]');
+            const helpIconClosed = fitModal.querySelector('[data-fit-help-icon-closed]');
+            const helpIconOpen = fitModal.querySelector('[data-fit-help-icon-open]');
             const steps = Array.from(fitModal.querySelectorAll('[data-fit-step]'));
             const timelineItems = Array.from(fitModal.querySelectorAll('[data-fit-timeline-item]'));
             const progress = fitModal.querySelector('[data-fit-finder-progress]');
@@ -1341,10 +1360,26 @@
                 }
             };
 
+            const setHelpToggleState = function (isOpen) {
+                if (helpToggleButton) {
+                    helpToggleButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                }
+                if (helpIconClosed) {
+                    helpIconClosed.classList.toggle('hidden', isOpen);
+                }
+                if (helpIconOpen) {
+                    helpIconOpen.classList.toggle('hidden', !isOpen);
+                }
+            };
+
             const openModal = function () {
                 state.step = 0;
                 clearStepErrors();
                 renderStep();
+                if (helpPanel) {
+                    helpPanel.classList.add('hidden');
+                }
+                setHelpToggleState(false);
                 fitModal.classList.remove('hidden');
                 fitModal.setAttribute('aria-hidden', 'false');
                 document.body.classList.add('overflow-hidden');
@@ -1352,10 +1387,22 @@
 
             const closeModal = function () {
                 schedulePersist();
+                if (helpPanel) {
+                    helpPanel.classList.add('hidden');
+                }
+                setHelpToggleState(false);
                 fitModal.classList.add('hidden');
                 fitModal.setAttribute('aria-hidden', 'true');
                 document.body.classList.remove('overflow-hidden');
             };
+
+            if (helpToggleButton && helpPanel) {
+                helpToggleButton.addEventListener('click', function () {
+                    const shouldShow = helpPanel.classList.contains('hidden');
+                    helpPanel.classList.toggle('hidden', !shouldShow);
+                    setHelpToggleState(shouldShow);
+                });
+            }
 
             openButtons.forEach(function (button) {
                 button.addEventListener('click', openModal);

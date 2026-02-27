@@ -535,11 +535,23 @@
             document.body.appendChild(s);
         }
 
-        window.addEventListener('load', function () {
+        let scriptsLoaded = false;
+        function loadOnReady() {
+            if (scriptsLoaded) {
+                return;
+            }
+            scriptsLoaded = true;
             onLoadScripts.forEach(function (src) {
                 loadScript(src, false);
             });
-        }, { once: true });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadOnReady, { once: true });
+        } else {
+            loadOnReady();
+        }
+        window.addEventListener('pageshow', loadOnReady);
     })();
 </script>
 @include('front.partials.cookie-consent')
