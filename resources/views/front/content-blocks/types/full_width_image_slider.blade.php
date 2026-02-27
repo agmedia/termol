@@ -134,7 +134,7 @@
 
         #{{ $sliderId }} .hero-slide-frame {
             position: relative;
-            aspect-ratio: 1920 / 700;
+            aspect-ratio: 1920 / 820;
             background: #f1f5f9;
             height: 100%;
         }
