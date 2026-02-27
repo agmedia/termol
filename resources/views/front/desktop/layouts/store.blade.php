@@ -61,11 +61,17 @@
     @media (min-width: 1024px) {
         .site-main-header-row {
             height: 90px;
-            transition: height .2s ease;
         }
 
         .site-main-logo {
             height: 40px;
+        }
+
+        .site-main-header.site-main-header--ready .site-main-header-row {
+            transition: height .2s ease;
+        }
+
+        .site-main-header.site-main-header--ready .site-main-logo {
             transition: height .2s ease;
         }
 
@@ -541,6 +547,9 @@
             };
 
             updateHeaderState();
+            requestAnimationFrame(function () {
+                mainHeader.classList.add('site-main-header--ready');
+            });
             window.addEventListener('scroll', updateHeaderState, { passive: true });
             window.addEventListener('resize', updateHeaderState);
             window.addEventListener('orientationchange', updateHeaderState);

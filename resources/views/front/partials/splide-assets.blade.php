@@ -1,9 +1,13 @@
 @once
     @push('head')
-        <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css" onload="this.onload=null;this.rel='stylesheet'">
-        <noscript>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">
-        </noscript>
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">
+        <style>
+            /* Prevent layout jump before Splide CSS is downloaded. */
+            .splide__track { overflow: hidden; }
+            .splide__list { display: flex; margin: 0; padding: 0; list-style: none; }
+            .splide__slide { flex: 0 0 100%; min-width: 0; }
+        </style>
     @endpush
 
     @push('scripts')
