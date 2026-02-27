@@ -1,6 +1,7 @@
 @extends('front.desktop.layouts.store')
 
 @php
+    $showManufacturers = app(\App\Services\Catalog\CatalogFeatureService::class)->useManufacturers();
     $translation = $category->translations->firstWhere('locale', $locale)
         ?? $category->translations->firstWhere('locale', $fallbackLocale);
     $hasSubcategories = ($subcategories ?? collect())->isNotEmpty();
@@ -12,6 +13,10 @@
     $paginationMode = (string) ($storeSettings['product']['catalog_pagination_mode'] ?? 'pagination');
     $useAsyncPagination = in_array($paginationMode, ['load_more', 'infinite'], true);
     $isInfinitePagination = $paginationMode === 'infinite';
+    $hasActiveFilters = trim((string) ($filters['q'] ?? '')) !== ''
+        || trim((string) ($filters['manufacturer'] ?? '')) !== ''
+        || trim((string) ($filters['size'] ?? '')) !== ''
+        || (string) ($filters['sort'] ?? 'newest') !== 'newest';
     $gridClass = match ($currentCols) {
         1 => 'grid grid-cols-1 gap-y-5',
         2 => 'grid grid-cols-2 gap-x-4 gap-y-5',
@@ -25,6 +30,118 @@
 @section('main_class', 'w-full px-0 pt-3 pb-4 sm:pt-3 sm:pb-6')
 
 @section('content')
+    <style>
+        @media (min-width: 768px) {
+            .catalog-filter-select {
+                appearance: none;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                height: 42px;
+                width: 100%;
+                border: 1px solid #b8c7da;
+                border-radius: 2px;
+                background-color: #fff;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%23475569' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right .75rem center;
+                background-size: 14px 14px;
+                padding: 0 .8rem;
+                padding-right: 2.2rem;
+                font-size: .95rem;
+                color: #0f172a;
+                transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+            }
+
+            .catalog-filter-select:hover {
+                border-color: #94a3b8;
+                background-color: #fcfdff;
+            }
+
+            .catalog-filter-select:focus {
+                outline: none;
+                border-color: #0f172a;
+                box-shadow: 0 0 0 2px rgba(15, 23, 42, .12);
+            }
+
+            .catalog-filter-select.catalog-filter-native-hidden {
+                display: none;
+            }
+
+            .catalog-filter-custom {
+                position: relative;
+            }
+
+            .catalog-filter-custom-button {
+                display: block;
+                height: 42px;
+                width: 100%;
+                border: 1px solid #b8c7da;
+                background: #fff;
+                padding: 0 .8rem;
+                padding-right: 2.2rem;
+                text-align: left;
+                font-size: .95rem;
+                color: #0f172a;
+                transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%23475569' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right .75rem center;
+                background-size: 14px 14px;
+            }
+
+            .catalog-filter-custom-button:hover {
+                border-color: #94a3b8;
+                background-color: #fcfdff;
+            }
+
+            .catalog-filter-custom-button:focus {
+                outline: none;
+                border-color: #0f172a;
+                box-shadow: 0 0 0 2px rgba(15, 23, 42, .12);
+            }
+
+            .catalog-filter-custom-list {
+                position: absolute;
+                z-index: 120;
+                top: calc(100% + 6px);
+                left: 0;
+                right: 0;
+                max-height: 280px;
+                overflow: auto;
+                border: 1px solid #b8c7da;
+                background: #fff;
+                box-shadow: 0 12px 22px -20px rgba(15, 23, 42, 0.55);
+                display: none;
+            }
+
+            .catalog-filter-custom.is-open .catalog-filter-custom-list {
+                display: block;
+            }
+
+            .catalog-filter-custom-item {
+                display: block;
+                width: 100%;
+                border: 0;
+                background: #fff;
+                padding: .55rem .8rem;
+                text-align: left;
+                font-size: .9rem;
+                color: #1e293b;
+            }
+
+            .catalog-filter-custom-item:hover {
+                background: #f8fafc;
+            }
+
+            .catalog-filter-custom-item.is-selected {
+                background: #edf2f8;
+                color: #0f172a;
+                font-weight: 600;
+                box-shadow: inset 3px 0 0 #0f172a;
+            }
+        }
+    </style>
+
     <section class="px-3 sm:px-4 lg:px-6">
         <div class="bg-slate-100 px-4 py-4 text-center sm:px-6 sm:py-5">
         <nav aria-label="Breadcrumb" class="mb-2">
@@ -60,8 +177,8 @@
         </section>
     @endif
 
-    <section class="mt-3 overflow-x-hidden border-y border-slate-200 bg-slate-50 px-3 py-4 sm:px-4 lg:px-6">
-        <div class="md:hidden" data-mobile-filter-root>
+    <section class="relative z-20 mx-3 mt-3 border border-slate-200 bg-white p-4 sm:mx-4 lg:mx-6">
+        <div class="max-[1024px]:block min-[1025px]:hidden" data-mobile-filter-root>
             <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                 <button
                     type="button"
@@ -115,21 +232,23 @@
                         </select>
                     </div>
                 @endif
-                <div>
-                    <label for="shop-manufacturer-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.manufacturer') }}</label>
-                    <select id="shop-manufacturer-mobile" name="manufacturer" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
-                        <option value="">{{ __('ui.shop.filters.all_manufacturers') }}</option>
-                        @foreach ($manufacturers as $manufacturer)
-                            @php
-                                $manufacturerTranslation = $manufacturer->translations->firstWhere('locale', $locale)
-                                    ?? $manufacturer->translations->firstWhere('locale', $fallbackLocale);
-                            @endphp
-                            <option value="{{ $manufacturerTranslation?->slug }}" @selected(($filters['manufacturer'] ?? '') === ($manufacturerTranslation?->slug ?? ''))>
-                                {{ $manufacturerTranslation?->name ?? $manufacturer->code }} ({{ $manufacturer->products_count }})
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
+                @if ($showManufacturers)
+                    <div>
+                        <label for="shop-manufacturer-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.manufacturer') }}</label>
+                        <select id="shop-manufacturer-mobile" name="manufacturer" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
+                            <option value="">{{ __('ui.shop.filters.all_manufacturers') }}</option>
+                            @foreach ($manufacturers as $manufacturer)
+                                @php
+                                    $manufacturerTranslation = $manufacturer->translations->firstWhere('locale', $locale)
+                                        ?? $manufacturer->translations->firstWhere('locale', $fallbackLocale);
+                                @endphp
+                                <option value="{{ $manufacturerTranslation?->slug }}" @selected(($filters['manufacturer'] ?? '') === ($manufacturerTranslation?->slug ?? ''))>
+                                    {{ $manufacturerTranslation?->name ?? $manufacturer->code }} ({{ $manufacturer->products_count }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
                 <div>
                     <label for="shop-size-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.size') }}</label>
                     <select id="shop-size-mobile" name="size" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
@@ -155,22 +274,32 @@
                         <option value="stock_high" @selected(($filters['sort'] ?? '') === 'stock_high')>{{ __('ui.shop.filters.stock_high') }}</option>
                     </select>
                 </div>
-                <div class="flex items-end gap-2">
-                    <input type="hidden" name="cols" value="{{ $mobileCols }}">
-                    <button type="submit" class="h-[42px] flex-1 border border-slate-900 bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-700">{{ __('ui.shop.filters.apply') }}</button>
-                    <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="inline-flex h-[42px] items-center justify-center border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">{{ __('ui.shop.filters.reset') }}</a>
-                </div>
+                <input type="hidden" name="cols" value="{{ $mobileCols }}">
+                @if ($hasActiveFilters)
+                    <div class="flex items-end justify-end">
+                        <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="inline-flex h-[42px] items-center justify-center gap-2 border border-rose-600 px-4 text-sm font-semibold text-rose-600 hover:bg-rose-50">
+                            <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                                <path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5"></path>
+                            </svg>
+                            <span>{{ __('ui.shop.filters.reset') }}</span>
+                        </a>
+                    </div>
+                @endif
             </form>
         </div>
 
-        <form method="GET" action="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="hidden gap-3 md:grid {{ $hasSubcategories ? 'xl:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]' : 'xl:grid-cols-[1fr_1fr_1fr_auto_auto]' }}">
+        <form method="GET" action="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="hidden gap-3 min-[1025px]:grid {{
+            $hasSubcategories
+                ? ($showManufacturers ? 'min-[1025px]:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]' : 'min-[1025px]:grid-cols-[1fr_1fr_1fr_auto_auto]')
+                : ($showManufacturers ? 'min-[1025px]:grid-cols-[1fr_1fr_1fr_auto_auto]' : 'min-[1025px]:grid-cols-[1fr_1fr_auto_auto]')
+        }}" data-desktop-filter-form>
             <input type="hidden" name="q" value="{{ $filters['q'] ?? '' }}">
             @if ($hasSubcategories)
                 <div>
                     <label for="shop-category" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.category') }}</label>
                     <select
                         id="shop-category"
-                        class="h-[42px] w-full rounded-none border-slate-300 text-sm"
+                        class="catalog-filter-select h-[42px] w-full rounded-none border-slate-300 text-sm"
                         data-category-redirect
                         data-default-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}"
                     >
@@ -187,24 +316,26 @@
                     </select>
                 </div>
             @endif
-            <div>
-                <label for="shop-manufacturer" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.manufacturer') }}</label>
-                <select id="shop-manufacturer" name="manufacturer" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
-                    <option value="">{{ __('ui.shop.filters.all_manufacturers') }}</option>
-                    @foreach ($manufacturers as $manufacturer)
-                        @php
-                            $manufacturerTranslation = $manufacturer->translations->firstWhere('locale', $locale)
-                                ?? $manufacturer->translations->firstWhere('locale', $fallbackLocale);
-                        @endphp
-                        <option value="{{ $manufacturerTranslation?->slug }}" @selected(($filters['manufacturer'] ?? '') === ($manufacturerTranslation?->slug ?? ''))>
-                            {{ $manufacturerTranslation?->name ?? $manufacturer->code }} ({{ $manufacturer->products_count }})
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+            @if ($showManufacturers)
+                <div>
+                    <label for="shop-manufacturer" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.manufacturer') }}</label>
+                    <select id="shop-manufacturer" name="manufacturer" class="catalog-filter-select h-[42px] w-full rounded-none border-slate-300 text-sm">
+                        <option value="">{{ __('ui.shop.filters.all_manufacturers') }}</option>
+                        @foreach ($manufacturers as $manufacturer)
+                            @php
+                                $manufacturerTranslation = $manufacturer->translations->firstWhere('locale', $locale)
+                                    ?? $manufacturer->translations->firstWhere('locale', $fallbackLocale);
+                            @endphp
+                            <option value="{{ $manufacturerTranslation?->slug }}" @selected(($filters['manufacturer'] ?? '') === ($manufacturerTranslation?->slug ?? ''))>
+                                {{ $manufacturerTranslation?->name ?? $manufacturer->code }} ({{ $manufacturer->products_count }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
             <div>
                 <label for="shop-size" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.size') }}</label>
-                <select id="shop-size" name="size" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
+                <select id="shop-size" name="size" class="catalog-filter-select h-[42px] w-full rounded-none border-slate-300 text-sm">
                     <option value="">{{ __('ui.shop.filters.all_sizes') }}</option>
                     @foreach ($sizes as $size)
                         @php
@@ -219,7 +350,7 @@
             </div>
             <div>
                 <label for="shop-sort" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.sort') }}</label>
-                <select id="shop-sort" name="sort" class="h-[42px] w-full rounded-none border-slate-300 text-sm">
+                <select id="shop-sort" name="sort" class="catalog-filter-select h-[42px] w-full rounded-none border-slate-300 text-sm">
                     <option value="newest" @selected(($filters['sort'] ?? 'newest') === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
                     <option value="oldest" @selected(($filters['sort'] ?? '') === 'oldest')>{{ __('ui.shop.filters.oldest') }}</option>
                     <option value="price_low" @selected(($filters['sort'] ?? '') === 'price_low')>{{ __('ui.shop.filters.price_low') }}</option>
@@ -247,13 +378,19 @@
             </div>
             <div class="flex items-end gap-2">
                 <input type="hidden" name="cols" value="{{ (int) ($filters['cols'] ?? 4) }}">
-                <button type="submit" class="h-[42px] flex-1 border border-slate-900 bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-700">{{ __('ui.shop.filters.apply') }}</button>
-                <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="inline-flex h-[42px] items-center justify-center border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">{{ __('ui.shop.filters.reset') }}</a>
+                @if ($hasActiveFilters)
+                    <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="inline-flex h-[42px] items-center justify-center gap-2 border border-rose-600 px-4 text-sm font-semibold text-rose-600 hover:bg-rose-50">
+                        <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                            <path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5"></path>
+                        </svg>
+                        <span>{{ __('ui.shop.filters.reset') }}</span>
+                    </a>
+                @endif
             </div>
         </form>
     </section>
 
-    <section class="px-3 py-6 sm:px-4 lg:px-6">
+    <section class="px-3 pt-3 pb-6 sm:px-4 lg:px-6">
         @if ($products->isEmpty())
             <div class="border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">{{ __('ui.category.empty') }}</div>
         @else
@@ -303,6 +440,7 @@
 
 @push('scripts')
     <script defer src="{{ asset('front-theme/scripts/category-select-redirect.js') }}?v={{ filemtime(public_path('front-theme/scripts/category-select-redirect.js')) }}"></script>
+    <script defer src="{{ asset('front-theme/scripts/catalog-custom-select.js') }}?v={{ filemtime(public_path('front-theme/scripts/catalog-custom-select.js')) }}"></script>
     @if ($useAsyncPagination)
         <script defer src="{{ asset('front-theme/scripts/catalog-load-more.js') }}?v={{ filemtime(public_path('front-theme/scripts/catalog-load-more.js')) }}"></script>
     @endif
@@ -325,6 +463,24 @@
                         panel.classList.toggle('hidden', !isHidden);
                         panel.classList.toggle('grid', isHidden);
                         toggle.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+                    });
+                });
+
+                document.querySelectorAll('select[name="manufacturer"], select[name="size"], select[name="sort"]').forEach((select) => {
+                    if (select.dataset.autoSortInit === '1') {
+                        return;
+                    }
+                    select.dataset.autoSortInit = '1';
+                    select.addEventListener('change', () => {
+                        const form = select.closest('form');
+                        if (!form) {
+                            return;
+                        }
+                        if (typeof form.requestSubmit === 'function') {
+                            form.requestSubmit();
+                            return;
+                        }
+                        form.submit();
                     });
                 });
             };
