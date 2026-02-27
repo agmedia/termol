@@ -531,6 +531,7 @@ class ProductController extends Controller
     private function productEtag(Request $request, string $slug, int $productId, int $lastModifiedTs): string
     {
         $wishlistHash = sha1(implode(',', app(WishlistService::class)->ids()));
+        $fitFinderHash = $this->fitFinderEtagFragment($request, $productId);
 
         return '"'.sha1(implode('|', [
             'desktop-product',
@@ -540,6 +541,27 @@ class ProductController extends Controller
             $request->getRequestUri(),
             (string) $lastModifiedTs,
             $wishlistHash,
+            $fitFinderHash,
         ])).'"';
+    }
+
+    private function fitFinderEtagFragment(Request $request, int $productId): string
+    {
+        $selection = $request->session()->get(self::FIT_FINDER_SESSION_KEY);
+        if (! is_array($selection) || (int) ($selection['product_id'] ?? 0) !== $productId) {
+            return 'fit:none';
+        }
+
+        return sha1(json_encode([
+            'product_id' => (int) ($selection['product_id'] ?? 0),
+            'size_label' => trim((string) ($selection['size_label'] ?? '')),
+            'height' => isset($selection['height']) ? (int) $selection['height'] : null,
+            'weight' => isset($selection['weight']) ? (int) $selection['weight'] : null,
+            'age' => isset($selection['age']) ? (int) $selection['age'] : null,
+            'fit' => trim((string) ($selection['fit'] ?? '')),
+            'chest' => trim((string) ($selection['chest'] ?? '')),
+            'belly' => trim((string) ($selection['belly'] ?? '')),
+            'updated_at' => trim((string) ($selection['updated_at'] ?? '')),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: 'fit:none');
     }
 }
