@@ -1104,7 +1104,7 @@
                     }
                 </style>
                 <div class="mt-4">
-                    <div id="recently-viewed-products-carousel-{{ $product->id }}" class="splide" data-related-products-splide>
+                    <div id="recently-viewed-products-carousel-{{ $product->id }}" class="splide" data-related-products-splide data-fixed-grid-cols="1">
                         <div class="splide__track">
                             <ul class="splide__list">
                                 @foreach ($recentlyViewed as $recentlyViewedProduct)
@@ -1850,9 +1850,13 @@
                     const count = el.querySelectorAll('.splide__slide').length;
                     const mobilePerPage = {{ in_array((int) ($storeSettings['product']['mobile_default_cols'] ?? 2), [1, 2], true) ? (int) ($storeSettings['product']['mobile_default_cols'] ?? 2) : 2 }};
                     const preferredDesktopPerPage = {{ $preferredGridCols }};
+                    const fixedGridCols = el.dataset.fixedGridCols === '1';
+                    const desktopPerPage = fixedGridCols
+                        ? Math.max(1, preferredDesktopPerPage)
+                        : Math.min(Math.max(1, preferredDesktopPerPage), Math.max(1, count));
                     new window.Splide(el, {
-                        type: count > 1 ? 'loop' : 'slide',
-                        perPage: Math.min(Math.max(1, preferredDesktopPerPage), Math.max(1, count)),
+                        type: count > desktopPerPage ? 'loop' : 'slide',
+                        perPage: desktopPerPage,
                         perMove: 1,
                         gap: '1.25rem',
                         drag: count > 1,
@@ -1862,9 +1866,9 @@
                         updateOnMove: true,
                         speed: 520,
                         breakpoints: {
-                            1536: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 5), Math.max(1, count)) },
-                            1280: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 4), Math.max(1, count)) },
-                            1024: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 3), Math.max(1, count)) },
+                            1536: { perPage: fixedGridCols ? Math.min(Math.max(1, preferredDesktopPerPage), 5) : Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 5), Math.max(1, count)) },
+                            1280: { perPage: fixedGridCols ? Math.min(Math.max(1, preferredDesktopPerPage), 4) : Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 4), Math.max(1, count)) },
+                            1024: { perPage: fixedGridCols ? Math.min(Math.max(1, preferredDesktopPerPage), 3) : Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 3), Math.max(1, count)) },
                             860: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '1rem' },
                             640: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '0.8rem' },
                         },
