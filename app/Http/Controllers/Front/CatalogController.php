@@ -930,12 +930,14 @@ class CatalogController extends Controller
     private function catalogEtag(Request $request, string $scope, int $lastModifiedTs): string
     {
         $wishlistHash = sha1(implode(',', app(WishlistService::class)->ids()));
+        $gridCols = (string) $this->resolveGridCols($request, 4);
 
         return '"'.sha1(implode('|', [
             'desktop-catalog',
             $scope,
             app()->getLocale(),
             $request->getRequestUri(),
+            $gridCols,
             (string) $lastModifiedTs,
             $wishlistHash,
         ])).'"';
