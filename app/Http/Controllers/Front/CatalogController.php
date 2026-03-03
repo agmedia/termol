@@ -56,9 +56,6 @@ class CatalogController extends Controller
         }
         $gridCols = $this->resolveGridCols($request, 4);
         $this->queueGridColsCookie($gridCols);
-        if ($request->query->has('cols')) {
-            return $this->redirectWithoutCols($request);
-        }
 
         $query = Product::query()
             ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
@@ -223,9 +220,6 @@ class CatalogController extends Controller
         $sort = (string) $request->query('sort', 'newest');
         $gridCols = $this->resolveGridCols($request, 4);
         $this->queueGridColsCookie($gridCols);
-        if ($request->query->has('cols')) {
-            return $this->redirectWithoutCols($request);
-        }
 
         $category = Category::query()
             ->where('scope', Category::SCOPE_CATALOG)
