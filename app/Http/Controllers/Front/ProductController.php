@@ -433,14 +433,29 @@ class ProductController extends Controller
             return null;
         }
 
+        $candidateCodes = collect([$sizeGuideCode]);
+        if ($sizeGuideCode !== 'size-guide-women') {
+            $candidateCodes->push('size-guide-women');
+        }
+
+        if ($sizeGuideCode !== 'size-guide-man') {
+            $candidateCodes->push('size-guide-man');
+        }
+
         $page = InfoPage::query()
-            ->where('code', $sizeGuideCode)
+            ->whereIn('code', $candidateCodes->all())
             ->where('is_active', true)
             ->where(function ($q): void {
                 $q->whereNull('published_at')
                     ->orWhere('published_at', '<=', now());
             })
             ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+            ->get()
+            ->sortBy(function (InfoPage $page) use ($candidateCodes): int {
+                $index = $candidateCodes->search((string) $page->code);
+
+                return $index === false ? PHP_INT_MAX : (int) $index;
+            })
             ->first();
 
         if (! $page) {
@@ -457,7 +472,7 @@ class ProductController extends Controller
         }
 
         return [
-            'code' => $sizeGuideCode,
+            'code' => (string) $page->code,
             'title' => trim((string) ($translation?->title ?? __('ui.product.size_guide'))),
             'body_html' => $bodyHtml,
         ];
@@ -466,7 +481,7 @@ class ProductController extends Controller
     private function defaultSizeGuideCode(Product $product, string $locale, string $fallbackLocale): string
     {
         return $this->isMaleProduct($product, $locale, $fallbackLocale)
-            ? 'size-guide-main'
+            ? 'size-guide-man'
             : 'size-guide-women';
     }
 

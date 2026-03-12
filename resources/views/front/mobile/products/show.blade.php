@@ -216,6 +216,13 @@
                         </div>
                     @endif
                     <p class="font-11 color-red-dark mb-3 d-none" data-option-error>{{ __('ui.cart.errors.select_size') }}</p>
+                    @if (!empty($sizeGuide))
+                        <div class="d-flex justify-content-end mb-3">
+                            <button type="button" class="btn p-0 font-600 text-uppercase font-11" data-size-guide-open>
+                                {{ __('ui.product.size_guide') }}
+                            </button>
+                        </div>
+                    @endif
                 @endif
 
                 <div class="row mb-2">
@@ -323,6 +330,56 @@
         </div>
     </div>
 
+    @if (!empty($sizeGuide) && $optionRows->isNotEmpty())
+        <style>
+            [data-size-guide-modal] .content-richtext {
+                font-size: 0.9rem;
+                line-height: 1.45;
+            }
+            [data-size-guide-modal] .content-richtext h1,
+            [data-size-guide-modal] .content-richtext h2,
+            [data-size-guide-modal] .content-richtext h3,
+            [data-size-guide-modal] .content-richtext h4 {
+                margin: 0.6rem 0 0.45rem;
+                line-height: 1.25;
+            }
+            [data-size-guide-modal] .content-richtext h2 { font-size: 1.3rem; }
+            [data-size-guide-modal] .content-richtext h3 { font-size: 1.05rem; }
+            [data-size-guide-modal] .content-richtext p,
+            [data-size-guide-modal] .content-richtext li {
+                margin-bottom: 0.4rem;
+            }
+            [data-size-guide-modal] .content-richtext table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 0.8rem;
+            }
+            [data-size-guide-modal] .content-richtext th,
+            [data-size-guide-modal] .content-richtext td {
+                border: 1px solid #e2e8f0;
+                padding: 0.35rem 0.45rem;
+                vertical-align: middle;
+            }
+            [data-size-guide-modal] .content-richtext thead th {
+                background: #f8fafc;
+                font-weight: 700;
+            }
+        </style>
+        <div class="fixed inset-0 z-[120] hidden items-end justify-center bg-black/50" data-size-guide-modal aria-hidden="true">
+            <div class="w-full max-h-[88vh] overflow-hidden bg-white shadow-2xl sm:mx-auto sm:max-w-4xl">
+                <div class="d-flex justify-content-between align-items-center border-bottom px-4 py-3">
+                    <h4 class="mb-0">{{ $sizeGuide['title'] ?: __('ui.product.size_guide') }}</h4>
+                    <button type="button" class="btn btn-border border-slate-300 color-theme rounded-0 font-11 text-uppercase px-3 py-2" data-size-guide-close>
+                        {{ __('ui.product.size_guide_close') }}
+                    </button>
+                </div>
+                <div class="px-4 py-3 overflow-auto" style="max-height: calc(88vh - 64px);">
+                    <div class="content-richtext">{!! $sizeGuide['body_html'] !!}</div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if ($related->isNotEmpty())
         <div class="card card-style">
             <div class="content mb-1">
@@ -364,6 +421,51 @@
                 panel.classList.toggle('d-none');
                 const isOpen = !panel.classList.contains('d-none');
                 toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modal = document.querySelector('[data-size-guide-modal]');
+            if (!modal) {
+                return;
+            }
+
+            const openButtons = document.querySelectorAll('[data-size-guide-open]');
+            const closeButtons = modal.querySelectorAll('[data-size-guide-close]');
+
+            const openModal = function () {
+                modal.classList.remove('hidden');
+                modal.classList.add('d-flex');
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('overflow-hidden');
+            };
+
+            const closeModal = function () {
+                modal.classList.add('hidden');
+                modal.classList.remove('d-flex');
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('overflow-hidden');
+            };
+
+            openButtons.forEach(function (button) {
+                button.addEventListener('click', openModal);
+            });
+
+            closeButtons.forEach(function (button) {
+                button.addEventListener('click', closeModal);
+            });
+
+            modal.addEventListener('click', function (event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') {
+                    closeModal();
+                }
             });
         });
     </script>
