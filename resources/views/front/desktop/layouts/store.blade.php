@@ -109,7 +109,7 @@
         <div class="site-main-header-row flex h-[60px] w-full items-stretch justify-between pl-2 pr-0 sm:pl-4 sm:pr-0 lg:pl-5 lg:pr-0 xl:pl-5 xl:pr-0">
             <a href="{{ route('home') }}" class="inline-flex h-full items-center text-2xl font-black tracking-tight text-slate-900 sm:text-4xl">
                 @if (!empty($storeSettings['branding']['logo_url'] ?? null))
-                    <img src="{{ $storeSettings['branding']['logo_url'] }}" alt="{{ $storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop') }}" class="site-main-logo h-7 w-auto object-contain sm:h-8" width="176" height="44">
+                    <img src="{{ $storeSettings['branding']['logo_url'] }}" alt="{{ $storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop') }}" class="site-main-logo h-10 w-auto object-contain" width="176" height="44">
                 @else
                     AMDS
                 @endif

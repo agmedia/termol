@@ -37,6 +37,7 @@
     }
 @endphp
 
+{{-- The "kolekcije" override uses only the block-level header above the cards. --}}
 @if ($slides->isNotEmpty())
     <section class="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden bg-[linear-gradient(180deg,_#eef2f3_0%,_#e8edf0_46%,_#f6f7f7_100%)] py-8 sm:py-10 lg:py-14 {{ $customClasses }}">
         <div class="pointer-events-none absolute inset-0">
