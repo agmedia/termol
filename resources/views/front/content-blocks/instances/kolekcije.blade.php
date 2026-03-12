@@ -93,11 +93,7 @@
                         $cta1UrlMap = (array) data_get($props, 'cta_1_url', []);
                         $cta2LabelMap = (array) data_get($props, 'cta_2_label', []);
                         $cta2UrlMap = (array) data_get($props, 'cta_2_url', []);
-                        $slideTitle = trim((string) (
-                            data_get($props, "block_title.$locale")
-                            ?: data_get($props, "block_title.$fallbackLocale")
-                            ?: collect($blockTitleMap)->first(fn ($value) => trim((string) $value) !== '')
-                        ));
+                        $slideTitle = '';
                         $slideLinkUrl = trim((string) (
                             data_get($props, "link_url.$locale")
                             ?: data_get($props, "link_url.$fallbackLocale")
@@ -127,7 +123,6 @@
                             ?: collect($cta2UrlMap)->first(fn ($value) => trim((string) $value) !== '')
                         ));
                         $genderProbe = \Illuminate\Support\Str::of(implode(' ', [
-                            $slideTitle,
                             $cta1Label,
                             $cta1Url,
                             $cta2Label,
@@ -154,8 +149,7 @@
                         $overlayAsset = asset(
                             'front-theme/images/overlays/'.($overlayGender === 'female' ? 'women-gender.png' : 'man-gender.png')
                         );
-                        $hasSlideContent = $slideTitle !== ''
-                            || ($cta1Label !== '' && $cta1Url !== '')
+                        $hasSlideContent = ($cta1Label !== '' && $cta1Url !== '')
                             || ($cta2Label !== '' && $cta2Url !== '');
                         $useWholeSlideLink = $slideLinkUrl !== '' && ! $hasSlideContent;
                         $articleAlignClass = $loop->first
