@@ -1752,6 +1752,36 @@ BLADE,
     $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
     $customClasses = trim((string) ($translationPayload['custom_classes'] ?? ''));
     $slides = $block->getMedia('block_slides')->take(2);
+    $displayTitle = trim((string) ($translation?->title ?? ''));
+    $displaySubtitle = trim((string) ($translation?->subtitle ?? ''));
+
+    if ($displayTitle === '' || $displaySubtitle === '') {
+        $allTranslations = $block->translations()->get(['locale', 'title', 'subtitle']);
+
+        if ($displayTitle === '') {
+            $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->title ?? ''));
+            if ($displayTitle === '') {
+                $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->title ?? ''));
+            }
+            if ($displayTitle === '') {
+                $displayTitle = trim((string) ($allTranslations->first(
+                    static fn ($row): bool => trim((string) ($row->title ?? '')) !== ''
+                )?->title ?? ''));
+            }
+        }
+
+        if ($displaySubtitle === '') {
+            $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->subtitle ?? ''));
+            if ($displaySubtitle === '') {
+                $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->subtitle ?? ''));
+            }
+            if ($displaySubtitle === '') {
+                $displaySubtitle = trim((string) ($allTranslations->first(
+                    static fn ($row): bool => trim((string) ($row->subtitle ?? '')) !== ''
+                )?->subtitle ?? ''));
+            }
+        }
+    }
 @endphp
 
 @if ($slides->isNotEmpty())
@@ -1769,6 +1799,22 @@ BLADE,
             ></div>
         </div>
         <div class="relative mx-auto w-full max-w-[1180px] px-4 sm:px-7 lg:px-10 xl:px-12">
+            @if ($displayTitle !== '' || $displaySubtitle !== '')
+                <div class="mb-8 text-center sm:mb-10">
+                    @if ($displayTitle !== '')
+                        <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
+                            <span class="h-px flex-1 bg-slate-300"></span>
+                            <h2 class="text-[1.35rem] leading-[1.95rem] font-semibold uppercase text-slate-900 sm:text-[1.7rem] sm:leading-[2.5rem]">{{ $displayTitle }}</h2>
+                            <span class="h-px flex-1 bg-slate-300"></span>
+                        </div>
+                    @endif
+
+                    @if ($displaySubtitle !== '')
+                        <p class="mx-auto mt-2 max-w-2xl text-sm text-slate-600 md:text-base">{{ $displaySubtitle }}</p>
+                    @endif
+                </div>
+            @endif
+
             <div class="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start lg:gap-10 xl:gap-12">
                 @foreach ($slides as $media)
                     @php
@@ -1786,7 +1832,6 @@ BLADE,
                             data_get($props, "block_title.$locale")
                             ?: data_get($props, "block_title.$fallbackLocale")
                             ?: collect($blockTitleMap)->first(fn ($value) => trim((string) $value) !== '')
-                            ?: ($translation?->title ?? '')
                         ));
                         $slideLinkUrl = trim((string) (
                             data_get($props, "link_url.$locale")

@@ -509,6 +509,54 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('Quality guarantee included');
     }
 
+    public function test_desktop_product_detail_uses_size_guide_man_for_male_products_with_options(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedMaleCategory();
+        [$product, $slug] = $this->seedProduct($category->id);
+
+        $this->attachProductSizeOptions($product, ['M', 'L']);
+        $this->seedSizeGuidePage('size-guide-man', 'Men size guide content');
+
+        $this->get('/product/'.$slug)
+            ->assertOk()
+            ->assertSee('data-size-guide-open', false)
+            ->assertSee('Men size guide content');
+    }
+
+    public function test_mobile_product_detail_renders_size_guide_when_options_exist(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product, $slug] = $this->seedProduct($category->id);
+
+        $this->attachProductSizeOptions($product, ['S', 'M']);
+        $this->seedSizeGuidePage('size-guide-women', 'Women size guide content');
+
+        $this
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            ])
+            ->get('/product/'.$slug)
+            ->assertOk()
+            ->assertSee('data-size-guide-open', false)
+            ->assertSee('Women size guide content');
+    }
+
+    public function test_product_detail_hides_size_guide_when_product_has_no_options(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product, $slug] = $this->seedProduct($category->id);
+
+        $this->seedSizeGuidePage('size-guide-women', 'Women size guide content');
+
+        $this->get('/product/'.$slug)
+            ->assertOk()
+            ->assertDontSee('data-size-guide-open', false)
+            ->assertDontSee('Women size guide content');
+    }
+
     public function test_category_can_hide_filters_and_products_via_category_settings(): void
     {
         $this->useEnglishStorefrontLocale();
@@ -613,6 +661,33 @@ class StorefrontFrontFeatureTest extends TestCase
     }
 
     /**
+     * @return array{Category,string}
+     */
+    private function seedMaleCategory(): array
+    {
+        $category = Category::query()->create([
+            'scope' => Category::SCOPE_CATALOG,
+            'code' => 'men-'.strtolower((string) str()->random(6)),
+            'is_active' => true,
+            'show_in_menu' => true,
+            'sort_order' => 1,
+        ]);
+
+        $slug = 'men-category-'.strtolower((string) str()->random(6));
+
+        CategoryTranslation::query()->create([
+            'category_id' => $category->id,
+            'scope' => Category::SCOPE_CATALOG,
+            'locale' => 'en',
+            'name' => 'Men category',
+            'slug' => $slug,
+            'description' => 'Men category description',
+        ]);
+
+        return [$category, $slug];
+    }
+
+    /**
      * @return array{Product,string}
      */
     private function seedProduct(int $categoryId): array
@@ -664,6 +739,84 @@ class StorefrontFrontFeatureTest extends TestCase
             'sort_order' => $sortOrder,
             'created_at' => now(),
             'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * @param  array<int, string>  $labels
+     */
+    private function attachProductSizeOptions(Product $product, array $labels): void
+    {
+        $option = Option::query()->create([
+            'code' => 'size-'.strtolower((string) str()->random(6)),
+            'type' => Option::TYPE_SELECT,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $option->translations()->create([
+            'locale' => 'en',
+            'name' => 'Size',
+            'slug' => 'size-'.strtolower((string) str()->random(6)),
+            'description' => null,
+            'payload' => null,
+        ]);
+
+        $option->products()->attach($product->id, [
+            'is_required' => true,
+            'sort_order' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        foreach (array_values($labels) as $index => $label) {
+            $value = OptionValue::query()->create([
+                'option_id' => $option->id,
+                'code' => 'size-'.strtolower((string) str($label)->slug()->value()).'-'.strtolower((string) str()->random(4)),
+                'is_active' => true,
+                'sort_order' => $index + 1,
+            ]);
+
+            $value->translations()->create([
+                'locale' => 'en',
+                'name' => $label,
+                'slug' => str($label)->slug()->value().'-'.strtolower((string) str()->random(4)),
+                'payload' => null,
+            ]);
+
+            ProductOptionValue::query()->create([
+                'product_id' => $product->id,
+                'option_value_id' => $value->id,
+                'parent_option_value_id' => null,
+                'mode' => 'single',
+                'sku' => 'OPT-'.strtoupper((string) str()->random(4)),
+                'stock_qty' => 5,
+                'price_override' => null,
+                'sort_order' => $index + 1,
+                'is_active' => true,
+                'combination_hash' => hash('sha256', $product->id.'-'.$value->id.'-single'),
+                'payload' => null,
+            ]);
+        }
+    }
+
+    private function seedSizeGuidePage(string $code, string $bodyHtml): void
+    {
+        $page = InfoPage::query()->create([
+            'code' => $code,
+            'layout' => 'default',
+            'is_active' => true,
+            'published_at' => now()->subDay(),
+            'sort_order' => 1,
+        ]);
+
+        InfoPageTranslation::query()->create([
+            'page_id' => $page->id,
+            'locale' => 'en',
+            'title' => 'Size guide',
+            'slug' => $code,
+            'excerpt' => null,
+            'body_html' => '<p>'.$bodyHtml.'</p>',
         ]);
     }
 

@@ -959,7 +959,7 @@
         </aside>
     </section>
 
-    @if (!empty($sizeGuide))
+    @if (!empty($sizeGuide) && $optionRows->isNotEmpty())
         <style>
             [data-size-guide-modal] .content-richtext {
                 font-size: 0.9rem;
@@ -1786,49 +1786,51 @@
 
         });
     </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const modal = document.querySelector('[data-size-guide-modal]');
-            if (!modal) {
-                return;
-            }
-
-            const openButtons = document.querySelectorAll('[data-size-guide-open]');
-            const closeButtons = modal.querySelectorAll('[data-size-guide-close]');
-
-            const openModal = function () {
-                modal.classList.remove('hidden');
-                modal.setAttribute('aria-hidden', 'false');
-                document.body.classList.add('overflow-hidden');
-            };
-
-            const closeModal = function () {
-                modal.classList.add('hidden');
-                modal.setAttribute('aria-hidden', 'true');
-                document.body.classList.remove('overflow-hidden');
-            };
-
-            openButtons.forEach(function (button) {
-                button.addEventListener('click', openModal);
-            });
-
-            closeButtons.forEach(function (button) {
-                button.addEventListener('click', closeModal);
-            });
-
-            modal.addEventListener('click', function (event) {
-                if (event.target === modal) {
-                    closeModal();
+    @if (!empty($sizeGuide) && $optionRows->isNotEmpty())
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const modal = document.querySelector('[data-size-guide-modal]');
+                if (!modal) {
+                    return;
                 }
-            });
 
-            document.addEventListener('keydown', function (event) {
-                if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
-                    closeModal();
-                }
+                const openButtons = document.querySelectorAll('[data-size-guide-open]');
+                const closeButtons = modal.querySelectorAll('[data-size-guide-close]');
+
+                const openModal = function () {
+                    modal.classList.remove('hidden');
+                    modal.setAttribute('aria-hidden', 'false');
+                    document.body.classList.add('overflow-hidden');
+                };
+
+                const closeModal = function () {
+                    modal.classList.add('hidden');
+                    modal.setAttribute('aria-hidden', 'true');
+                    document.body.classList.remove('overflow-hidden');
+                };
+
+                openButtons.forEach(function (button) {
+                    button.addEventListener('click', openModal);
+                });
+
+                closeButtons.forEach(function (button) {
+                    button.addEventListener('click', closeModal);
+                });
+
+                modal.addEventListener('click', function (event) {
+                    if (event.target === modal) {
+                        closeModal();
+                    }
+                });
+
+                document.addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+                        closeModal();
+                    }
+                });
             });
-        });
-    </script>
+        </script>
+    @endif
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const toggle = document.querySelector('[data-comment-form-toggle]');
