@@ -192,21 +192,7 @@ class StoreSettings extends Component
         foreach ($this->form as $key => $default) {
             $this->form[$key] = $settings->get($key, $default);
         }
-
-        foreach ([1, 2, 3] as $col) {
-            $categoryKey = 'store_footer_col_'.$col.'_category_ids';
-            $pageKey = 'store_footer_col_'.$col.'_page_ids';
-            $this->form[$categoryKey] = $this->normalizeIdList($this->form[$categoryKey] ?? []);
-            $this->form[$pageKey] = $this->normalizeIdList($this->form[$pageKey] ?? []);
-        }
-        $this->form['store_footer_bottom_link_page_ids'] = $this->normalizeIdList($this->form['store_footer_bottom_link_page_ids'] ?? []);
-        $this->form['store_product_filter_option_ids'] = $this->normalizeIdList($this->form['store_product_filter_option_ids'] ?? []);
-        $this->form['store_product_filter_attribute_group_codes'] = collect($this->form['store_product_filter_attribute_group_codes'] ?? [])
-            ->map(fn ($code): string => trim((string) $code))
-            ->filter(fn (string $code): bool => $code !== '')
-            ->unique()
-            ->values()
-            ->all();
+        $this->form = $this->sanitizeSelectableSettings($this->form);
 
         if (trim((string) $this->form['store_announcement_text']) === '') {
             $this->form['store_announcement_text'] = (string) __('ui.front.desktop.promo_bar');
@@ -219,23 +205,12 @@ class StoreSettings extends Component
     {
         $this->authorizeAccess();
 
+        $this->form = $this->sanitizeSelectableSettings($this->form);
         $validated = $this->validate($this->rules());
-        $payload = $validated['form'];
+        $payload = $this->sanitizeSelectableSettings($validated['form']);
         $payload['store_schema_product_currency'] = strtoupper((string) ($payload['store_schema_product_currency'] ?? 'EUR'));
         $payload['store_schema_address_country'] = strtoupper((string) ($payload['store_schema_address_country'] ?? 'HR'));
         $payload['store_analytics_purchase_event_name'] = trim((string) ($payload['store_analytics_purchase_event_name'] ?? 'purchase')) ?: 'purchase';
-        foreach ([1, 2, 3] as $col) {
-            $payload['store_footer_col_'.$col.'_category_ids'] = $this->normalizeIdList($payload['store_footer_col_'.$col.'_category_ids'] ?? []);
-            $payload['store_footer_col_'.$col.'_page_ids'] = $this->normalizeIdList($payload['store_footer_col_'.$col.'_page_ids'] ?? []);
-        }
-        $payload['store_footer_bottom_link_page_ids'] = $this->normalizeIdList($payload['store_footer_bottom_link_page_ids'] ?? []);
-        $payload['store_product_filter_option_ids'] = $this->normalizeIdList($payload['store_product_filter_option_ids'] ?? []);
-        $payload['store_product_filter_attribute_group_codes'] = collect($payload['store_product_filter_attribute_group_codes'] ?? [])
-            ->map(fn ($code): string => trim((string) $code))
-            ->filter(fn (string $code): bool => $code !== '')
-            ->unique()
-            ->values()
-            ->all();
 
         if ($this->logoUpload) {
             $payload['store_brand_logo_path'] = $this->logoUpload->store('store-settings', 'public');
@@ -874,6 +849,70 @@ class StoreSettings extends Component
         }
 
         return array_values(array_unique($normalized));
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     * @return array<string, mixed>
+     */
+    private function sanitizeSelectableSettings(array $values): array
+    {
+        $validCategoryIds = Category::query()
+            ->where('scope', Category::SCOPE_CATALOG)
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+        $validPageIds = InfoPage::query()
+            ->where('is_active', true)
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+        $validOptionIds = Option::query()
+            ->where('is_active', true)
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+        $validAttributeGroupCodes = Attribute::query()
+            ->where('is_active', true)
+            ->whereNotNull('group_code')
+            ->distinct()
+            ->pluck('group_code')
+            ->map(fn ($code): string => trim((string) $code))
+            ->filter(fn (string $code): bool => $code !== '')
+            ->values()
+            ->all();
+
+        foreach ([1, 2, 3] as $col) {
+            $categoryKey = 'store_footer_col_'.$col.'_category_ids';
+            $pageKey = 'store_footer_col_'.$col.'_page_ids';
+            $values[$categoryKey] = $this->filterIdList($values[$categoryKey] ?? [], $validCategoryIds);
+            $values[$pageKey] = $this->filterIdList($values[$pageKey] ?? [], $validPageIds);
+        }
+
+        $values['store_footer_bottom_link_page_ids'] = $this->filterIdList($values['store_footer_bottom_link_page_ids'] ?? [], $validPageIds);
+        $values['store_product_filter_option_ids'] = $this->filterIdList($values['store_product_filter_option_ids'] ?? [], $validOptionIds);
+        $values['store_product_filter_attribute_group_codes'] = collect($values['store_product_filter_attribute_group_codes'] ?? [])
+            ->map(fn ($code): string => trim((string) $code))
+            ->filter(fn (string $code): bool => $code !== '' && in_array($code, $validAttributeGroupCodes, true))
+            ->unique()
+            ->values()
+            ->all();
+
+        return $values;
+    }
+
+    /**
+     * @param array<int, int> $allowedIds
+     * @return array<int, int>
+     */
+    private function filterIdList(mixed $value, array $allowedIds): array
+    {
+        $allowed = array_fill_keys($allowedIds, true);
+
+        return array_values(array_filter(
+            $this->normalizeIdList($value),
+            static fn (int $id): bool => isset($allowed[$id])
+        ));
     }
 
     private function renderSquarePng(mixed $source, int $size): ?string

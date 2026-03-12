@@ -161,7 +161,7 @@ class Form extends Component
 
             'form.locale' => ['required', 'string', 'max:12'],
             'form.group_name' => ['required', 'string', 'max:255'],
-            'form.name' => ['required', 'string', 'max:255'],
+            'form.name' => ['required', 'string', 'max:5000'],
             'form.slug' => [
                 'required',
                 'string',

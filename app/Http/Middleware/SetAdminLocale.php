@@ -14,7 +14,7 @@ class SetAdminLocale
     {
         $available = $this->availableLocales();
         $fallback = $this->normalizeLocale((string) config('app.locale', 'en')) ?: 'en';
-        $adminDefault = 'hr';
+        $adminDefault = $this->defaultLocale($fallback);
 
         $queryLocale = $this->normalizeLocale((string) $request->query('admin_locale', ''));
         $defaultLocale = in_array($adminDefault, $available, true)
@@ -78,5 +78,23 @@ class SetAdminLocale
         }
 
         return $normalized;
+    }
+
+    private function defaultLocale(string $fallback): string
+    {
+        try {
+            $default = Language::query()
+                ->where('is_active', true)
+                ->orderByDesc('is_default')
+                ->orderBy('sort_order')
+                ->orderBy('code')
+                ->value('code');
+
+            $default = $this->normalizeLocale((string) $default);
+
+            return $default !== '' ? $default : $fallback;
+        } catch (\Throwable) {
+            return $fallback;
+        }
     }
 }

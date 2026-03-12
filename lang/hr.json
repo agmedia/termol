@@ -1127,7 +1127,13 @@
     "results": "rezultata",
     "Email": "Email",
     "Branding & Footer": "Brending i footer",
+    "Author": "Autor",
+    "Comment updated": "Komentar je ažuriran",
+    "Comment updated.": "Komentar je ažuriran.",
+    "Edit Comment": "Uredi komentar",
     "Newsletter": "Newsletter",
+    "No rating": "Bez ocjene",
+    "Not Featured": "Nije istaknuto",
     "Integrations": "Integracije",
     "Pricing": "Cijene",
     "SEO": "SEO",
@@ -1140,6 +1146,7 @@
     "slug or id": "slug ili id",
     "subtotal": "međuzbroj",
     "to": "do",
+    "Update Comment": "Ažuriraj komentar",
     "users.view": "users.view",
     "users.view, users.manage...": "users.view, users.manage..."
 }

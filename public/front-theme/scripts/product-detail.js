@@ -279,6 +279,38 @@ document.addEventListener('DOMContentLoaded', function () {
         update();
     };
 
+    const selectedOptionSku = function (form) {
+        const radioChecked = form.querySelector('input[name="product_option_value_id"]:checked');
+        if (radioChecked) {
+            return String(radioChecked.dataset.optionSku || '').trim();
+        }
+
+        const select = form.querySelector('select[name="product_option_value_id"]');
+        if (!select || select.disabled || !select.value) {
+            return '';
+        }
+
+        const option = select.options[select.selectedIndex];
+        return String(option ? (option.dataset.optionSku || '') : '').trim();
+    };
+
+    const syncSkuDisplay = function (form) {
+        const optionSku = selectedOptionSku(form);
+        const baseSku = String(form.dataset.productBaseSku || '').trim();
+        const resolvedSku = optionSku || baseSku || 'n/a';
+        const ga4ItemId = resolvedSku !== 'n/a'
+            ? resolvedSku
+            : (String(form.dataset.productFallbackId || '').trim() || '');
+
+        document.querySelectorAll('[data-product-sku-value]').forEach(function (node) {
+            node.textContent = resolvedSku;
+        });
+
+        if (ga4ItemId !== '') {
+            form.dataset.ga4ItemId = ga4ItemId;
+        }
+    };
+
     const cartCountNodes = document.querySelectorAll('[data-cart-count]');
     let modal = null;
 
@@ -439,6 +471,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     forms.forEach(function (form) {
         initLinkedOptionSelectors(form);
+        syncSkuDisplay(form);
+
+        form.querySelectorAll('input[name="product_option_value_id"], select[name="product_option_value_id"], [data-linked-option-primary]').forEach(function (field) {
+            field.addEventListener('change', function () {
+                syncSkuDisplay(form);
+            });
+        });
 
         form.addEventListener('submit', async function (event) {
             event.preventDefault();

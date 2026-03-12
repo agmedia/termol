@@ -4,10 +4,13 @@ namespace App\Livewire\Admin\Media;
 
 use App\Models\Catalog\Product\Product;
 use App\Models\Content\Blog\BlogPost;
+use App\Models\Content\ContentBlock;
+use App\Services\Content\InstagramPostOEmbedService;
 use App\Support\Media\MediaProfileRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
@@ -33,6 +36,7 @@ class Manager extends Component
      *     name: string,
      *     alt: string,
      *     caption: string,
+     *     link_url: string,
      *     block_title: string,
      *     cta_1_label: string,
      *     cta_1_url: string,
@@ -124,6 +128,43 @@ class Manager extends Component
         $this->dispatch('notify', type: 'success', message: __('Images uploaded.'));
     }
 
+    public function addInstagramPostSlide(string $collectionName): void
+    {
+        $record = $this->record;
+        if (! $record instanceof ContentBlock) {
+            $this->dispatch('notify', type: 'warning', message: __('Save record first, then add Instagram posts.'));
+            return;
+        }
+
+        if ((string) $record->type !== 'instagram_curated_grid' || $collectionName !== 'block_slides') {
+            $this->dispatch('notify', type: 'warning', message: __('Instagram posts can only be added to the Instagram widget slides.'));
+            return;
+        }
+
+        $placeholderPath = public_path('front-theme/images/empty.png');
+        if (! is_file($placeholderPath)) {
+            $this->dispatch('notify', type: 'danger', message: __('Could not find the Instagram slide placeholder image.'));
+            return;
+        }
+
+        $record->addMedia($placeholderPath)
+            ->usingName('Instagram post')
+            ->usingFileName('instagram-post-'.Str::lower(Str::random(6)).'.png')
+            ->withCustomProperties([
+                'link_url' => [],
+                'link_url_value' => '',
+                'caption' => [],
+                'block_title' => [],
+                'alt' => [],
+            ])
+            ->toMediaCollection($collectionName);
+
+        unset($this->uploads[$collectionName]);
+        $this->meta = [];
+
+        $this->dispatch('notify', type: 'success', message: __('New Instagram post slot added. Paste the post URL and click Save Meta.'));
+    }
+
     public function delete(int $mediaId): void
     {
         $media = $this->findMedia($mediaId);
@@ -175,11 +216,27 @@ class Manager extends Component
         $this->dispatch('notify', type: 'success', message: __('Image copied to main collection.'));
     }
 
-    public function saveMeta(int $mediaId): void
+    public function updatedMeta(mixed $value, string $key): void
+    {
+        [$mediaId, $field] = array_pad(explode('.', $key, 2), 2, '');
+        $mediaId = (int) $mediaId;
+        $field = (string) $field;
+
+        if ($mediaId <= 0 || ! $this->shouldAutosaveMetaField($field)) {
+            return;
+        }
+
+        $this->saveMeta($mediaId, false);
+    }
+
+    public function saveMeta(int $mediaId, bool $notify = true): void
     {
         $media = $this->findMedia($mediaId);
         if (! $media) {
-            $this->dispatch('notify', type: 'warning', message: __('Image not found.'));
+            if ($notify) {
+                $this->dispatch('notify', type: 'warning', message: __('Image not found.'));
+            }
+
             return;
         }
 
@@ -195,8 +252,34 @@ class Manager extends Component
         $cta2Url = trim((string) ($meta['cta_2_url'] ?? ''));
         $hotspots = is_array($meta['hotspots'] ?? null) ? $meta['hotspots'] : [];
 
+        $instagramImportError = null;
+        $instagramImported = false;
         $custom = (array) ($media->custom_properties ?? []);
         $locale = trim($this->locale) !== '' ? $this->locale : (string) config('app.locale', 'en');
+
+        if ($notify && $this->shouldImportInstagramPreview($media, $linkUrl)) {
+            try {
+                $instagramData = $this->importInstagramPreview($media, $linkUrl);
+                $linkUrl = (string) ($instagramData['canonical_url'] ?? $linkUrl);
+                $caption = (string) ($instagramData['caption'] ?? $caption);
+                $alt = (string) ($instagramData['alt'] ?? $alt);
+                $blockTitle = (string) ($instagramData['block_title'] ?? $blockTitle);
+
+                if ($name === '' || Str::startsWith(Str::lower($name), 'instagram post')) {
+                    $name = (string) ($instagramData['name'] ?? $name);
+                }
+
+                data_set($custom, 'instagram_shortcode', (string) ($instagramData['shortcode'] ?? ''));
+                data_set($custom, 'instagram_author_name', (string) ($instagramData['author_name'] ?? ''));
+                data_set($custom, 'instagram_media_kind', (string) ($instagramData['media_kind'] ?? 'image'));
+                data_set($custom, 'instagram_thumbnail_url', (string) ($instagramData['thumbnail_url'] ?? ''));
+
+                $instagramImported = true;
+            } catch (\Throwable $e) {
+                report($e);
+                $instagramImportError = $e->getMessage();
+            }
+        }
 
         if ($alt === '') {
             Arr::forget($custom, "alt.$locale");
@@ -284,8 +367,23 @@ class Manager extends Component
         $media->name = $name !== '' ? $name : $media->name;
         $media->custom_properties = $custom;
         $media->save();
+        $this->meta[$mediaId] = array_merge($meta, [
+            'name' => (string) $media->name,
+            'alt' => $alt,
+            'caption' => $caption,
+            'link_url' => $linkUrl,
+            'block_title' => $blockTitle,
+        ]);
 
-        $this->dispatch('notify', type: 'success', message: __('Image metadata saved.'));
+        if ($notify) {
+            if ($instagramImported) {
+                $this->dispatch('notify', type: 'success', message: __('Image metadata saved and Instagram preview refreshed.'));
+            } elseif ($instagramImportError !== null) {
+                $this->dispatch('notify', type: 'warning', message: __('Image metadata saved, but Instagram import failed: :message', ['message' => $instagramImportError]));
+            } else {
+                $this->dispatch('notify', type: 'success', message: __('Image metadata saved.'));
+            }
+        }
     }
 
     /**
@@ -382,6 +480,8 @@ class Manager extends Component
         $isContentBlock = $record instanceof \App\Models\Content\ContentBlock;
         $blockType = $isContentBlock ? (string) ($record->type ?? '') : '';
         $isDualImageCtaBlock = $blockType === 'dual_image_cta';
+        $isCategoryEditorialTilesBlock = $blockType === 'category_editorial_tiles';
+        $isInstagramCuratedBlock = $blockType === 'instagram_curated_grid';
         $isLinkableSliderBlock = in_array($blockType, ['full_width_image_slider', 'desktopfullwidthimageslider'], true);
         $isBlogPostMedia = $record instanceof BlogPost;
         $supportsProductHotspots = $isBlogPostMedia || $isLinkableSliderBlock;
@@ -392,6 +492,8 @@ class Manager extends Component
             'mediaByCollection' => $mediaByCollection,
             'recordExists' => (bool) $this->record,
             'isDualImageCtaBlock' => $isDualImageCtaBlock,
+            'isCategoryEditorialTilesBlock' => $isCategoryEditorialTilesBlock,
+            'isInstagramCuratedBlock' => $isInstagramCuratedBlock,
             'isLinkableSliderBlock' => $isLinkableSliderBlock,
             'isBlogPostMedia' => $isBlogPostMedia,
             'supportsProductHotspots' => $supportsProductHotspots,
@@ -614,5 +716,119 @@ class Manager extends Component
         $number = max($min, min(100.0, $number));
 
         return round($number, 2);
+    }
+
+    private function shouldImportInstagramPreview(Media $media, string $linkUrl): bool
+    {
+        $record = $this->record;
+
+        return $record instanceof ContentBlock
+            && (string) $record->type === 'instagram_curated_grid'
+            && $media->collection_name === 'block_slides'
+            && trim($linkUrl) !== '';
+    }
+
+    /**
+     * @return array{
+     *     canonical_url: string,
+     *     caption: string,
+     *     alt: string,
+     *     block_title: string,
+     *     name: string,
+     *     shortcode: string,
+     *     author_name: string,
+     *     media_kind: string,
+     *     thumbnail_url: string
+     * }
+     */
+    private function importInstagramPreview(Media $media, string $linkUrl): array
+    {
+        $instagramData = app(InstagramPostOEmbedService::class)->fetch($linkUrl);
+        $newExtension = $this->extensionForMimeType((string) ($instagramData['mime_type'] ?? ''));
+        $currentPathRelative = $media->getPathRelativeToRoot();
+        $currentExtension = strtolower((string) pathinfo($media->file_name, PATHINFO_EXTENSION));
+
+        if (
+            $newExtension !== null
+            && $newExtension !== $currentExtension
+            && Storage::disk($media->disk)->exists($currentPathRelative)
+        ) {
+            $baseName = pathinfo($media->file_name, PATHINFO_FILENAME);
+            $baseName = Str::slug((string) $baseName) ?: 'instagram-'.(string) ($instagramData['shortcode'] ?? $media->id);
+            $media->file_name = $baseName.'.'.$newExtension;
+        }
+
+        $media->mime_type = (string) ($instagramData['mime_type'] ?? $media->mime_type);
+        $media->responsive_images = [];
+        $media->generated_conversions = [];
+        $media->save();
+
+        Storage::disk($media->disk)->put($media->getPathRelativeToRoot(), (string) $instagramData['thumbnail_bytes']);
+        clearstatcache(true, $media->getPath());
+        $media->size = max(1, (int) filesize($media->getPath()));
+        $media->save();
+
+        app(FileManipulator::class)->createDerivedFiles($media, onlyMissing: false);
+
+        return [
+            'canonical_url' => (string) ($instagramData['canonical_url'] ?? $linkUrl),
+            'caption' => (string) ($instagramData['caption'] ?? ''),
+            'alt' => (string) ($instagramData['alt'] ?? ''),
+            'block_title' => (string) ($instagramData['block_title'] ?? ''),
+            'name' => 'Instagram post '.(string) ($instagramData['shortcode'] ?? $media->id),
+            'shortcode' => (string) ($instagramData['shortcode'] ?? ''),
+            'author_name' => (string) ($instagramData['author_name'] ?? ''),
+            'media_kind' => (string) ($instagramData['media_kind'] ?? 'image'),
+            'thumbnail_url' => (string) ($instagramData['thumbnail_url'] ?? ''),
+        ];
+    }
+
+    private function extensionForMimeType(string $mimeType): ?string
+    {
+        return match (strtolower(trim($mimeType))) {
+            'image/jpeg', 'image/jpg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            'image/avif' => 'avif',
+            default => null,
+        };
+    }
+
+    private function shouldAutosaveMetaField(string $field): bool
+    {
+        $record = $this->record;
+
+        if (! $record instanceof ContentBlock) {
+            return false;
+        }
+
+        $blockType = (string) $record->type;
+
+        if ($blockType === 'dual_image_cta') {
+            return in_array($field, [
+                'link_url',
+                'block_title',
+                'cta_1_label',
+                'cta_1_url',
+                'cta_2_label',
+                'cta_2_url',
+            ], true);
+        }
+
+        if ($blockType === 'category_editorial_tiles') {
+            return in_array($field, [
+                'link_url',
+                'block_title',
+            ], true);
+        }
+
+        if ($blockType === 'instagram_curated_grid') {
+            return in_array($field, [
+                'link_url',
+                'block_title',
+            ], true);
+        }
+
+        return false;
     }
 }

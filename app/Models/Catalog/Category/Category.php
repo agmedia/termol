@@ -19,6 +19,8 @@ class Category extends Model implements HasMedia
     public const SCOPE_CATALOG = 'catalog';
     public const SCOPE_BLOG = 'blog';
     public const SCOPE_PAGE = 'page';
+    public const PAYLOAD_SHOW_FILTERS = 'show_filters';
+    public const PAYLOAD_SHOW_PRODUCTS = 'show_products';
 
     /**
      * @return array<int, string>
@@ -49,6 +51,21 @@ class Category extends Model implements HasMedia
         'show_in_menu' => 'bool',
         'payload' => 'array',
     ];
+
+    public function catalogPageShowsProducts(): bool
+    {
+        $payload = is_array($this->payload) ? $this->payload : [];
+
+        return (bool) ($payload[self::PAYLOAD_SHOW_PRODUCTS] ?? true);
+    }
+
+    public function catalogPageShowsFilters(): bool
+    {
+        $payload = is_array($this->payload) ? $this->payload : [];
+
+        return $this->catalogPageShowsProducts()
+            && (bool) ($payload[self::PAYLOAD_SHOW_FILTERS] ?? true);
+    }
 
     public function translations(): HasMany
     {

@@ -1,0 +1,138 @@
+@php
+    $attributeOrder = ['sastav', 'kvaliteta', 'garancija'];
+    $fallbackLabels = [
+        'sastav' => 'Sastav',
+        'kvaliteta' => 'Kvaliteta',
+        'garancija' => 'Garancija',
+    ];
+    $attributes = $product->relationLoaded('attributes') ? $product->attributes : collect();
+
+    $attributePanels = collect($attributeOrder)
+        ->map(function (string $groupCode) use ($attributes, $fallbackLabels, $locale, $fallbackLocale): ?array {
+            $items = $attributes
+                ->filter(fn ($attribute): bool => (string) $attribute->group_code === $groupCode)
+                ->map(function ($attribute) use ($locale, $fallbackLocale): array {
+                    $translation = $attribute->translations->firstWhere('locale', $locale)
+                        ?? $attribute->translations->firstWhere('locale', $fallbackLocale)
+                        ?? $attribute->translations->first();
+
+                    return [
+                        'id' => (int) $attribute->id,
+                        'group_name' => trim((string) ($translation?->group_name ?? '')),
+                        'name' => trim((string) ($translation?->name ?? $attribute->code)),
+                    ];
+                })
+                ->filter(fn (array $item): bool => $item['name'] !== '')
+                ->unique('name')
+                ->values();
+
+            if ($items->isEmpty()) {
+                return null;
+            }
+
+            $groupName = $items
+                ->pluck('group_name')
+                ->first(fn (string $value): bool => $value !== '');
+
+            return [
+                'group_code' => $groupCode,
+                'group_name' => $groupName ?: $fallbackLabels[$groupCode],
+                'items' => $items->all(),
+            ];
+        })
+        ->filter()
+        ->values();
+@endphp
+
+@if ($attributePanels->isNotEmpty())
+    @once
+        <style>
+            [data-product-attribute-panels] details > summary {
+                list-style: none;
+            }
+
+            [data-product-attribute-panels] details > summary::-webkit-details-marker {
+                display: none;
+            }
+
+            [data-product-attribute-panels] details {
+                transition: color .2s ease;
+            }
+
+            [data-product-attribute-panels] details[open] {
+                color: #0f172a;
+            }
+
+            [data-product-attribute-panels] [data-attribute-chevron] {
+                transition: transform .2s ease;
+            }
+
+            [data-product-attribute-panels] details[open] [data-attribute-chevron] {
+                transform: rotate(180deg);
+            }
+        </style>
+    @endonce
+
+    <div
+        class="{{ trim(($containerClass ?? '').' overflow-hidden px-1') }}"
+        data-product-attribute-panels
+    >
+        <div class="space-y-0">
+            @foreach ($attributePanels as $panel)
+                <details
+                    class="group border-b border-slate-300/70 last:border-b-0"
+                    @if ($loop->first) open @endif
+                    data-product-attribute-group="{{ $panel['group_code'] }}"
+                >
+                    <summary class="flex cursor-pointer items-center justify-between gap-4 py-[1.05rem]">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <span class="shrink-0 text-slate-600" aria-hidden="true">
+                                @switch($panel['group_code'])
+                                    @case('sastav')
+                                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7">
+                                            <path d="M7 16c0-5 3-8 10-9 0 7-3 10-8 10-1.5 0-3-.3-4-.8"></path>
+                                            <path d="M8 17c0-2.5 1.4-5.1 4.2-7.8"></path>
+                                        </svg>
+                                        @break
+                                    @case('kvaliteta')
+                                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7">
+                                            <path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.8 7.2 18l.9-5.4L4.2 8.7l5.4-.8L12 3Z"></path>
+                                            <path d="m10.4 12.2 1.2 1.2 2.4-3"></path>
+                                        </svg>
+                                        @break
+                                    @default
+                                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7">
+                                            <path d="M12 3l7 3v5c0 4.4-2.8 7.8-7 9-4.2-1.2-7-4.6-7-9V6l7-3Z"></path>
+                                            <path d="m9.5 11.8 1.7 1.7 3.5-3.8"></path>
+                                        </svg>
+                                @endswitch
+                            </span>
+                            <div class="min-w-0">
+                                <p class="text-[0.95rem] font-semibold uppercase tracking-[0.14em] text-slate-900">{{ $panel['group_name'] }}</p>
+                            </div>
+                        </div>
+
+                        <svg class="h-[18px] w-[18px] shrink-0 text-slate-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" data-attribute-chevron aria-hidden="true">
+                            <path d="m5 7.5 5 5 5-5"></path>
+                        </svg>
+                    </summary>
+
+                    <div class="pb-4 pl-8 pr-6 text-[0.95rem] leading-relaxed text-slate-600">
+                        @if (count($panel['items']) === 1)
+                            <div>{!! nl2br(e($panel['items'][0]['name'])) !!}</div>
+                        @else
+                            <ul class="space-y-2">
+                                @foreach ($panel['items'] as $item)
+                                    <li class="flex gap-2">
+                                        <span class="shrink-0 text-slate-400">-</span>
+                                        <span>{!! nl2br(e($item['name'])) !!}</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+                </details>
+            @endforeach
+        </div>
+    </div>
+@endif

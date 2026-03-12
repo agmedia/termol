@@ -9,7 +9,7 @@
         ['label' => __('ui.account.orders.title')],
     ]])
 
-    <section class="mb-8 border border-slate-200 bg-slate-100 px-4 py-6 text-center sm:px-6">
+    <section class="front-soft-hero mb-8 px-4 py-6 text-center sm:px-6">
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.account.orders.title') }}</h1>
         <p class="mt-2 text-slate-600">{{ __('ui.account.orders.subtitle') }}</p>
     </section>

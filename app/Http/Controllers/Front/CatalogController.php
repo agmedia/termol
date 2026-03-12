@@ -14,6 +14,8 @@ use App\Models\Catalog\Product\Product;
 use App\Services\Content\ContentBlockResolver;
 use App\Services\Front\WishlistService;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -72,7 +74,7 @@ class CatalogController extends Controller
                     ->orderBy('order_column')
                     ->orderBy('id'),
                 'optionValues' => fn ($q) => $q
-                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'is_active', 'sort_order'])
+                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'is_active', 'sort_order'])
                     ->where('is_active', true)
                     ->orderBy('sort_order')
                     ->orderBy('id')
@@ -86,16 +88,7 @@ class CatalogController extends Controller
                     ]),
             ]);
 
-        if ($search !== '') {
-            $query->whereHas('translations', function ($q) use ($locale, $fallbackLocale, $search): void {
-                $q->whereIn('locale', [$locale, $fallbackLocale])
-                    ->where(function ($searchQuery) use ($search): void {
-                        $searchQuery->where('name', 'like', '%'.$search.'%')
-                            ->orWhere('excerpt', 'like', '%'.$search.'%')
-                            ->orWhere('description', 'like', '%'.$search.'%');
-                    });
-            });
-        }
+        $this->applyProductSearch($query, $locale, $fallbackLocale, $search);
 
         if ($categorySlug !== '') {
             $query->whereHas('categories', function ($categoryQuery) use ($locale, $fallbackLocale, $categorySlug): void {
@@ -234,6 +227,9 @@ class CatalogController extends Controller
             ])
             ->firstOrFail();
 
+        $showCategoryProducts = $category->catalogPageShowsProducts();
+        $showCategoryFilters = $category->catalogPageShowsFilters();
+
         $categoryTreeIds = $category->descendants()
             ->where('scope', Category::SCOPE_CATALOG)
             ->where('is_active', true)
@@ -245,13 +241,18 @@ class CatalogController extends Controller
             ->values()
             ->all();
 
-        $configuredOptionIds = $this->configuredFilterOptionIds();
-        $configuredAttributeGroups = $this->configuredFilterAttributeGroups();
-        $optionFilters = $this->catalogOptionFilters($locale, $fallbackLocale, $configuredOptionIds, $categoryScopeIds);
-        $attributeFilters = $this->catalogAttributeFilters($locale, $fallbackLocale, $configuredAttributeGroups, $categoryScopeIds);
+        $optionFilters = [];
+        $attributeFilters = [];
 
-        if ($optionFilters === []) {
-            $optionFilters = $this->legacySizeFallbackFilter($locale, $fallbackLocale, $categoryScopeIds);
+        if ($showCategoryFilters) {
+            $configuredOptionIds = $this->configuredFilterOptionIds();
+            $configuredAttributeGroups = $this->configuredFilterAttributeGroups();
+            $optionFilters = $this->catalogOptionFilters($locale, $fallbackLocale, $configuredOptionIds, $categoryScopeIds);
+            $attributeFilters = $this->catalogAttributeFilters($locale, $fallbackLocale, $configuredAttributeGroups, $categoryScopeIds);
+
+            if ($optionFilters === []) {
+                $optionFilters = $this->legacySizeFallbackFilter($locale, $fallbackLocale, $categoryScopeIds);
+            }
         }
 
         $selectedOptionFilters = [];
@@ -265,109 +266,119 @@ class CatalogController extends Controller
             $selectedAttributeFilters[(string) $filter['query_key']] = $valueId > 0 ? $valueId : null;
         }
 
-        $productsQuery = Product::query()
-            ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
-            ->where('is_active', true)
-            ->with([
-                'taxRate:id,rate,rate_type,is_active',
-                'translations' => fn ($q) => $q
-                    ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt'])
-                    ->whereIn('locale', [$locale, $fallbackLocale]),
-                'categories.translations' => fn ($q) => $q
-                    ->where('scope', Category::SCOPE_CATALOG)
-                    ->whereIn('locale', [$locale, $fallbackLocale]),
-                'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
-                'media' => fn ($q) => $q
-                    ->whereIn('collection_name', ['product_main', 'product_gallery'])
-                    ->orderBy('order_column')
-                    ->orderBy('id'),
-                'optionValues' => fn ($q) => $q
-                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'is_active', 'sort_order'])
-                    ->where('is_active', true)
-                    ->orderBy('sort_order')
-                    ->orderBy('id')
-                    ->with([
-                        'optionValue.translations' => fn ($tq) => $tq
-                            ->select(['id', 'option_value_id', 'locale', 'name'])
-                            ->whereIn('locale', [$locale, $fallbackLocale]),
-                        'parentOptionValue.translations' => fn ($tq) => $tq
-                            ->select(['id', 'option_value_id', 'locale', 'name'])
-                            ->whereIn('locale', [$locale, $fallbackLocale]),
-                    ]),
-            ])
-            ->whereHas('categories', function ($categoryQuery) use ($categoryTreeIds): void {
-                $categoryQuery
-                    ->where('scope', Category::SCOPE_CATALOG)
-                    ->where('is_active', true)
-                    ->whereIn('categories.id', $categoryTreeIds);
-            });
+        if ($showCategoryProducts) {
+            $productsQuery = Product::query()
+                ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
+                ->where('is_active', true)
+                ->with([
+                    'taxRate:id,rate,rate_type,is_active',
+                    'translations' => fn ($q) => $q
+                        ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt'])
+                        ->whereIn('locale', [$locale, $fallbackLocale]),
+                    'categories.translations' => fn ($q) => $q
+                        ->where('scope', Category::SCOPE_CATALOG)
+                        ->whereIn('locale', [$locale, $fallbackLocale]),
+                    'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                    'media' => fn ($q) => $q
+                        ->whereIn('collection_name', ['product_main', 'product_gallery'])
+                        ->orderBy('order_column')
+                        ->orderBy('id'),
+                    'optionValues' => fn ($q) => $q
+                        ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'is_active', 'sort_order'])
+                        ->where('is_active', true)
+                        ->orderBy('sort_order')
+                        ->orderBy('id')
+                        ->with([
+                            'optionValue.translations' => fn ($tq) => $tq
+                                ->select(['id', 'option_value_id', 'locale', 'name'])
+                                ->whereIn('locale', [$locale, $fallbackLocale]),
+                            'parentOptionValue.translations' => fn ($tq) => $tq
+                                ->select(['id', 'option_value_id', 'locale', 'name'])
+                                ->whereIn('locale', [$locale, $fallbackLocale]),
+                        ]),
+                ])
+                ->whereHas('categories', function ($categoryQuery) use ($categoryTreeIds): void {
+                    $categoryQuery
+                        ->where('scope', Category::SCOPE_CATALOG)
+                        ->where('is_active', true)
+                        ->whereIn('categories.id', $categoryTreeIds);
+                });
 
-        if ($search !== '') {
-            $productsQuery->whereHas('translations', function ($q) use ($locale, $fallbackLocale, $search): void {
-                $q->whereIn('locale', [$locale, $fallbackLocale])
-                    ->where(function ($searchQuery) use ($search): void {
-                        $searchQuery->where('name', 'like', '%'.$search.'%')
-                            ->orWhere('excerpt', 'like', '%'.$search.'%')
-                            ->orWhere('description', 'like', '%'.$search.'%');
-                    });
-            });
-        }
+            $this->applyProductSearch($productsQuery, $locale, $fallbackLocale, $search);
 
-        if ($manufacturerSlug !== '') {
-            $productsQuery->whereHas('manufacturer', function ($manufacturerQuery) use ($locale, $fallbackLocale, $manufacturerSlug): void {
-                $manufacturerQuery
-                    ->where('is_active', true)
-                    ->whereHas('translations', function ($translationQuery) use ($locale, $fallbackLocale, $manufacturerSlug): void {
-                        $translationQuery
-                            ->whereIn('locale', [$locale, $fallbackLocale])
-                            ->where('slug', $manufacturerSlug);
-                    });
-            });
-        }
-
-        foreach ($selectedOptionFilters as $selectedOptionValueId) {
-            if ($selectedOptionValueId && $selectedOptionValueId > 0) {
-                $this->applyOptionValueFilter($productsQuery, $selectedOptionValueId);
-            }
-        }
-
-        foreach ($attributeFilters as $attributeFilter) {
-            $queryKey = (string) $attributeFilter['query_key'];
-            $selectedAttributeId = (int) ($selectedAttributeFilters[$queryKey] ?? 0);
-            if ($selectedAttributeId <= 0) {
-                continue;
+            if ($manufacturerSlug !== '') {
+                $productsQuery->whereHas('manufacturer', function ($manufacturerQuery) use ($locale, $fallbackLocale, $manufacturerSlug): void {
+                    $manufacturerQuery
+                        ->where('is_active', true)
+                        ->whereHas('translations', function ($translationQuery) use ($locale, $fallbackLocale, $manufacturerSlug): void {
+                            $translationQuery
+                                ->whereIn('locale', [$locale, $fallbackLocale])
+                                ->where('slug', $manufacturerSlug);
+                        });
+                });
             }
 
-            $productsQuery->whereHas('attributes', function ($attributeQuery) use ($selectedAttributeId): void {
-                $attributeQuery->where('catalog_attributes.id', $selectedAttributeId);
-            });
+            foreach ($selectedOptionFilters as $selectedOptionValueId) {
+                if ($selectedOptionValueId && $selectedOptionValueId > 0) {
+                    $this->applyOptionValueFilter($productsQuery, $selectedOptionValueId);
+                }
+            }
+
+            foreach ($attributeFilters as $attributeFilter) {
+                $queryKey = (string) $attributeFilter['query_key'];
+                $selectedAttributeId = (int) ($selectedAttributeFilters[$queryKey] ?? 0);
+                if ($selectedAttributeId <= 0) {
+                    continue;
+                }
+
+                $productsQuery->whereHas('attributes', function ($attributeQuery) use ($selectedAttributeId): void {
+                    $attributeQuery->where('catalog_attributes.id', $selectedAttributeId);
+                });
+            }
+
+            match ($sort) {
+                'price_low' => $productsQuery->orderBy('base_price'),
+                'price_high' => $productsQuery->orderByDesc('base_price'),
+                'stock_high' => $productsQuery->orderByDesc('stock_qty')->orderByDesc('id'),
+                'oldest' => $productsQuery->orderBy('id'),
+                default => $productsQuery->orderByDesc('id'),
+            };
+
+            $products = $productsQuery
+                ->paginate($this->shopPerPage($request, $gridCols))
+                ->withQueryString();
+        } else {
+            $products = (new LengthAwarePaginator(
+                items: [],
+                total: 0,
+                perPage: $this->shopPerPage($request, $gridCols),
+                currentPage: max(1, (int) $request->query('page', 1)),
+                options: [
+                    'path' => $request->url(),
+                    'query' => $request->query(),
+                ],
+            ))->withQueryString();
         }
 
-        match ($sort) {
-            'price_low' => $productsQuery->orderBy('base_price'),
-            'price_high' => $productsQuery->orderByDesc('base_price'),
-            'stock_high' => $productsQuery->orderByDesc('stock_qty')->orderByDesc('id'),
-            'oldest' => $productsQuery->orderBy('id'),
-            default => $productsQuery->orderByDesc('id'),
-        };
+        $categories = $showCategoryFilters
+            ? $this->cachedCatalogCategories($locale, $fallbackLocale)
+            : collect();
+        $manufacturers = $showCategoryFilters
+            ? $this->cachedCatalogManufacturers($locale, $fallbackLocale)
+            : collect();
 
-        $products = $productsQuery
-            ->paginate($this->shopPerPage($request, $gridCols))
-            ->withQueryString();
-
-        $categories = $this->cachedCatalogCategories($locale, $fallbackLocale);
-        $manufacturers = $this->cachedCatalogManufacturers($locale, $fallbackLocale);
-
-        $subcategories = $category->children()
-            ->where('scope', Category::SCOPE_CATALOG)
-            ->where('is_active', true)
-            ->with(['translations' => fn ($q) => $q
+        $subcategories = $showCategoryFilters
+            ? $category->children()
                 ->where('scope', Category::SCOPE_CATALOG)
-                ->whereIn('locale', [$locale, $fallbackLocale])])
-            ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
+                ->where('is_active', true)
+                ->with(['translations' => fn ($q) => $q
+                    ->where('scope', Category::SCOPE_CATALOG)
+                    ->whereIn('locale', [$locale, $fallbackLocale])])
+                ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+            : collect();
         $subcategories->transform(function (Category $subCategory): Category {
             $subTreeIds = Category::query()
                 ->descendantsAndSelf($subCategory->id)
@@ -434,6 +445,8 @@ class CatalogController extends Controller
             'breadcrumbCategories' => $breadcrumbCategories,
             'topBlocks' => $topBlocks,
             'bottomBlocks' => $bottomBlocks,
+            'showCategoryFilters' => $showCategoryFilters,
+            'showCategoryProducts' => $showCategoryProducts,
             'filters' => [
                 'q' => $search,
                 'manufacturer' => $manufacturerSlug,
@@ -864,6 +877,32 @@ class CatalogController extends Controller
         }
 
         return redirect()->to($target);
+    }
+
+    private function applyProductSearch(Builder $query, string $locale, string $fallbackLocale, string $search): void
+    {
+        if ($search === '') {
+            return;
+        }
+
+        $query->where(function (Builder $searchQuery) use ($locale, $fallbackLocale, $search): void {
+            $searchQuery
+                ->where('sku', 'like', '%'.$search.'%')
+                ->orWhereHas('optionValues', function (Builder $optionValueQuery) use ($search): void {
+                    $optionValueQuery
+                        ->where('is_active', true)
+                        ->where('sku', 'like', '%'.$search.'%');
+                })
+                ->orWhereHas('translations', function ($translationQuery) use ($locale, $fallbackLocale, $search): void {
+                    $translationQuery
+                        ->whereIn('locale', [$locale, $fallbackLocale])
+                        ->where(function ($textQuery) use ($search): void {
+                            $textQuery->where('name', 'like', '%'.$search.'%')
+                                ->orWhere('excerpt', 'like', '%'.$search.'%')
+                                ->orWhere('description', 'like', '%'.$search.'%');
+                        });
+                });
+        });
     }
 
     private function withDesktopCacheHeaders(Request $request, Response $response, string $scope): Response

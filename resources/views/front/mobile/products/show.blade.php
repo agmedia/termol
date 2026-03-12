@@ -17,16 +17,20 @@
             ->sortBy(static fn ($mediaItem) => (int) ($mediaItem->order_column ?? 0))
             ->values()
         : collect();
-    $mainMedia = $mediaItems->firstWhere('collection_name', 'product_main')
-        ?? $mediaItems->firstWhere('collection_name', 'product_gallery')
-        ?? $product->getFirstMedia('product_main')
-        ?? $product->getFirstMedia('product_gallery');
+    $usableMediaItems = $mediaItems
+        ->filter(fn ($mediaItem) => \App\Support\Media\MediaUrl::hasUsableSource($mediaItem, ['detail_960x960', 'thumb_100x100']))
+        ->values();
+    $mainMedia = $usableMediaItems->firstWhere('collection_name', 'product_main')
+        ?? $usableMediaItems->firstWhere('collection_name', 'product_gallery')
+        ?? $product->getMedia('*')
+            ->whereIn('collection_name', ['product_main', 'product_gallery'])
+            ->first(fn ($mediaItem) => \App\Support\Media\MediaUrl::hasUsableSource($mediaItem, ['detail_960x960', 'thumb_100x100']));
 
     $galleryItems = collect();
     if ($mainMedia) {
         $galleryItems->push($mainMedia);
     }
-    foreach ($mediaItems as $mediaItem) {
+    foreach ($usableMediaItems as $mediaItem) {
         if ($mainMedia && (int) $mediaItem->id === (int) $mainMedia->id) {
             continue;
         }
@@ -79,6 +83,7 @@
             ->unique('id')
             ->values();
     }
+    $hasProductStory = ! empty($translation?->description) || ! empty($translation?->excerpt);
 @endphp
 
 @section('title', $translation?->name ?? __('ui.product.sku'))
@@ -131,7 +136,7 @@
     <div class="card card-style">
         <div class="content">
             <h2 class="mb-0">{{ number_format($displayBasePrice, 2) }} €</h2>
-            <p class="font-12 opacity-60 mb-2">{{ __('ui.product.sku') }} {{ $product->sku ?: 'n/a' }}</p>
+            <p class="font-12 opacity-60 mb-2">{{ __('ui.product.sku') }} <span data-product-sku-value>{{ $product->sku ?: $product->code ?: 'n/a' }}</span></p>
 
             @if ($manufacturerTranslation && $manufacturerEnabled)
                 <p class="font-12 mb-3">
@@ -150,6 +155,8 @@
                 data-ga4-item-brand="{{ (string) ($manufacturerTranslation?->name ?? '') }}"
                 data-ga4-item-category="{{ (string) ($firstCategoryTranslation?->name ?? '') }}"
                 data-ga4-currency="EUR"
+                data-product-base-sku="{{ (string) ($product->sku ?: $product->code ?: '') }}"
+                data-product-fallback-id="{{ (int) $product->id }}"
                 data-product-name="{{ $translation?->name ?? $product->code }}"
                 data-product-image="{{ (string) (($gallery->first()['full'] ?? '') ?: '') }}"
                 data-cart-url="{{ route('cart.index') }}"
@@ -185,7 +192,7 @@
                                             ?? $row->optionValue?->translations?->first();
                                         $label = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
                                     @endphp
-                                    <option value="{{ $row->id }}" data-parent-id="{{ (int) ($row->parent_option_value_id ?? 0) }}">{{ $label }}</option>
+                                    <option value="{{ $row->id }}" data-parent-id="{{ (int) ($row->parent_option_value_id ?? 0) }}" data-option-sku="{{ (string) ($row->sku ?: '') }}">{{ $label }}</option>
                                 @endforeach
                             </select>
                             <span><i class="fa fa-chevron-down"></i></span>
@@ -202,7 +209,7 @@
                                             ?? $row->optionValue?->translations?->first();
                                         $label = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
                                     @endphp
-                                    <option value="{{ $row->id }}">{{ $label }}</option>
+                                    <option value="{{ $row->id }}" data-option-sku="{{ (string) ($row->sku ?: '') }}">{{ $label }}</option>
                                 @endforeach
                             </select>
                             <span><i class="fa fa-chevron-down"></i></span>
@@ -238,6 +245,13 @@
                 <div class="divider mt-4"></div>
                 <p class="font-13">{{ $translation->excerpt }}</p>
             @endif
+
+            @include('front.partials.product-attribute-panels', [
+                'product' => $product,
+                'locale' => $locale,
+                'fallbackLocale' => $fallbackLocale,
+                'containerClass' => $hasProductStory ? 'mt-4' : 'mt-2',
+            ])
 
             @php
                 $commentFormHasErrors = $errors->has('author_name') || $errors->has('author_email') || $errors->has('body') || $errors->has('rating');

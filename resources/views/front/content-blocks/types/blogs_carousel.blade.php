@@ -94,7 +94,7 @@
     $posts = $postsQuery->limit($limit)->get();
 @endphp
 
-<section class="relative left-1/2 w-screen -translate-x-1/2 bg-white max-[540px]:py-5 py-8">
+<section class="relative left-1/2 w-screen -translate-x-1/2 bg-white max-[540px]:pt-5 max-[540px]:pb-[2.75rem] pt-8 pb-16">
     <div class="w-full px-3 sm:px-4 lg:px-6">
         <div class="max-[540px]:mb-5 mb-8 text-center">
             <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">

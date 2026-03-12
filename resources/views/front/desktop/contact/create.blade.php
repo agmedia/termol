@@ -1,6 +1,7 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('contact.page_title'))
+@section('main_class', 'mx-auto w-full max-w-7xl px-6 pt-0 pb-8')
 
 @section('content')
     @php
@@ -8,13 +9,19 @@
         $captchaEnabled = (bool) ($storeSettings['captcha']['recaptcha_v3_enabled'] ?? false) && $captchaSiteKey !== '';
     @endphp
 
-    <section class="mb-8">
-        <p class="mb-3 text-center text-xs uppercase tracking-[0.14em] text-slate-500">
-            {{ __('ui.front.desktop.footer.home') }} <span class="mx-1">/</span> {{ __('contact.page_title') }}
-        </p>
-        <div class="border border-slate-200 bg-slate-100 px-6 py-10 text-center sm:px-10">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{{ __('contact.eyebrow') }}</p>
-            <h1 class="mt-2 text-2xl font-extrabold uppercase tracking-tight text-slate-900">{{ __('contact.heading') }}</h1>
+    <section class="mb-8 px-1">
+        <div class="front-soft-hero px-6 py-4 text-center sm:px-8 sm:py-5">
+            <nav aria-label="Breadcrumb" class="mb-2">
+                <ol class="flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-500 sm:gap-2">
+                    <li>
+                        <a href="{{ route('home') }}" class="inline-flex items-center justify-center text-slate-500 hover:text-slate-700">{{ __('ui.front.desktop.footer.home') }}</a>
+                    </li>
+                    <li class="text-slate-400">/</li>
+                    <li class="text-slate-700">{{ __('contact.page_title') }}</li>
+                </ol>
+            </nav>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{{ __('contact.eyebrow') }}</p>
+            <h1 class="mt-1 text-2xl font-extrabold uppercase tracking-tight text-slate-900">{{ __('contact.heading') }}</h1>
             <p class="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{{ __('contact.subheading') }}</p>
         </div>
     </section>

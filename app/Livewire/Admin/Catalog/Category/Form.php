@@ -22,6 +22,8 @@ class Form extends Component
         'code' => '',
         'is_active' => true,
         'show_in_menu' => true,
+        'catalog_show_filters' => true,
+        'catalog_show_products' => true,
         'sort_order' => 0,
         'payload_text' => '',
         'locale' => 'en',
@@ -110,6 +112,17 @@ class Form extends Component
         DB::transaction(function () use ($validated, $payload, $translationPayload, $userId, $wasEditing): void {
             $scope = $validated['form']['scope'];
             $parentId = $validated['form']['parent_id'] ? (int) $validated['form']['parent_id'] : null;
+            $payload = is_array($payload) ? $payload : [];
+
+            if ($scope === Category::SCOPE_CATALOG) {
+                $payload[Category::PAYLOAD_SHOW_FILTERS] = (bool) $validated['form']['catalog_show_filters'];
+                $payload[Category::PAYLOAD_SHOW_PRODUCTS] = (bool) $validated['form']['catalog_show_products'];
+            } else {
+                unset(
+                    $payload[Category::PAYLOAD_SHOW_FILTERS],
+                    $payload[Category::PAYLOAD_SHOW_PRODUCTS]
+                );
+            }
 
             $categoryData = [
                 'scope' => $scope,
@@ -117,7 +130,7 @@ class Form extends Component
                 'is_active' => (bool) $validated['form']['is_active'],
                 'show_in_menu' => (bool) $validated['form']['show_in_menu'],
                 'sort_order' => (int) $validated['form']['sort_order'],
-                'payload' => $payload,
+                'payload' => $payload === [] ? null : $payload,
                 'updated_by' => $userId,
             ];
 
@@ -297,6 +310,8 @@ class Form extends Component
             ],
             'form.is_active' => ['boolean'],
             'form.show_in_menu' => ['boolean'],
+            'form.catalog_show_filters' => ['boolean'],
+            'form.catalog_show_products' => ['boolean'],
             'form.sort_order' => ['nullable', 'integer', 'min:0'],
             'form.payload_text' => ['nullable', 'string'],
 
@@ -341,8 +356,15 @@ class Form extends Component
         $this->form['is_active'] = (bool) $category->is_active;
         $this->form['show_in_menu'] = (bool) $category->show_in_menu;
         $this->form['sort_order'] = (int) $category->sort_order;
-        $this->form['payload_text'] = $category->payload
-            ? json_encode($category->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+        $payload = is_array($category->payload) ? $category->payload : [];
+        $this->form['catalog_show_filters'] = (bool) ($payload[Category::PAYLOAD_SHOW_FILTERS] ?? true);
+        $this->form['catalog_show_products'] = (bool) ($payload[Category::PAYLOAD_SHOW_PRODUCTS] ?? true);
+        unset(
+            $payload[Category::PAYLOAD_SHOW_FILTERS],
+            $payload[Category::PAYLOAD_SHOW_PRODUCTS]
+        );
+        $this->form['payload_text'] = $payload !== []
+            ? json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
             : '';
 
         if ($translation) {

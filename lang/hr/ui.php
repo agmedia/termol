@@ -85,7 +85,7 @@ return [
             'open_navigation' => 'Otvori navigaciju',
             'close_navigation' => 'Zatvori navigaciju',
             'newsletter' => [
-                'club' => 'AMDS Club',
+                'club' => 'KOZO Club',
                 'title' => 'Newsletter prijava za 10% popusta na prvu kupnju',
                 'subtitle' => 'Povremeno šaljemo novitete i posebne ponude.',
                 'placeholder' => 'Upišite email adresu',
@@ -672,7 +672,7 @@ return [
     'blog' => [
         'page_title' => 'Novosti i objave',
         'title' => 'Novosti i objave',
-        'subtitle' => 'Izdvojene priče, trendovi i AMDS noviteti.',
+        'subtitle' => 'Izdvojene priče, trendovi i KOZO noviteti.',
         'empty' => 'Trenutno nema objavljenih blog članaka.',
         'excerpt_fallback' => 'Otvori članak za više detalja.',
     ],

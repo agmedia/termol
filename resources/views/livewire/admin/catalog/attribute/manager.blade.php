@@ -69,9 +69,14 @@
                             </td>
                             <td class="px-3 py-2 text-center text-slate-700">{{ $row->sort_order }}</td>
                             <td class="px-3 py-2 text-right">
-                                <a href="{{ route('admin.attributes.edit', ['attribute' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
-                                    {{ __('admin.common.edit') }}
-                                </a>
+                                <div class="inline-flex items-center gap-1">
+                                    <a href="{{ route('admin.attributes.edit', ['attribute' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                                        {{ __('admin.common.edit') }}
+                                    </a>
+                                    <button type="button" wire:click="delete({{ $row->id }})" wire:confirm="{{ __('Delete this attribute?') }}" class="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">
+                                        {{ __('admin.common.delete') }}
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     @empty

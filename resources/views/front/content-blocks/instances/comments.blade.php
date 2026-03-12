@@ -71,8 +71,20 @@
     $reviewRows = ($comments ?? collect())->take($itemsLimit);
 @endphp
 
-<section class="relative left-1/2 w-screen -translate-x-1/2 bg-white max-[540px]:py-5 py-8">
-    <div class="w-full pt-5 px-3 sm:px-4 lg:px-6">
+<section class="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden bg-[linear-gradient(180deg,_#eef2f3_0%,_#e8edf0_46%,_#f6f7f7_100%)] max-[540px]:pt-5 max-[540px]:pb-[2.75rem] pt-8 pb-16">
+    <div class="pointer-events-none absolute inset-0">
+        <div class="absolute inset-x-0 top-0 h-px bg-black/8"></div>
+        <div class="absolute inset-x-0 bottom-0 h-px bg-black/6"></div>
+        <div
+            class="absolute inset-0 opacity-[0.58]"
+            style="background-image: linear-gradient(rgba(255,255,255,0.34) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.34) 1px, transparent 1px); background-size: 34px 34px;"
+        ></div>
+        <div
+            class="absolute inset-0"
+            style="background: radial-gradient(58% 92% at 12% 20%, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0) 48%), radial-gradient(42% 74% at 88% 22%, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 44%), linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 34%, rgba(15,23,42,0.03) 100%);"
+        ></div>
+    </div>
+    <div class="relative w-full pt-5 px-3 sm:px-4 lg:px-6">
         <div class="max-[540px]:mb-5 mb-8 text-center">
             <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
                 <span class="h-px flex-1 bg-slate-300"></span>

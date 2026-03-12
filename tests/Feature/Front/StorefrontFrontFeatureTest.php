@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Front;
 
+use App\Http\Controllers\Front\CatalogController;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Category\CategoryTranslation;
+use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Manufacturer\ManufacturerTranslation;
 use App\Models\Catalog\Option\Option;
@@ -13,6 +15,7 @@ use App\Models\Catalog\Product\ProductOptionValue;
 use App\Models\Catalog\Product\ProductTranslation;
 use App\Models\Content\Blog\BlogPost;
 use App\Models\Content\Blog\BlogPostTranslation;
+use App\Models\Content\ContentBlock;
 use App\Models\Content\Page\InfoPage;
 use App\Models\Content\Page\InfoPageTranslation;
 use App\Models\Settings\Local\Currency;
@@ -23,6 +26,7 @@ use App\Models\User;
 use App\Services\Front\NavigationMenuService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class StorefrontFrontFeatureTest extends TestCase
@@ -77,6 +81,42 @@ class StorefrontFrontFeatureTest extends TestCase
         ]);
     }
 
+    public function test_shop_search_matches_product_sku(): void
+    {
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $product->update(['sku' => 'FIND-ME-123']);
+
+        $query = Product::query()->where('is_active', true);
+
+        $controller = app(CatalogController::class);
+        $method = new \ReflectionMethod($controller, 'applyProductSearch');
+        $method->setAccessible(true);
+        $method->invoke($controller, $query, 'en', 'en', 'FIND-ME-123');
+
+        $this->assertSame([$product->id], $query->pluck('id')->all());
+    }
+
+    public function test_category_search_matches_product_sku(): void
+    {
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $product->update(['sku' => 'CAT-FIND-456']);
+
+        $query = Product::query()
+            ->where('is_active', true)
+            ->whereHas('categories', fn ($categoryQuery) => $categoryQuery->whereKey($category->id));
+
+        $controller = app(CatalogController::class);
+        $method = new \ReflectionMethod($controller, 'applyProductSearch');
+        $method->setAccessible(true);
+        $method->invoke($controller, $query, 'en', 'en', 'CAT-FIND-456');
+
+        $this->assertSame([$product->id], $query->pluck('id')->all());
+    }
+
     public function test_home_renders_configured_navigation_with_subcategories(): void
     {
         [$parent, $parentSlug] = $this->seedCategory();
@@ -118,6 +158,93 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('Hrana i namirnice')
             ->assertSee('Child menu category')
             ->assertSee('/category/'.$parentSlug, false);
+    }
+
+    public function test_home_renders_instagram_curated_grid_block(): void
+    {
+        $block = ContentBlock::query()->create([
+            'code' => 'home-instagram-widget',
+            'name' => 'Home Instagram Widget',
+            'type' => 'instagram_curated_grid',
+            'is_active' => true,
+            'payload' => null,
+        ]);
+
+        $block->translations()->create([
+            'locale' => 'hr',
+            'title' => 'Prati nas na Instagramu',
+            'subtitle' => '@kozo_bodywear',
+            'body_html' => null,
+            'cta_label' => 'Otvori profil',
+            'cta_url' => 'https://www.instagram.com/kozo_bodywear/',
+            'payload' => null,
+        ]);
+
+        $block->translations()->create([
+            'locale' => 'en',
+            'title' => 'Follow us on Instagram',
+            'subtitle' => '@kozo_bodywear',
+            'body_html' => null,
+            'cta_label' => 'Open profile',
+            'cta_url' => 'https://www.instagram.com/kozo_bodywear/',
+            'payload' => null,
+        ]);
+
+        $block->slots()->create([
+            'placement' => 'home.bottom',
+            'frontend_variant' => 'all',
+            'target_type' => null,
+            'target_ref' => null,
+            'sort_order' => 999,
+            'is_active' => true,
+        ]);
+
+        $image = UploadedFile::fake()->image('instagram-widget.jpg', 1080, 1080);
+
+        $block->addMedia($image->getPathname())
+            ->usingName('Instagram widget image')
+            ->usingFileName('instagram-widget.jpg')
+            ->withCustomProperties([
+                'link_url' => ['hr' => 'https://www.instagram.com/p/demo-post/', 'en' => 'https://www.instagram.com/p/demo-post/'],
+                'link_url_value' => 'https://www.instagram.com/p/demo-post/',
+                'caption' => ['hr' => 'Demo Instagram post caption', 'en' => 'Demo Instagram post caption'],
+            ])
+            ->toMediaCollection('block_slides');
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Prati nas na Instagramu')
+            ->assertSee('@kozo_bodywear')
+            ->assertSee('https://www.instagram.com/kozo_bodywear/', false)
+            ->assertSee('https://www.instagram.com/p/demo-post/', false);
+    }
+
+    public function test_shop_listing_falls_back_to_gallery_when_main_image_file_is_missing(): void
+    {
+        $this->useEnglishStorefrontLocale();
+
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $mainImage = UploadedFile::fake()->image('missing-main.jpg', 1200, 1600);
+        $galleryImage = UploadedFile::fake()->image('gallery-fallback.jpg', 1200, 1600);
+
+        $mainMedia = $product->addMedia($mainImage->getPathname())
+            ->usingName('missing-main')
+            ->usingFileName('missing-main.jpg')
+            ->toMediaCollection('product_main');
+
+        $galleryMedia = $product->addMedia($galleryImage->getPathname())
+            ->usingName('gallery-fallback')
+            ->usingFileName('gallery-fallback.jpg')
+            ->toMediaCollection('product_gallery');
+
+        @unlink($mainMedia->getPath());
+
+        $this->get('/shop')
+            ->assertOk()
+            ->assertSee('gallery-fallback.jpg', false)
+            ->assertSee('data-product-image="'.$galleryMedia->getUrl().'"', false);
     }
 
     public function test_account_routes_are_prefixed_and_require_authenticated_verified_user(): void
@@ -338,6 +465,126 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertDontSee('Color Scope');
     }
 
+    public function test_product_detail_renders_attribute_panels_in_requested_order_without_store_check_button(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product, $slug] = $this->seedProduct($category->id);
+
+        $this->attachProductAttribute($product, 'garancija', 'Guarantee Label', '2 year guarantee', 30);
+        $this->attachProductAttribute($product, 'sastav', 'Composition Label', '100% cotton', 10);
+        $this->attachProductAttribute($product, 'kvaliteta', 'Quality Label', 'Premium stitching', 20);
+        $this->attachProductAttribute($product, 'origin', 'Origin Label', 'Croatia', 40);
+
+        $this->get('/product/'.$slug)
+            ->assertOk()
+            ->assertDontSee('Check store availability')
+            ->assertSeeInOrder(['Composition Label', 'Quality Label', 'Guarantee Label'])
+            ->assertSee('100% cotton')
+            ->assertSee('Premium stitching')
+            ->assertSee('2 year guarantee')
+            ->assertDontSee('Origin Label')
+            ->assertDontSee('Croatia');
+    }
+
+    public function test_mobile_product_detail_renders_attribute_panels_in_requested_order(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product, $slug] = $this->seedProduct($category->id);
+
+        $this->attachProductAttribute($product, 'kvaliteta', 'Quality Label', 'Premium finish', 20);
+        $this->attachProductAttribute($product, 'sastav', 'Composition Label', '95% cotton / 5% elastane', 10);
+        $this->attachProductAttribute($product, 'garancija', 'Guarantee Label', 'Quality guarantee included', 30);
+
+        $this
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            ])
+            ->get('/product/'.$slug)
+            ->assertOk()
+            ->assertSeeInOrder(['Composition Label', 'Quality Label', 'Guarantee Label'])
+            ->assertSee('95% cotton / 5% elastane')
+            ->assertSee('Premium finish')
+            ->assertSee('Quality guarantee included');
+    }
+
+    public function test_category_can_hide_filters_and_products_via_category_settings(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category, $categorySlug] = $this->seedCategory();
+        [$product, $productSlug] = $this->seedProduct($category->id);
+
+        $category->update([
+            'payload' => [
+                Category::PAYLOAD_SHOW_FILTERS => false,
+                Category::PAYLOAD_SHOW_PRODUCTS => false,
+            ],
+        ]);
+
+        $response = $this->get('/category/'.$categorySlug);
+
+        $response
+            ->assertOk()
+            ->assertDontSee('aria-controls="category-mobile-filter-panel"', false)
+            ->assertDontSee('data-desktop-filter-form', false)
+            ->assertDontSee('data-catalog-grid', false)
+            ->assertDontSee('Product '.$productSlug)
+            ->assertDontSee((string) $product->sku);
+    }
+
+    public function test_category_editorial_tiles_block_renders_on_targeted_category(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category, $categorySlug] = $this->seedCategory();
+
+        $block = ContentBlock::query()->create([
+            'code' => 'category-editorial-test',
+            'name' => 'Category Editorial Test',
+            'type' => 'category_editorial_tiles',
+            'is_active' => true,
+            'payload' => null,
+        ]);
+
+        $block->translations()->create([
+            'locale' => 'en',
+            'title' => null,
+            'subtitle' => null,
+            'cta_label' => null,
+            'cta_url' => null,
+            'payload' => null,
+        ]);
+
+        $block->slots()->create([
+            'placement' => 'category.top',
+            'frontend_variant' => 'all',
+            'target_type' => 'category',
+            'target_ref' => $categorySlug,
+            'sort_order' => 0,
+            'is_active' => true,
+        ]);
+
+        $image = UploadedFile::fake()->image('tile-1.jpg', 900, 1200);
+
+        $media = $block
+            ->addMedia($image->getPathname())
+            ->usingName('tile-1')
+            ->usingFileName('tile-1.jpg')
+            ->withCustomProperties([
+                'block_title' => ['en' => 'Nightwear'],
+                'link_url' => ['en' => '/category/nightwear'],
+                'alt' => ['en' => 'Nightwear'],
+            ])
+            ->toMediaCollection('block_slides');
+
+        $this->assertNotNull($media);
+
+        $this->get('/category/'.$categorySlug)
+            ->assertOk()
+            ->assertSee('Nightwear')
+            ->assertSee('/category/nightwear', false);
+    }
+
     /**
      * @return array{Category,string}
      */
@@ -392,6 +639,42 @@ class StorefrontFrontFeatureTest extends TestCase
         $product->categories()->sync([$categoryId => ['sort_order' => 1, 'is_primary' => true]]);
 
         return [$product, $slug];
+    }
+
+    private function attachProductAttribute(Product $product, string $groupCode, string $groupName, string $name, int $sortOrder): void
+    {
+        $attribute = Attribute::query()->create([
+            'code' => $groupCode.'-'.strtolower((string) str()->random(6)),
+            'group_code' => $groupCode,
+            'type' => Attribute::TYPE_SELECT,
+            'is_active' => true,
+            'sort_order' => $sortOrder,
+        ]);
+
+        $attribute->translations()->create([
+            'locale' => 'en',
+            'group_name' => $groupName,
+            'name' => $name,
+            'slug' => str($name)->slug()->value(),
+            'description' => null,
+            'payload' => null,
+        ]);
+
+        $product->attributes()->attach($attribute->id, [
+            'sort_order' => $sortOrder,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function useEnglishStorefrontLocale(): void
+    {
+        config([
+            'app.locale' => 'en',
+            'app.fallback_locale' => 'en',
+        ]);
+
+        app()->setLocale('en');
     }
 
     /**

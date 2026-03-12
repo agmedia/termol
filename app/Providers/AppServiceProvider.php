@@ -25,6 +25,7 @@ use App\Services\Loyalty\LoyaltyService;
 use App\Services\Settings\LocalSettingsService;
 use App\Services\Settings\SystemSettingsService;
 use App\Services\UserTracking\UserTrackingService;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\URL;
@@ -63,6 +64,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->syncAppLocaleFromLocalSettings();
+
         if ((bool) config('app.force_https', false)) {
             URL::forceScheme('https');
         }
@@ -269,6 +272,31 @@ class AppServiceProvider extends ServiceProvider
         ContentBlock::observe(ContentCacheObserver::class);
         ContentBlockTranslation::observe(ContentCacheObserver::class);
         ContentBlockSlot::observe(ContentCacheObserver::class);
+    }
+
+    private function syncAppLocaleFromLocalSettings(): void
+    {
+        $fallbackLocale = strtolower(trim((string) config('app.locale', 'en'))) ?: 'en';
+
+        try {
+            $defaultLocale = Language::query()
+                ->where('is_active', true)
+                ->orderByDesc('is_default')
+                ->orderBy('sort_order')
+                ->orderBy('code')
+                ->value('code');
+
+            $defaultLocale = strtolower(trim((string) $defaultLocale));
+            if ($defaultLocale === '') {
+                $defaultLocale = $fallbackLocale;
+            }
+        } catch (\Throwable) {
+            $defaultLocale = $fallbackLocale;
+        }
+
+        Config::set('app.locale', $defaultLocale);
+        Config::set('app.fallback_locale', $defaultLocale);
+        App::setLocale($defaultLocale);
     }
 
     private function applyDynamicStoreMailSettings(): void

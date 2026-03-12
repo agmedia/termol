@@ -60,12 +60,12 @@
 <style>
     @media (min-width: 1024px) {
         .site-main-header-row {
-            height: 90px;
+            height: 80px;
             transition: height .2s ease;
         }
 
         .site-main-logo {
-            height: 40px;
+            height: 60px;
             transition: height .2s ease;
         }
 
@@ -74,8 +74,33 @@
         }
 
         .site-main-header.is-sticky .site-main-logo {
-            height: 30px;
+            height: 50px;
         }
+    }
+
+    .front-soft-hero {
+        position: relative;
+        background: #fff;
+    }
+
+    .front-soft-hero::before {
+        content: none;
+    }
+
+    .front-soft-hero::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 1px;
+        background: rgba(15, 23, 42, 0.08);
+        pointer-events: none;
+    }
+
+    .front-soft-hero > * {
+        position: relative;
+        z-index: 1;
     }
 </style>
 
@@ -256,7 +281,7 @@
 
 @include('front.partials.analytics-ecommerce')
 
-<footer class="{{ request()->routeIs('home') ? 'mt-5' : 'mt-20' }} border-t border-slate-200 bg-white">
+<footer class="{{ request()->routeIs('home') ? 'mt-0' : 'mt-5' }} border-t border-slate-200 bg-white">
     <div class="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <section class="px-0 py-5">
             <div class="grid gap-4 lg:grid-cols-[1.2fr_1fr] lg:items-center">
@@ -437,7 +462,7 @@
         <div class="py-7">
             <div class="flex flex-wrap items-center justify-center gap-2.5">
                 <span class="inline-flex h-12 w-28 items-center justify-center px-1">
-                    <img src="{{ asset('assets/payments/wspay.svg') }}" alt="WSPay" class="block h-6 w-auto object-contain" loading="lazy" width="57" height="24">
+                    <img src="{{ asset('assets/payments/corvus-logo.svg') }}" alt="Corvus Pay" class="block h-6 w-auto object-contain" loading="lazy" width="116" height="24">
                 </span>
                 <span class="inline-flex h-12 w-28 items-center justify-center px-1">
                     <img src="{{ asset('assets/payments/visa-brand.svg') }}" alt="Visa" class="block h-6 w-auto object-contain" loading="lazy" width="74" height="24">

@@ -23,16 +23,20 @@
             ->sortBy(static fn ($mediaItem) => (int) ($mediaItem->order_column ?? 0))
             ->values()
         : collect();
-    $mainMedia = $mediaItems->firstWhere('collection_name', 'product_main')
-        ?? $mediaItems->firstWhere('collection_name', 'product_gallery')
-        ?? $product->getFirstMedia('product_main')
-        ?? $product->getFirstMedia('product_gallery');
+    $usableMediaItems = $mediaItems
+        ->filter(fn ($mediaItem) => \App\Support\Media\MediaUrl::hasUsableSource($mediaItem, ['detail_960x960', 'thumb_100x100']))
+        ->values();
+    $mainMedia = $usableMediaItems->firstWhere('collection_name', 'product_main')
+        ?? $usableMediaItems->firstWhere('collection_name', 'product_gallery')
+        ?? $product->getMedia('*')
+            ->whereIn('collection_name', ['product_main', 'product_gallery'])
+            ->first(fn ($mediaItem) => \App\Support\Media\MediaUrl::hasUsableSource($mediaItem, ['detail_960x960', 'thumb_100x100']));
 
     $galleryItems = collect();
     if ($mainMedia) {
         $galleryItems->push($mainMedia);
     }
-    foreach ($mediaItems as $mediaItem) {
+    foreach ($usableMediaItems as $mediaItem) {
         if ($mainMedia && (int) $mediaItem->id === (int) $mainMedia->id) {
             continue;
         }
@@ -98,6 +102,7 @@
     $preferredGridCols = in_array((int) request()->cookie('front_grid_cols', 4), [1, 2, 3, 4, 5], true)
         ? (int) request()->cookie('front_grid_cols', 4)
         : 4;
+    $hasProductStory = ! empty($translation?->description) || ! empty($translation?->excerpt);
 @endphp
 
 @section('title', $translation?->name ?? 'Product')
@@ -484,7 +489,7 @@
             <div class="mt-4">
                 <div>
                     <h1 class="text-2xl font-extrabold leading-tight text-slate-900">{{ $translation?->name ?? $product->code }}</h1>
-                    <p class="mt-1 text-xs text-slate-500">{{ __('ui.product.sku') }}: {{ $product->sku ?: 'n/a' }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ __('ui.product.sku') }}: <span data-product-sku-value>{{ $product->sku ?: $product->code ?: 'n/a' }}</span></p>
                     @if ($manufacturerTranslation && $manufacturerEnabled)
                         <p class="mt-1 text-xs text-slate-600">
                             <a href="{{ route('manufacturers.show', ['slug' => $manufacturerTranslation->slug]) }}" class="font-semibold text-slate-700 hover:text-slate-900">{{ $manufacturerTranslation->name }}</a>
@@ -519,6 +524,8 @@
                 data-ga4-item-brand="{{ (string) ($manufacturerTranslation?->name ?? '') }}"
                 data-ga4-item-category="{{ (string) ($firstCategoryTranslation?->name ?? '') }}"
                 data-ga4-currency="EUR"
+                data-product-base-sku="{{ (string) ($product->sku ?: $product->code ?: '') }}"
+                data-product-fallback-id="{{ (int) $product->id }}"
                 data-product-name="{{ $translation?->name ?? $product->code }}"
                 data-product-image="{{ (string) (($gallery->first()['full'] ?? '') ?: '') }}"
                 data-cart-url="{{ route('cart.index') }}"
@@ -578,7 +585,7 @@
                                                     ?? $row->optionValue?->translations?->first();
                                                 $secondaryLabel = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
                                             @endphp
-                                            <option value="{{ $row->id }}" data-parent-id="{{ (int) ($row->parent_option_value_id ?? 0) }}">{{ $secondaryLabel }}</option>
+                                            <option value="{{ $row->id }}" data-parent-id="{{ (int) ($row->parent_option_value_id ?? 0) }}" data-option-sku="{{ (string) ($row->sku ?: '') }}">{{ $secondaryLabel }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -594,7 +601,7 @@
                                         $inputId = 'product-detail-pov-'.$product->id.'-'.$row->id;
                                     @endphp
                                     <span class="inline-flex">
-                                        <input id="{{ $inputId }}" type="radio" name="product_option_value_id" value="{{ $row->id }}" class="sr-only product-size-radio" data-size-label="{{ $label }}">
+                                        <input id="{{ $inputId }}" type="radio" name="product_option_value_id" value="{{ $row->id }}" class="sr-only product-size-radio" data-size-label="{{ $label }}" data-option-sku="{{ (string) ($row->sku ?: '') }}">
                                         <label for="{{ $inputId }}" class="product-size-label inline-flex h-10 min-w-10 cursor-pointer items-center justify-center border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:bg-slate-100">
                                             <span>{{ $label }}</span>
                                         </label>
@@ -864,19 +871,18 @@
                 @csrf
             </form>
 
-            <button type="button" class="mt-4 inline-flex h-10 w-full items-center justify-center gap-3 border border-slate-300 bg-white px-4 text-xs font-semibold uppercase tracking-wide text-slate-800 hover:bg-slate-100">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="3" y="4" width="18" height="16" rx="1"></rect>
-                    <path d="M7 8h3M7 12h10M7 16h10M14 8h3"></path>
-                </svg>
-                {{ __('ui.product.check_store') }}
-            </button>
-
             @if (! empty($translation?->description))
                 <div class="mt-6 px-1 pb-2 text-[0.9rem] leading-[1.55] text-slate-700 [&_p]:mb-[15px] [&_p:last-child]:mb-0">{!! $translation->description !!}</div>
             @elseif (! empty($translation?->excerpt))
                 <p class="mt-6 px-1 pb-2 text-[0.9rem] leading-[1.55] text-slate-700">{{ $translation->excerpt }}</p>
             @endif
+
+            @include('front.partials.product-attribute-panels', [
+                'product' => $product,
+                'locale' => $locale,
+                'fallbackLocale' => $fallbackLocale,
+                'containerClass' => $hasProductStory ? 'mt-5' : 'mt-6',
+            ])
 
             @php
                 $commentFormHasErrors = $errors->has('author_name') || $errors->has('author_email') || $errors->has('body') || $errors->has('rating');

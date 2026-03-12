@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\Catalog\Attribute;
 
 use App\Models\Catalog\Attribute\Attribute;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -26,6 +27,35 @@ class Manager extends Component
 
     public function updatedLocale(): void
     {
+        $this->resetPage();
+    }
+
+    public function delete(int $attributeId): void
+    {
+        $attribute = Attribute::query()->find($attributeId);
+        if (! $attribute) {
+            $this->dispatch('notify', type: 'warning', message: __('Attribute not found.'));
+            return;
+        }
+
+        DB::transaction(function () use ($attribute): void {
+            $attribute->products()->detach();
+            $attribute->translations()->delete();
+            $attribute->delete();
+        });
+
+        activity('catalog_attributes')
+            ->performedOn($attribute)
+            ->causedBy(auth()->user())
+            ->event('deleted')
+            ->withProperties([
+                'attribute_id' => $attributeId,
+                'code' => $attribute->code,
+                'group_code' => $attribute->group_code,
+            ])
+            ->log('Attribute deleted');
+
+        $this->dispatch('notify', type: 'success', message: __('Attribute deleted.'));
         $this->resetPage();
     }
 

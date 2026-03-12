@@ -3,6 +3,7 @@
 @php
     $translation = $category->translations->firstWhere('locale', $locale)
         ?? $category->translations->firstWhere('locale', $fallbackLocale);
+    $showCategoryProducts = (bool) ($showCategoryProducts ?? true);
 @endphp
 
 @section('title', $translation?->name ?? 'Category')
@@ -21,13 +22,15 @@
         </div>
     </div>
 
-    @forelse ($products as $product)
-        @include('front.mobile.partials.product-card', ['product' => $product, 'locale' => $locale, 'fallbackLocale' => $fallbackLocale])
-    @empty
-        <div class="card card-style"><div class="content"><p class="mb-0">No products in this category.</p></div></div>
-    @endforelse
+    @if ($showCategoryProducts)
+        @forelse ($products as $product)
+            @include('front.mobile.partials.product-card', ['product' => $product, 'locale' => $locale, 'fallbackLocale' => $fallbackLocale])
+        @empty
+            <div class="card card-style"><div class="content"><p class="mb-0">No products in this category.</p></div></div>
+        @endforelse
+    @endif
 
-    @if ($products->hasPages())
+    @if ($showCategoryProducts && $products->hasPages())
         <div class="card card-style"><div class="content">{{ $products->links('pagination::bootstrap-5') }}</div></div>
     @endif
 

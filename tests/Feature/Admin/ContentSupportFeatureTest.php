@@ -71,6 +71,51 @@ class ContentSupportFeatureTest extends TestCase
         $this->assertNotNull($comment->reviewed_at);
     }
 
+    public function test_admin_can_edit_comment(): void
+    {
+        $user = $this->makeAdminUser();
+        $product = $this->createProduct($user);
+
+        $comment = Comment::query()->create([
+            'commentable_type' => Product::class,
+            'commentable_id' => $product->id,
+            'user_id' => null,
+            'author_name' => 'Old Name',
+            'author_email' => 'old@example.test',
+            'locale' => 'en',
+            'body' => 'Old comment body.',
+            'rating' => 4,
+            'status' => Comment::STATUS_PENDING,
+            'is_featured' => false,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(CommentManager::class)
+            ->call('edit', $comment->id)
+            ->set('editForm.author_name', 'Ana Demo')
+            ->set('editForm.author_email', 'ana.demo@example.test')
+            ->set('editForm.locale', 'hr')
+            ->set('editForm.rating', '5')
+            ->set('editForm.status', Comment::STATUS_APPROVED)
+            ->set('editForm.is_featured', true)
+            ->set('editForm.body', 'Ažurirani demo komentar za prikaz u administraciji.')
+            ->call('saveEdit')
+            ->assertHasNoErrors()
+            ->assertSet('editingId', null);
+
+        $comment->refresh();
+
+        $this->assertSame('Ana Demo', $comment->author_name);
+        $this->assertSame('ana.demo@example.test', $comment->author_email);
+        $this->assertSame('hr', $comment->locale);
+        $this->assertSame(5, $comment->rating);
+        $this->assertSame(Comment::STATUS_APPROVED, $comment->status);
+        $this->assertTrue($comment->is_featured);
+        $this->assertSame('Ažurirani demo komentar za prikaz u administraciji.', $comment->body);
+        $this->assertSame($user->id, $comment->reviewed_by);
+        $this->assertNotNull($comment->reviewed_at);
+    }
+
     private function makeAdminUser(): User
     {
         $user = User::factory()->create();
@@ -103,4 +148,3 @@ class ContentSupportFeatureTest extends TestCase
         return $product;
     }
 }
-

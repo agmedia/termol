@@ -34,26 +34,32 @@ class ProductCard extends Component
         $mediaItems = $this->product->relationLoaded('media')
             ? $this->product->media->whereIn('collection_name', ['product_main', 'product_gallery'])->values()
             : collect();
+        $usableMediaItems = $mediaItems
+            ->filter(fn ($media) => MediaUrl::hasUsableSource($media, ['card_720w', 'card_480w', 'card_320w']))
+            ->values();
 
-        $mainMedia = $mediaItems->firstWhere('collection_name', 'product_main')
-            ?? $mediaItems->firstWhere('collection_name', 'product_gallery')
-            ?? $this->product->getFirstMedia('product_main')
-            ?? $this->product->getFirstMedia('product_gallery');
+        $mainMedia = $usableMediaItems->firstWhere('collection_name', 'product_main')
+            ?? $usableMediaItems->firstWhere('collection_name', 'product_gallery')
+            ?? $this->product->getMedia('*')
+                ->whereIn('collection_name', ['product_main', 'product_gallery'])
+                ->first(fn ($media) => MediaUrl::hasUsableSource($media, ['card_720w', 'card_480w', 'card_320w']));
 
-        $hoverMedia = $mediaItems->first(
+        $hoverMedia = $usableMediaItems->first(
             static fn ($media): bool => $media->collection_name === 'product_gallery'
                 && (! $mainMedia || (int) $media->id !== (int) $mainMedia->id)
         );
         if (! $hoverMedia) {
             $hoverMedia = $this->product->getMedia('product_gallery')->first(
-                static fn ($media): bool => ! $mainMedia || (int) $media->id !== (int) $mainMedia->id
+                static fn ($media): bool => MediaUrl::hasUsableSource($media, ['card_720w', 'card_480w', 'card_320w'])
+                    && (! $mainMedia || (int) $media->id !== (int) $mainMedia->id)
             );
         }
         if (! $hoverMedia) {
             $hoverMedia = $this->product
                 ->getMedia('*')
                 ->whereIn('collection_name', ['product_main', 'product_gallery'])
-                ->first(static fn ($media): bool => ! $mainMedia || (int) $media->id !== (int) $mainMedia->id);
+                ->first(static fn ($media): bool => MediaUrl::hasUsableSource($media, ['card_720w', 'card_480w', 'card_320w'])
+                    && (! $mainMedia || (int) $media->id !== (int) $mainMedia->id));
         }
         $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', false);
 

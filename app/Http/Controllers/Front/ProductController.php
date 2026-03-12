@@ -107,8 +107,19 @@ class ProductController extends Controller
                     ->whereIn('locale', [$locale, $fallbackLocale]),
                 'categories.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'attributes' => fn ($q) => $q
+                    ->where('catalog_attributes.is_active', true)
+                    ->whereIn('catalog_attributes.group_code', ['sastav', 'kvaliteta', 'garancija'])
+                    ->orderBy('catalog_attribute_product.sort_order')
+                    ->orderBy('catalog_attributes.sort_order')
+                    ->orderBy('catalog_attributes.id')
+                    ->with([
+                        'translations' => fn ($tq) => $tq
+                            ->select(['id', 'attribute_id', 'locale', 'group_name', 'name'])
+                            ->whereIn('locale', [$locale, $fallbackLocale]),
+                    ]),
                 'optionValues' => fn ($q) => $q
-                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'is_active', 'sort_order'])
+                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'is_active', 'sort_order'])
                     ->where('is_active', true)
                     ->orderBy('sort_order')
                     ->orderBy('id')
@@ -146,7 +157,7 @@ class ProductController extends Controller
                     ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt'])
                     ->whereIn('locale', [$locale, $fallbackLocale]),
                 'optionValues' => fn ($q) => $q
-                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'is_active', 'sort_order'])
+                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'is_active', 'sort_order'])
                     ->where('is_active', true)
                     ->orderBy('sort_order')
                     ->orderBy('id')

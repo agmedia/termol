@@ -1,7 +1,7 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', config('app.name', 'AG Shop').' Store')
-@section('main_class', 'mx-auto w-full max-w-7xl px-6 pt-0 pb-8')
+@section('main_class', 'mx-auto w-full max-w-7xl px-6 pt-0 pb-0')
 
 @section('content')
     @php
@@ -14,6 +14,8 @@
         $homeCategoriesBlocks = $resolver->forPlacement('home.categories', $locale, null, null, 'desktop');
         $homeAfterProductsBlocks = $resolver->forPlacement('home.after_products', $locale, null, null, 'desktop');
         $homeBottomBlocks = $resolver->forPlacement('home.bottom', $locale, null, null, 'desktop');
+        $homeBottomIsInstagramOnly = $homeBottomBlocks->isNotEmpty()
+            && $homeBottomBlocks->every(fn ($item) => (string) data_get($item, 'block.type') === 'instagram_curated_grid');
 
         $viewer = auth()->user();
         $canPreviewBlock = $viewer && ($viewer->isA('superadmin') || $viewer->can('content.blocks'));
@@ -57,6 +59,7 @@
                     $homeAfterProductsBlocks = $previewItem;
                 } elseif ($previewPlacement === 'home.bottom') {
                     $homeBottomBlocks = $previewItem;
+                    $homeBottomIsInstagramOnly = (string) $previewBlock->type === 'instagram_curated_grid';
                 }
             }
         }
@@ -93,7 +96,7 @@
     @endif
 
     @if ($homeBottomBlocks->isNotEmpty())
-        <section class="mt-8">
+        <section class="{{ $homeBottomIsInstagramOnly ? 'mt-0' : 'mt-8' }}">
             @include('components.content-placement', ['items' => $homeBottomBlocks])
         </section>
     @endif

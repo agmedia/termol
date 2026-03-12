@@ -108,4 +108,49 @@ class ContentBlockResolverFeatureTest extends TestCase
 
         $this->assertCount(0, $rows);
     }
+
+    public function test_category_target_ref_resolves_only_for_matching_category(): void
+    {
+        $global = ContentBlock::query()->create([
+            'code' => 'category-global-top',
+            'name' => 'Category Global Top',
+            'type' => 'banner',
+            'is_active' => true,
+            'payload' => null,
+        ]);
+
+        $global->slots()->create([
+            'placement' => 'category.top',
+            'frontend_variant' => 'all',
+            'target_type' => null,
+            'target_ref' => null,
+            'sort_order' => 0,
+            'is_active' => true,
+        ]);
+
+        $targeted = ContentBlock::query()->create([
+            'code' => 'category-zene-editorial',
+            'name' => 'Category Zene Editorial',
+            'type' => 'category_editorial_tiles',
+            'is_active' => true,
+            'payload' => null,
+        ]);
+
+        $targeted->slots()->create([
+            'placement' => 'category.top',
+            'frontend_variant' => 'all',
+            'target_type' => 'category',
+            'target_ref' => 'zene',
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+
+        Cache::flush();
+
+        $womenRows = app(ContentBlockResolver::class)->forPlacement('category.top', 'hr', 'category', 'zene', 'desktop');
+        $menRows = app(ContentBlockResolver::class)->forPlacement('category.top', 'hr', 'category', 'muskarci', 'desktop');
+
+        $this->assertSame(['category-global-top', 'category-zene-editorial'], $womenRows->pluck('block.code')->all());
+        $this->assertSame(['category-global-top'], $menRows->pluck('block.code')->all());
+    }
 }

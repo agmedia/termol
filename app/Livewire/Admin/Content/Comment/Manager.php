@@ -10,6 +10,7 @@ use App\Models\Content\Support\Faq;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -21,6 +22,20 @@ class Manager extends Component
     public string $locale = 'all';
     public string $status = Comment::STATUS_PENDING;
     public string $target = 'all';
+    public ?int $editingId = null;
+
+    /**
+     * @var array<string, mixed>
+     */
+    public array $editForm = [
+        'author_name' => '',
+        'author_email' => '',
+        'locale' => '',
+        'rating' => '',
+        'status' => Comment::STATUS_PENDING,
+        'is_featured' => false,
+        'body' => '',
+    ];
 
     public function mount(): void
     {
@@ -45,6 +60,78 @@ class Manager extends Component
     public function updatedTarget(): void
     {
         $this->resetPage();
+    }
+
+    public function edit(int $commentId): void
+    {
+        $comment = Comment::query()->find($commentId);
+        if (!$comment || $comment->trashed()) {
+            $this->dispatch('notify', type: 'warning', message: __('Comment not found.'));
+            return;
+        }
+
+        $this->editingId = $comment->id;
+        $this->editForm = [
+            'author_name' => (string) ($comment->author_name ?? ''),
+            'author_email' => (string) ($comment->author_email ?? ''),
+            'locale' => (string) ($comment->locale ?? ''),
+            'rating' => $comment->rating ? (string) $comment->rating : '',
+            'status' => (string) $comment->status,
+            'is_featured' => (bool) $comment->is_featured,
+            'body' => (string) $comment->body,
+        ];
+
+        $this->resetValidation();
+    }
+
+    public function saveEdit(): void
+    {
+        if (!$this->editingId) {
+            return;
+        }
+
+        $validated = $this->validate($this->editRules());
+        $payload = $validated['editForm'];
+
+        $comment = Comment::query()->find($this->editingId);
+        if (!$comment || $comment->trashed()) {
+            $this->dispatch('notify', type: 'warning', message: __('Comment not found.'));
+            $this->resetEditForm();
+            return;
+        }
+
+        $status = (string) ($payload['status'] ?? Comment::STATUS_PENDING);
+
+        $comment->update([
+            'author_name' => $this->nullableTrim($payload['author_name'] ?? null),
+            'author_email' => $this->nullableTrim($payload['author_email'] ?? null),
+            'locale' => $this->nullableTrim($payload['locale'] ?? null),
+            'rating' => $this->nullableInt($payload['rating'] ?? null),
+            'status' => $status,
+            'is_featured' => (bool) ($payload['is_featured'] ?? false),
+            'body' => trim((string) ($payload['body'] ?? '')),
+            'reviewed_by' => $status === Comment::STATUS_PENDING ? null : auth()->id(),
+            'reviewed_at' => $status === Comment::STATUS_PENDING ? null : now(),
+        ]);
+
+        activity('content_comments')
+            ->performedOn($comment)
+            ->causedBy(auth()->user())
+            ->event('updated')
+            ->withProperties([
+                'status' => $comment->status,
+                'rating' => $comment->rating,
+                'is_featured' => $comment->is_featured,
+            ])
+            ->log(__('Comment updated'));
+
+        $this->dispatch('notify', type: 'success', message: __('Comment updated.'));
+        $this->resetEditForm();
+    }
+
+    public function cancelEdit(): void
+    {
+        $this->resetEditForm();
     }
 
     public function approve(int $commentId): void
@@ -77,6 +164,10 @@ class Manager extends Component
             ->causedBy(auth()->user())
             ->event('deleted')
             ->log(__('Comment moved to trash'));
+
+        if ($this->editingId === $commentId) {
+            $this->resetEditForm();
+        }
 
         $this->dispatch('notify', type: 'info', message: __('Comment moved to trash.'));
     }
@@ -162,6 +253,7 @@ class Manager extends Component
             'rows' => $rows,
             'perPage' => $perPage,
             'statusOptions' => $this->statusOptions(),
+            'editableStatusOptions' => $this->editableStatusOptions(),
             'targetOptions' => $this->targetOptions(),
         ]);
     }
@@ -212,6 +304,19 @@ class Manager extends Component
     /**
      * @return array<string, string>
      */
+    private function editableStatusOptions(): array
+    {
+        return [
+            Comment::STATUS_PENDING => __('Pending'),
+            Comment::STATUS_APPROVED => __('Approved'),
+            Comment::STATUS_REJECTED => __('Rejected'),
+            Comment::STATUS_SPAM => __('Spam'),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
     private function targetOptions(): array
     {
         return [
@@ -232,5 +337,52 @@ class Manager extends Component
             'faq' => Faq::class,
             default => null,
         };
+    }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    private function editRules(): array
+    {
+        return [
+            'editForm.author_name' => ['nullable', 'string', 'max:120'],
+            'editForm.author_email' => ['nullable', 'email', 'max:190'],
+            'editForm.locale' => ['nullable', 'string', 'max:12'],
+            'editForm.rating' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'editForm.status' => ['required', 'string', Rule::in(Comment::statuses())],
+            'editForm.is_featured' => ['boolean'],
+            'editForm.body' => ['required', 'string', 'max:5000'],
+        ];
+    }
+
+    private function resetEditForm(): void
+    {
+        $this->editingId = null;
+        $this->editForm = [
+            'author_name' => '',
+            'author_email' => '',
+            'locale' => '',
+            'rating' => '',
+            'status' => Comment::STATUS_PENDING,
+            'is_featured' => false,
+            'body' => '',
+        ];
+        $this->resetValidation();
+    }
+
+    private function nullableTrim(mixed $value): ?string
+    {
+        $trimmed = trim((string) ($value ?? ''));
+
+        return $trimmed !== '' ? $trimmed : null;
+    }
+
+    private function nullableInt(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (int) $value;
     }
 }

@@ -43,6 +43,83 @@
         </div>
     </div>
 
+    @if ($editingId)
+        <div class="admin-panel admin-form-panel p-6">
+            <h2 class="admin-section-title">{{ __('Edit Comment') }}</h2>
+
+            <form wire:submit="saveEdit" class="admin-form mt-4 space-y-4">
+                <div class="grid gap-3" style="grid-template-columns: repeat(12, minmax(0, 1fr));">
+                    <div style="grid-column: span 3;">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Author') }}</label>
+                        <input type="text" wire:model="editForm.author_name" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                        @error('editForm.author_name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div style="grid-column: span 3;">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Email') }}</label>
+                        <input type="email" wire:model="editForm.author_email" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                        @error('editForm.author_email') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Locale') }}</label>
+                        <select wire:model="editForm.locale" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm lowercase">
+                            <option value="">{{ __('Default') }}</option>
+                            @foreach ($adminLocaleOptions as $localeOption)
+                                <option value="{{ $localeOption }}">{{ $localeOption }}</option>
+                            @endforeach
+                        </select>
+                        @error('editForm.locale') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Rating') }}</label>
+                        <select wire:model="editForm.rating" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                            <option value="">{{ __('No rating') }}</option>
+                            @foreach ([5, 4, 3, 2, 1] as $ratingOption)
+                                <option value="{{ $ratingOption }}">{{ $ratingOption }}</option>
+                            @endforeach
+                        </select>
+                        @error('editForm.rating') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Status') }}</label>
+                        <select wire:model="editForm.status" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                            @foreach ($editableStatusOptions as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('editForm.status') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div style="grid-column: span 12;">
+                        <button
+                            type="button"
+                            wire:click="$toggle('editForm.is_featured')"
+                            class="admin-switch"
+                            data-state="{{ $editForm['is_featured'] ? 'on' : 'off' }}"
+                            role="switch"
+                        >
+                            <span class="admin-switch-track"><span class="admin-switch-thumb"></span></span>
+                            <span class="admin-switch-label">{{ $editForm['is_featured'] ? __('Featured') : __('Not Featured') }}</span>
+                        </button>
+                        @error('editForm.is_featured') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div style="grid-column: span 12;">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Comment') }}</label>
+                        <textarea wire:model="editForm.body" rows="5" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                        @error('editForm.body') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <div class="admin-form-actions flex items-center gap-2 pt-2">
+                    <button type="submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">
+                        {{ __('Update Comment') }}
+                    </button>
+                    <button type="button" wire:click="cancelEdit" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                        {{ __('Cancel') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    @endif
+
     <div class="admin-panel admin-panel-soft p-5">
         <h2 class="admin-section-title">{{ __('Items') }}</h2>
 
@@ -111,6 +188,9 @@
                                     </button>
                                 @else
                                     <div class="inline-flex flex-wrap items-center justify-end gap-1">
+                                        <button type="button" wire:click="edit({{ $row->id }})" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                                            {{ __('admin.common.edit') }}
+                                        </button>
                                         <button type="button" wire:click="approve({{ $row->id }})" class="rounded-lg border border-emerald-300 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
                                             {{ __('Approve') }}
                                         </button>

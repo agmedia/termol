@@ -1,5 +1,10 @@
 <?php
 
+use App\Services\Import\OpenCartCatalogImportService;
+use App\Services\Import\DesktopProductImageImportService;
+use App\Services\Import\KozoProductContentSyncService;
+use App\Services\Import\OpenCartPathProductImageImportService;
+use App\Services\Import\OpenCartSizeOptionImportService;
 use App\Models\User;
 use App\Models\Settings\Local\Region;
 use App\Services\Front\AddressDirectoryService;
@@ -278,3 +283,216 @@ Artisan::command('local:import-regions-opencart {file : Path to OpenCart zones C
 
     return self::SUCCESS;
 })->purpose('Import OpenCart zones CSV into regions table');
+
+Artisan::command('local:import-opencart-catalog
+    {source_db=kozo : Source OpenCart database name}
+    {--source-host= : MySQL host (defaults to current app DB host)}
+    {--source-port= : MySQL port (defaults to current app DB port)}
+    {--source-user= : MySQL user (defaults to current app DB user)}
+    {--source-pass= : MySQL password (defaults to current app DB password)}
+    {--language-id= : OpenCart language_id to import}
+    {--language-code=hr-hr : Preferred OpenCart language code when --language-id is omitted}
+    {--locale= : Target Laravel locale (defaults to app locale)}
+    {--default-tax-rate-id= : Force a specific target tax_rate_id}
+    {--wipe-products : Delete existing products and manufacturers before import}', function (OpenCartCatalogImportService $importer): int {
+    try {
+        $result = $importer->import([
+            'source_db' => (string) $this->argument('source_db'),
+            'source_host' => $this->option('source-host'),
+            'source_port' => $this->option('source-port'),
+            'source_user' => $this->option('source-user'),
+            'source_pass' => $this->option('source-pass'),
+            'language_id' => $this->option('language-id'),
+            'language_code' => $this->option('language-code'),
+            'locale' => $this->option('locale'),
+            'default_tax_rate_id' => $this->option('default-tax-rate-id'),
+            'wipe_products' => (bool) $this->option('wipe-products'),
+        ]);
+    } catch (\Throwable $e) {
+        $this->error($e->getMessage());
+        report($e);
+
+        return self::FAILURE;
+    }
+
+    $this->info('OpenCart catalog import completed.');
+    $this->line('Source DB: '.(string) $result['source_database']);
+    $this->line('Source language_id: '.(string) $result['source_language_id']);
+    $this->line('Target locale: '.(string) $result['target_locale']);
+    $this->line('Catalog categories deleted: '.(string) $result['catalog_categories_deleted']);
+    $this->line('Products deleted: '.(string) $result['products_deleted']);
+    $this->line('Manufacturers deleted: '.(string) $result['manufacturers_deleted']);
+    $this->line('Manufacturers imported: '.(string) $result['manufacturers_imported']);
+    $this->line('Categories imported: '.(string) $result['categories_imported']);
+    $this->line('Products imported: '.(string) $result['products_imported']);
+    $this->line('Category links imported: '.(string) $result['category_links_imported']);
+
+    return self::SUCCESS;
+})->purpose('Import categories, manufacturers, and products from an OpenCart database into the local catalog');
+
+Artisan::command('local:attach-desktop-product-images
+    {source_dir=/Users/tomek/Desktop/products/products : Directory containing one folder per product code}
+    {--locale=hr : Translation locale used for alt labels}
+    {--no-clear : Keep existing product media instead of replacing it}', function (DesktopProductImageImportService $importer): int {
+    try {
+        $result = $importer->import(
+            sourceDir: (string) $this->argument('source_dir'),
+            locale: (string) $this->option('locale'),
+            clearExisting: ! (bool) $this->option('no-clear'),
+        );
+    } catch (\Throwable $e) {
+        $this->error($e->getMessage());
+        report($e);
+
+        return self::FAILURE;
+    }
+
+    $this->info('Desktop product image import completed.');
+    $this->line('Source dir: '.(string) $result['source_dir']);
+    $this->line('Folders scanned: '.(string) $result['folders_scanned']);
+    $this->line('Matched products: '.(string) $result['matched_products']);
+    $this->line('Unmatched folders: '.(string) $result['unmatched_folders']);
+    $this->line('Folders without images: '.(string) $result['folders_without_images']);
+    $this->line('Main images attached: '.(string) $result['main_images_attached']);
+    $this->line('Gallery images attached: '.(string) $result['gallery_images_attached']);
+
+    return self::SUCCESS;
+})->purpose('Attach product images from a Desktop folder tree to product_main and product_gallery collections');
+
+Artisan::command('local:attach-opencart-path-product-images
+    {source_db=kozo : Source OpenCart database name}
+    {base_dir=/Users/tomek/Desktop/products : Base directory that contains products, products_2020, products_2021, products_2024}
+    {--locale=hr : Translation locale used for alt labels}
+    {--no-clear : Keep existing product media instead of replacing exact matched source-path images}', function (OpenCartPathProductImageImportService $importer): int {
+    try {
+        $result = $importer->import(
+            sourceDatabase: (string) $this->argument('source_db'),
+            baseDir: (string) $this->argument('base_dir'),
+            locale: (string) $this->option('locale'),
+            clearExisting: ! (bool) $this->option('no-clear'),
+        );
+    } catch (\Throwable $e) {
+        $this->error($e->getMessage());
+        report($e);
+
+        return self::FAILURE;
+    }
+
+    $this->info('OpenCart path-based product image import completed.');
+    $this->line('Source DB: '.(string) $result['source_database']);
+    $this->line('Base dir: '.(string) $result['base_dir']);
+    $this->line('Indexed files: '.(string) $result['indexed_files']);
+    $this->line('Source products: '.(string) $result['source_products']);
+    $this->line('Matched products: '.(string) $result['matched_products']);
+    $this->line('Updated products: '.(string) $result['updated_products']);
+    $this->line('Main images attached: '.(string) $result['main_images_attached']);
+    $this->line('Gallery images attached: '.(string) $result['gallery_images_attached']);
+    $this->line('Unmatched products: '.(string) $result['unmatched_products']);
+    $this->line('Products without any source path: '.(string) $result['products_without_any_source_path']);
+    $this->line('Products without resolved images: '.(string) $result['products_without_resolved_images']);
+    $this->line('Missing main paths: '.(string) $result['missing_main_paths']);
+    $this->line('Missing gallery paths: '.(string) $result['missing_gallery_paths']);
+
+    return self::SUCCESS;
+})->purpose('Attach product images using exact OpenCart image paths from the source database');
+
+Artisan::command('local:import-opencart-size-options
+    {source_db=kozo : Source OpenCart database name}
+    {--source-host= : MySQL host (defaults to current app DB host)}
+    {--source-port= : MySQL port (defaults to current app DB port)}
+    {--source-user= : MySQL user (defaults to current app DB user)}
+    {--source-pass= : MySQL password (defaults to current app DB password)}
+    {--language-id= : OpenCart language_id to import}
+    {--language-code=hr-hr : Preferred OpenCart language code when --language-id is omitted}
+    {--source-option-id=13 : Source OpenCart option_id for size}
+    {--source-option-name=Veličina : Source OpenCart option label fallback when --source-option-id is omitted}
+    {--target-option-code=size : Target catalog option code in shop}
+    {--target-locale=hr : Target locale used for Croatian labels}
+    {--fallback-locale=en : Secondary locale used for fallback labels}', function (OpenCartSizeOptionImportService $importer): int {
+    try {
+        $result = $importer->import([
+            'source_db' => (string) $this->argument('source_db'),
+            'source_host' => $this->option('source-host'),
+            'source_port' => $this->option('source-port'),
+            'source_user' => $this->option('source-user'),
+            'source_pass' => $this->option('source-pass'),
+            'language_id' => $this->option('language-id'),
+            'language_code' => $this->option('language-code'),
+            'source_option_id' => $this->option('source-option-id'),
+            'source_option_name' => $this->option('source-option-name'),
+            'target_option_code' => $this->option('target-option-code'),
+            'target_locale' => $this->option('target-locale'),
+            'fallback_locale' => $this->option('fallback-locale'),
+        ]);
+    } catch (\Throwable $e) {
+        $this->error($e->getMessage());
+        report($e);
+
+        return self::FAILURE;
+    }
+
+    $this->info('OpenCart size option import completed.');
+    $this->line('Source DB: '.(string) $result['source_database']);
+    $this->line('Source language_id: '.(string) $result['source_language_id']);
+    $this->line('Source option: '.(string) $result['source_option_name'].' (#'.(string) $result['source_option_id'].')');
+    $this->line('Target option code: '.(string) $result['target_option_code']);
+    $this->line('Target option id: '.(string) $result['target_option_id']);
+    $this->line('Values imported: '.(string) $result['values_imported']);
+    $this->line('Source products with option: '.(string) $result['source_products_with_option']);
+    $this->line('Matched products: '.(string) $result['matched_products']);
+    $this->line('Unmatched products: '.(string) $result['unmatched_products']);
+    $this->line('Product links imported: '.(string) $result['product_links_imported']);
+    $this->line('Product option values imported: '.(string) $result['product_option_values_imported']);
+    $this->line('Inactive option rows: '.(string) $result['inactive_option_rows']);
+    $this->line('Duplicate source rows skipped: '.(string) $result['duplicate_source_rows_skipped']);
+
+    return self::SUCCESS;
+})->purpose('Import OpenCart size option groups and product size rows into the local catalog');
+
+Artisan::command('local:sync-kozo-proizvodi-content
+    {source_db=kozo : Source database name}
+    {--source-host= : MySQL host (defaults to current app DB host)}
+    {--source-port= : MySQL port (defaults to current app DB port)}
+    {--source-user= : MySQL user (defaults to current app DB user)}
+    {--source-pass= : MySQL password (defaults to current app DB password)}
+    {--locale=hr : Target shop translation locale}
+    {--dry-run : Inspect and report only without writing to the shop database}', function (KozoProductContentSyncService $sync): int {
+    try {
+        $result = $sync->sync([
+            'source_db' => (string) $this->argument('source_db'),
+            'source_host' => $this->option('source-host'),
+            'source_port' => $this->option('source-port'),
+            'source_user' => $this->option('source-user'),
+            'source_pass' => $this->option('source-pass'),
+            'locale' => (string) $this->option('locale'),
+            'dry_run' => (bool) $this->option('dry-run'),
+        ]);
+    } catch (\Throwable $e) {
+        $this->error($e->getMessage());
+        report($e);
+
+        return self::FAILURE;
+    }
+
+    $this->info($result['dry_run'] ? 'Kozo product content dry-run completed.' : 'Kozo product content sync completed.');
+    $this->line('Source DB: '.(string) $result['source_database']);
+    $this->line('Locale: '.(string) $result['locale']);
+    $this->line('Source rows: '.(string) $result['source_rows']);
+    $this->line('Matched products: '.(string) $result['matched_products']);
+    $this->line('Unmatched source rows: '.(string) $result['unmatched_source_rows']);
+    $this->line('Duplicate source SKUs: '.(string) $result['duplicate_source_skus']);
+    $this->line('Attribute values: '.json_encode($result['attribute_values'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    $this->line('Remaining unresolved ? tokens: '.(string) $result['remaining_question_mark_count']);
+    if (!empty($result['remaining_question_mark_tokens'])) {
+        $this->warn('Unresolved tokens sample: '.implode(', ', array_slice((array) $result['remaining_question_mark_tokens'], 0, 12)));
+    }
+    if (!$result['dry_run']) {
+        $this->line('Translations updated: '.(string) $result['translations_updated']);
+        $this->line('Products updated: '.(string) $result['products_updated']);
+        $this->line('Attribute records created: '.(string) $result['attribute_records_created']);
+        $this->line('Attribute records updated: '.(string) $result['attribute_records_updated']);
+        $this->line('Product attribute links synced: '.(string) $result['product_attribute_links_synced']);
+    }
+
+    return self::SUCCESS;
+})->purpose('Sync product names, descriptions, and grouped attributes from kozo.proizvodi into the local shop catalog by SKU');

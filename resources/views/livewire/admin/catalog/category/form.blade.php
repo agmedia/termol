@@ -111,6 +111,41 @@
                     <span class="admin-switch-label">{{ $form['show_in_menu'] ? __('In Menu') : __('Hidden') }}</span>
                 </button>
             </div>
+
+            @if ($form['scope'] === \App\Models\Catalog\Category\Category::SCOPE_CATALOG)
+                <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{{ __('Category Page') }}</p>
+                    <p class="mt-2 text-sm text-slate-600">{{ __('Use category page as classic product listing or as widget landing page with content blocks.') }}</p>
+
+                    <div class="mt-4 flex flex-wrap items-center gap-3">
+                        <button
+                            type="button"
+                            wire:click="$toggle('form.catalog_show_filters')"
+                            class="admin-switch"
+                            data-state="{{ $form['catalog_show_filters'] ? 'on' : 'off' }}"
+                            role="switch"
+                            aria-checked="{{ $form['catalog_show_filters'] ? 'true' : 'false' }}"
+                            aria-label="{{ __('Toggle category filters visibility') }}"
+                        >
+                            <span class="admin-switch-track"><span class="admin-switch-thumb"></span></span>
+                            <span class="admin-switch-label">{{ $form['catalog_show_filters'] ? __('Show Filters') : __('Hide Filters') }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            wire:click="$toggle('form.catalog_show_products')"
+                            class="admin-switch"
+                            data-state="{{ $form['catalog_show_products'] ? 'on' : 'off' }}"
+                            role="switch"
+                            aria-checked="{{ $form['catalog_show_products'] ? 'true' : 'false' }}"
+                            aria-label="{{ __('Toggle category product listing visibility') }}"
+                        >
+                            <span class="admin-switch-track"><span class="admin-switch-thumb"></span></span>
+                            <span class="admin-switch-label">{{ $form['catalog_show_products'] ? __('Show Products') : __('Hide Products') }}</span>
+                        </button>
+                    </div>
+                </div>
+            @endif
         </div>
 
         <div class="grid gap-6 xl:grid-cols-2">

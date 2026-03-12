@@ -491,10 +491,8 @@ class Form extends Component
             ])
             ->findOrFail($this->blockId);
 
-        $translation = $this->resolveInitialTranslation(
-            $block->translations,
-            (string) ($this->form['locale'] ?? config('app.locale'))
-        );
+        $preferredLocale = (string) ($this->form['locale'] ?? config('app.locale'));
+        $translation = $block->translations->firstWhere('locale', $preferredLocale);
 
         $slot = $block->slots->first();
         $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
@@ -503,9 +501,9 @@ class Form extends Component
         $this->form['name'] = $block->name;
         $this->form['type'] = $block->type;
         $this->form['is_active'] = (bool) $block->is_active;
+        $this->form['locale'] = $preferredLocale;
 
         if ($translation) {
-            $this->form['locale'] = $translation->locale;
             $this->form['title'] = $translation->title ?? '';
             $this->form['subtitle'] = $translation->subtitle ?? '';
             $this->form['cta_label'] = $translation->cta_label ?? '';
@@ -589,53 +587,6 @@ class Form extends Component
         $this->form['blog_source'] = in_array($blogSource, ['latest', 'featured'], true)
             ? $blogSource
             : 'latest';
-    }
-
-    private function resolveInitialTranslation(Collection $translations, string $preferredLocale): mixed
-    {
-        $fallbackLocale = (string) config('app.locale');
-
-        $preferredWithContent = $translations->first(
-            fn ($row): bool => (string) ($row->locale ?? '') === $preferredLocale && $this->translationHasContent($row)
-        );
-        if ($preferredWithContent) {
-            return $preferredWithContent;
-        }
-
-        $fallbackWithContent = $translations->first(
-            fn ($row): bool => (string) ($row->locale ?? '') === $fallbackLocale && $this->translationHasContent($row)
-        );
-        if ($fallbackWithContent) {
-            return $fallbackWithContent;
-        }
-
-        $anyWithContent = $translations->first(fn ($row): bool => $this->translationHasContent($row));
-        if ($anyWithContent) {
-            return $anyWithContent;
-        }
-
-        return $translations->firstWhere('locale', $preferredLocale)
-            ?? $translations->firstWhere('locale', $fallbackLocale)
-            ?? $translations->first();
-    }
-
-    private function translationHasContent(mixed $translation): bool
-    {
-        if (! $translation) {
-            return false;
-        }
-
-        $payload = is_array($translation->payload ?? null) ? $translation->payload : [];
-
-        return trim((string) ($translation->title ?? '')) !== ''
-            || trim((string) ($translation->subtitle ?? '')) !== ''
-            || trim((string) ($translation->cta_label ?? '')) !== ''
-            || trim((string) ($translation->cta_url ?? '')) !== ''
-            || trim((string) ($translation->body_html ?? '')) !== ''
-            || trim((string) ($payload['bg_css'] ?? '')) !== ''
-            || trim((string) ($payload['custom_classes'] ?? '')) !== ''
-            || (int) ($payload['items_limit'] ?? 0) > 0
-            || (bool) ($payload['reviews_featured_only'] ?? false);
     }
 
     private function clearTranslationFields(): void
@@ -996,6 +947,8 @@ class Form extends Component
             'desktop_hero_banner',
             'full_width_image_slider',
             'dual_image_cta',
+            'category_editorial_tiles',
+            'instagram_curated_grid',
             'five_star_reviews_carousel',
             'mobile_hero_banner',
             'hero_highlights_strip',
@@ -1029,6 +982,7 @@ class Form extends Component
             'desktop_hero_banner',
             'full_width_image_slider',
             'dual_image_cta',
+            'instagram_curated_grid',
             'five_star_reviews_carousel',
             'blogs_carousel',
             'hero_highlights_strip' => 'desktop',
@@ -1801,71 +1755,187 @@ BLADE,
 @endphp
 
 @if ($slides->isNotEmpty())
-    <section class="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen {{ $customClasses }}">
-        <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-            @foreach ($slides as $media)
-                @php
-                    $imageUrl = $media->hasGeneratedConversion('hero_1440x480')
-                        ? $media->getUrl('hero_1440x480')
-                        : $media->getUrl();
-                    $props = (array) ($media->custom_properties ?? []);
-                    $slideTitle = trim((string) (
-                        data_get($props, "block_title.$locale")
-                        ?: data_get($props, "block_title.$fallbackLocale")
-                        ?: $media->name
-                    ));
+    <section class="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen overflow-hidden bg-[linear-gradient(180deg,_#eef2f3_0%,_#e8edf0_46%,_#f6f7f7_100%)] py-8 sm:py-10 lg:py-14 {{ $customClasses }}">
+        <div class="pointer-events-none absolute inset-0">
+            <div class="absolute inset-x-0 top-0 h-px bg-black/8"></div>
+            <div class="absolute inset-x-0 bottom-0 h-px bg-black/6"></div>
+            <div
+                class="absolute inset-0 opacity-[0.58]"
+                style="background-image: linear-gradient(rgba(255,255,255,0.34) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.34) 1px, transparent 1px); background-size: 34px 34px;"
+            ></div>
+            <div
+                class="absolute inset-0"
+                style="background: radial-gradient(58% 92% at 12% 20%, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0) 48%), radial-gradient(42% 74% at 88% 22%, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 44%), linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 34%, rgba(15,23,42,0.03) 100%);"
+            ></div>
+        </div>
+        <div class="relative mx-auto w-full max-w-[1180px] px-4 sm:px-7 lg:px-10 xl:px-12">
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start lg:gap-10 xl:gap-12">
+                @foreach ($slides as $media)
+                    @php
+                        $imageUrl = $media->hasGeneratedConversion('hero_1440x480')
+                            ? $media->getUrl('hero_1440x480')
+                            : $media->getUrl();
+                        $props = (array) ($media->custom_properties ?? []);
+                        $blockTitleMap = (array) data_get($props, 'block_title', []);
+                        $linkUrlMap = (array) data_get($props, 'link_url', []);
+                        $cta1LabelMap = (array) data_get($props, 'cta_1_label', []);
+                        $cta1UrlMap = (array) data_get($props, 'cta_1_url', []);
+                        $cta2LabelMap = (array) data_get($props, 'cta_2_label', []);
+                        $cta2UrlMap = (array) data_get($props, 'cta_2_url', []);
+                        $slideTitle = trim((string) (
+                            data_get($props, "block_title.$locale")
+                            ?: data_get($props, "block_title.$fallbackLocale")
+                            ?: collect($blockTitleMap)->first(fn ($value) => trim((string) $value) !== '')
+                            ?: ($translation?->title ?? '')
+                        ));
+                        $slideLinkUrl = trim((string) (
+                            data_get($props, "link_url.$locale")
+                            ?: data_get($props, "link_url.$fallbackLocale")
+                            ?: collect($linkUrlMap)->first(fn ($value) => trim((string) $value) !== '')
+                            ?: data_get($props, 'link_url_value', '')
+                        ));
 
-                    $cta1Label = trim((string) (
-                        data_get($props, "cta_1_label.$locale")
-                        ?: data_get($props, "cta_1_label.$fallbackLocale")
-                        ?: __('ui.content_blocks.dual_image_cta.default_cta_1')
-                    ));
-                    $cta1Url = trim((string) (
-                        data_get($props, "cta_1_url.$locale")
-                        ?: data_get($props, "cta_1_url.$fallbackLocale")
-                        ?: '#'
-                    ));
+                        $cta1Label = trim((string) (
+                            data_get($props, "cta_1_label.$locale")
+                            ?: data_get($props, "cta_1_label.$fallbackLocale")
+                            ?: collect($cta1LabelMap)->first(fn ($value) => trim((string) $value) !== '')
+                        ));
+                        $cta1Url = trim((string) (
+                            data_get($props, "cta_1_url.$locale")
+                            ?: data_get($props, "cta_1_url.$fallbackLocale")
+                            ?: collect($cta1UrlMap)->first(fn ($value) => trim((string) $value) !== '')
+                        ));
 
-                    $cta2Label = trim((string) (
-                        data_get($props, "cta_2_label.$locale")
-                        ?: data_get($props, "cta_2_label.$fallbackLocale")
-                        ?: __('ui.content_blocks.dual_image_cta.default_cta_2')
-                    ));
-                    $cta2Url = trim((string) (
-                        data_get($props, "cta_2_url.$locale")
-                        ?: data_get($props, "cta_2_url.$fallbackLocale")
-                        ?: '#'
-                    ));
-                @endphp
+                        $cta2Label = trim((string) (
+                            data_get($props, "cta_2_label.$locale")
+                            ?: data_get($props, "cta_2_label.$fallbackLocale")
+                            ?: collect($cta2LabelMap)->first(fn ($value) => trim((string) $value) !== '')
+                        ));
+                        $cta2Url = trim((string) (
+                            data_get($props, "cta_2_url.$locale")
+                            ?: data_get($props, "cta_2_url.$fallbackLocale")
+                            ?: collect($cta2UrlMap)->first(fn ($value) => trim((string) $value) !== '')
+                        ));
+                        $genderProbe = \Illuminate\Support\Str::of(implode(' ', [
+                            $slideTitle,
+                            $cta1Label,
+                            $cta1Url,
+                            $cta2Label,
+                            $cta2Url,
+                            (string) ($media->name ?? ''),
+                            (string) ($media->file_name ?? ''),
+                        ]))->ascii()->lower()->toString();
+                        $overlayGender = null;
 
-                <article class="group relative min-h-[360px] overflow-hidden md:min-h-[560px]">
-                    <img src="{{ $imageUrl }}" alt="{{ $slideTitle !== '' ? $slideTitle : $block->name }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/55 via-black/20 to-transparent"></div>
+                        if (str_contains($genderProbe, 'muskar') || str_contains($genderProbe, 'men') || str_contains($genderProbe, 'man')) {
+                            $overlayGender = 'male';
+                        } elseif (str_contains($genderProbe, 'zene') || str_contains($genderProbe, 'zena') || str_contains($genderProbe, 'women') || str_contains($genderProbe, 'woman')) {
+                            $overlayGender = 'female';
+                        }
 
-                    <div class="absolute inset-x-0 bottom-12 px-8 text-center text-white md:bottom-16 md:px-10">
-                        @if ($slideTitle !== '')
-                            <h3 class="text-3xl font-black uppercase tracking-[0.02em] md:text-4xl">{{ $slideTitle }}</h3>
+                        if ($overlayGender === null) {
+                            $overlayGender = $loop->first ? 'female' : 'male';
+                        }
+
+                        $overlayPositionClass = 'inset-0 items-center';
+                        $overlayIconClass = $overlayGender === 'female'
+                            ? 'w-[43%] max-w-[285px] md:w-[39%] md:max-w-[315px]'
+                            : 'w-[38%] max-w-[250px] md:w-[34%] md:max-w-[280px]';
+                        $overlayAsset = asset(
+                            'front-theme/images/overlays/'.($overlayGender === 'female' ? 'women-gender.png' : 'man-gender.png')
+                        );
+                        $hasSlideContent = $slideTitle !== ''
+                            || ($cta1Label !== '' && $cta1Url !== '')
+                            || ($cta2Label !== '' && $cta2Url !== '');
+                        $useWholeSlideLink = $slideLinkUrl !== '' && ! $hasSlideContent;
+                        $articleAlignClass = $loop->first
+                            ? 'md:justify-self-end md:pt-6'
+                            : 'md:justify-self-start md:pt-14';
+                        $showBackplate = ! $loop->first;
+                        $backplateClass = $loop->first
+                            ? '-left-7 top-6'
+                            : '-right-7 top-6';
+                        $backplateFillStyle = $loop->first
+                            ? 'background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(236,241,245,0.98) 100%);'
+                            : 'background: linear-gradient(180deg, rgba(255,255,255,0.46) 0%, rgba(232,237,242,0.78) 100%);';
+                        $backplatePatternStyle = $loop->first
+                            ? 'background-image: radial-gradient(120% 86% at -8% 108%, transparent 61%, rgba(148,163,184,0.18) 61.9%, transparent 63.2%), radial-gradient(102% 72% at 1% 107%, transparent 66%, rgba(148,163,184,0.12) 66.8%, transparent 68.2%), linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 42%);'
+                            : 'background-image: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 48%);';
+                    @endphp
+
+                    <article class="group relative isolate mx-auto w-full max-w-[500px] {{ $articleAlignClass }}">
+                        @if ($showBackplate)
+                            <div class="pointer-events-none absolute inset-0 -z-10 hidden md:block">
+                                <div class="absolute {{ $backplateClass }} h-[88%] w-[92%] overflow-hidden border border-black/6 shadow-[0_28px_60px_-46px_rgba(15,23,42,0.45)]">
+                                    <div class="absolute inset-0" style="{{ $backplateFillStyle }}"></div>
+                                    <div class="absolute inset-0 opacity-90" style="{{ $backplatePatternStyle }}"></div>
+                                </div>
+                            </div>
                         @endif
+                        @if ($useWholeSlideLink)
+                            <a href="{{ $slideLinkUrl }}" class="block">
+                        @endif
+                        <div class="relative overflow-hidden shadow-[0_32px_64px_-40px_rgba(15,23,42,0.42)]">
+                            <img src="{{ $imageUrl }}" alt="{{ $slideTitle !== '' ? $slideTitle : $block->name }}" class="relative z-0 h-auto w-full bg-transparent object-contain transition duration-500 group-hover:scale-[1.02]">
+                            <div class="pointer-events-none absolute inset-0 z-[1] bg-black opacity-0 transition duration-300 group-hover:opacity-50"></div>
 
-                        <div class="mx-auto mt-5 flex max-w-[460px] flex-col justify-center gap-2.5 sm:flex-row">
-                            @if ($cta1Label !== '')
-                                <a href="{{ $cta1Url !== '' ? $cta1Url : '#' }}" class="inline-flex h-11 min-w-[145px] items-center justify-center border border-white bg-white px-5 text-base font-black uppercase tracking-[0.02em] text-slate-900 transition hover:bg-slate-100">
-                                    {{ $cta1Label }}
-                                </a>
-                            @endif
-
-                            @if ($cta2Label !== '')
-                                <a href="{{ $cta2Url !== '' ? $cta2Url : '#' }}" class="inline-flex h-11 min-w-[145px] items-center justify-center border border-white bg-white px-5 text-base font-black uppercase tracking-[0.02em] text-slate-900 transition hover:bg-slate-100">
-                                    {{ $cta2Label }}
-                                </a>
+                            @if ($overlayGender !== null)
+                                <div class="pointer-events-none absolute {{ $overlayPositionClass }} z-10 flex justify-center opacity-0 transition duration-300 group-hover:opacity-100">
+                                    <img src="{{ $overlayAsset }}" alt="" class="h-auto object-contain {{ $overlayIconClass }} opacity-36 drop-shadow-[0_14px_34px_rgba(255,255,255,0.1)] transition duration-500" loading="lazy" decoding="async" aria-hidden="true">
+                                </div>
                             @endif
                         </div>
-                    </div>
-                </article>
-            @endforeach
+                        @if ($useWholeSlideLink)
+                            </a>
+                        @endif
+
+                        @if ($hasSlideContent)
+                            <div class="absolute inset-0 z-20 flex items-center justify-center px-8 text-center text-white md:px-10">
+                                <div class="w-full max-w-[520px]">
+                                    @if ($slideTitle !== '')
+                                        <h3 class="text-3xl font-black uppercase tracking-[0.02em] md:text-4xl">{{ $slideTitle }}</h3>
+                                    @endif
+
+                                    @if (($cta1Label !== '' && $cta1Url !== '') || ($cta2Label !== '' && $cta2Url !== ''))
+                                        <div class="mx-auto mt-5 flex max-w-[460px] flex-col justify-center gap-2.5 sm:flex-row">
+                                            @if ($cta1Label !== '' && $cta1Url !== '')
+                                                <a href="{{ $cta1Url }}" class="inline-flex h-11 min-w-[145px] items-center justify-center border border-white bg-white px-5 text-base font-black uppercase tracking-[0.02em] text-slate-900 transition hover:bg-slate-100">
+                                                    {{ $cta1Label }}
+                                                </a>
+                                            @endif
+
+                                            @if ($cta2Label !== '' && $cta2Url !== '')
+                                                <a href="{{ $cta2Url }}" class="inline-flex h-11 min-w-[145px] items-center justify-center border border-white bg-white px-5 text-base font-black uppercase tracking-[0.02em] text-slate-900 transition hover:bg-slate-100">
+                                                    {{ $cta2Label }}
+                                                </a>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+                    </article>
+                @endforeach
+            </div>
         </div>
     </section>
 @endif
+BLADE,
+            'category_editorial_tiles' => <<<'BLADE'
+@include('front.content-blocks.types.category_editorial_tiles', [
+    'block' => $block,
+    'translation' => $translation,
+    'slot' => $slot ?? null,
+    'blockItems' => $blockItems ?? collect(),
+])
+BLADE,
+            'instagram_curated_grid' => <<<'BLADE'
+@include('front.content-blocks.types.instagram_curated_grid', [
+    'block' => $block,
+    'translation' => $translation,
+    'slot' => $slot ?? null,
+    'blockItems' => $blockItems ?? collect(),
+])
 BLADE,
             'mobile_hero_banner' => <<<'BLADE'
 @php

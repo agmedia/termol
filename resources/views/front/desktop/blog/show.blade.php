@@ -60,23 +60,24 @@
 @endphp
 
 @section('title', $translation?->title ?? __('ui.blog.page_title'))
+@section('main_class', 'mx-auto w-full max-w-7xl px-6 pt-0 pb-8')
 
 @section('content')
     <section class="mb-8 px-1">
-        <nav aria-label="Breadcrumb" class="mb-4 text-center">
-            <ol class="inline-flex max-w-full items-center justify-center gap-2 text-[11px] font-medium tracking-[0.08em] text-slate-500">
-                <li><a href="{{ route('home') }}" class="hover:text-slate-700">{{ __('ui.front.desktop.footer.home') }}</a></li>
-                <li class="text-slate-400">/</li>
-                <li><a href="{{ route('blog.index') }}" class="hover:text-slate-700">{{ __('ui.blog.title') }}</a></li>
-                <li class="text-slate-400">/</li>
-                <li class="max-w-[42ch] truncate text-slate-700">{{ Str::limit((string) ($translation?->title ?? $post->code), 78, '...') }}</li>
-            </ol>
-        </nav>
-        <div class="border border-slate-200 bg-slate-100/80 px-8 py-9 text-center">
+        <div class="front-soft-hero px-6 py-4 text-center sm:px-8 sm:py-5">
+            <nav aria-label="Breadcrumb" class="mb-2">
+                <ol class="flex max-w-full flex-wrap items-center justify-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-500 sm:gap-2">
+                    <li><a href="{{ route('home') }}" class="hover:text-slate-700">{{ __('ui.front.desktop.footer.home') }}</a></li>
+                    <li class="text-slate-400">/</li>
+                    <li><a href="{{ route('blog.index') }}" class="hover:text-slate-700">{{ __('ui.blog.title') }}</a></li>
+                    <li class="text-slate-400">/</li>
+                    <li class="max-w-[42ch] truncate text-slate-700">{{ Str::limit((string) ($translation?->title ?? $post->code), 78, '...') }}</li>
+                </ol>
+            </nav>
             <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Editorial</p>
-            <h1 class="mx-auto mt-3 max-w-4xl text-[1.7rem] font-semibold leading-[1.12] tracking-[-0.01em] text-slate-900 md:text-[2.2rem]">{{ $translation?->title ?? $post->code }}</h1>
+            <h1 class="mx-auto mt-1 max-w-4xl text-[1.7rem] font-semibold leading-[1.12] tracking-[-0.01em] text-slate-900 md:text-[2.2rem]">{{ $translation?->title ?? $post->code }}</h1>
             @if (!empty($translation?->excerpt))
-                <p class="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-600">{{ $translation->excerpt }}</p>
+                <p class="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">{{ $translation->excerpt }}</p>
             @endif
         </div>
     </section>
