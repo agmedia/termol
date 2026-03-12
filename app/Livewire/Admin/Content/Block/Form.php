@@ -1896,16 +1896,12 @@ BLADE,
                         $articleAlignClass = $loop->first
                             ? 'md:justify-self-end md:pt-6'
                             : 'md:justify-self-start md:pt-14';
-                        $showBackplate = ! $loop->first;
+                        $showBackplate = true;
                         $backplateClass = $loop->first
-                            ? '-left-7 top-6'
+                            ? '-left-7 -bottom-7'
                             : '-right-7 top-6';
-                        $backplateFillStyle = $loop->first
-                            ? 'background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(236,241,245,0.98) 100%);'
-                            : 'background: linear-gradient(180deg, rgba(255,255,255,0.46) 0%, rgba(232,237,242,0.78) 100%);';
-                        $backplatePatternStyle = $loop->first
-                            ? 'background-image: radial-gradient(120% 86% at -8% 108%, transparent 61%, rgba(148,163,184,0.18) 61.9%, transparent 63.2%), radial-gradient(102% 72% at 1% 107%, transparent 66%, rgba(148,163,184,0.12) 66.8%, transparent 68.2%), linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 42%);'
-                            : 'background-image: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 48%);';
+                        $backplateFillStyle = 'background: linear-gradient(180deg, rgba(255,255,255,0.46) 0%, rgba(232,237,242,0.78) 100%);';
+                        $backplatePatternStyle = 'background-image: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 48%);';
                     @endphp
 
                     <article class="group relative isolate mx-auto w-full max-w-[500px] {{ $articleAlignClass }}">
