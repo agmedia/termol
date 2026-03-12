@@ -219,6 +219,59 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('https://www.instagram.com/p/demo-post/', false);
     }
 
+    public function test_mobile_home_renders_instagram_curated_grid_assets_and_slider_init(): void
+    {
+        $block = ContentBlock::query()->create([
+            'code' => 'mobile-instagram-widget',
+            'name' => 'Mobile Instagram Widget',
+            'type' => 'instagram_curated_grid',
+            'is_active' => true,
+            'payload' => null,
+        ]);
+
+        $block->translations()->create([
+            'locale' => 'hr',
+            'title' => 'Prati nas na Instagramu',
+            'subtitle' => '@kozo_bodywear',
+            'body_html' => null,
+            'cta_label' => 'Otvori profil',
+            'cta_url' => 'https://www.instagram.com/kozo_bodywear/',
+            'payload' => null,
+        ]);
+
+        $block->slots()->create([
+            'placement' => 'home.hero',
+            'frontend_variant' => 'mobile',
+            'target_type' => null,
+            'target_ref' => null,
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+
+        $image = UploadedFile::fake()->image('instagram-mobile-widget.jpg', 1080, 1080);
+
+        $block->addMedia($image->getPathname())
+            ->usingName('Instagram mobile widget image')
+            ->usingFileName('instagram-mobile-widget.jpg')
+            ->withCustomProperties([
+                'link_url' => ['hr' => 'https://www.instagram.com/p/mobile-demo-post/'],
+                'link_url_value' => 'https://www.instagram.com/p/mobile-demo-post/',
+                'caption' => ['hr' => 'Demo Instagram mobile post caption'],
+            ])
+            ->toMediaCollection('block_slides');
+
+        $this
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            ])
+            ->get('/')
+            ->assertOk()
+            ->assertSee('https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js', false)
+            ->assertSee('data-instagram-grid-splide', false)
+            ->assertSee("rewind: count > 1", false)
+            ->assertSee("640: { perPage: 1, gap: '0.8rem', arrows: false, pagination: count > 1 }", false);
+    }
+
     public function test_shop_listing_falls_back_to_gallery_when_main_image_file_is_missing(): void
     {
         $this->useEnglishStorefrontLocale();

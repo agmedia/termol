@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}">
     <link rel="manifest" href="{{ route('front.manifest') }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('front-theme/app/icons/icon-192x192.png') }}">
+    @stack('head')
 </head>
 <body class="theme-light" data-highlight="highlight-red">
 @php
@@ -431,6 +432,7 @@
 </div>
 
 <script defer src="{{ asset('front-theme/scripts/bootstrap.min.js') }}"></script>
+@stack('scripts')
 <script defer src="{{ asset('front-theme/scripts/custom.js') }}"></script>
 </body>
 </html>

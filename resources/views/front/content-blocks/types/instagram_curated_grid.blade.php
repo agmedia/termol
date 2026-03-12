@@ -167,25 +167,31 @@
                                     return;
                                 }
 
+                                const desktopPerPage = Math.min(5, Math.max(1, count));
+                                const laptopPerPage = Math.min(4, Math.max(1, count));
+                                const tabletPerPage = Math.min(3, Math.max(1, count));
+                                const compactTabletPerPage = Math.min(2, Math.max(1, count));
+
                                 el.dataset.splideReady = '1';
 
                                 new window.Splide(el, {
-                                    type: count > 5 ? 'loop' : 'slide',
-                                    perPage: Math.min(5, Math.max(1, count)),
+                                    type: 'slide',
+                                    rewind: count > 1,
+                                    perPage: desktopPerPage,
                                     perMove: 1,
                                     gap: '1rem',
                                     drag: count > 1,
                                     snap: true,
                                     pagination: false,
-                                    arrows: count > 5,
+                                    arrows: count > desktopPerPage,
                                     updateOnMove: true,
                                     speed: 520,
                                     breakpoints: {
-                                        1536: { perPage: Math.min(5, Math.max(1, count)) },
-                                        1280: { perPage: Math.min(4, Math.max(1, count)) },
-                                        1024: { perPage: Math.min(3, Math.max(1, count)) },
-                                        860: { perPage: Math.min(2, Math.max(1, count)), gap: '0.9rem', arrows: false },
-                                        640: { perPage: 1.25, gap: '0.8rem', padding: { right: '1rem' }, arrows: false },
+                                        1536: { perPage: desktopPerPage, arrows: count > desktopPerPage },
+                                        1280: { perPage: laptopPerPage, arrows: count > laptopPerPage },
+                                        1024: { perPage: tabletPerPage, arrows: count > tabletPerPage },
+                                        860: { perPage: compactTabletPerPage, gap: '0.9rem', arrows: false },
+                                        640: { perPage: 1, gap: '0.8rem', arrows: false, pagination: count > 1 },
                                     },
                                 }).mount();
                             });
