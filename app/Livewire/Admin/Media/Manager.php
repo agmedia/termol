@@ -141,7 +141,7 @@ class Manager extends Component
             return;
         }
 
-        $placeholderPath = public_path('front-theme/images/empty.png');
+        $placeholderPath = public_path('front-theme/images/demo_img.png');
         if (! is_file($placeholderPath)) {
             $this->dispatch('notify', type: 'danger', message: __('Could not find the Instagram slide placeholder image.'));
             return;

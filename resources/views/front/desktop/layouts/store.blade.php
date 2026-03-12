@@ -500,11 +500,8 @@
                         ->all();
                     if ($bottomLinks === []) {
                         $bottomLinks = [
-                            ['label' => (string) __('ui.front.desktop.footer.terms'), 'url' => '#'],
-                            ['label' => (string) __('ui.front.desktop.footer.privacy'), 'url' => '#'],
-                            ['label' => (string) __('ui.front.desktop.footer.cookies'), 'url' => '#'],
-                            ['label' => (string) __('ui.front.desktop.footer.shipping_returns'), 'url' => '#'],
-                            ['label' => (string) __('ui.front.desktop.footer.secure_checkout'), 'url' => '#'],
+
+                            ['label' => (string) __('ui.front.desktop.footer.agmedia'), 'url' => 'https://www.agmedia.hr'],
                         ];
                     }
                 @endphp

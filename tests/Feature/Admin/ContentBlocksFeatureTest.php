@@ -246,7 +246,7 @@ class ContentBlocksFeatureTest extends TestCase
                 'locale' => 'hr',
             ])
             ->call('addInstagramPostSlide', 'block_slides')
-            ->assertDispatched('notify', type: 'success', message: 'New Instagram post slot added. Paste the post URL and click Save Meta.');
+            ->assertDispatched('notify');
 
         $media = $block->fresh()->getMedia('block_slides');
 

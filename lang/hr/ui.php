@@ -117,6 +117,7 @@ return [
                 'shipping_returns' => 'Dostava i povrati',
                 'secure_checkout' => 'Sigurna naplata',
                 'copyright' => 'Sva prava pridržana.',
+                'agmedia' => 'Web by: AG media.',
             ],
             'social' => [
                 'facebook' => 'Facebook',
