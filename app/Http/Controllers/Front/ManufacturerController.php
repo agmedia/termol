@@ -61,6 +61,7 @@ class ManufacturerController extends Controller
             ->firstOrFail();
 
         $products = $manufacturer->products()
+            ->withApprovedCommentSummary([$locale, $fallbackLocale])
             ->where('is_active', true)
             ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
             ->orderByDesc('products.id')

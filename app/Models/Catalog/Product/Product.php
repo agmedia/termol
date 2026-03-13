@@ -10,6 +10,7 @@ use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Option\Option;
 use App\Models\Content\Support\Comment;
 use App\Models\Settings\Local\TaxRate;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -21,6 +22,9 @@ use Spatie\MediaLibrary\HasMedia;
 class Product extends Model implements HasMedia
 {
     use HasConfiguredMedia;
+
+    /** @var array<string, array{count:int,avg:float}> */
+    private static array $approvedCommentSummaryCache = [];
 
     protected $fillable = [
         'code',
@@ -113,5 +117,82 @@ class Product extends Model implements HasMedia
     public function comments(): MorphMany
     {
         return $this->morphMany(Comment::class, 'commentable');
+    }
+
+    public function scopeWithApprovedCommentSummary(Builder $query, array $locales = []): Builder
+    {
+        $normalizedLocales = collect($locales)
+            ->map(fn ($locale): string => trim((string) $locale))
+            ->filter(fn (string $locale): bool => $locale !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        $approvedComments = function (Builder $commentQuery) use ($normalizedLocales): void {
+            $commentQuery
+                ->whereNull('parent_id')
+                ->where('status', Comment::STATUS_APPROVED);
+
+            if ($normalizedLocales !== []) {
+                $commentQuery->whereIn('locale', $normalizedLocales);
+            }
+        };
+
+        $approvedRatings = function (Builder $commentQuery) use ($approvedComments): void {
+            $approvedComments($commentQuery);
+            $commentQuery->whereNotNull('rating');
+        };
+
+        return $query
+            ->withCount([
+                'comments as approved_comments_count' => $approvedComments,
+            ])
+            ->withAvg([
+                'comments as approved_comments_avg_rating' => $approvedRatings,
+            ], 'rating');
+    }
+
+    /**
+     * @param  array<int, string>  $locales
+     * @return array{count:int,avg:float}
+     */
+    public function approvedCommentSummary(array $locales = []): array
+    {
+        $attributes = $this->getAttributes();
+        if (array_key_exists('approved_comments_count', $attributes) && array_key_exists('approved_comments_avg_rating', $attributes)) {
+            return [
+                'count' => (int) ($attributes['approved_comments_count'] ?? 0),
+                'avg' => round((float) ($attributes['approved_comments_avg_rating'] ?? 0), 2),
+            ];
+        }
+
+        $normalizedLocales = collect($locales)
+            ->map(fn ($locale): string => trim((string) $locale))
+            ->filter(fn (string $locale): bool => $locale !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        $cacheKey = (string) $this->getKey().'|'.implode(',', $normalizedLocales);
+        if (! isset(self::$approvedCommentSummaryCache[$cacheKey])) {
+            $statsQuery = $this->comments()
+                ->whereNull('parent_id')
+                ->where('status', Comment::STATUS_APPROVED);
+
+            if ($normalizedLocales !== []) {
+                $statsQuery->whereIn('locale', $normalizedLocales);
+            }
+
+            $stats = $statsQuery
+                ->selectRaw('COUNT(*) as review_count, COALESCE(AVG(rating), 0) as avg_rating')
+                ->first();
+
+            self::$approvedCommentSummaryCache[$cacheKey] = [
+                'count' => (int) ($stats?->review_count ?? 0),
+                'avg' => round((float) ($stats?->avg_rating ?? 0), 2),
+            ];
+        }
+
+        return self::$approvedCommentSummaryCache[$cacheKey];
     }
 }

@@ -36,6 +36,9 @@
         if (select.classList.contains('catalog-filter-sort')) {
             custom.classList.add('is-sort');
         }
+        if (select.classList.contains('catalog-filter-inline-select')) {
+            custom.classList.add('is-inline-label');
+        }
         if (select.dataset.filterKind === 'composition') {
             custom.classList.add('is-composition');
         }

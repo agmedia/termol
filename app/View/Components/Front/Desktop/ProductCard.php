@@ -175,6 +175,7 @@ class ProductCard extends Component
             'oldPrice' => $priceData['old_price'],
             'discountPercent' => $priceData['discount_percent'],
             'lowest30DaysPrice' => $priceData['lowest_30_days_price'],
+            'reviewSummary' => $this->product->approvedCommentSummary([$locale, $fallbackLocale]),
             'flat' => $this->flat,
         ]);
     }

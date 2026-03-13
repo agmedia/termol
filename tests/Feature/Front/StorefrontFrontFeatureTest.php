@@ -3,6 +3,7 @@
 namespace Tests\Feature\Front;
 
 use App\Http\Controllers\Front\CatalogController;
+use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Category\CategoryTranslation;
 use App\Models\Catalog\Attribute\Attribute;
@@ -18,6 +19,7 @@ use App\Models\Content\Blog\BlogPostTranslation;
 use App\Models\Content\ContentBlock;
 use App\Models\Content\Page\InfoPage;
 use App\Models\Content\Page\InfoPageTranslation;
+use App\Models\Content\Support\Comment;
 use App\Models\Settings\Local\Currency;
 use App\Models\Settings\Local\OrderStatus;
 use App\Models\Settings\Local\PaymentMethod;
@@ -649,6 +651,47 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('Quality guarantee included');
     }
 
+    public function test_product_review_summary_links_render_on_detail_and_shop_cards(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product, $slug] = $this->seedProduct($category->id);
+
+        Comment::query()->create([
+            'commentable_type' => Product::class,
+            'commentable_id' => $product->id,
+            'author_name' => 'Anna',
+            'author_email' => 'anna@example.test',
+            'locale' => 'en',
+            'body' => 'Great fit and fabric.',
+            'rating' => 5,
+            'status' => Comment::STATUS_APPROVED,
+            'is_featured' => true,
+        ]);
+
+        Comment::query()->create([
+            'commentable_type' => Product::class,
+            'commentable_id' => $product->id,
+            'author_name' => 'Mia',
+            'author_email' => 'mia@example.test',
+            'locale' => 'en',
+            'body' => 'Very comfortable.',
+            'rating' => 4,
+            'status' => Comment::STATUS_APPROVED,
+            'is_featured' => false,
+        ]);
+
+        $this->get('/product/'.$slug)
+            ->assertOk()
+            ->assertSee('href="#product-comments"', false)
+            ->assertSee('2 reviews');
+
+        $this->get('/shop')
+            ->assertOk()
+            ->assertSee('/product/'.$slug.'#product-comments', false)
+            ->assertSee('2 reviews');
+    }
+
     public function test_desktop_product_detail_uses_size_guide_man_for_male_products_with_options(): void
     {
         $this->useEnglishStorefrontLocale();
@@ -719,6 +762,75 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertDontSee('data-catalog-grid', false)
             ->assertDontSee('Product '.$productSlug)
             ->assertDontSee((string) $product->sku);
+    }
+
+    public function test_category_page_price_filter_filters_products(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category, $categorySlug] = $this->seedCategory();
+        [$cheapProduct, $cheapSlug] = $this->seedProduct($category->id);
+        [$expensiveProduct, $expensiveSlug] = $this->seedProduct($category->id);
+
+        $cheapProduct->update([
+            'base_price' => 19.99,
+        ]);
+
+        $expensiveProduct->update([
+            'base_price' => 89.99,
+        ]);
+
+        $this->get('/category/'.$categorySlug.'?price_min=50')
+            ->assertOk()
+            ->assertSee('data-price-filter-root', false)
+            ->assertDontSee($cheapSlug)
+            ->assertSee($expensiveSlug);
+    }
+
+    public function test_category_page_promo_only_filter_shows_only_products_with_active_sale_action(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category, $categorySlug] = $this->seedCategory();
+        [$regularProduct, $regularSlug] = $this->seedProduct($category->id);
+        [$promoProduct, $promoSlug] = $this->seedProduct($category->id);
+
+        CatalogAction::query()->create([
+            'code' => 'promo-'.strtolower((string) str()->random(6)),
+            'scope' => CatalogAction::SCOPE_PRODUCT,
+            'type' => CatalogAction::TYPE_PERCENTAGE,
+            'discount_value' => 20,
+            'target_type' => CatalogAction::TARGET_PRODUCT,
+            'audience_type' => CatalogAction::AUDIENCE_ALL,
+            'is_active' => true,
+            'starts_at' => now()->subHour(),
+            'ends_at' => now()->addHour(),
+        ])->targets()->create([
+            'target_type' => CatalogAction::TARGET_PRODUCT,
+            'target_id' => $promoProduct->id,
+            'sort_order' => 0,
+        ]);
+
+        $this->get('/category/'.$categorySlug.'?promo_only=1')
+            ->assertOk()
+            ->assertSee('data-price-range-root', false)
+            ->assertDontSee($regularSlug)
+            ->assertSee($promoSlug);
+    }
+
+    public function test_category_page_disables_promo_toggle_when_no_promotional_products_are_available(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category, $categorySlug] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $this->assertNotNull($product);
+
+        $this->get('/category/'.$categorySlug)
+            ->assertOk()
+            ->assertSeeInOrder([
+                'name="promo_only"',
+                'disabled',
+                'data-price-range-promo',
+            ], false);
     }
 
     public function test_category_editorial_tiles_block_renders_on_targeted_category(): void

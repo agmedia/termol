@@ -18,9 +18,47 @@
     $desktopFilterSelectCount = ($hasSubcategories ? 1 : 0) + ($showManufacturers ? 1 : 0) + count($optionFilters ?? []) + count($attributeFilters ?? []) + 1;
     $hasActiveFilters = trim((string) ($filters['q'] ?? '')) !== ''
         || trim((string) ($filters['manufacturer'] ?? '')) !== ''
+        || trim((string) ($filters['price_min'] ?? '')) !== ''
+        || trim((string) ($filters['price_max'] ?? '')) !== ''
+        || (bool) ($filters['promo_only'] ?? false)
         || collect(array_keys(request()->query()))
             ->contains(fn ($key): bool => str_starts_with((string) $key, 'opt_') || str_starts_with((string) $key, 'attr_'))
         || (string) ($filters['sort'] ?? 'newest') !== 'newest';
+    $priceMinValue = trim((string) ($filters['price_min'] ?? ''));
+    $priceMaxValue = trim((string) ($filters['price_max'] ?? ''));
+    $promoOnlyEnabled = (bool) ($filters['promo_only'] ?? false);
+    $promoToggleDisabled = ! (bool) ($promoFilterAvailable ?? false) && ! $promoOnlyEnabled;
+    $hasPriceFilter = $priceMinValue !== '' || $priceMaxValue !== '';
+    $hasPricePanelFilter = $hasPriceFilter || $promoOnlyEnabled;
+    $priceTriggerLabel = __('ui.shop.filters.price');
+    $resolvedPriceBoundsMin = isset($priceBounds['min']) && is_numeric($priceBounds['min'] ?? null)
+        ? (float) $priceBounds['min']
+        : null;
+    $resolvedPriceBoundsMax = isset($priceBounds['max']) && is_numeric($priceBounds['max'] ?? null)
+        ? (float) $priceBounds['max']
+        : null;
+    $priceSliderMin = $resolvedPriceBoundsMin !== null
+        ? (int) floor($resolvedPriceBoundsMin)
+        : ($priceMinValue !== '' ? (int) floor((float) $priceMinValue) : 0);
+    $priceSliderMax = $resolvedPriceBoundsMax !== null
+        ? (int) ceil($resolvedPriceBoundsMax)
+        : ($priceMaxValue !== '' ? (int) ceil((float) $priceMaxValue) : max($priceSliderMin, 100));
+
+    if ($priceSliderMax <= $priceSliderMin) {
+        $priceSliderMax = $priceSliderMin + ($priceSliderMin > 0 ? 10 : 100);
+    }
+
+    $priceSliderSelectedMin = $priceMinValue !== ''
+        ? max($priceSliderMin, min($priceSliderMax, (int) floor((float) $priceMinValue)))
+        : $priceSliderMin;
+    $priceSliderSelectedMax = $priceMaxValue !== ''
+        ? max($priceSliderMin, min($priceSliderMax, (int) ceil((float) $priceMaxValue)))
+        : $priceSliderMax;
+
+    if ($priceSliderSelectedMin > $priceSliderSelectedMax) {
+        [$priceSliderSelectedMin, $priceSliderSelectedMax] = [$priceSliderSelectedMax, $priceSliderSelectedMin];
+    }
+
     $sizeFilterLabel = mb_strtolower(trim((string) __('ui.shop.filters.size')));
     $sizeOptionFilter = null;
     $compositionAttributeFilter = null;
@@ -72,7 +110,412 @@
 
 @section('content')
     <style>
-        @media (min-width: 768px) {
+        .catalog-price-range-card {
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: #fff;
+            padding: .95rem;
+        }
+
+        .catalog-price-range-values {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .catalog-price-range-value {
+            min-width: 0;
+        }
+
+        .catalog-price-range-value-label {
+            display: block;
+            margin-bottom: .2rem;
+            font-size: .64rem;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+
+        .catalog-price-range-value-amount {
+            display: inline-flex;
+            align-items: center;
+            gap: .2rem;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .catalog-price-range-slider {
+            position: relative;
+            margin-top: .9rem;
+            height: 30px;
+        }
+
+        .catalog-price-range-track,
+        .catalog-price-range-progress {
+            position: absolute;
+            top: 50%;
+            height: 4px;
+            transform: translateY(-50%);
+            border-radius: 999px;
+        }
+
+        .catalog-price-range-track {
+            left: 0;
+            right: 0;
+            background: #dbe4ee;
+        }
+
+        .catalog-price-range-progress {
+            background: #11896d;
+        }
+
+        .catalog-price-range-slider input[type="range"] {
+            pointer-events: none;
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 30px;
+            margin: 0;
+            appearance: none;
+            background: transparent;
+        }
+
+        .catalog-price-range-slider input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px;
+            background: transparent;
+        }
+
+        .catalog-price-range-slider input[type="range"]::-webkit-slider-thumb {
+            pointer-events: auto;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            margin-top: -8px;
+            border: 1px solid #d1d5db;
+            border-radius: 999px;
+            background: #fff;
+            box-shadow: 0 6px 14px -10px rgba(15, 23, 42, .6);
+            cursor: pointer;
+        }
+
+        .catalog-price-range-slider input[type="range"]::-moz-range-track {
+            height: 4px;
+            background: transparent;
+        }
+
+        .catalog-price-range-slider input[type="range"]::-moz-range-thumb {
+            pointer-events: auto;
+            width: 20px;
+            height: 20px;
+            border: 1px solid #d1d5db;
+            border-radius: 999px;
+            background: #fff;
+            box-shadow: 0 6px 14px -10px rgba(15, 23, 42, .6);
+            cursor: pointer;
+        }
+
+        .catalog-price-range-slider input[type="range"]:focus {
+            outline: none;
+        }
+
+        .catalog-price-range-slider input[type="range"]:focus::-webkit-slider-thumb,
+        .catalog-price-range-slider input[type="range"]:focus::-moz-range-thumb {
+            border-color: #0f172a;
+            box-shadow: 0 0 0 3px rgba(15, 23, 42, .12);
+        }
+
+        .catalog-price-range-scale {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            margin-top: .3rem;
+            font-size: .78rem;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .catalog-price-promo-toggle {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: .9rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .catalog-price-promo-copy {
+            min-width: 0;
+        }
+
+        .catalog-price-promo-label {
+            display: block;
+            font-size: .9rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.35;
+        }
+
+        .catalog-price-promo-hint {
+            display: block;
+            margin-top: .18rem;
+            font-size: .8rem;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        .catalog-switch {
+            position: relative;
+            flex-shrink: 0;
+            display: inline-flex;
+            width: 44px;
+            height: 26px;
+            align-items: center;
+        }
+
+        .catalog-switch input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .catalog-switch-track {
+            position: relative;
+            display: inline-flex;
+            width: 44px;
+            height: 26px;
+            border-radius: 999px;
+            background: #d1d5db;
+            transition: background-color .18s ease;
+        }
+
+        .catalog-switch-track::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 22px;
+            height: 22px;
+            border-radius: 999px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, .15);
+            transition: transform .18s ease;
+        }
+
+        .catalog-switch input:checked + .catalog-switch-track {
+            background: #0f172a;
+        }
+
+        .catalog-switch input:checked + .catalog-switch-track::after {
+            transform: translateX(18px);
+        }
+
+        .catalog-switch input:focus + .catalog-switch-track {
+            box-shadow: 0 0 0 3px rgba(15, 23, 42, .12);
+        }
+
+        .catalog-switch input:disabled + .catalog-switch-track {
+            background: #e5e7eb;
+        }
+
+        .catalog-switch input:disabled + .catalog-switch-track::after {
+            box-shadow: none;
+        }
+
+        .catalog-switch input:disabled,
+        .catalog-switch input:disabled + .catalog-switch-track {
+            cursor: not-allowed;
+        }
+
+        .catalog-price-reset {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .45rem;
+            margin-top: 1rem;
+            border: 0;
+            background: transparent;
+            padding: 0;
+            font-size: .8rem;
+            font-weight: 700;
+            color: #0f172a;
+            transition: color .15s ease;
+        }
+
+        .catalog-price-reset:hover {
+            color: #334155;
+        }
+
+        .catalog-price-reset[disabled] {
+            opacity: .45;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        @media (max-width: 1024px) {
+            .catalog-mobile-filter-toolbar {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: center;
+                gap: .55rem;
+            }
+
+            .catalog-mobile-filter-trigger {
+                display: inline-flex;
+                height: 42px;
+                width: 100%;
+                min-width: 0;
+                align-items: center;
+                justify-content: flex-start;
+                gap: .55rem;
+                border: 1px solid #cbd5e1;
+                background: #fff;
+                padding: 0 1rem;
+                font-size: .95rem;
+                font-weight: 700;
+                color: #334155;
+                transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+            }
+
+            .catalog-mobile-filter-trigger:hover {
+                border-color: #94a3b8;
+                background: #f8fafc;
+            }
+
+            .catalog-mobile-filter-trigger[aria-expanded="true"] {
+                border-color: #0f172a;
+                background: #f8fafc;
+                color: #0f172a;
+            }
+
+            .catalog-mobile-grid-group {
+                display: flex;
+                align-items: center;
+                gap: .5rem;
+            }
+
+            .catalog-mobile-grid-toggle {
+                display: inline-flex;
+                height: 42px;
+                width: 42px;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid #cbd5e1;
+                background: #fff;
+                color: #94a3b8;
+                transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+            }
+
+            .catalog-mobile-grid-toggle:hover {
+                border-color: #94a3b8;
+                background: #f8fafc;
+                color: #64748b;
+            }
+
+            .catalog-mobile-grid-toggle.is-active {
+                border-color: #0f172a;
+                background: #0f172a;
+                color: #fff;
+            }
+
+            .catalog-mobile-filter-panel {
+                gap: 1rem;
+                margin-top: .85rem;
+                border: 1px solid #dbe4ee;
+                background: #fbfcfe;
+                padding: 1rem;
+            }
+
+            .catalog-mobile-filter-group {
+                display: block;
+            }
+
+            .catalog-mobile-filter-select {
+                appearance: none;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                height: 42px;
+                width: 100%;
+                border: 1px solid #cbd5e1;
+                border-radius: 0;
+                background-color: #fff;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%2364758b' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right .8rem center;
+                background-size: 12px 12px;
+                padding: 0 .95rem;
+                padding-right: 2.2rem;
+                font-size: .95rem;
+                color: #334155;
+            }
+
+            .catalog-mobile-filter-select:focus {
+                border-color: #0f172a;
+                box-shadow: 0 0 0 2px rgba(15, 23, 42, .08);
+            }
+
+            .catalog-mobile-price-heading {
+                display: block;
+                margin-bottom: .9rem;
+                font-size: .82rem;
+                font-weight: 700;
+                letter-spacing: .04em;
+                text-transform: uppercase;
+                color: #64748b;
+            }
+
+            .catalog-mobile-price-card {
+                border: 1px solid #cbd5e1;
+                border-radius: 0;
+                background: #fff;
+                padding: 1rem;
+            }
+
+            .catalog-mobile-price-card .catalog-price-range-value-amount {
+                font-size: .95rem;
+            }
+
+            .catalog-mobile-price-card .catalog-price-promo-label {
+                font-size: .88rem;
+            }
+
+            .catalog-mobile-price-card .catalog-price-promo-hint {
+                font-size: .78rem;
+            }
+
+            .catalog-mobile-reset-wrap {
+                padding-top: .15rem;
+            }
+
+            .catalog-mobile-reset-link {
+                display: inline-flex;
+                height: 42px;
+                width: 100%;
+                align-items: center;
+                justify-content: center;
+                gap: .55rem;
+                border: 1px solid #cbd5e1;
+                background: #fff;
+                padding: 0 1rem;
+                font-size: .88rem;
+                font-weight: 700;
+                color: #0f172a;
+                transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+            }
+
+            .catalog-mobile-reset-link:hover {
+                border-color: #94a3b8;
+                background: #f8fafc;
+                color: #334155;
+            }
+        }
+
+        @media (min-width: 1025px) {
             .catalog-filter-select {
                 appearance: none;
                 -webkit-appearance: none;
@@ -208,6 +651,171 @@
                 color: #475569;
             }
 
+            .catalog-filter-select.catalog-filter-inline-select {
+                height: 32px;
+                border-color: #d1d5db;
+                border-radius: 4px;
+                padding: 0 .8rem;
+                padding-right: 1.85rem;
+                font-size: .84rem;
+                font-weight: 600;
+                color: #111827;
+                text-transform: none;
+                letter-spacing: 0;
+                background-position: right .55rem center;
+                background-size: 10px 10px;
+            }
+
+            .catalog-filter-custom.is-inline-label .catalog-filter-custom-button,
+            .catalog-filter-custom.is-inline-label .catalog-filter-custom-item {
+                font-size: .84rem;
+                font-weight: 600;
+                text-transform: none;
+                letter-spacing: 0;
+            }
+
+            .catalog-filter-custom.is-inline-label .catalog-filter-custom-button {
+                height: 32px;
+                border-color: #d1d5db;
+                border-radius: 4px;
+                padding: 0 .8rem;
+                padding-right: 1.85rem;
+                color: #111827;
+                background-position: right .55rem center;
+                background-size: 10px 10px;
+                line-height: 30px;
+            }
+
+            .catalog-filter-custom.is-inline-label .catalog-filter-custom-button.is-placeholder,
+            .catalog-filter-custom.is-inline-label .catalog-filter-custom-item.is-placeholder {
+                font-size: .84rem;
+                font-weight: 600;
+                color: #111827;
+                letter-spacing: 0;
+            }
+
+            .catalog-filter-custom.is-inline-label .catalog-filter-custom-list {
+                border-color: #d1d5db;
+                border-radius: 4px;
+                right: auto;
+                width: max-content;
+                min-width: 100%;
+                max-width: min(340px, calc(100vw - 40px));
+            }
+
+            .catalog-filter-custom.is-inline-label .catalog-filter-custom-item {
+                padding: .55rem .8rem;
+            }
+
+            .catalog-filter-sort-wrap .catalog-filter-custom.is-inline-label .catalog-filter-custom-list {
+                left: auto;
+                right: 0;
+            }
+
+            .catalog-grid-toggle {
+                display: inline-flex;
+                height: 32px;
+                width: 32px;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+                background: #fff;
+                color: #64748b;
+                transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+            }
+
+            .catalog-grid-toggle:hover {
+                border-color: #9ca3af;
+                background: #f8fafc;
+                color: #334155;
+            }
+
+            .catalog-grid-toggle.is-active {
+                border-color: #0f172a;
+                background: #0f172a;
+                color: #fff;
+            }
+
+            .catalog-reset-button {
+                display: inline-flex;
+                height: 32px;
+                align-items: center;
+                justify-content: center;
+                gap: .45rem;
+                border: 1px solid #fda4af;
+                border-radius: 4px;
+                padding: 0 .85rem;
+                font-size: .74rem;
+                font-weight: 700;
+                letter-spacing: .08em;
+                text-transform: uppercase;
+                color: #e11d48;
+                transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+            }
+
+            .catalog-reset-button:hover {
+                border-color: #fb7185;
+                background: #fff1f2;
+                color: #be123c;
+            }
+
+            .catalog-price-filter {
+                position: relative;
+            }
+
+            .catalog-price-filter-toggle {
+                display: inline-flex;
+                height: 32px;
+                min-width: 82px;
+                align-items: center;
+                justify-content: space-between;
+                gap: .6rem;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+                background: #fff;
+                padding: 0 .8rem;
+                font-size: .84rem;
+                font-weight: 600;
+                color: #111827;
+                transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+            }
+
+            .catalog-price-filter-toggle:hover {
+                border-color: #9ca3af;
+                background: #f8fafc;
+            }
+
+            .catalog-price-filter.is-open .catalog-price-filter-toggle,
+            .catalog-price-filter-toggle:focus {
+                outline: none;
+                border-color: #0f172a;
+                box-shadow: 0 0 0 2px rgba(15, 23, 42, .12);
+            }
+
+            .catalog-price-filter.is-open .catalog-price-filter-toggle svg {
+                transform: rotate(180deg);
+            }
+
+            .catalog-price-filter-toggle.is-active {
+                border-color: #94a3b8;
+                color: #0f172a;
+            }
+
+            .catalog-price-filter-panel {
+                position: absolute;
+                top: calc(100% + 6px);
+                left: 0;
+                z-index: 140;
+                display: none;
+                width: min(320px, calc(100vw - 48px));
+                box-shadow: 0 18px 35px -24px rgba(15, 23, 42, .5);
+            }
+
+            .catalog-price-filter.is-open .catalog-price-filter-panel {
+                display: block;
+            }
+
             .catalog-filter-custom-item:hover {
                 background: #f8fafc;
             }
@@ -220,7 +828,7 @@
             }
 
             .catalog-filter-composition {
-                width: 250px;
+                width: 130px;
             }
 
             .catalog-filter-composition .catalog-filter-select,
@@ -229,9 +837,13 @@
                 font-size: .75rem;
             }
 
+            .catalog-filter-custom.is-composition .catalog-filter-custom-list {
+                max-width: min(420px, calc(100vw - 40px));
+            }
+
             @media (min-width: 1280px) {
                 .catalog-filter-composition {
-                    width: 290px;
+                    width: 145px;
                 }
             }
         }
@@ -278,10 +890,10 @@
         <section class="relative z-20 px-3 pt-3 pb-4 sm:px-4 lg:px-6">
             <div class="border-b border-slate-200/90 pb-4">
         <div class="max-[1024px]:block min-[1025px]:hidden" data-mobile-filter-root>
-            <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <div class="catalog-mobile-filter-toolbar">
                 <button
                     type="button"
-                    class="flex h-[42px] w-full min-w-0 items-center justify-start gap-2 border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                    class="catalog-mobile-filter-trigger"
                     data-mobile-filter-toggle
                     aria-expanded="false"
                     aria-controls="category-mobile-filter-panel"
@@ -291,11 +903,11 @@
                     </svg>
                     {{ __('ui.shop.filters.open') }}
                 </button>
-                <div class="flex h-[42px] items-center gap-2">
+                <div class="catalog-mobile-grid-group">
                 @foreach ([1, 2] as $cols)
                     <a
                         href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id] + array_merge(request()->query(), ['cols' => $cols])) }}"
-                        class="inline-flex h-[42px] w-[42px] items-center justify-center border border-slate-300 {{ $mobileCols === $cols ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-100' }}"
+                        class="catalog-mobile-grid-toggle {{ $mobileCols === $cols ? 'is-active' : '' }}"
                         aria-label="{{ __('ui.shop.filters.grid') }} {{ $cols }}"
                     >
                         <span class="flex h-4 items-stretch gap-[2px]">
@@ -307,18 +919,18 @@
                 @endforeach
                 </div>
             </div>
-            <form method="GET" action="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="mt-3 hidden gap-3" data-mobile-filter-panel id="category-mobile-filter-panel">
+            <form method="GET" action="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="catalog-mobile-filter-panel mt-3 hidden" data-mobile-filter-panel id="category-mobile-filter-panel">
                 <input type="hidden" name="q" value="{{ $filters['q'] ?? '' }}">
                 @if ($hasSubcategories)
-                    <div>
-                        <label for="shop-category-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.category') }}</label>
+                    <div class="catalog-mobile-filter-group">
                         <select
                             id="shop-category-mobile"
-                            class="h-[42px] w-full rounded-none border-slate-300 text-sm"
+                            class="catalog-mobile-filter-select"
+                            aria-label="{{ __('ui.shop.filters.category') }}"
                             data-category-redirect
                             data-default-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}"
                         >
-                            <option value="" data-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" @selected(true)>{{ __('ui.shop.filters.all_categories') }}</option>
+                            <option value="" data-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" @selected(true)>{{ __('ui.shop.filters.category') }}</option>
                             @foreach (($subcategories ?? collect()) as $subCategory)
                                 @php
                                     $subCategoryTranslation = $subCategory->translations->firstWhere('locale', $locale)
@@ -332,10 +944,9 @@
                     </div>
                 @endif
                 @if ($showManufacturers)
-                    <div>
-                        <label for="shop-manufacturer-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.manufacturer') }}</label>
-                        <select id="shop-manufacturer-mobile" name="manufacturer" class="h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
-                            <option value="">{{ __('ui.shop.filters.all_manufacturers') }}</option>
+                    <div class="catalog-mobile-filter-group">
+                        <select id="shop-manufacturer-mobile" name="manufacturer" class="catalog-mobile-filter-select" aria-label="{{ __('ui.shop.filters.manufacturer') }}" data-auto-submit-filter>
+                            <option value="">{{ __('ui.shop.filters.manufacturer') }}</option>
                             @foreach ($manufacturers as $manufacturer)
                                 @php
                                     $manufacturerTranslation = $manufacturer->translations->firstWhere('locale', $locale)
@@ -349,10 +960,9 @@
                     </div>
                 @endif
                 @foreach ($orderedCategoryFilters as $filterOption)
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $filterOption['label'] }}</label>
-                        <select name="{{ $filterOption['query_key'] }}" class="h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
-                            <option value="">{{ __('ui.shop.filters.select_option') }}</option>
+                    <div class="catalog-mobile-filter-group">
+                        <select name="{{ $filterOption['query_key'] }}" class="catalog-mobile-filter-select" aria-label="{{ $filterOption['label'] }}" data-auto-submit-filter>
+                            <option value="">{{ $filterOption['label'] }}</option>
                             @foreach (($filterOption['values'] ?? []) as $value)
                                 <option value="{{ $value['id'] }}" @selected((string) ($filterOption['selected'] ?? '') === (string) $value['id'])>
                                     {{ $value['label'] }}
@@ -361,9 +971,57 @@
                         </select>
                     </div>
                 @endforeach
-                <div>
-                    <label for="shop-sort-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.sort') }}</label>
-                    <select id="shop-sort-mobile" name="sort" class="catalog-filter-sort h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
+                <div class="catalog-mobile-filter-group">
+                    <div class="catalog-mobile-price-card">
+                        <span class="catalog-mobile-price-heading">{{ __('ui.shop.filters.price') }}</span>
+                        <div
+                            data-price-range-root
+                            data-price-min-bound="{{ $priceSliderMin }}"
+                            data-price-max-bound="{{ $priceSliderMax }}"
+                        >
+                            <input type="hidden" name="price_min" value="{{ $priceMinValue }}" data-price-range-hidden-min>
+                            <input type="hidden" name="price_max" value="{{ $priceMaxValue }}" data-price-range-hidden-max>
+                            <div class="catalog-price-range-values">
+                                <div class="catalog-price-range-value">
+                                    <span class="catalog-price-range-value-label">{{ __('ui.shop.filters.price_from') }}</span>
+                                    <span class="catalog-price-range-value-amount" data-price-range-current-min>{{ $priceSliderSelectedMin }} €</span>
+                                </div>
+                                <div class="catalog-price-range-value text-right">
+                                    <span class="catalog-price-range-value-label">{{ __('ui.shop.filters.price_to') }}</span>
+                                    <span class="catalog-price-range-value-amount" data-price-range-current-max>{{ $priceSliderSelectedMax }} €</span>
+                                </div>
+                            </div>
+                            <div class="catalog-price-range-slider">
+                                <div class="catalog-price-range-track"></div>
+                                <div class="catalog-price-range-progress" data-price-range-progress></div>
+                                <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMin }}" data-price-range-min>
+                                <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMax }}" data-price-range-max>
+                            </div>
+                            <div class="catalog-price-range-scale">
+                                <span>{{ $priceSliderMin }} €</span>
+                                <span>{{ $priceSliderMax }} €</span>
+                            </div>
+                            <div class="catalog-price-promo-toggle">
+                                <div class="catalog-price-promo-copy">
+                                    <span class="catalog-price-promo-label">{{ __('ui.shop.filters.promotion_only') }}</span>
+                                    <span class="catalog-price-promo-hint">{{ __('ui.shop.filters.promotion_only_hint') }}</span>
+                                </div>
+                                <label class="catalog-switch" aria-label="{{ __('ui.shop.filters.promotion_only') }}">
+                                    <input type="checkbox" name="promo_only" value="1" @checked($promoOnlyEnabled) @disabled($promoToggleDisabled) data-price-range-promo>
+                                    <span class="catalog-switch-track" aria-hidden="true"></span>
+                                </label>
+                            </div>
+                            <button type="button" class="catalog-price-reset" data-price-filter-reset @disabled(! $hasPricePanelFilter)>
+                                <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                                    <path d="M8 2.25V.75M8 2.25A5.75 5.75 0 1 1 2.93 5.28M8 2.25L5.8 4.45"></path>
+                                </svg>
+                                <span>{{ __('ui.shop.filters.reset') }}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="catalog-mobile-filter-group">
+                    <select id="shop-sort-mobile" name="sort" class="catalog-mobile-filter-select" aria-label="{{ __('ui.shop.filters.sort') }}" data-auto-submit-filter>
                         <option value="newest" @selected(($filters['sort'] ?? 'newest') === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
                         <option value="oldest" @selected(($filters['sort'] ?? '') === 'oldest')>{{ __('ui.shop.filters.oldest') }}</option>
                         <option value="price_low" @selected(($filters['sort'] ?? '') === 'price_low')>{{ __('ui.shop.filters.price_low') }}</option>
@@ -373,8 +1031,8 @@
                 </div>
                 <input type="hidden" name="cols" value="{{ $mobileCols }}">
                 @if ($hasActiveFilters)
-                    <div class="flex items-end justify-end">
-                        <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="inline-flex h-[42px] items-center justify-center gap-2 whitespace-nowrap border border-rose-600 px-4 text-sm font-semibold text-rose-600 hover:bg-rose-50">
+                    <div class="catalog-mobile-reset-wrap" data-global-filter-reset>
+                        <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="catalog-mobile-reset-link">
                             <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
                                 <path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5"></path>
                             </svg>
@@ -387,16 +1045,76 @@
 
         <form method="GET" action="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="hidden gap-x-3 gap-y-2.5 min-[1025px]:flex min-[1025px]:flex-wrap min-[1025px]:items-end min-[1025px]:justify-start" data-desktop-filter-form>
             <input type="hidden" name="q" value="{{ $filters['q'] ?? '' }}">
+            <div class="catalog-price-filter" data-price-filter-root>
+                <button
+                    type="button"
+                    class="catalog-price-filter-toggle {{ $hasPricePanelFilter ? 'is-active' : '' }}"
+                    data-price-filter-toggle
+                    aria-expanded="false"
+                >
+                    <span>{{ $priceTriggerLabel }}</span>
+                    <svg class="h-3 w-3 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M5 7.5L10 12.5L15 7.5"></path>
+                    </svg>
+                </button>
+                <div class="catalog-price-filter-panel" data-price-filter-panel>
+                    <div class="catalog-price-range-card">
+                        <div
+                            data-price-range-root
+                            data-price-min-bound="{{ $priceSliderMin }}"
+                            data-price-max-bound="{{ $priceSliderMax }}"
+                        >
+                            <input type="hidden" name="price_min" value="{{ $priceMinValue }}" data-price-range-hidden-min>
+                            <input type="hidden" name="price_max" value="{{ $priceMaxValue }}" data-price-range-hidden-max>
+                            <div class="catalog-price-range-values">
+                                <div class="catalog-price-range-value">
+                                    <span class="catalog-price-range-value-label">{{ __('ui.shop.filters.price_from') }}</span>
+                                    <span class="catalog-price-range-value-amount" data-price-range-current-min>{{ $priceSliderSelectedMin }} €</span>
+                                </div>
+                                <div class="catalog-price-range-value text-right">
+                                    <span class="catalog-price-range-value-label">{{ __('ui.shop.filters.price_to') }}</span>
+                                    <span class="catalog-price-range-value-amount" data-price-range-current-max>{{ $priceSliderSelectedMax }} €</span>
+                                </div>
+                            </div>
+                            <div class="catalog-price-range-slider">
+                                <div class="catalog-price-range-track"></div>
+                                <div class="catalog-price-range-progress" data-price-range-progress></div>
+                                <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMin }}" data-price-range-min>
+                                <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMax }}" data-price-range-max>
+                            </div>
+                            <div class="catalog-price-range-scale">
+                                <span>{{ $priceSliderMin }} €</span>
+                                <span>{{ $priceSliderMax }} €</span>
+                            </div>
+                            <div class="catalog-price-promo-toggle">
+                                <div class="catalog-price-promo-copy">
+                                    <span class="catalog-price-promo-label">{{ __('ui.shop.filters.promotion_only') }}</span>
+                                    <span class="catalog-price-promo-hint">{{ __('ui.shop.filters.promotion_only_hint') }}</span>
+                                </div>
+                                <label class="catalog-switch" aria-label="{{ __('ui.shop.filters.promotion_only') }}">
+                                    <input type="checkbox" name="promo_only" value="1" @checked($promoOnlyEnabled) @disabled($promoToggleDisabled) data-price-range-promo>
+                                    <span class="catalog-switch-track" aria-hidden="true"></span>
+                                </label>
+                            </div>
+                            <button type="button" class="catalog-price-reset" data-price-filter-reset @disabled(! $hasPricePanelFilter)>
+                                <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                                    <path d="M8 2.25V.75M8 2.25A5.75 5.75 0 1 1 2.93 5.28M8 2.25L5.8 4.45"></path>
+                                </svg>
+                                <span>{{ __('ui.shop.filters.reset') }}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             @if ($hasSubcategories)
-                <div class="w-[190px] xl:w-[210px]">
-                    <label for="shop-category" class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('ui.shop.filters.category') }}</label>
+                <div class="w-[108px] xl:w-[118px]">
                     <select
                         id="shop-category"
-                        class="catalog-filter-select h-9 w-full rounded-none border-slate-300 text-sm"
+                        class="catalog-filter-select catalog-filter-inline-select h-9 w-full rounded-none border-slate-300 text-sm"
                         data-category-redirect
                         data-default-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}"
                     >
-                        <option value="" data-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" @selected(true)>{{ __('ui.shop.filters.all_categories') }}</option>
+                        <option value="" data-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" @selected(true)>{{ __('ui.shop.filters.category') }}</option>
                         @foreach (($subcategories ?? collect()) as $subCategory)
                             @php
                                 $subCategoryTranslation = $subCategory->translations->firstWhere('locale', $locale)
@@ -410,10 +1128,9 @@
                 </div>
             @endif
             @if ($showManufacturers)
-                <div class="w-[190px] xl:w-[210px]">
-                    <label for="shop-manufacturer" class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('ui.shop.filters.manufacturer') }}</label>
-                    <select id="shop-manufacturer" name="manufacturer" class="catalog-filter-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
-                        <option value="">{{ __('ui.shop.filters.all_manufacturers') }}</option>
+                <div class="w-[104px] xl:w-[116px]">
+                    <select id="shop-manufacturer" name="manufacturer" class="catalog-filter-select catalog-filter-inline-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
+                        <option value="">{{ __('ui.shop.filters.manufacturer') }}</option>
                         @foreach ($manufacturers as $manufacturer)
                             @php
                                 $manufacturerTranslation = $manufacturer->translations->firstWhere('locale', $locale)
@@ -430,10 +1147,9 @@
                 @php
                     $isCompositionFilter = in_array((string) ($filterOption['query_key'] ?? ''), ['attr_sastav', 'attr_material'], true);
                 @endphp
-                <div class="{{ $isCompositionFilter ? 'catalog-filter-composition' : 'w-[190px] xl:w-[210px]' }}">
-                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ $filterOption['label'] }}</label>
-                    <select name="{{ $filterOption['query_key'] }}" class="catalog-filter-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter @if($isCompositionFilter) data-filter-kind="composition" @endif>
-                        <option value="">{{ __('ui.shop.filters.select_option') }}</option>
+                <div class="{{ $isCompositionFilter ? 'catalog-filter-composition' : 'w-[108px] xl:w-[118px]' }}">
+                    <select name="{{ $filterOption['query_key'] }}" class="catalog-filter-select catalog-filter-inline-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter @if($isCompositionFilter) data-filter-kind="composition" @endif>
+                        <option value="">{{ $filterOption['label'] }}</option>
                         @foreach (($filterOption['values'] ?? []) as $value)
                             <option value="{{ $value['id'] }}" @selected((string) ($filterOption['selected'] ?? '') === (string) $value['id'])>
                                 {{ $value['label'] }}
@@ -443,10 +1159,9 @@
                 </div>
             @endforeach
             <input type="hidden" name="cols" value="{{ (int) ($filters['cols'] ?? 4) }}">
-            <div class="min-[1025px]:ml-auto flex items-end gap-3">
-                <div class="w-[190px] xl:w-[210px]">
-                    <label for="shop-sort" class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('ui.shop.filters.sort') }}</label>
-                    <select id="shop-sort" name="sort" class="catalog-filter-select catalog-filter-sort h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
+            <div class="min-[1025px]:ml-auto flex items-center gap-2">
+                <div class="catalog-filter-sort-wrap w-[132px] xl:w-[144px]">
+                    <select id="shop-sort" name="sort" class="catalog-filter-select catalog-filter-inline-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
                         <option value="newest" @selected(($filters['sort'] ?? 'newest') === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
                         <option value="oldest" @selected(($filters['sort'] ?? '') === 'oldest')>{{ __('ui.shop.filters.oldest') }}</option>
                         <option value="price_low" @selected(($filters['sort'] ?? '') === 'price_low')>{{ __('ui.shop.filters.price_low') }}</option>
@@ -455,12 +1170,11 @@
                     </select>
                 </div>
                 <div class="w-auto shrink-0">
-                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('ui.shop.filters.grid') }}</label>
-                    <div class="flex h-9">
+                    <div class="flex items-center gap-2">
                         @foreach ([3, 4, 5] as $cols)
                             <a
                                 href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id] + array_merge(request()->query(), ['cols' => $cols])) }}"
-                                class="{{ $cols === 5 ? 'hidden 2xl:inline-flex' : 'inline-flex' }} h-full w-9 items-center justify-center border border-slate-300 {{ (int) ($filters['cols'] ?? 4) === $cols ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-100' }}"
+                                class="catalog-grid-toggle {{ $cols === 5 ? 'hidden 2xl:inline-flex' : 'inline-flex' }} {{ (int) ($filters['cols'] ?? 4) === $cols ? 'is-active' : '' }}"
                                 aria-label="{{ __('ui.shop.filters.grid') }} {{ $cols }}"
                             >
                                 <span class="flex h-4 items-stretch gap-[1px]">
@@ -473,8 +1187,8 @@
                     </div>
                 </div>
                 @if ($hasActiveFilters)
-                    <div class="flex items-end">
-                        <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap border border-rose-600 px-3.5 text-xs font-semibold uppercase tracking-[0.12em] text-rose-600 hover:bg-rose-50">
+                    <div class="flex items-center" data-global-filter-reset>
+                        <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="catalog-reset-button whitespace-nowrap">
                             <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
                                 <path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5"></path>
                             </svg>
@@ -548,6 +1262,204 @@
     @endif
     <script>
         (() => {
+            const buildCleanFormUrl = (form) => {
+                const url = new URL(form.action, window.location.origin);
+                const colsField = form.querySelector('[name="cols"]');
+                const colsValue = String(colsField?.value || '').trim();
+
+                if (colsValue !== '') {
+                    url.searchParams.set('cols', colsValue);
+                }
+
+                return url.toString();
+            };
+
+            const hasActiveFilterFields = (form) => Array.from(form.elements).some((field) => {
+                if (!field || !field.name || field.disabled) {
+                    return false;
+                }
+
+                if (field.name === 'cols') {
+                    return false;
+                }
+
+                if (field.type === 'checkbox' || field.type === 'radio') {
+                    return field.checked;
+                }
+
+                const value = String(field.value || '').trim();
+                if (value === '') {
+                    return false;
+                }
+
+                if (field.name === 'sort') {
+                    return value !== 'newest';
+                }
+
+                return true;
+            });
+
+            const updateGlobalResetVisibility = (form) => {
+                if (!form) {
+                    return;
+                }
+
+                const hasActiveFilters = hasActiveFilterFields(form);
+                form.querySelectorAll('[data-global-filter-reset]').forEach((node) => {
+                    node.classList.toggle('hidden', !hasActiveFilters);
+                });
+            };
+
+            const submitFilterForm = (form) => {
+                if (!form) {
+                    return;
+                }
+
+                updateGlobalResetVisibility(form);
+
+                if (!hasActiveFilterFields(form)) {
+                    window.location.assign(buildCleanFormUrl(form));
+                    return;
+                }
+
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                    return;
+                }
+
+                form.submit();
+            };
+
+            const closePricePanel = (root) => {
+                if (!root) {
+                    return;
+                }
+
+                root.classList.remove('is-open');
+                const toggle = root.querySelector('[data-price-filter-toggle]');
+                if (toggle) {
+                    toggle.setAttribute('aria-expanded', 'false');
+                }
+            };
+
+            const closeAllPricePanels = (exceptRoot = null) => {
+                document.querySelectorAll('[data-price-filter-root].is-open').forEach((root) => {
+                    if (root !== exceptRoot) {
+                        closePricePanel(root);
+                    }
+                });
+            };
+
+            const initPriceRange = (root) => {
+                if (root.dataset.priceRangeInit === '1') {
+                    return;
+                }
+
+                root.dataset.priceRangeInit = '1';
+
+                const form = root.closest('form');
+                const minRange = root.querySelector('[data-price-range-min]');
+                const maxRange = root.querySelector('[data-price-range-max]');
+                const hiddenMin = root.querySelector('[data-price-range-hidden-min]');
+                const hiddenMax = root.querySelector('[data-price-range-hidden-max]');
+                const currentMin = root.querySelector('[data-price-range-current-min]');
+                const currentMax = root.querySelector('[data-price-range-current-max]');
+                const progress = root.querySelector('[data-price-range-progress]');
+                const promoToggle = root.querySelector('[data-price-range-promo]');
+                const resetButton = root.querySelector('[data-price-filter-reset]');
+                const desktopPriceFilter = root.closest('[data-price-filter-root]');
+                const desktopPriceToggle = desktopPriceFilter?.querySelector('[data-price-filter-toggle]');
+
+                if (!form || !minRange || !maxRange || !hiddenMin || !hiddenMax || !currentMin || !currentMax || !progress) {
+                    return;
+                }
+
+                const minBound = Number(root.dataset.priceMinBound || minRange.min || 0);
+                const maxBound = Number(root.dataset.priceMaxBound || maxRange.max || minBound);
+                const totalRange = Math.max(1, maxBound - minBound);
+
+                const formatPrice = (value) => `${Math.round(value)} €`;
+                const setActiveState = () => {
+                    const hasActivePriceFilter = hiddenMin.value !== '' || hiddenMax.value !== '' || Boolean(promoToggle?.checked);
+                    if (desktopPriceToggle) {
+                        desktopPriceToggle.classList.toggle('is-active', hasActivePriceFilter);
+                    }
+                    if (resetButton) {
+                        resetButton.disabled = !hasActivePriceFilter;
+                    }
+                    updateGlobalResetVisibility(form);
+                };
+
+                const normalizePair = () => {
+                    let minValue = Number(minRange.value || minBound);
+                    let maxValue = Number(maxRange.value || maxBound);
+
+                    minValue = Math.max(minBound, Math.min(maxBound, minValue));
+                    maxValue = Math.max(minBound, Math.min(maxBound, maxValue));
+
+                    if (minValue > maxValue) {
+                        if (document.activeElement === minRange) {
+                            maxValue = minValue;
+                        } else {
+                            minValue = maxValue;
+                        }
+                    }
+
+                    minRange.value = String(minValue);
+                    maxRange.value = String(maxValue);
+
+                    return { minValue, maxValue };
+                };
+
+                const syncRangeState = () => {
+                    const { minValue, maxValue } = normalizePair();
+                    const left = ((minValue - minBound) / totalRange) * 100;
+                    const width = ((maxValue - minValue) / totalRange) * 100;
+
+                    hiddenMin.value = minValue <= minBound ? '' : String(minValue);
+                    hiddenMax.value = maxValue >= maxBound ? '' : String(maxValue);
+                    currentMin.textContent = formatPrice(minValue);
+                    currentMax.textContent = formatPrice(maxValue);
+                    progress.style.left = `${left}%`;
+                    progress.style.width = `${width}%`;
+
+                    setActiveState();
+                };
+
+                minRange.addEventListener('input', syncRangeState);
+                maxRange.addEventListener('input', syncRangeState);
+                minRange.addEventListener('change', () => {
+                    syncRangeState();
+                    submitFilterForm(form);
+                });
+                maxRange.addEventListener('change', () => {
+                    syncRangeState();
+                    submitFilterForm(form);
+                });
+
+                if (promoToggle) {
+                    promoToggle.addEventListener('change', () => {
+                        setActiveState();
+                        submitFilterForm(form);
+                    });
+                }
+
+                if (resetButton) {
+                    resetButton.addEventListener('click', () => {
+                        minRange.value = String(minBound);
+                        maxRange.value = String(maxBound);
+                        if (promoToggle) {
+                            promoToggle.checked = false;
+                        }
+                        syncRangeState();
+                        closePricePanel(root.closest('[data-price-filter-root]'));
+                        submitFilterForm(form);
+                    });
+                }
+
+                syncRangeState();
+            };
+
             const init = () => {
                 document.querySelectorAll('[data-mobile-filter-root]').forEach((root) => {
                     if (root.dataset.mobileFilterInit === '1') {
@@ -565,6 +1477,7 @@
                         panel.classList.toggle('hidden', !isHidden);
                         panel.classList.toggle('grid', isHidden);
                         toggle.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+                        root.classList.toggle('is-open', isHidden);
                     });
                 });
 
@@ -578,11 +1491,50 @@
                         if (!form) {
                             return;
                         }
-                        if (typeof form.requestSubmit === 'function') {
-                            form.requestSubmit();
+                        updateGlobalResetVisibility(form);
+                        submitFilterForm(form);
+                    });
+                });
+
+                document.querySelectorAll('form[data-desktop-filter-form], form[data-mobile-filter-panel]').forEach((form) => {
+                    updateGlobalResetVisibility(form);
+                });
+
+                document.querySelectorAll('[data-price-range-root]').forEach((root) => {
+                    initPriceRange(root);
+                });
+
+                document.querySelectorAll('[data-price-filter-root]').forEach((root) => {
+                    if (root.dataset.priceFilterInit === '1') {
+                        return;
+                    }
+
+                    root.dataset.priceFilterInit = '1';
+                    const toggle = root.querySelector('[data-price-filter-toggle]');
+                    const panel = root.querySelector('[data-price-filter-panel]');
+
+                    if (!toggle || !panel) {
+                        return;
+                    }
+
+                    const openPanel = () => {
+                        root.classList.add('is-open');
+                        toggle.setAttribute('aria-expanded', 'true');
+                    };
+
+                    toggle.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (root.classList.contains('is-open')) {
+                            closePricePanel(root);
                             return;
                         }
-                        form.submit();
+                        closeAllPricePanels(root);
+                        openPanel();
+                    });
+
+                    panel.addEventListener('click', (event) => {
+                        event.stopPropagation();
                     });
                 });
             };
@@ -592,6 +1544,21 @@
                 return;
             }
             init();
+
+            document.addEventListener('click', (event) => {
+                document.querySelectorAll('[data-price-filter-root].is-open').forEach((root) => {
+                    if (!root.contains(event.target)) {
+                        closePricePanel(root);
+                    }
+                });
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key !== 'Escape') {
+                    return;
+                }
+                closeAllPricePanels();
+            });
         })();
     </script>
 @endpush

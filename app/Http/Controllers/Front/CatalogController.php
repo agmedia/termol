@@ -5,16 +5,19 @@ namespace App\Http\Controllers\Front;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Http\Controllers\Front\Concerns\ResolvesGridColumns;
+use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Option\Option;
 use App\Models\Catalog\Option\OptionValue;
 use App\Models\Catalog\Product\Product;
+use App\Models\User;
 use App\Services\Content\ContentBlockResolver;
 use App\Services\Front\WishlistService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Response;
 use Illuminate\Http\RedirectResponse;
@@ -37,6 +40,11 @@ class CatalogController extends Controller
         $categorySlug = trim((string) $request->query('category', ''));
         $manufacturerSlug = trim((string) $request->query('manufacturer', ''));
         $sort = (string) $request->query('sort', 'newest');
+        $promoOnly = $this->normalizeBooleanFilterValue($request->query('promo_only'));
+        [$priceMin, $priceMax] = $this->normalizedPriceRange(
+            $request->query('price_min'),
+            $request->query('price_max')
+        );
         $configuredOptionIds = $this->configuredFilterOptionIds();
         $configuredAttributeGroups = $this->configuredFilterAttributeGroups();
         $optionFilters = $this->catalogOptionFilters($locale, $fallbackLocale, $configuredOptionIds);
@@ -60,8 +68,18 @@ class CatalogController extends Controller
         $this->queueGridColsCookie($gridCols);
 
         $query = Product::query()
-            ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
-            ->where('is_active', true)
+            ->select([
+                'products.id',
+                'products.code',
+                'products.sku',
+                'products.base_price',
+                'products.stock_qty',
+                'products.tax_rate_id',
+                'products.manufacturer_id',
+                'products.is_active',
+            ])
+            ->withApprovedCommentSummary([$locale, $fallbackLocale])
+            ->where('products.is_active', true)
             ->with([
                 'taxRate:id,rate,rate_type,is_active',
                 'translations' => fn ($q) => $q
@@ -134,12 +152,18 @@ class CatalogController extends Controller
             });
         }
 
+        if ($promoOnly) {
+            $this->applyPromotionFilter($query, $request->user());
+        }
+
+        $this->applyBasePriceFilter($query, $priceMin, $priceMax);
+
         match ($sort) {
-            'price_low' => $query->orderBy('base_price'),
-            'price_high' => $query->orderByDesc('base_price'),
-            'stock_high' => $query->orderByDesc('stock_qty')->orderByDesc('id'),
-            'oldest' => $query->orderBy('id'),
-            default => $query->orderByDesc('id'),
+            'price_low' => $this->applyPriceSort($query, 'asc'),
+            'price_high' => $this->applyPriceSort($query, 'desc'),
+            'stock_high' => $query->orderByDesc('products.stock_qty')->orderByDesc('products.id'),
+            'oldest' => $query->orderBy('products.id'),
+            default => $query->orderByDesc('products.id'),
         };
 
         $products = $query
@@ -158,6 +182,9 @@ class CatalogController extends Controller
                 'q' => $search,
                 'category' => $categorySlug,
                 'manufacturer' => $manufacturerSlug,
+                'price_min' => $priceMin,
+                'price_max' => $priceMax,
+                'promo_only' => $promoOnly,
                 'sort' => $sort,
                 'cols' => $gridCols,
             ],
@@ -211,6 +238,11 @@ class CatalogController extends Controller
         $categorySlug = $slug;
         $manufacturerSlug = trim((string) $request->query('manufacturer', ''));
         $sort = (string) $request->query('sort', 'newest');
+        $promoOnly = $this->normalizeBooleanFilterValue($request->query('promo_only'));
+        [$priceMin, $priceMax] = $this->normalizedPriceRange(
+            $request->query('price_min'),
+            $request->query('price_max')
+        );
         $gridCols = $this->resolveGridCols($request, 4);
         $this->queueGridColsCookie($gridCols);
 
@@ -272,35 +304,7 @@ class CatalogController extends Controller
 
         if ($showCategoryProducts) {
             $productsQuery = Product::query()
-                ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
-                ->where('is_active', true)
-                ->with([
-                    'taxRate:id,rate,rate_type,is_active',
-                    'translations' => fn ($q) => $q
-                        ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt'])
-                        ->whereIn('locale', [$locale, $fallbackLocale]),
-                    'categories.translations' => fn ($q) => $q
-                        ->where('scope', Category::SCOPE_CATALOG)
-                        ->whereIn('locale', [$locale, $fallbackLocale]),
-                    'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
-                    'media' => fn ($q) => $q
-                        ->whereIn('collection_name', ['product_main', 'product_gallery'])
-                        ->orderBy('order_column')
-                        ->orderBy('id'),
-                    'optionValues' => fn ($q) => $q
-                        ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'is_active', 'sort_order'])
-                        ->where('is_active', true)
-                        ->orderBy('sort_order')
-                        ->orderBy('id')
-                        ->with([
-                            'optionValue.translations' => fn ($tq) => $tq
-                                ->select(['id', 'option_value_id', 'locale', 'name'])
-                                ->whereIn('locale', [$locale, $fallbackLocale]),
-                            'parentOptionValue.translations' => fn ($tq) => $tq
-                                ->select(['id', 'option_value_id', 'locale', 'name'])
-                                ->whereIn('locale', [$locale, $fallbackLocale]),
-                        ]),
-                ])
+                ->where('products.is_active', true)
                 ->whereHas('categories', function ($categoryQuery) use ($categoryTreeIds): void {
                     $categoryQuery
                         ->where('scope', Category::SCOPE_CATALOG)
@@ -340,18 +344,73 @@ class CatalogController extends Controller
                 });
             }
 
+            $promoAvailabilityQuery = clone $productsQuery;
+            $this->applyBasePriceFilter($promoAvailabilityQuery, $priceMin, $priceMax);
+            $this->applyPromotionFilter($promoAvailabilityQuery, $request->user());
+            $promoFilterAvailable = (clone $promoAvailabilityQuery)->exists();
+
+            if ($promoOnly) {
+                $this->applyPromotionFilter($productsQuery, $request->user());
+            }
+
+            $priceBounds = $this->resolvePriceBounds($productsQuery, $priceMin, $priceMax);
+
+            $this->applyBasePriceFilter($productsQuery, $priceMin, $priceMax);
+
+            $productsQuery
+                ->select([
+                    'products.id',
+                    'products.code',
+                    'products.sku',
+                    'products.base_price',
+                    'products.stock_qty',
+                    'products.tax_rate_id',
+                    'products.manufacturer_id',
+                    'products.is_active',
+                ])
+                ->withApprovedCommentSummary([$locale, $fallbackLocale])
+                ->with([
+                    'taxRate:id,rate,rate_type,is_active',
+                    'translations' => fn ($q) => $q
+                        ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt'])
+                        ->whereIn('locale', [$locale, $fallbackLocale]),
+                    'categories.translations' => fn ($q) => $q
+                        ->where('scope', Category::SCOPE_CATALOG)
+                        ->whereIn('locale', [$locale, $fallbackLocale]),
+                    'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                    'media' => fn ($q) => $q
+                        ->whereIn('collection_name', ['product_main', 'product_gallery'])
+                        ->orderBy('order_column')
+                        ->orderBy('id'),
+                    'optionValues' => fn ($q) => $q
+                        ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'is_active', 'sort_order'])
+                        ->where('is_active', true)
+                        ->orderBy('sort_order')
+                        ->orderBy('id')
+                        ->with([
+                            'optionValue.translations' => fn ($tq) => $tq
+                                ->select(['id', 'option_value_id', 'locale', 'name'])
+                                ->whereIn('locale', [$locale, $fallbackLocale]),
+                            'parentOptionValue.translations' => fn ($tq) => $tq
+                                ->select(['id', 'option_value_id', 'locale', 'name'])
+                                ->whereIn('locale', [$locale, $fallbackLocale]),
+                        ]),
+                ]);
+
             match ($sort) {
-                'price_low' => $productsQuery->orderBy('base_price'),
-                'price_high' => $productsQuery->orderByDesc('base_price'),
-                'stock_high' => $productsQuery->orderByDesc('stock_qty')->orderByDesc('id'),
-                'oldest' => $productsQuery->orderBy('id'),
-                default => $productsQuery->orderByDesc('id'),
+                'price_low' => $this->applyPriceSort($productsQuery, 'asc'),
+                'price_high' => $this->applyPriceSort($productsQuery, 'desc'),
+                'stock_high' => $productsQuery->orderByDesc('products.stock_qty')->orderByDesc('products.id'),
+                'oldest' => $productsQuery->orderBy('products.id'),
+                default => $productsQuery->orderByDesc('products.id'),
             };
 
             $products = $productsQuery
                 ->paginate($this->shopPerPage($request, $gridCols))
                 ->withQueryString();
         } else {
+            $priceBounds = $this->resolvePriceBounds(null, $priceMin, $priceMax);
+            $promoFilterAvailable = false;
             $products = (new LengthAwarePaginator(
                 items: [],
                 total: 0,
@@ -454,9 +513,14 @@ class CatalogController extends Controller
             'filters' => [
                 'q' => $search,
                 'manufacturer' => $manufacturerSlug,
+                'price_min' => $priceMin,
+                'price_max' => $priceMax,
+                'promo_only' => $promoOnly,
                 'sort' => $sort,
                 'cols' => $gridCols,
             ],
+            'priceBounds' => $priceBounds,
+            'promoFilterAvailable' => $promoFilterAvailable ?? false,
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
         ]);
@@ -922,6 +986,265 @@ class CatalogController extends Controller
                         });
                 });
         });
+    }
+
+    /**
+     * @return array{0:?float,1:?float}
+     */
+    private function normalizedPriceRange(mixed $priceMinInput, mixed $priceMaxInput): array
+    {
+        $priceMin = $this->normalizePriceFilterValue($priceMinInput);
+        $priceMax = $this->normalizePriceFilterValue($priceMaxInput);
+
+        if ($priceMin !== null && $priceMax !== null && $priceMin > $priceMax) {
+            [$priceMin, $priceMax] = [$priceMax, $priceMin];
+        }
+
+        return [$priceMin, $priceMax];
+    }
+
+    private function normalizePriceFilterValue(mixed $value): ?float
+    {
+        if (is_int($value) || is_float($value)) {
+            return max(0.0, round((float) $value, 2));
+        }
+
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return null;
+        }
+
+        $normalized = str_replace([' ', ','], ['', '.'], $raw);
+        if (! is_numeric($normalized)) {
+            return null;
+        }
+
+        return max(0.0, round((float) $normalized, 2));
+    }
+
+    private function normalizeBooleanFilterValue(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        $normalized = strtolower(trim((string) $value));
+
+        return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
+    }
+
+    private function applyBasePriceFilter(Builder $query, ?float $priceMin, ?float $priceMax): void
+    {
+        if ($priceMin === null && $priceMax === null) {
+            return;
+        }
+
+        $defaultRate = $this->defaultCatalogTaxRate();
+        if ($this->usesStoredPriceColumn($defaultRate)) {
+            if ($priceMin !== null) {
+                $query->where('products.base_price', '>=', $priceMin);
+            }
+
+            if ($priceMax !== null) {
+                $query->where('products.base_price', '<=', $priceMax);
+            }
+
+            return;
+        }
+
+        $expression = $this->displayedPriceSqlExpression($query);
+
+        if ($priceMin !== null) {
+            $query->whereRaw($expression.' >= ?', [$priceMin]);
+        }
+
+        if ($priceMax !== null) {
+            $query->whereRaw($expression.' <= ?', [$priceMax]);
+        }
+    }
+
+    private function applyPriceSort(Builder $query, string $direction = 'asc'): void
+    {
+        $defaultRate = $this->defaultCatalogTaxRate();
+        if ($this->usesStoredPriceColumn($defaultRate)) {
+            $query->orderBy('products.base_price', $direction === 'desc' ? 'desc' : 'asc');
+
+            return;
+        }
+
+        $expression = $this->displayedPriceSqlExpression($query);
+        $query->orderByRaw($expression.' '.($direction === 'desc' ? 'DESC' : 'ASC'));
+    }
+
+    private function applyPromotionFilter(Builder $query, ?User $user): void
+    {
+        $promotionQuery = CatalogAction::query()
+            ->selectRaw('1')
+            ->active()
+            ->where('scope', CatalogAction::SCOPE_PRODUCT)
+            ->whereIn('type', [CatalogAction::TYPE_PERCENTAGE, CatalogAction::TYPE_FIXED])
+            ->where('discount_value', '>', 0)
+            ->availableForAudience($user)
+            ->where(function (Builder $couponQuery): void {
+                $couponQuery
+                    ->whereNull('coupon_code')
+                    ->orWhere('coupon_code', '');
+            })
+            ->where(function (Builder $matchQuery): void {
+                $matchQuery
+                    ->where('target_type', CatalogAction::TARGET_ALL)
+                    ->orWhere(function (Builder $productActionQuery): void {
+                        $productActionQuery
+                            ->where('target_type', CatalogAction::TARGET_PRODUCT)
+                            ->whereExists(function ($targetQuery): void {
+                                $targetQuery
+                                    ->selectRaw('1')
+                                    ->from('catalog_action_targets')
+                                    ->whereColumn('catalog_action_targets.action_id', 'catalog_actions.id')
+                                    ->where('catalog_action_targets.target_type', CatalogAction::TARGET_PRODUCT)
+                                    ->whereColumn('catalog_action_targets.target_id', 'products.id');
+                            });
+                    })
+                    ->orWhere(function (Builder $categoryActionQuery): void {
+                        $categoryActionQuery
+                            ->where('target_type', CatalogAction::TARGET_CATEGORY)
+                            ->whereExists(function ($targetQuery): void {
+                                $targetQuery
+                                    ->selectRaw('1')
+                                    ->from('catalog_action_targets')
+                                    ->join('category_product', 'category_product.category_id', '=', 'catalog_action_targets.target_id')
+                                    ->whereColumn('catalog_action_targets.action_id', 'catalog_actions.id')
+                                    ->where('catalog_action_targets.target_type', CatalogAction::TARGET_CATEGORY)
+                                    ->whereColumn('category_product.product_id', 'products.id');
+                            });
+                    })
+                    ->orWhere(function (Builder $manufacturerActionQuery): void {
+                        $manufacturerActionQuery
+                            ->where('target_type', CatalogAction::TARGET_MANUFACTURER)
+                            ->whereExists(function ($targetQuery): void {
+                                $targetQuery
+                                    ->selectRaw('1')
+                                    ->from('catalog_action_targets')
+                                    ->whereColumn('catalog_action_targets.action_id', 'catalog_actions.id')
+                                    ->where('catalog_action_targets.target_type', CatalogAction::TARGET_MANUFACTURER)
+                                    ->whereColumn('catalog_action_targets.target_id', 'products.manufacturer_id');
+                            });
+                    });
+            });
+
+        $query->whereExists($promotionQuery->getQuery());
+    }
+
+    /**
+     * @return array{min:?float,max:?float}
+     */
+    private function resolvePriceBounds(?Builder $query, ?float $fallbackMin = null, ?float $fallbackMax = null): array
+    {
+        $min = null;
+        $max = null;
+
+        if ($query !== null) {
+            $defaultRate = $this->defaultCatalogTaxRate();
+            $baseQuery = clone $query->getQuery();
+
+            $minQuery = clone $baseQuery;
+            if ($this->usesStoredPriceColumn($defaultRate)) {
+                $resolvedMin = $minQuery->min('products.base_price');
+            } else {
+                $minExpression = $this->displayedPriceSqlExpression($minQuery);
+                $resolvedMin = $minQuery->min(DB::raw($minExpression));
+            }
+
+            $maxQuery = clone $baseQuery;
+            if ($this->usesStoredPriceColumn($defaultRate)) {
+                $resolvedMax = $maxQuery->max('products.base_price');
+            } else {
+                $maxExpression = $this->displayedPriceSqlExpression($maxQuery);
+                $resolvedMax = $maxQuery->max(DB::raw($maxExpression));
+            }
+
+            $min = is_numeric($resolvedMin) ? round((float) $resolvedMin, 2) : null;
+            $max = is_numeric($resolvedMax) ? round((float) $resolvedMax, 2) : null;
+        }
+
+        return [
+            'min' => $min ?? $fallbackMin,
+            'max' => $max ?? $fallbackMax,
+        ];
+    }
+
+    private function displayedPriceSqlExpression(Builder|QueryBuilder $query): string
+    {
+        $baseQuery = $query instanceof Builder ? $query->getQuery() : $query;
+        $defaultRate = $this->defaultCatalogTaxRate();
+
+        if ($this->usesStoredPriceColumn($defaultRate)) {
+            return 'ROUND(CASE WHEN products.base_price < 0 THEN 0 ELSE products.base_price END, 2)';
+        }
+
+        $taxAlias = 'catalog_price_tax_rates';
+        $joins = $baseQuery->joins ?? [];
+        foreach ($joins as $join) {
+            if (($join->table ?? null) === 'tax_rates as '.$taxAlias) {
+                return $this->taxAdjustedPriceExpression($taxAlias, $defaultRate);
+            }
+        }
+
+        $query->leftJoin('tax_rates as '.$taxAlias, function ($join) use ($taxAlias): void {
+            $join->on('products.tax_rate_id', '=', $taxAlias.'.id')
+                ->where($taxAlias.'.is_active', true);
+        });
+
+        return $this->taxAdjustedPriceExpression($taxAlias, $defaultRate);
+    }
+
+    private function taxAdjustedPriceExpression(string $taxAlias, object $defaultRate): string
+    {
+        $defaultRateType = (($defaultRate->rate_type ?? 'percent') === 'fixed') ? 'fixed' : 'percent';
+        $defaultRateValue = round((float) ($defaultRate->rate ?? 0), 4);
+        $fixedExpression = sprintf(
+            'CASE WHEN (products.base_price + COALESCE(%s.rate, %F)) < 0 THEN 0 ELSE (products.base_price + COALESCE(%s.rate, %F)) END',
+            $taxAlias,
+            $defaultRateValue,
+            $taxAlias,
+            $defaultRateValue
+        );
+        $percentExpression = sprintf(
+            'CASE WHEN (products.base_price * (1 + (COALESCE(%s.rate, %F) / 100))) < 0 THEN 0 ELSE (products.base_price * (1 + (COALESCE(%s.rate, %F) / 100))) END',
+            $taxAlias,
+            $defaultRateValue,
+            $taxAlias,
+            $defaultRateValue
+        );
+
+        return sprintf(
+            "ROUND(CASE WHEN COALESCE(%s.rate_type, '%s') = 'fixed' THEN %s ELSE %s END, 2)",
+            $taxAlias,
+            $defaultRateType,
+            $fixedExpression,
+            $percentExpression
+        );
+    }
+
+    private function defaultCatalogTaxRate(): ?object
+    {
+        return DB::table('tax_rates')
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->select(['rate_type', 'rate'])
+            ->first();
+    }
+
+    private function usesStoredPriceColumn(?object $defaultRate = null): bool
+    {
+        $pricesIncludeTax = (bool) filter_var(
+            app(SystemSettingsService::class)->get('store_pricing_prices_include_tax', false),
+            FILTER_VALIDATE_BOOL
+        );
+
+        return $pricesIncludeTax || ! $defaultRate;
     }
 
     private function withDesktopCacheHeaders(Request $request, Response $response, string $scope): Response

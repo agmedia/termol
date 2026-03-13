@@ -1,6 +1,7 @@
 @php
     $translation = $product->translations->firstWhere('locale', $locale ?? app()->getLocale())
         ?? $product->translations->firstWhere('locale', $fallbackLocale ?? config('app.locale'));
+    $reviewSummary = $product->approvedCommentSummary([$locale ?? app()->getLocale(), $fallbackLocale ?? config('app.locale')]);
     $manufacturerTranslation = null;
     if ($product->relationLoaded('manufacturer')) {
         $manufacturerTranslation = $product->manufacturer?->translations?->firstWhere('locale', $locale ?? app()->getLocale())
@@ -18,6 +19,16 @@
     <div class="content">
         <div class="d-flex">
             <div class="w-100 pe-2">
+                @if ((int) ($reviewSummary['count'] ?? 0) > 0)
+                    <div class="mb-2">
+                        @include('front.partials.product-review-summary', [
+                            'count' => (int) ($reviewSummary['count'] ?? 0),
+                            'average' => (float) ($reviewSummary['avg'] ?? 0),
+                            'href' => route('products.show', ['slug' => $translation?->slug ?? $product->id]).'#product-comments',
+                            'size' => 'compact',
+                        ])
+                    </div>
+                @endif
                 <a href="{{ route('products.show', ['slug' => $translation?->slug ?? $product->id]) }}" class="d-block">
                     <h5 class="font-600 mb-1">{{ $translation?->name ?? $product->code }}</h5>
                     <p class="font-12 opacity-70 mb-2">{{ $translation?->excerpt ?: 'Catalog ready item.' }}</p>

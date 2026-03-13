@@ -91,6 +91,18 @@
 @section('page_title', $translation?->name ?? __('ui.shop.page_title'))
 
 @section('content')
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html {
+                scroll-behavior: auto;
+            }
+        }
+    </style>
+
     @if ($topBlocks->isNotEmpty())
         @include('components.content-placement', ['items' => $topBlocks])
     @endif
@@ -266,7 +278,7 @@
             @endphp
 
             <div class="divider mt-4"></div>
-            <div id="product-comments" class="d-flex justify-content-between align-items-center gap-2 mb-2">
+            <div id="product-comments" class="d-flex justify-content-between align-items-center gap-2 mb-2" style="scroll-margin-top: 90px;">
                 <h4 class="mb-0">{{ __('ui.product.comments_title') }}</h4>
                 <button type="button" class="btn p-0 font-600 text-uppercase font-11" data-comment-form-toggle aria-expanded="{{ $commentFormHasErrors ? 'true' : 'false' }}">
                     {{ __('ui.product.comment_form.toggle') }}
@@ -413,6 +425,27 @@
     <script defer src="{{ asset('front-theme/scripts/product-detail.js') }}?v={{ md5_file(public_path('front-theme/scripts/product-detail.js')) }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const commentsAnchor = document.getElementById('product-comments');
+            if (commentsAnchor) {
+                const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+                const scrollToComments = function () {
+                    commentsAnchor.scrollIntoView({
+                        behavior: prefersReducedMotion.matches ? 'auto' : 'smooth',
+                        block: 'start',
+                    });
+                };
+
+                if (window.location.hash === '#product-comments') {
+                    window.setTimeout(scrollToComments, 60);
+                }
+
+                window.addEventListener('hashchange', function () {
+                    if (window.location.hash === '#product-comments') {
+                        scrollToComments();
+                    }
+                });
+            }
+
             const toggle = document.querySelector('[data-comment-form-toggle]');
             const panel = document.querySelector('[data-comment-form-panel]');
             if (!toggle || !panel) return;

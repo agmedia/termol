@@ -103,6 +103,7 @@
         ? (int) request()->cookie('front_grid_cols', 4)
         : 4;
     $hasProductStory = ! empty($translation?->description) || ! empty($translation?->excerpt);
+    $reviewSummary = $product->approvedCommentSummary([$locale, $fallbackLocale]);
 @endphp
 
 @section('title', $translation?->name ?? 'Product')
@@ -110,6 +111,10 @@
 
 @section('content')
     <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
         .product-detail-layout {
             display: grid;
             gap: 2rem;
@@ -196,6 +201,12 @@
 
             .product-default-grid {
                 display: block;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html {
+                scroll-behavior: auto;
             }
         }
 
@@ -488,6 +499,15 @@
 
             <div class="mt-4">
                 <div>
+                    @if ((int) ($reviewSummary['count'] ?? 0) > 0)
+                        <div class="mb-2">
+                            @include('front.partials.product-review-summary', [
+                                'count' => (int) ($reviewSummary['count'] ?? 0),
+                                'average' => (float) ($reviewSummary['avg'] ?? 0),
+                                'href' => '#product-comments',
+                            ])
+                        </div>
+                    @endif
                     <h1 class="text-2xl font-extrabold leading-tight text-slate-900">{{ $translation?->name ?? $product->code }}</h1>
                     <p class="mt-1 text-xs text-slate-500">{{ __('ui.product.sku') }}: <span data-product-sku-value>{{ $product->sku ?: $product->code ?: 'n/a' }}</span></p>
                     @if ($manufacturerTranslation && $manufacturerEnabled)
@@ -889,7 +909,7 @@
                 $commentUser = auth()->user();
             @endphp
 
-            <div id="product-comments" class="mt-6 border-t border-slate-200 pt-4">
+            <div id="product-comments" class="mt-6 border-t border-slate-200 pt-4" style="scroll-margin-top: 110px;">
                 <div class="flex items-center justify-between gap-3">
                     <h3 class="text-base font-bold text-slate-900">{{ __('ui.product.comments_title') }}</h3>
                     <button
@@ -1833,6 +1853,27 @@
     @endif
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const commentsAnchor = document.getElementById('product-comments');
+            if (commentsAnchor) {
+                const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+                const scrollToComments = function () {
+                    commentsAnchor.scrollIntoView({
+                        behavior: prefersReducedMotion.matches ? 'auto' : 'smooth',
+                        block: 'start',
+                    });
+                };
+
+                if (window.location.hash === '#product-comments') {
+                    window.setTimeout(scrollToComments, 60);
+                }
+
+                window.addEventListener('hashchange', function () {
+                    if (window.location.hash === '#product-comments') {
+                        scrollToComments();
+                    }
+                });
+            }
+
             const toggle = document.querySelector('[data-comment-form-toggle]');
             const panel = document.querySelector('[data-comment-form-panel]');
             if (!toggle || !panel) return;

@@ -138,6 +138,16 @@
 
     @if ($flat)
         <div class="relative mt-3 px-2 pb-3">
+            @if ((int) ($reviewSummary['count'] ?? 0) > 0)
+                <div class="mb-1.5 pr-12">
+                    @include('front.partials.product-review-summary', [
+                        'count' => (int) ($reviewSummary['count'] ?? 0),
+                        'average' => (float) ($reviewSummary['avg'] ?? 0),
+                        'href' => $productUrl.'#product-comments',
+                        'size' => 'compact',
+                    ])
+                </div>
+            @endif
             <div>
                 <a href="{{ $productUrl }}" class="block pr-12">
                     <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-[15px]">{{ $productName }}</h3>
@@ -168,7 +178,17 @@
             </div>
         </div>
     @else
-        <a href="{{ $productUrl }}" class="mt-4 block">
+        @if ((int) ($reviewSummary['count'] ?? 0) > 0)
+            <div class="mt-4">
+                @include('front.partials.product-review-summary', [
+                    'count' => (int) ($reviewSummary['count'] ?? 0),
+                    'average' => (float) ($reviewSummary['avg'] ?? 0),
+                    'href' => $productUrl.'#product-comments',
+                    'size' => 'compact',
+                ])
+            </div>
+        @endif
+        <a href="{{ $productUrl }}" class="{{ (int) ($reviewSummary['count'] ?? 0) > 0 ? 'mt-2 block' : 'mt-4 block' }}">
             <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-[15px]">{{ $productName }}</h3>
         </a>
         <div class="mt-2 flex items-end justify-between">
