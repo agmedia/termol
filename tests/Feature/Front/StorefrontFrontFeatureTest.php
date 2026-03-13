@@ -27,8 +27,11 @@ use App\Models\Settings\Local\ShippingMethod;
 use App\Models\User;
 use App\Services\Front\NavigationMenuService;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class StorefrontFrontFeatureTest extends TestCase
@@ -313,6 +316,112 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('/shop', false);
     }
 
+    public function test_home_renders_footer_newsletter_validation_hooks(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('data-newsletter-form', false)
+            ->assertSee('data-newsletter-email', false)
+            ->assertSee('data-newsletter-error', false)
+            ->assertSee((string) __('ui.front.desktop.newsletter.validation.email_required'))
+            ->assertSee((string) __('ui.front.desktop.newsletter.validation.email_invalid'))
+            ->assertSee((string) __('ui.front.desktop.newsletter.validation.accept_terms'));
+    }
+
+    public function test_newsletter_form_requires_email_and_gdpr_consent(): void
+    {
+        $this->from('/')
+            ->post('/newsletter/subscribe', [])
+            ->assertRedirect('/')
+            ->assertSessionHasErrorsIn('newsletter', [
+                'newsletter_email',
+                'newsletter_accept_terms',
+            ]);
+    }
+
+    public function test_newsletter_form_stores_signup_when_database_provider_is_selected(): void
+    {
+        $this->createNewsletterSignupsTable();
+
+        app(SystemSettingsService::class)->putMany([
+            'store_newsletter_provider' => 'database',
+        ]);
+
+        $this->from('/')
+            ->post('/newsletter/subscribe', [
+                'newsletter_email' => 'newsletter@example.test',
+                'newsletter_accept_terms' => '1',
+            ])
+            ->assertRedirect('/')
+            ->assertSessionHas('status', (string) __('ui.front.desktop.newsletter.status.subscribed'));
+
+        $this->assertDatabaseHas('newsletter_signups', [
+            'email' => 'newsletter@example.test',
+            'provider' => 'database',
+            'sync_status' => 'synced',
+            'consent_accepted' => 1,
+        ]);
+    }
+
+    public function test_newsletter_form_syncs_mailchimp_without_local_database_storage(): void
+    {
+        $this->createNewsletterSignupsTable();
+
+        app(SystemSettingsService::class)->putMany([
+            'store_newsletter_provider' => 'mailchimp',
+            'store_newsletter_mailchimp_api_key' => 'test-key-us6',
+            'store_newsletter_mailchimp_list_id' => 'audience-123',
+        ]);
+
+        Http::fake([
+            'https://us6.api.mailchimp.com/3.0/lists/audience-123/members/*' => Http::response([
+                'id' => 'mailchimp-member-1',
+            ], 200),
+        ]);
+
+        $this->from('/')
+            ->post('/newsletter/subscribe', [
+                'newsletter_email' => 'newsletter@example.test',
+                'newsletter_accept_terms' => '1',
+            ])
+            ->assertRedirect('/')
+            ->assertSessionHas('status', (string) __('ui.front.desktop.newsletter.status.subscribed'));
+
+        $this->assertDatabaseMissing('newsletter_signups', [
+            'email' => 'newsletter@example.test',
+        ]);
+
+        Http::assertSentCount(1);
+    }
+
+    public function test_newsletter_form_returns_json_for_ajax_submission(): void
+    {
+        $this->createNewsletterSignupsTable();
+
+        app(SystemSettingsService::class)->putMany([
+            'store_newsletter_provider' => 'database',
+        ]);
+
+        $this->postJson('/newsletter/subscribe', [
+            'newsletter_email' => 'ajax-newsletter@example.test',
+            'newsletter_accept_terms' => '1',
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])
+            ->assertOk()
+            ->assertJson([
+                'message' => (string) __('ui.front.desktop.newsletter.status.subscribed'),
+                'type' => 'success',
+            ]);
+
+        $this->assertDatabaseHas('newsletter_signups', [
+            'email' => 'ajax-newsletter@example.test',
+            'provider' => 'database',
+            'sync_status' => 'synced',
+            'consent_accepted' => 1,
+        ]);
+    }
+
     public function test_category_page_includes_sastav_filter_and_filters_products(): void
     {
         $this->useEnglishStorefrontLocale();
@@ -449,8 +558,10 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js', false)
             ->assertSee('data-instagram-grid-splide', false)
-            ->assertSee("rewind: count > 1", false)
-            ->assertSee("640: { perPage: 1, gap: '0.8rem', arrows: false, pagination: count > 1 }", false);
+            ->assertSee("type: count > 1 ? 'loop' : 'slide'", false)
+            ->assertSee("const mobilePaddingRight = count > 1 ? '18%' : '0';", false)
+            ->assertSee("perPage: 1,", false)
+            ->assertSee("padding: { left: '0', right: mobilePaddingRight },", false);
     }
 
     public function test_shop_listing_falls_back_to_gallery_when_main_image_file_is_missing(): void
@@ -1342,6 +1453,32 @@ class StorefrontFrontFeatureTest extends TestCase
         ]);
 
         app()->setLocale('en');
+    }
+
+    private function createNewsletterSignupsTable(): void
+    {
+        if (Schema::hasTable('newsletter_signups')) {
+            return;
+        }
+
+        Schema::create('newsletter_signups', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('email')->unique();
+            $table->string('source', 50)->default('footer');
+            $table->string('locale', 12)->default('hr');
+            $table->string('provider', 20)->default('none')->index();
+            $table->string('sync_status', 20)->default('skipped')->index();
+            $table->boolean('consent_accepted')->default(false);
+            $table->string('provider_reference')->nullable();
+            $table->text('provider_error')->nullable();
+            $table->string('ip_address', 45)->nullable();
+            $table->text('user_agent')->nullable();
+            $table->timestamp('subscribed_at')->nullable()->index();
+            $table->timestamp('synced_at')->nullable();
+            $table->json('payload')->nullable();
+            $table->timestamps();
+        });
     }
 
     /**

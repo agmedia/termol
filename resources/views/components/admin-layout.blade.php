@@ -1059,12 +1059,14 @@
                     $usersGroupsActive = request()->routeIs('admin.users.groups');
                     $usersAccessActive = $canManageUsersAccess && request()->routeIs('admin.users.access');
                     $usersActivityActive = request()->routeIs('admin.users.activity');
+                    $usersNewsletterActive = request()->routeIs('admin.users.newsletter');
                     $usersLoyaltyActive = request()->routeIs('admin.users.loyalty');
                     $canViewUsersList = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.list.view'));
                     $canManageUserGroups = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.groups.manage'));
                     $canViewUserActivity = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.activity.view'));
+                    $canViewNewsletterSignups = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.newsletter.view'));
                     $canViewUserLoyalty = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.loyalty.view'));
-                    $usersOpen = $usersListActive || $usersGroupsActive || $usersAccessActive || $usersActivityActive || $usersLoyaltyActive;
+                    $usersOpen = $usersListActive || $usersGroupsActive || $usersAccessActive || $usersActivityActive || $usersNewsletterActive || $usersLoyaltyActive;
                     $settingsResource = request()->route('resource');
                     $helpRoute = request()->route()?->getName() ?? '';
                     $helpConfig = config('admin_help', []);
@@ -1074,6 +1076,7 @@
                         || auth()->user()->can('users.list.view')
                         || auth()->user()->can('users.groups.manage')
                         || auth()->user()->can('users.activity.view')
+                        || auth()->user()->can('users.newsletter.view')
                         || auth()->user()->can('users.loyalty.view')
                         || auth()->user()->can('users.access.manage')
                     );
@@ -1650,6 +1653,17 @@
                                         <span class="flex items-center gap-2">
                                             <span class="sidebar-dot"></span>
                                             <span>{{ __('admin.layout.menu.activity') }}</span>
+                                        </span>
+                                    </a>
+                                @endif
+                                @if ($canViewNewsletterSignups)
+                                    <a
+                                        href="{{ route('admin.users.newsletter') }}"
+                                        class="sidebar-dropdown-link block rounded-lg font-medium {{ $usersNewsletterActive ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
+                                    >
+                                        <span class="flex items-center gap-2">
+                                            <span class="sidebar-dot"></span>
+                                            <span>{{ __('admin.layout.menu.newsletter_signups') }}</span>
                                         </span>
                                     </a>
                                 @endif

@@ -51,6 +51,7 @@ return [
             'user' => 'User',
             'users' => 'Users',
             'users_list' => 'Users List',
+            'newsletter_signups' => 'Newsletter Signups',
             'groups' => 'Groups',
             'roles_abilities' => 'Roles & Abilities',
             'activity' => 'Activity',

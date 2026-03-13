@@ -496,8 +496,18 @@
 
 @include('front.partials.analytics-ecommerce')
 
-<footer class="{{ request()->routeIs('home') ? 'mt-0' : 'mt-5' }} border-t border-slate-200 bg-white">
+<footer class="{{ request()->routeIs('home') ? 'mt-0' : 'mt-5' }} bg-white">
+    <div class="mx-auto w-full max-w-7xl px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8">
+        <div class="flex w-full items-center gap-0">
+            @include('front.partials.section-heading-line', ['side' => 'left', 'lineColor' => '#d6dee8', 'iconClass' => 'h-3 w-3 shrink-0 text-slate-400 md:h-3.5 md:w-3.5', 'wrapperClass' => 'flex min-w-0 flex-1 items-center gap-2 md:gap-2.5'])
+            @include('front.partials.section-heading-line', ['side' => 'right', 'lineColor' => '#d6dee8', 'iconClass' => 'h-3 w-3 shrink-0 text-slate-400 md:h-3.5 md:w-3.5', 'wrapperClass' => 'flex min-w-0 flex-1 items-center gap-2 md:gap-2.5'])
+        </div>
+    </div>
     <div class="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        @php
+            $newsletterErrors = $errors->getBag('newsletter');
+        @endphp
+
         <section class="px-0 py-5">
             <div class="grid gap-4 lg:grid-cols-[1.2fr_1fr] lg:items-center">
                 <div>
@@ -505,15 +515,54 @@
                     <h3 class="mt-1 text-xl font-bold leading-tight text-slate-900">{{ __('ui.front.desktop.newsletter.title') }}</h3>
                     <p class="mt-1 text-sm text-slate-600">{{ __('ui.front.desktop.newsletter.subtitle') }}</p>
                 </div>
-                <form action="#" method="post" class="grid gap-2.5 sm:grid-cols-[1fr_auto]">
-                    <input type="email" placeholder="{{ __('ui.front.desktop.newsletter.placeholder') }}" class="h-11 border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500">
-                    <button type="button" class="h-11 border border-slate-300 bg-slate-100 px-5 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-200">
+                <form
+                    action="{{ route('newsletter.subscribe') }}"
+                    method="post"
+                    novalidate
+                    class="grid items-start gap-2.5 sm:grid-cols-[1fr_auto]"
+                    data-newsletter-form
+                    data-email-required-message="{{ __('ui.front.desktop.newsletter.validation.email_required') }}"
+                    data-email-invalid-message="{{ __('ui.front.desktop.newsletter.validation.email_invalid') }}"
+                    data-accept-terms-message="{{ __('ui.front.desktop.newsletter.validation.accept_terms') }}"
+                >
+                    @csrf
+                    <div class="space-y-1.5">
+                        <input
+                            type="email"
+                            name="newsletter_email"
+                            value="{{ (string) old('newsletter_email', '') }}"
+                            placeholder="{{ __('ui.front.desktop.newsletter.placeholder') }}"
+                            class="h-11 w-full border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none ring-0 transition placeholder:text-slate-400 focus:border-[#aeb9c8] focus:shadow-[0_0_0_3px_rgba(24,33,45,0.06)] focus:outline-none focus:ring-0"
+                            data-newsletter-email
+                            aria-describedby="footer-newsletter-error"
+                            aria-invalid="{{ $newsletterErrors->has('newsletter_email') ? 'true' : 'false' }}"
+                            autocomplete="email"
+                        >
+                        <p
+                            id="footer-newsletter-error"
+                            class="mt-2 text-xs font-semibold text-rose-600 {{ $newsletterErrors->has('newsletter_email') ? '' : 'hidden' }}"
+                            data-newsletter-error
+                            aria-live="polite"
+                        >{{ $newsletterErrors->first('newsletter_email') }}</p>
+                        <p class="mt-2 hidden text-xs font-semibold" data-newsletter-status aria-live="polite"></p>
+                    </div>
+                    <button type="submit" class="h-11 border border-slate-300 bg-slate-100 px-5 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-200">
                         {{ __('ui.front.desktop.newsletter.button') }}
                     </button>
-                    <label class="sm:col-span-2 flex items-start gap-2 text-[11px] text-slate-500">
-                        <input type="checkbox" class="mt-0.5 h-4 w-4 border-slate-400 text-slate-700 focus:ring-slate-500">
-                        {{ __('ui.front.desktop.newsletter.consent') }}
-                    </label>
+                    <div class="sm:col-span-2">
+                        <label class="flex items-start gap-2 text-[11px] text-slate-500">
+                            <input
+                                type="checkbox"
+                                name="newsletter_accept_terms"
+                                value="1"
+                                class="mt-0.5 h-4 w-4 border-slate-400 text-slate-700 focus:ring-0 focus:ring-offset-0"
+                                @checked((bool) old('newsletter_accept_terms'))
+                                data-newsletter-accept-terms
+                            >
+                            {{ __('ui.front.desktop.newsletter.consent') }}
+                        </label>
+                        <p class="mt-2 text-xs font-semibold text-rose-600 {{ $newsletterErrors->has('newsletter_accept_terms') ? '' : 'hidden' }}" data-newsletter-accept-error aria-live="polite">{{ $newsletterErrors->first('newsletter_accept_terms') }}</p>
+                    </div>
                 </form>
             </div>
         </section>
@@ -796,6 +845,200 @@
             }
         }
 
+        const newsletterForm = document.querySelector('[data-newsletter-form]');
+        if (newsletterForm) {
+            const emailInput = newsletterForm.querySelector('[data-newsletter-email]');
+            const errorMessage = newsletterForm.querySelector('[data-newsletter-error]');
+            const acceptTermsInput = newsletterForm.querySelector('[data-newsletter-accept-terms]');
+            const acceptTermsError = newsletterForm.querySelector('[data-newsletter-accept-error]');
+            const statusMessage = newsletterForm.querySelector('[data-newsletter-status]');
+            const requiredMessage = newsletterForm.dataset.emailRequiredMessage || 'Upišite email adresu.';
+            const invalidMessage = newsletterForm.dataset.emailInvalidMessage || 'Upišite ispravnu email adresu.';
+            const acceptTermsMessage = newsletterForm.dataset.acceptTermsMessage || 'Morate prihvatiti GDPR privolu.';
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            const clearEmailError = function () {
+                if (!emailInput || !errorMessage) {
+                    return;
+                }
+
+                errorMessage.textContent = '';
+                errorMessage.classList.add('hidden');
+                errorMessage.style.display = 'none';
+                emailInput.setAttribute('aria-invalid', 'false');
+            };
+
+            const showEmailError = function (message) {
+                if (!emailInput || !errorMessage) {
+                    return;
+                }
+
+                errorMessage.classList.add('hidden');
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = message;
+                errorMessage.classList.remove('hidden');
+                emailInput.setAttribute('aria-invalid', 'true');
+            };
+
+            const clearStatusMessage = function () {
+                if (!statusMessage) {
+                    return;
+                }
+
+                statusMessage.textContent = '';
+                statusMessage.className = 'mt-2 hidden text-xs font-semibold';
+            };
+
+            const showStatusMessage = function (message, tone) {
+                if (!statusMessage) {
+                    return;
+                }
+
+                const toneClass = tone === 'success'
+                    ? 'text-emerald-700'
+                    : (tone === 'warning' ? 'text-amber-700' : 'text-rose-600');
+
+                statusMessage.textContent = message;
+                statusMessage.className = 'mt-2 text-xs font-semibold ' + toneClass;
+            };
+
+            const clearAcceptTermsError = function () {
+                if (!acceptTermsError) {
+                    return;
+                }
+
+                acceptTermsError.textContent = '';
+                acceptTermsError.classList.add('hidden');
+                acceptTermsError.style.display = 'none';
+            };
+
+            const showAcceptTermsError = function (message) {
+                if (!acceptTermsError) {
+                    return;
+                }
+
+                acceptTermsError.classList.add('hidden');
+                acceptTermsError.style.display = 'block';
+                acceptTermsError.textContent = message;
+                acceptTermsError.classList.remove('hidden');
+            };
+
+            const validateNewsletterForm = function () {
+                clearEmailError();
+                clearAcceptTermsError();
+                clearStatusMessage();
+
+                let isValid = true;
+                const value = emailInput ? emailInput.value.trim() : '';
+
+                if (emailInput) {
+                    emailInput.value = value;
+                }
+
+                if (!emailInput || value === '') {
+                    showEmailError(requiredMessage);
+                    isValid = false;
+                } else if (!emailRegex.test(value)) {
+                    showEmailError(invalidMessage);
+                    isValid = false;
+                }
+
+                if (!acceptTermsInput || !acceptTermsInput.checked) {
+                    showAcceptTermsError(acceptTermsMessage);
+                    isValid = false;
+                }
+
+                return isValid;
+            };
+
+            newsletterForm.addEventListener('submit', async function (event) {
+                if (!validateNewsletterForm()) {
+                    event.preventDefault();
+                    return;
+                }
+
+                event.preventDefault();
+
+                const submitButton = newsletterForm.querySelector('button[type="submit"]');
+                const originalButtonText = submitButton ? submitButton.textContent : '';
+                const formData = new FormData(newsletterForm);
+
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.classList.add('opacity-70', 'cursor-not-allowed');
+                }
+
+                try {
+                    const response = await fetch(newsletterForm.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    const payload = await response.json().catch(function () {
+                        return {};
+                    });
+
+                    if (!response.ok) {
+                        const errors = payload && typeof payload === 'object' ? (payload.errors || {}) : {};
+                        const emailErrors = Array.isArray(errors.newsletter_email) ? errors.newsletter_email : [];
+                        const consentErrors = Array.isArray(errors.newsletter_accept_terms) ? errors.newsletter_accept_terms : [];
+
+                        if (emailErrors.length > 0) {
+                            showEmailError(emailErrors[0]);
+                        } else if (payload.message) {
+                            showEmailError(payload.message);
+                        }
+
+                        if (consentErrors.length > 0) {
+                            showAcceptTermsError(consentErrors[0]);
+                        }
+
+                        if (payload.message && emailErrors.length === 0 && consentErrors.length === 0) {
+                            showStatusMessage(payload.message, 'error');
+                        }
+
+                        return;
+                    }
+
+                    clearEmailError();
+                    clearAcceptTermsError();
+                    showStatusMessage(payload.message || 'Uspješno spremljeno.', payload.type || 'success');
+                    newsletterForm.reset();
+                    emailInput?.focus();
+                } catch (error) {
+                    showStatusMessage('Newsletter prijava trenutno nije moguća. Pokušajte ponovno uskoro.', 'error');
+                } finally {
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.classList.remove('opacity-70', 'cursor-not-allowed');
+                        submitButton.textContent = originalButtonText;
+                    }
+                }
+            });
+
+            emailInput?.addEventListener('input', function () {
+                if (emailInput.value.trim() === '') {
+                    clearEmailError();
+                    return;
+                }
+
+                if (emailRegex.test(emailInput.value.trim())) {
+                    clearEmailError();
+                }
+            });
+
+            acceptTermsInput?.addEventListener('change', function () {
+                if (acceptTermsInput.checked) {
+                    clearAcceptTermsError();
+                }
+            });
+        }
+
         const onLoadScripts = [];
 
         onLoadScripts.push(@json(asset('front-theme/scripts/desktop-header-menu.js').'?v='.filemtime(public_path('front-theme/scripts/desktop-header-menu.js'))));
@@ -832,6 +1075,7 @@
         window.addEventListener('pageshow', loadOnReady);
     })();
 </script>
+@include('front.partials.scroll-to-top')
 @include('front.partials.cookie-consent')
 @stack('scripts')
 </body>

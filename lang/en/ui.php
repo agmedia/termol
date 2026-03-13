@@ -101,6 +101,16 @@ return [
                 'placeholder' => 'Enter your email address',
                 'button' => 'Sign me up',
                 'consent' => 'I accept terms of use and data processing for newsletter.',
+                'status' => [
+                    'subscribed' => 'Thank you! You have been successfully signed up for the newsletter.',
+                    'saved_with_sync_issue' => 'Signup was saved, but sync with the newsletter service is currently unavailable.',
+                    'failed' => 'Newsletter signup is currently unavailable. Please try again soon.',
+                ],
+                'validation' => [
+                    'email_required' => 'Enter your email address.',
+                    'email_invalid' => 'Enter a valid email address.',
+                    'accept_terms' => 'You must accept the GDPR consent.',
+                ],
             ],
             'benefits' => [
                 'shipping' => 'Free shipping over 49,99 €',

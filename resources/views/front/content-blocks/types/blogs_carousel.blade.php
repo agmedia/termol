@@ -98,9 +98,9 @@
     <div class="w-full px-3 sm:px-4 lg:px-6">
         <div class="max-[540px]:mb-5 mb-8 text-center">
             <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
-                <span class="h-px flex-1 bg-slate-300"></span>
+                @include('front.partials.section-heading-line', ['side' => 'left'])
                 <h2 class="max-[540px]:text-[1.18rem] max-[540px]:leading-[1.65rem] text-[1.35rem] leading-[1.95rem] sm:text-[1.7rem] sm:leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $displayTitle }}</h2>
-                <span class="h-px flex-1 bg-slate-300"></span>
+                @include('front.partials.section-heading-line', ['side' => 'right'])
             </div>
             @if ($displaySubtitle !== '')
                 <p class="mx-auto mt-2 max-w-2xl text-sm text-slate-600 md:text-base">{{ $displaySubtitle }}</p>

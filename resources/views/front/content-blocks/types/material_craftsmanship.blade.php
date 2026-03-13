@@ -119,6 +119,10 @@
             transform: rotate(180deg);
         }
 
+        #material-comparison-{{ $block->id }} .material-expand-chevron {
+            transition: transform .28s ease;
+        }
+
         #material-comparison-{{ $block->id }} .material-summary {
             display: inline-flex;
             align-items: center;
@@ -138,11 +142,34 @@
             opacity: 0.8;
         }
 
-        #material-comparison-{{ $block->id }} .material-body {
+        #material-comparison-{{ $block->id }} .material-body-wrap {
+            display: grid;
+            grid-template-rows: 0fr;
+            margin-top: 0;
+            opacity: 0;
+            transition: grid-template-rows .3s ease, margin-top .3s ease, opacity .22s ease;
+        }
+
+        #material-comparison-{{ $block->id }} details[open] .material-body-wrap {
+            grid-template-rows: 1fr;
             margin-top: 0.8rem;
+            opacity: 1;
+        }
+
+        #material-comparison-{{ $block->id }} .material-body-inner {
+            overflow: hidden;
+        }
+
+        #material-comparison-{{ $block->id }} .material-body {
             color: #526072;
             font-size: 14px;
             line-height: 1.7;
+            transform: translateY(-8px);
+            transition: transform .3s ease;
+        }
+
+        #material-comparison-{{ $block->id }} details[open] .material-body {
+            transform: translateY(0);
         }
 
         #material-comparison-{{ $block->id }} .material-body p {
@@ -261,9 +288,9 @@
     <div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="max-[540px]:mb-5 mb-8 text-center">
             <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
-                <span class="h-px flex-1 bg-slate-300"></span>
+                @include('front.partials.section-heading-line', ['side' => 'left'])
                 <h2 class="max-[540px]:text-[1.18rem] max-[540px]:leading-[1.65rem] text-[1.35rem] leading-[1.95rem] sm:text-[1.7rem] sm:leading-[2.5rem] font-semibold text-slate-900">{{ $title }}</h2>
-                <span class="h-px flex-1 bg-slate-300"></span>
+                @include('front.partials.section-heading-line', ['side' => 'right'])
             </div>
 
             @if ($subtitle !== '')
@@ -324,9 +351,13 @@
                             </svg>
                         </summary>
 
-                        <div class="material-body">
-                            <p>{{ $material['body_1'] }}</p>
-                            <p>{{ $material['body_2'] }}</p>
+                        <div class="material-body-wrap">
+                            <div class="material-body-inner">
+                                <div class="material-body">
+                                    <p>{{ $material['body_1'] }}</p>
+                                    <p>{{ $material['body_2'] }}</p>
+                                </div>
+                            </div>
                         </div>
                     </details>
 

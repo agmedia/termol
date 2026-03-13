@@ -101,6 +101,16 @@ return [
                 'placeholder' => 'Upišite email adresu',
                 'button' => 'Prijavi me',
                 'consent' => 'Prihvaćam uvjete korištenja i obradu podataka za newsletter.',
+                'status' => [
+                    'subscribed' => 'Hvala! Uspješno ste prijavljeni na newsletter.',
+                    'saved_with_sync_issue' => 'Prijava je spremljena, ali sinkronizacija s newsletter servisom trenutno nije uspjela.',
+                    'failed' => 'Newsletter prijava trenutno nije moguća. Pokušajte ponovno uskoro.',
+                ],
+                'validation' => [
+                    'email_required' => 'Upišite email adresu.',
+                    'email_invalid' => 'Upišite ispravnu email adresu.',
+                    'accept_terms' => 'Morate prihvatiti GDPR privolu.',
+                ],
             ],
             'benefits' => [
                 'shipping' => 'Besplatna dostava iznad 49,99 €',

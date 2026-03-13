@@ -389,6 +389,15 @@ return [
                 'Use search by user/email/event/url for quick incident tracing.',
             ],
         ],
+        'admin.users.newsletter' => [
+            'title' => 'Newsletter Signups',
+            'summary' => 'Review newsletter emails saved from the storefront footer form and inspect external sync status.',
+            'bullets' => [
+                'Local database is the source of truth for every signup attempt.',
+                'Provider and sync status show whether Mailchimp/Klaviyo accepted the signup.',
+                'Use search to find user-linked signups or failed provider syncs quickly.',
+            ],
+        ],
         'admin.users.loyalty' => [
             'title' => 'User Loyalty',
             'summary' => 'Filterable loyalty ledger with user, type, date and points constraints.',

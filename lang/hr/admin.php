@@ -51,6 +51,7 @@ return [
             'user' => 'Korisnik',
             'users' => 'Korisnici',
             'users_list' => 'Lista korisnika',
+            'newsletter_signups' => 'Newsletter prijave',
             'groups' => 'Grupe',
             'roles_abilities' => 'Uloge i ovlasti',
             'activity' => 'Aktivnosti',

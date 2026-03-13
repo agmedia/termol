@@ -9,7 +9,9 @@ use App\Models\User;
 use App\Models\User\CustomerGroup;
 use App\Models\User\LoyaltyTransaction;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Spatie\Activitylog\Models\Activity;
@@ -43,9 +45,11 @@ class AdminUsersFeatureTest extends TestCase
     {
         $admin = $this->makeUserWithRole('admin');
         $target = $this->makeUserWithRole('customer');
+        $this->createNewsletterSignupsTable();
 
         $this->actingAs($admin)->get('/admin/users/groups')->assertOk()->assertSee('User Groups');
         $this->actingAs($admin)->get('/admin/users/activity')->assertOk()->assertSee('User Activity');
+        $this->actingAs($admin)->get('/admin/users/newsletter')->assertOk()->assertSee('Newsletter Signups');
         $this->actingAs($admin)->get('/admin/users/'.$target->id.'/show')->assertOk()->assertSee('User Overview');
     }
 
@@ -53,9 +57,11 @@ class AdminUsersFeatureTest extends TestCase
     {
         $editor = $this->makeUserWithRole('editor');
         $target = $this->makeUserWithRole('customer');
+        $this->createNewsletterSignupsTable();
 
         $this->actingAs($editor)->get('/admin/users/groups')->assertForbidden();
         $this->actingAs($editor)->get('/admin/users/activity')->assertForbidden();
+        $this->actingAs($editor)->get('/admin/users/newsletter')->assertForbidden();
         $this->actingAs($editor)->get('/admin/users/'.$target->id.'/show')->assertForbidden();
     }
 
@@ -348,5 +354,31 @@ class AdminUsersFeatureTest extends TestCase
             'created_by' => $user->id,
             'updated_by' => $user->id,
         ]);
+    }
+
+    private function createNewsletterSignupsTable(): void
+    {
+        if (Schema::hasTable('newsletter_signups')) {
+            return;
+        }
+
+        Schema::create('newsletter_signups', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('email')->unique();
+            $table->string('source', 50)->default('footer');
+            $table->string('locale', 12)->default('hr');
+            $table->string('provider', 20)->default('none')->index();
+            $table->string('sync_status', 20)->default('skipped')->index();
+            $table->boolean('consent_accepted')->default(false);
+            $table->string('provider_reference')->nullable();
+            $table->text('provider_error')->nullable();
+            $table->string('ip_address', 45)->nullable();
+            $table->text('user_agent')->nullable();
+            $table->timestamp('subscribed_at')->nullable()->index();
+            $table->timestamp('synced_at')->nullable();
+            $table->json('payload')->nullable();
+            $table->timestamps();
+        });
     }
 }

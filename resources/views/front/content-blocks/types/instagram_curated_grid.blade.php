@@ -42,6 +42,10 @@
         </div>
 
         <style>
+            #instagram-carousel-{{ $block->id }} {
+                position: relative;
+            }
+
             #instagram-carousel-{{ $block->id }} .splide__arrow {
                 opacity: 0;
                 width: 46px;
@@ -71,6 +75,37 @@
                 overflow: hidden;
             }
 
+            #instagram-carousel-{{ $block->id }} .splide__pagination {
+                bottom: -1.1rem;
+                z-index: 10;
+            }
+
+            #instagram-carousel-{{ $block->id }} .splide__pagination__page {
+                width: 8px;
+                height: 8px;
+                margin: 0 0.2rem;
+                opacity: 1;
+                background: #cbd5e1;
+                transition: background-color .2s ease, transform .2s ease;
+            }
+
+            #instagram-carousel-{{ $block->id }} .splide__pagination__page.is-active {
+                transform: none;
+                background: #0f172a;
+            }
+
+            @media (max-width: 640px) {
+                #instagram-carousel-{{ $block->id }} {
+                    padding-bottom: 1.5rem;
+                }
+
+                #instagram-carousel-{{ $block->id }} .splide__pagination {
+                    bottom: 0;
+                    pointer-events: auto;
+                    z-index: 20;
+                }
+            }
+
             @media (hover: none) {
                 #instagram-carousel-{{ $block->id }} .splide__arrow {
                     opacity: 1;
@@ -81,7 +116,7 @@
 
         @include('front.partials.splide-assets')
 
-        <div class="mt-6 w-full">
+        <div class="mt-6 w-full px-3 sm:px-4 md:px-0">
                 <div id="instagram-carousel-{{ $block->id }}" class="splide" data-instagram-grid-splide>
                     <div class="splide__track">
                         <ul class="splide__list">
@@ -171,12 +206,12 @@
                                 const laptopPerPage = Math.min(4, Math.max(1, count));
                                 const tabletPerPage = Math.min(3, Math.max(1, count));
                                 const compactTabletPerPage = Math.min(2, Math.max(1, count));
+                                const mobilePaddingRight = count > 1 ? '18%' : '0';
 
                                 el.dataset.splideReady = '1';
 
                                 new window.Splide(el, {
-                                    type: 'slide',
-                                    rewind: count > 1,
+                                    type: count > 1 ? 'loop' : 'slide',
                                     perPage: desktopPerPage,
                                     perMove: 1,
                                     gap: '1rem',
@@ -191,7 +226,13 @@
                                         1280: { perPage: laptopPerPage, arrows: count > laptopPerPage },
                                         1024: { perPage: tabletPerPage, arrows: count > tabletPerPage },
                                         860: { perPage: compactTabletPerPage, gap: '0.9rem', arrows: false },
-                                        640: { perPage: 1, gap: '0.8rem', arrows: false, pagination: count > 1 },
+                                        640: {
+                                            perPage: 1,
+                                            gap: '0.8rem',
+                                            arrows: false,
+                                            pagination: count > 1,
+                                            padding: { left: '0', right: mobilePaddingRight },
+                                        },
                                     },
                                 }).mount();
                             });

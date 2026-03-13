@@ -308,11 +308,31 @@ class StoreSettings extends Component
             'form.store_footer_social_tiktok_enabled' => ['required', 'boolean'],
             'form.store_footer_social_youtube_enabled' => ['required', 'boolean'],
 
-            'form.store_newsletter_provider' => ['required', 'string', 'in:none,mailchimp,klaviyo'],
-            'form.store_newsletter_mailchimp_api_key' => ['nullable', 'string', 'max:255'],
-            'form.store_newsletter_mailchimp_list_id' => ['nullable', 'string', 'max:255'],
-            'form.store_newsletter_klaviyo_api_key' => ['nullable', 'string', 'max:255'],
-            'form.store_newsletter_klaviyo_list_id' => ['nullable', 'string', 'max:255'],
+            'form.store_newsletter_provider' => ['required', 'string', 'in:none,database,mailchimp,klaviyo'],
+            'form.store_newsletter_mailchimp_api_key' => [
+                Rule::requiredIf(fn (): bool => (string) ($this->form['store_newsletter_provider'] ?? 'none') === 'mailchimp'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'form.store_newsletter_mailchimp_list_id' => [
+                Rule::requiredIf(fn (): bool => (string) ($this->form['store_newsletter_provider'] ?? 'none') === 'mailchimp'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'form.store_newsletter_klaviyo_api_key' => [
+                Rule::requiredIf(fn (): bool => (string) ($this->form['store_newsletter_provider'] ?? 'none') === 'klaviyo'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'form.store_newsletter_klaviyo_list_id' => [
+                Rule::requiredIf(fn (): bool => (string) ($this->form['store_newsletter_provider'] ?? 'none') === 'klaviyo'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
 
             'form.store_captcha_recaptcha_v3_enabled' => ['required', 'boolean'],
             'form.store_captcha_recaptcha_v3_site_key' => ['nullable', 'string', 'max:255'],

@@ -242,9 +242,11 @@
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Provider') }}</label>
                         <select wire:model="form.store_newsletter_provider" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm md:w-72">
                             <option value="none">{{ __('None') }}</option>
+                            <option value="database">{{ __('Database') }}</option>
                             <option value="mailchimp">{{ __('Mailchimp') }}</option>
                             <option value="klaviyo">{{ __('Klaviyo') }}</option>
                         </select>
+                        <p class="mt-2 text-xs text-slate-500">{{ __('Database stores signups locally and shows them in Users / Newsletter Signups.') }}</p>
                     </div>
                     <div>
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Mailchimp API Key') }}</label>

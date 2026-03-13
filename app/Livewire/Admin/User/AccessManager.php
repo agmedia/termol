@@ -326,6 +326,7 @@ class AccessManager extends Component
             'users.core' => __('Users / Core'),
             'users.groups' => __('Users / Groups'),
             'users.activity' => __('Users / Activity'),
+            'users.newsletter' => __('Users / Newsletter'),
             'users.loyalty' => __('Users / Loyalty'),
             'users.access' => __('Users / Access'),
             'catalog.categories' => __('Catalog / Categories'),

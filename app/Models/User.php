@@ -97,4 +97,9 @@ class User extends Authenticatable implements HasMedia
     {
         return $this->hasMany(\App\Models\User\WishlistItem::class);
     }
+
+    public function newsletterSignups(): HasMany
+    {
+        return $this->hasMany(\App\Models\User\NewsletterSignup::class);
+    }
 }

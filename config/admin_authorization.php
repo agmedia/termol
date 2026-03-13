@@ -240,6 +240,9 @@ return [
         'admin.users.activity' => [
             'view' => ['users.activity.view'],
         ],
+        'admin.users.newsletter' => [
+            'view' => ['users.newsletter.view'],
+        ],
         'admin.users.loyalty' => [
             'view' => ['users.loyalty.view'],
             'mutate' => ['users.loyalty.adjust'],

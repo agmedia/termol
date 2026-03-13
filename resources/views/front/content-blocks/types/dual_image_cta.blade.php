@@ -44,9 +44,9 @@
                 <div class="mb-8 text-center sm:mb-10">
                     @if ($displayTitle !== '')
                         <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
-                            <span class="h-px flex-1 bg-slate-300"></span>
+                            @include('front.partials.section-heading-line', ['side' => 'left'])
                             <h2 class="text-[1.35rem] leading-[1.95rem] font-semibold uppercase text-slate-900 sm:text-[1.7rem] sm:leading-[2.5rem]">{{ $displayTitle }}</h2>
-                            <span class="h-px flex-1 bg-slate-300"></span>
+                            @include('front.partials.section-heading-line', ['side' => 'right'])
                         </div>
                     @endif
 

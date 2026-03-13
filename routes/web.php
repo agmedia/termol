@@ -11,6 +11,7 @@ use App\Http\Controllers\Front\CheckoutController;
 use App\Http\Controllers\Front\ContactController;
 use App\Http\Controllers\Front\FaqController;
 use App\Http\Controllers\Front\ManufacturerController;
+use App\Http\Controllers\Front\NewsletterController;
 use App\Http\Controllers\Front\PageController;
 use App\Http\Controllers\Front\ProductController;
 use App\Http\Controllers\Front\StorefrontController;
@@ -87,6 +88,7 @@ Route::middleware(['front.locale', 'front.device'])
 
         Route::get('contact', [ContactController::class, 'create'])->name('contact.create');
         Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
+        Route::post('newsletter/subscribe', [NewsletterController::class, 'store'])->name('newsletter.subscribe');
 
         Route::get('cart', [CartController::class, 'index'])->name('cart.index');
         Route::post('cart/items', [CartController::class, 'store'])->name('cart.items.store');
@@ -261,6 +263,7 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
             })->name('actions.edit');
         });
         Route::view('users', 'admin.users.index')->name('users');
+        Route::view('users/newsletter', 'admin.users.newsletter')->name('users.newsletter');
         Route::view('users/groups', 'admin.users.groups')->name('users.groups');
         Route::view('users/access', 'admin.users.access')->name('users.access');
         Route::view('users/activity', 'admin.users.activity')->name('users.activity');

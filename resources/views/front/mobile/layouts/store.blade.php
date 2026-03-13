@@ -137,6 +137,7 @@
         }
     })();
 </script>
+@include('front.partials.scroll-to-top', ['mobileOffset' => true])
 @include('front.partials.cookie-consent')
 @stack('scripts')
 </body>
