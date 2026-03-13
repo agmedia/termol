@@ -11,14 +11,16 @@
 
     <section class="front-soft-hero mb-8 px-4 py-6 text-center sm:px-6">
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.account.dashboard.title') }}</h1>
-        <p class="mt-2 text-slate-600">{{ __('ui.account.dashboard.subtitle') }}</p>
+        <p class="mt-2 text-slate-600">
+            {{ $loyaltyEnabled ? __('ui.account.dashboard.subtitle') : __('ui.account.dashboard.subtitle_without_loyalty') }}
+        </p>
     </section>
 
     <div class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
         @include('front.desktop.account.partials.nav', ['current' => 'dashboard'])
 
         <div class="min-w-0 space-y-8">
-            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div class="{{ $loyaltyEnabled ? 'grid gap-5 md:grid-cols-2 xl:grid-cols-3' : 'grid gap-5 md:grid-cols-2' }}">
                 <article class="border border-slate-200 bg-white p-5">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.dashboard.cards.user') }}</p>
                     <h2 class="mt-2 text-xl font-bold text-slate-900">{{ $user->name }}</h2>
@@ -32,17 +34,14 @@
                     <a href="{{ route('account.orders') }}" class="mt-3 inline-flex border-b border-slate-900 text-sm font-semibold text-slate-900 hover:text-slate-700">{{ __('ui.account.dashboard.cards.view_orders') }}</a>
                 </article>
 
-                <article id="loyalty" class="border border-slate-200 bg-white p-5">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.dashboard.cards.loyalty') }}</p>
-                    @if ($loyaltyEnabled)
+                @if ($loyaltyEnabled)
+                    <article id="loyalty" class="border border-slate-200 bg-white p-5">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.dashboard.cards.loyalty') }}</p>
                         <h2 class="mt-2 text-xl font-bold text-slate-900">{{ $loyaltyBalance }} {{ __('ui.account.dashboard.cards.points') }}</h2>
                         <p class="mt-1 text-sm text-slate-600">{{ __('ui.account.dashboard.cards.loyalty_enabled') }}</p>
                         <a href="{{ route('account.loyalty') }}" class="mt-3 inline-flex border-b border-slate-900 text-sm font-semibold text-slate-900 hover:text-slate-700">{{ __('ui.account.loyalty.open') }}</a>
-                    @else
-                        <h2 class="mt-2 text-xl font-bold text-slate-900">{{ __('ui.account.dashboard.cards.disabled') }}</h2>
-                        <p class="mt-1 text-sm text-slate-600">{{ __('ui.account.dashboard.cards.loyalty_disabled') }}</p>
-                    @endif
-                </article>
+                    </article>
+                @endif
             </div>
 
             <section>

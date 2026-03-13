@@ -543,6 +543,7 @@ return [
             'page_title' => 'Moj račun',
             'title' => 'Moj račun',
             'subtitle' => 'Osobni podaci, narudžbe i loyalty pregled.',
+            'subtitle_without_loyalty' => 'Osobni podaci i pregled narudžbi.',
             'cards' => [
                 'user' => 'Korisnik',
                 'orders' => 'Narudžbe',

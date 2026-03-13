@@ -28,18 +28,16 @@
                     <h3 class="mb-0"><i class="fa fa-user font-18"></i></h3>
                 </a>
             </div>
-            <div class="col-12">
-                <div class="card card-style mx-0 p-3 mb-0">
-                    <h6 class="font-14 mb-1">{{ __('ui.account.nav.loyalty') }}</h6>
-                    @if ($loyaltyEnabled)
+            @if ($loyaltyEnabled)
+                <div class="col-12">
+                    <div class="card card-style mx-0 p-3 mb-0">
+                        <h6 class="font-14 mb-1">{{ __('ui.account.nav.loyalty') }}</h6>
                         <a href="{{ route('account.loyalty') }}" class="d-block color-theme">
                             <h3 class="color-green-dark mb-0">{{ $loyaltyBalance }} {{ __('ui.account.dashboard.cards.points') }}</h3>
                         </a>
-                    @else
-                        <h3 class="opacity-50 mb-0">{{ __('ui.account.dashboard.cards.disabled') }}</h3>
-                    @endif
+                    </div>
                 </div>
-            </div>
+            @endif
         </div>
     </div>
 

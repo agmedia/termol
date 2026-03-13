@@ -542,6 +542,7 @@ return [
             'page_title' => 'My account',
             'title' => 'My account',
             'subtitle' => 'Personal details, orders and loyalty overview.',
+            'subtitle_without_loyalty' => 'Personal details and order overview.',
             'cards' => [
                 'user' => 'User',
                 'orders' => 'Orders',

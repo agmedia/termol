@@ -458,6 +458,36 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->actingAs($user)->get('/account/profile')->assertOk();
     }
 
+    public function test_account_dashboard_hides_loyalty_summary_when_loyalty_feature_is_disabled(): void
+    {
+        app(SystemSettingsService::class)->put('user_loyalty_enabled', false);
+
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        $desktopResponse = $this->actingAs($user)->get('/account');
+
+        $desktopResponse
+            ->assertOk()
+            ->assertSee(__('ui.account.dashboard.subtitle_without_loyalty'))
+            ->assertSee('class="grid gap-5 md:grid-cols-2"', false)
+            ->assertDontSee('id="loyalty"', false)
+            ->assertDontSee(__('ui.account.dashboard.cards.loyalty_disabled'));
+
+        $mobileResponse = $this
+            ->actingAs($user)
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            ])
+            ->get('/account');
+
+        $mobileResponse
+            ->assertOk()
+            ->assertDontSee(__('ui.account.nav.loyalty'))
+            ->assertDontSee(__('ui.account.dashboard.cards.disabled'));
+    }
+
     public function test_checkout_creates_order_with_pretty_checkout_routes(): void
     {
         [$category] = $this->seedCategory();
