@@ -46,10 +46,7 @@ class CartController extends Controller
             ? (int) $validated['product_option_value_id']
             : null;
 
-        $requiresOption = ProductOptionValue::query()
-            ->where('product_id', $product->id)
-            ->where('is_active', true)
-            ->exists();
+        $requiresOption = $product->hasVisibleOptionRows();
 
         if ($requiresOption && ! $optionValueId) {
             if ($request->expectsJson() || $request->ajax()) {
@@ -66,12 +63,16 @@ class CartController extends Controller
         }
 
         if ($optionValueId) {
-            $optionExists = ProductOptionValue::query()
+            $optionRow = ProductOptionValue::query()
                 ->where('id', $optionValueId)
                 ->where('product_id', $product->id)
                 ->where('is_active', true)
-                ->exists();
-            if (! $optionExists) {
+                ->with([
+                    'optionValue.option:id,payload',
+                    'parentOptionValue.option:id,payload',
+                ])
+                ->first();
+            if (! $optionRow || ! $optionRow->showsOnProductPage()) {
                 if ($request->expectsJson() || $request->ajax()) {
                     return response()->json([
                         'ok' => false,

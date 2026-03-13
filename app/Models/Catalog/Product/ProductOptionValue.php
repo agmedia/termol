@@ -2,6 +2,7 @@
 
 namespace App\Models\Catalog\Product;
 
+use App\Models\Catalog\Option\Option;
 use App\Models\Catalog\Option\OptionValue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -57,5 +58,27 @@ class ProductOptionValue extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class, 'updated_by');
+    }
+
+    public function childOption(): ?Option
+    {
+        return $this->optionValue?->option;
+    }
+
+    public function parentOption(): ?Option
+    {
+        return $this->parentOptionValue?->option;
+    }
+
+    public function showsOnProductPage(): bool
+    {
+        $childVisible = $this->childOption()?->showsOnProductPage();
+        $parentVisible = $this->parentOption()?->showsOnProductPage();
+
+        if ((int) ($this->parent_option_value_id ?? 0) > 0) {
+            return ($parentVisible ?? true) && ($childVisible ?? true);
+        }
+
+        return $childVisible ?? $parentVisible ?? true;
     }
 }

@@ -14,6 +14,7 @@ class Option extends Model
     public const TYPE_SELECT = 'select';
     public const TYPE_RADIO = 'radio';
     public const TYPE_CHECKBOX = 'checkbox';
+    public const PAYLOAD_SHOW_ON_PRODUCT_PAGE = 'show_on_product_page';
 
     protected $table = 'catalog_options';
 
@@ -78,5 +79,16 @@ class Option extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class, 'updated_by');
+    }
+
+    public function showsOnProductPage(): bool
+    {
+        $payload = (array) ($this->payload ?? []);
+
+        if (! array_key_exists(self::PAYLOAD_SHOW_ON_PRODUCT_PAGE, $payload)) {
+            return true;
+        }
+
+        return filter_var($payload[self::PAYLOAD_SHOW_ON_PRODUCT_PAGE], FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true;
     }
 }

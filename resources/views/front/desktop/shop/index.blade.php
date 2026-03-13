@@ -170,6 +170,81 @@
                 font-weight: 600;
                 box-shadow: inset 3px 0 0 #0f172a;
             }
+
+            .catalog-filter-custom.is-color .catalog-filter-custom-button,
+            .catalog-filter-custom.is-color .catalog-filter-custom-item {
+                text-transform: none;
+                letter-spacing: 0;
+            }
+
+            .catalog-filter-custom.is-color .catalog-filter-custom-list {
+                width: min(290px, calc(100vw - 40px));
+                max-width: min(290px, calc(100vw - 40px));
+                max-height: 340px;
+                padding: .35rem;
+                border-radius: 12px;
+            }
+
+            .catalog-filter-custom.is-color .catalog-filter-custom-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: .75rem;
+                padding: .45rem;
+                border-radius: 10px;
+                font-size: .95rem;
+            }
+
+            .catalog-filter-color-item-content {
+                display: flex;
+                min-width: 0;
+                flex: 1 1 auto;
+                align-items: center;
+                gap: .8rem;
+            }
+
+            .catalog-filter-color-swatch {
+                display: inline-flex;
+                width: 32px;
+                height: 32px;
+                flex-shrink: 0;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                background: #fff;
+                background-position: center;
+                background-size: cover;
+            }
+
+            .catalog-filter-color-label {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                font-size: .95rem;
+                font-weight: 500;
+                color: #111827;
+            }
+
+            .catalog-filter-color-count {
+                display: inline-flex;
+                min-width: 28px;
+                height: 28px;
+                flex-shrink: 0;
+                align-items: center;
+                justify-content: center;
+                border-radius: 999px;
+                background: #f1f5f9;
+                padding: 0 .5rem;
+                font-size: .82rem;
+                font-weight: 700;
+                color: #6b7280;
+            }
+
+            .catalog-filter-custom.is-color .catalog-filter-custom-item.is-selected {
+                background: #f8fafc;
+                box-shadow: inset 0 0 0 1px #d1d5db;
+                font-weight: 500;
+            }
         }
     </style>
 
@@ -352,10 +427,10 @@
             @foreach (($optionFilters ?? []) as $filterOption)
                 <div class="w-[190px] xl:w-[210px]">
                     <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ $filterOption['label'] }}</label>
-                    <select name="{{ $filterOption['query_key'] }}" class="catalog-filter-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
+                    <select name="{{ $filterOption['query_key'] }}" class="catalog-filter-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter @if(($filterOption['kind'] ?? 'default') === 'color') data-filter-kind="color" @endif>
                         <option value="">{{ __('ui.shop.filters.select_option') }}</option>
                         @foreach (($filterOption['values'] ?? []) as $value)
-                            <option value="{{ $value['id'] }}" @selected((string) ($filterOption['selected'] ?? '') === (string) $value['id'])>
+                            <option value="{{ $value['id'] }}" @selected((string) ($filterOption['selected'] ?? '') === (string) $value['id']) @if(($filterOption['kind'] ?? 'default') === 'color') data-filter-count="{{ (int) ($value['count'] ?? 0) }}" @if(!empty($value['swatch_image_url'])) data-filter-swatch="{{ $value['swatch_image_url'] }}" @endif @endif>
                                 {{ $value['label'] }}
                             </option>
                         @endforeach

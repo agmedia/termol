@@ -125,17 +125,25 @@ class ProductController extends Controller
                     ->orderBy('sort_order')
                     ->orderBy('id')
                     ->with([
+                        'optionValue.option' => fn ($optionQuery) => $optionQuery
+                            ->select(['id', 'payload'])
+                            ->with([
+                                'translations' => fn ($oq) => $oq
+                                    ->select(['id', 'option_id', 'locale', 'name'])
+                                    ->whereIn('locale', [$locale, $fallbackLocale]),
+                            ]),
                         'optionValue.translations' => fn ($tq) => $tq
                             ->select(['id', 'option_value_id', 'locale', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
-                        'optionValue.option.translations' => fn ($oq) => $oq
-                            ->select(['id', 'option_id', 'locale', 'name'])
-                            ->whereIn('locale', [$locale, $fallbackLocale]),
+                        'parentOptionValue.option' => fn ($optionQuery) => $optionQuery
+                            ->select(['id', 'payload'])
+                            ->with([
+                                'translations' => fn ($oq) => $oq
+                                    ->select(['id', 'option_id', 'locale', 'name'])
+                                    ->whereIn('locale', [$locale, $fallbackLocale]),
+                            ]),
                         'parentOptionValue.translations' => fn ($tq) => $tq
                             ->select(['id', 'option_value_id', 'locale', 'name'])
-                            ->whereIn('locale', [$locale, $fallbackLocale]),
-                        'parentOptionValue.option.translations' => fn ($oq) => $oq
-                            ->select(['id', 'option_id', 'locale', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
                     ]),
             ])
@@ -164,17 +172,25 @@ class ProductController extends Controller
                     ->orderBy('sort_order')
                     ->orderBy('id')
                     ->with([
+                        'optionValue.option' => fn ($optionQuery) => $optionQuery
+                            ->select(['id', 'payload'])
+                            ->with([
+                                'translations' => fn ($oq) => $oq
+                                    ->select(['id', 'option_id', 'locale', 'name'])
+                                    ->whereIn('locale', [$locale, $fallbackLocale]),
+                            ]),
                         'optionValue.translations' => fn ($tq) => $tq
                             ->select(['id', 'option_value_id', 'locale', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
-                        'optionValue.option.translations' => fn ($oq) => $oq
-                            ->select(['id', 'option_id', 'locale', 'name'])
-                            ->whereIn('locale', [$locale, $fallbackLocale]),
+                        'parentOptionValue.option' => fn ($optionQuery) => $optionQuery
+                            ->select(['id', 'payload'])
+                            ->with([
+                                'translations' => fn ($oq) => $oq
+                                    ->select(['id', 'option_id', 'locale', 'name'])
+                                    ->whereIn('locale', [$locale, $fallbackLocale]),
+                            ]),
                         'parentOptionValue.translations' => fn ($tq) => $tq
                             ->select(['id', 'option_value_id', 'locale', 'name'])
-                            ->whereIn('locale', [$locale, $fallbackLocale]),
-                        'parentOptionValue.option.translations' => fn ($oq) => $oq
-                            ->select(['id', 'option_id', 'locale', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
                     ]),
             ])

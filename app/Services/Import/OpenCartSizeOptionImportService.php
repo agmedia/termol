@@ -40,14 +40,14 @@ class OpenCartSizeOptionImportService
         }
 
         $sourcePdo = $this->connectSourceDatabase([
-            'host' => (string) ($options['source_host'] ?: config('database.connections.mysql.host', '127.0.0.1')),
-            'port' => (int) ($options['source_port'] ?: config('database.connections.mysql.port', 3306)),
+            'host' => (string) (($options['source_host'] ?? null) ?: config('database.connections.mysql.host', '127.0.0.1')),
+            'port' => (int) (($options['source_port'] ?? null) ?: config('database.connections.mysql.port', 3306)),
             'database' => $sourceDatabase,
-            'username' => (string) ($options['source_user'] ?: config('database.connections.mysql.username', 'root')),
+            'username' => (string) (($options['source_user'] ?? null) ?: config('database.connections.mysql.username', 'root')),
             'password' => (string) ($options['source_pass'] ?? config('database.connections.mysql.password', '')),
         ]);
 
-        $sourceLanguageId = $options['language_id'] !== null && $options['language_id'] !== ''
+        $sourceLanguageId = ($options['language_id'] ?? null) !== null && ($options['language_id'] ?? null) !== ''
             ? (int) $options['language_id']
             : $this->detectLanguageId($sourcePdo, (string) ($options['language_code'] ?? 'hr-hr'));
 
@@ -55,7 +55,7 @@ class OpenCartSizeOptionImportService
         $fallbackLocale = $this->normalizeLocale((string) ($options['fallback_locale'] ?? 'en'), 'en');
         $targetOptionCode = trim((string) ($options['target_option_code'] ?? 'size'));
         $sourceOptionName = trim((string) ($options['source_option_name'] ?? 'Veličina'));
-        $sourceOptionId = $options['source_option_id'] !== null && $options['source_option_id'] !== ''
+        $sourceOptionId = ($options['source_option_id'] ?? null) !== null && ($options['source_option_id'] ?? null) !== ''
             ? (int) $options['source_option_id']
             : null;
 
@@ -412,8 +412,12 @@ class OpenCartSizeOptionImportService
             'code' => $targetOptionCode,
         ]);
 
+        $isNewOption = ! $option->exists;
+
         $option->fill([
-            'type' => Option::TYPE_RADIO,
+            'type' => $isNewOption
+                ? $this->mapSourceOptionType((string) ($sourceOption['type'] ?? ''))
+                : (string) ($option->type ?: $this->mapSourceOptionType((string) ($sourceOption['type'] ?? ''))),
             'is_active' => true,
             'sort_order' => (int) ($option->sort_order ?? 0),
             'payload' => array_filter(array_merge((array) ($option->payload ?? []), [
@@ -433,9 +437,11 @@ class OpenCartSizeOptionImportService
 
         $option->save();
 
+        $sourceLabel = trim((string) ($sourceOption['name'] ?? ''));
+        $fallbackLabel = $this->humanizeOptionCode($targetOptionCode);
         $labels = [
-            $targetLocale => 'Veličina',
-            $fallbackLocale => $fallbackLocale === 'hr' ? 'Veličina' : 'Size',
+            $targetLocale => $sourceLabel !== '' ? $sourceLabel : $fallbackLabel,
+            $fallbackLocale => $fallbackLabel,
         ];
 
         foreach ($labels as $locale => $label) {
@@ -444,7 +450,9 @@ class OpenCartSizeOptionImportService
                 'locale' => $locale,
             ]);
 
-            $translation->name = $label;
+            if (trim((string) $translation->name) === '') {
+                $translation->name = $label;
+            }
             $translation->description = $translation->description;
             $translation->payload = array_filter(array_merge((array) ($translation->payload ?? []), [
                 'source' => [
@@ -457,7 +465,9 @@ class OpenCartSizeOptionImportService
                 $translation->slug = $this->uniqueSlug(
                     table: 'catalog_option_translations',
                     locale: $locale,
-                    baseSlug: $locale === 'hr' ? 'velicina' : 'size',
+                    baseSlug: $locale === $targetLocale
+                        ? ($sourceLabel !== '' ? $sourceLabel : $targetOptionCode)
+                        : $fallbackLabel,
                     keyColumn: 'option_id',
                     ignoreId: (int) $option->id
                 );
@@ -544,7 +554,7 @@ class OpenCartSizeOptionImportService
                     $translation->slug = $this->uniqueSlug(
                         table: 'catalog_option_value_translations',
                         locale: $locale,
-                        baseSlug: ($locale === 'hr' ? 'velicina-' : 'size-').$code,
+                        baseSlug: $option->code.'-'.$code,
                         keyColumn: 'option_value_id',
                         ignoreId: (int) $value->id
                     );
@@ -635,6 +645,20 @@ class OpenCartSizeOptionImportService
         $value = trim(Str::lower($value));
 
         return $value !== '' ? $value : $fallback;
+    }
+
+    private function mapSourceOptionType(string $sourceType): string
+    {
+        return match (Str::lower(trim($sourceType))) {
+            'radio' => Option::TYPE_RADIO,
+            'checkbox' => Option::TYPE_CHECKBOX,
+            default => Option::TYPE_SELECT,
+        };
+    }
+
+    private function humanizeOptionCode(string $code): string
+    {
+        return trim(Str::of($code)->replace(['-', '_'], ' ')->title()->value());
     }
 
     private function nullableString(string $value): ?string

@@ -24,6 +24,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -97,9 +98,13 @@ class CatalogController extends Controller
                     ->orderBy('sort_order')
                     ->orderBy('id')
                     ->with([
+                        'optionValue.option' => fn ($optionQuery) => $optionQuery
+                            ->select(['id', 'payload']),
                         'optionValue.translations' => fn ($tq) => $tq
                             ->select(['id', 'option_value_id', 'locale', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
+                        'parentOptionValue.option' => fn ($optionQuery) => $optionQuery
+                            ->select(['id', 'payload']),
                         'parentOptionValue.translations' => fn ($tq) => $tq
                             ->select(['id', 'option_value_id', 'locale', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
@@ -388,9 +393,13 @@ class CatalogController extends Controller
                         ->orderBy('sort_order')
                         ->orderBy('id')
                         ->with([
+                            'optionValue.option' => fn ($optionQuery) => $optionQuery
+                                ->select(['id', 'payload']),
                             'optionValue.translations' => fn ($tq) => $tq
                                 ->select(['id', 'option_value_id', 'locale', 'name'])
                                 ->whereIn('locale', [$locale, $fallbackLocale]),
+                            'parentOptionValue.option' => fn ($optionQuery) => $optionQuery
+                                ->select(['id', 'payload']),
                             'parentOptionValue.translations' => fn ($tq) => $tq
                                 ->select(['id', 'option_value_id', 'locale', 'name'])
                                 ->whereIn('locale', [$locale, $fallbackLocale]),
@@ -598,7 +607,7 @@ class CatalogController extends Controller
 
     /**
      * @param  array<int, int>  $optionIds
-     * @return array<int, array{label:string,query_key:string,values:array<int, array{id:int,label:string}>}>
+     * @return array<int, array{label:string,query_key:string,kind:string,values:array<int, array{id:int,label:string,count:int}>}>
      */
     private function catalogOptionFilters(string $locale, string $fallbackLocale, array $optionIds, ?array $categoryScopeIds = null): array
     {
@@ -609,7 +618,7 @@ class CatalogController extends Controller
         $categoryKey = $categoryScopeIds !== null && $categoryScopeIds !== []
             ? sha1(implode(',', array_map(static fn ($id): int => (int) $id, $categoryScopeIds)))
             : 'all';
-        $cacheKey = sprintf('front:catalog:option-filters:%s:%s:%s:%s', $locale, $fallbackLocale, sha1(implode(',', $optionIds)), $categoryKey);
+        $cacheKey = sprintf('front:catalog:option-filters:v3:%s:%s:%s:%s', $locale, $fallbackLocale, sha1(implode(',', $optionIds)), $categoryKey);
 
         $rows = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($locale, $fallbackLocale, $optionIds, $categoryScopeIds): array {
             $scopeIds = collect($categoryScopeIds ?? [])
@@ -618,6 +627,7 @@ class CatalogController extends Controller
                 ->unique()
                 ->values()
                 ->all();
+            $valueCounts = $this->catalogOptionValueProductCounts($optionIds, $scopeIds);
             $options = Option::query()
                 ->whereIn('id', $optionIds)
                 ->where('is_active', true)
@@ -662,7 +672,7 @@ class CatalogController extends Controller
                 }
 
                 $values = $option->values
-                    ->map(function (OptionValue $value) use ($locale, $fallbackLocale): array {
+                    ->map(function (OptionValue $value) use ($locale, $fallbackLocale, $valueCounts): array {
                         $valueTranslation = $value->translations->firstWhere('locale', $locale)
                             ?? $value->translations->firstWhere('locale', $fallbackLocale)
                             ?? $value->translations->first();
@@ -671,6 +681,8 @@ class CatalogController extends Controller
                         return [
                             'id' => (int) $value->id,
                             'label' => $valueLabel !== '' ? $valueLabel : (string) $value->code,
+                            'count' => (int) ($valueCounts[(int) $value->id] ?? 0),
+                            'swatch_image_url' => $this->catalogOptionValueSwatchImageUrl($value),
                         ];
                     })
                     ->values()
@@ -683,6 +695,7 @@ class CatalogController extends Controller
                 $filters[] = [
                     'label' => $label,
                     'query_key' => 'opt_'.$option->id,
+                    'kind' => $this->catalogOptionFilterKind($option),
                     'values' => $values,
                 ];
             }
@@ -819,6 +832,7 @@ class CatalogController extends Controller
         return [[
             'label' => __('ui.shop.filters.size'),
             'query_key' => 'size',
+            'kind' => 'default',
             'values' => $values,
         ]];
     }
@@ -837,9 +851,9 @@ class CatalogController extends Controller
     }
 
     /**
-     * @param  array<int, array{label:string,query_key:string,values:array<int, array{id:int,label:string}>}>  $filters
+     * @param  array<int, array{label:string,query_key:string,kind?:string,values:array<int, array{id:int,label:string,count?:int}>}>  $filters
      * @param  array<string, int|null>  $selectedMap
-     * @return array<int, array{label:string,query_key:string,selected:int|null,values:array<int, array{id:int,label:string}>}>
+     * @return array<int, array{label:string,query_key:string,kind:string,selected:int|null,values:array<int, array{id:int,label:string,count?:int}>}>
      */
     private function withSelectedFilters(array $filters, array $selectedMap): array
     {
@@ -850,10 +864,75 @@ class CatalogController extends Controller
             return [
                 'label' => (string) $filter['label'],
                 'query_key' => $queryKey,
+                'kind' => (string) ($filter['kind'] ?? 'default'),
                 'selected' => $selected > 0 ? $selected : null,
                 'values' => $filter['values'],
             ];
         }, $filters);
+    }
+
+    /**
+     * @param  array<int, int>  $optionIds
+     * @param  array<int, int>  $scopeIds
+     * @return array<int, int>
+     */
+    private function catalogOptionValueProductCounts(array $optionIds, array $scopeIds = []): array
+    {
+        if ($optionIds === []) {
+            return [];
+        }
+
+        $query = DB::table('catalog_option_values as option_values')
+            ->join('catalog_product_option_values as product_option_values', function ($join): void {
+                $join->on('product_option_values.option_value_id', '=', 'option_values.id')
+                    ->where('product_option_values.is_active', true);
+            })
+            ->join('products', function ($join): void {
+                $join->on('products.id', '=', 'product_option_values.product_id')
+                    ->where('products.is_active', true);
+            })
+            ->whereIn('option_values.option_id', $optionIds)
+            ->where('option_values.is_active', true);
+
+        if ($scopeIds !== []) {
+            $query
+                ->join('category_product', 'category_product.product_id', '=', 'products.id')
+                ->join('categories', 'categories.id', '=', 'category_product.category_id')
+                ->where('categories.scope', Category::SCOPE_CATALOG)
+                ->where('categories.is_active', true)
+                ->whereIn('categories.id', $scopeIds);
+        }
+
+        return $query
+            ->selectRaw('option_values.id as option_value_id, COUNT(DISTINCT products.id) as product_count')
+            ->groupBy('option_values.id')
+            ->pluck('product_count', 'option_value_id')
+            ->map(fn ($count): int => (int) $count)
+            ->all();
+    }
+
+    private function catalogOptionFilterKind(Option $option): string
+    {
+        $code = Str::lower(trim((string) $option->code));
+
+        return Str::startsWith($code, ['color', 'colour', 'boja'])
+            ? 'color'
+            : 'default';
+    }
+
+    private function catalogOptionValueSwatchImageUrl(OptionValue $value): ?string
+    {
+        $path = trim((string) data_get($value->payload, 'swatch_image_path', ''));
+
+        if ($path === '') {
+            return null;
+        }
+
+        if (Str::startsWith($path, ['http://', 'https://', '//', '/'])) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 
     private function cachedCatalogSizes(string $locale, string $fallbackLocale, ?array $categoryScopeIds = null)

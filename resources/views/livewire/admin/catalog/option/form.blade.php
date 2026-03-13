@@ -56,7 +56,7 @@
                 </div>
             </div>
 
-            <div class="mt-4">
+            <div class="mt-4 flex flex-wrap items-center gap-4">
                 <button
                     type="button"
                     wire:click="$toggle('form.is_active')"
@@ -71,7 +71,27 @@
                     </span>
                     <span class="admin-switch-label">{{ $form['is_active'] ? __('admin.common.active') : __('admin.common.inactive') }}</span>
                 </button>
+
+                <button
+                    type="button"
+                    wire:click="$toggle('form.show_on_product_page')"
+                    class="admin-switch"
+                    data-state="{{ $form['show_on_product_page'] ? 'on' : 'off' }}"
+                    role="switch"
+                    aria-checked="{{ $form['show_on_product_page'] ? 'true' : 'false' }}"
+                    aria-label="{{ __('Toggle product page option visibility') }}"
+                >
+                    <span class="admin-switch-track">
+                        <span class="admin-switch-thumb"></span>
+                    </span>
+                    <span class="admin-switch-label">{{ $form['show_on_product_page'] ? __('Shown on product page') : __('Filter only / hidden on product page') }}</span>
+                </button>
             </div>
+
+            <p class="mt-3 text-xs text-slate-500">
+                {{ __('When disabled, the option stays available for imports and catalog filters, but it will not be rendered on the product page.') }}
+            </p>
+            @error('form.show_on_product_page') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
 
         <div class="grid gap-6 xl:grid-cols-2">

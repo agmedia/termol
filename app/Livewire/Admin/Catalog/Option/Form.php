@@ -17,6 +17,7 @@ class Form extends Component
         'code' => '',
         'type' => Option::TYPE_SELECT,
         'is_active' => true,
+        'show_on_product_page' => true,
         'sort_order' => 0,
         'payload_text' => '',
         'locale' => 'en',
@@ -67,6 +68,9 @@ class Form extends Component
         $userId = auth()->id();
 
         DB::transaction(function () use ($validated, $payload, $translationPayload, $userId, $wasEditing): void {
+            $payload = (array) ($payload ?? []);
+            $payload[Option::PAYLOAD_SHOW_ON_PRODUCT_PAGE] = (bool) $validated['form']['show_on_product_page'];
+
             $optionData = [
                 'code' => trim((string) $validated['form']['code']),
                 'type' => (string) $validated['form']['type'],
@@ -150,6 +154,7 @@ class Form extends Component
             ],
             'form.type' => ['required', Rule::in(Option::availableTypes())],
             'form.is_active' => ['boolean'],
+            'form.show_on_product_page' => ['boolean'],
             'form.sort_order' => ['nullable', 'integer', 'min:0'],
             'form.payload_text' => ['nullable', 'string'],
 
@@ -187,6 +192,7 @@ class Form extends Component
         $this->form['code'] = $option->code;
         $this->form['type'] = $option->type;
         $this->form['is_active'] = (bool) $option->is_active;
+        $this->form['show_on_product_page'] = $option->showsOnProductPage();
         $this->form['sort_order'] = (int) $option->sort_order;
         $this->form['payload_text'] = $option->payload
             ? json_encode($option->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)

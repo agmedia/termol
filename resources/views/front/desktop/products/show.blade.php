@@ -60,7 +60,7 @@
         })
         ->values();
 
-    $optionRows = $product->optionValues->where('is_active', true)->values();
+    $optionRows = $product->visibleOptionRows();
     $hasLinkedOptions = $optionRows->contains(fn ($row) => (int) ($row->parent_option_value_id ?? 0) > 0);
     $primaryOptionLabel = __('ui.cart.modal.option');
     $secondaryOptionLabel = __('ui.cart.modal.option');

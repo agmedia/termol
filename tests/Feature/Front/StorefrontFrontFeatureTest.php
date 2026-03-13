@@ -607,6 +607,81 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertDontSee('Color Scope');
     }
 
+    public function test_filter_only_option_is_hidden_on_product_page_but_stays_available_in_category_filter(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category, $categorySlug] = $this->seedCategory();
+        [$redProduct, $redSlug] = $this->seedProduct($category->id);
+        [$blueProduct, $blueSlug] = $this->seedProduct($category->id);
+
+        $this->attachProductSizeOptions($redProduct, ['M']);
+        $this->attachProductSizeOptions($blueProduct, ['M']);
+
+        $colorOption = $this->createProductOption('Color', false);
+        $redValue = $this->attachOptionValueToProduct($redProduct, $colorOption, 'Red', 1);
+        $this->attachOptionValueToProduct($blueProduct, $colorOption, 'Blue', 1);
+
+        app(SystemSettingsService::class)->put('store_product_filter_option_ids', [$colorOption->id]);
+
+        $this->get('/product/'.$redSlug)
+            ->assertOk()
+            ->assertSee('M')
+            ->assertDontSee('data-size-label="Red"', false)
+            ->assertDontSee('data-size-label="Blue"', false);
+
+        $this->get('/category/'.$categorySlug)
+            ->assertOk()
+            ->assertSee('Color')
+            ->assertSee('data-filter-kind="color"', false)
+            ->assertSee('data-filter-count="1"', false)
+            ->assertSee('Red')
+            ->assertSee('Blue');
+
+        $this->get('/category/'.$categorySlug.'?opt_'.$colorOption->id.'='.$redValue->id)
+            ->assertOk()
+            ->assertSee($redSlug)
+            ->assertDontSee($blueSlug);
+    }
+
+    public function test_category_color_filter_uses_uploaded_swatch_image_when_available(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category, $categorySlug] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $colorOption = $this->createProductOption('Color', false);
+        $redValue = $this->attachOptionValueToProduct($product, $colorOption, 'Red', 1);
+        $redValue->update([
+            'payload' => [
+                'swatch_image_path' => 'catalog/option-values/swatch/red-swatch.png',
+            ],
+        ]);
+
+        app(SystemSettingsService::class)->put('store_product_filter_option_ids', [$colorOption->id]);
+
+        $this->get('/category/'.$categorySlug)
+            ->assertOk()
+            ->assertSee('data-filter-kind="color"', false)
+            ->assertSee('data-filter-swatch=', false)
+            ->assertSee('red-swatch.png', false);
+    }
+
+    public function test_filter_only_option_does_not_require_selection_on_add_to_cart(): void
+    {
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $colorOption = $this->createProductOption('Color', false);
+        $this->attachOptionValueToProduct($product, $colorOption, 'Red', 1);
+
+        $this->post('/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 1,
+        ])->assertRedirect();
+
+        $this->assertSame(1, app(\App\Services\Front\CartService::class)->summary()['item_qty']);
+    }
+
     public function test_product_detail_renders_attribute_panels_in_requested_order_without_store_check_button(): void
     {
         $this->useEnglishStorefrontLocale();
@@ -1050,6 +1125,71 @@ class StorefrontFrontFeatureTest extends TestCase
                 'payload' => null,
             ]);
         }
+    }
+
+    private function createProductOption(string $name, bool $showOnProductPage = true): Option
+    {
+        $option = Option::query()->create([
+            'code' => str($name)->slug()->value().'-'.strtolower((string) str()->random(6)),
+            'type' => Option::TYPE_SELECT,
+            'is_active' => true,
+            'sort_order' => 1,
+            'payload' => [
+                Option::PAYLOAD_SHOW_ON_PRODUCT_PAGE => $showOnProductPage,
+            ],
+        ]);
+
+        $option->translations()->create([
+            'locale' => 'en',
+            'name' => $name,
+            'slug' => str($name)->slug()->value().'-'.strtolower((string) str()->random(6)),
+            'description' => null,
+            'payload' => null,
+        ]);
+
+        return $option;
+    }
+
+    private function attachOptionValueToProduct(Product $product, Option $option, string $label, int $sortOrder = 1): OptionValue
+    {
+        $option->products()->syncWithoutDetaching([
+            $product->id => [
+                'is_required' => true,
+                'sort_order' => $sortOrder,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $value = OptionValue::query()->create([
+            'option_id' => $option->id,
+            'code' => str($option->code.'-'.$label)->slug()->value().'-'.strtolower((string) str()->random(4)),
+            'is_active' => true,
+            'sort_order' => $sortOrder,
+        ]);
+
+        $value->translations()->create([
+            'locale' => 'en',
+            'name' => $label,
+            'slug' => str($label)->slug()->value().'-'.strtolower((string) str()->random(4)),
+            'payload' => null,
+        ]);
+
+        ProductOptionValue::query()->create([
+            'product_id' => $product->id,
+            'option_value_id' => $value->id,
+            'parent_option_value_id' => null,
+            'mode' => 'single',
+            'sku' => 'OPT-'.strtoupper((string) str()->random(4)),
+            'stock_qty' => 5,
+            'price_override' => null,
+            'sort_order' => $sortOrder,
+            'is_active' => true,
+            'combination_hash' => hash('sha256', $product->id.'-'.$value->id.'-single'),
+            'payload' => null,
+        ]);
+
+        return $value;
     }
 
     private function seedSizeGuidePage(string $code, string $bodyHtml): void

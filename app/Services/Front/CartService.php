@@ -397,19 +397,26 @@ class CartService
             return null;
         }
 
-        return ProductOptionValue::query()
+        $optionRow = ProductOptionValue::query()
             ->where('id', $id)
             ->where('product_id', $product->id)
             ->where('is_active', true)
+            ->with([
+                'optionValue.option:id,payload',
+                'parentOptionValue.option:id,payload',
+            ])
             ->first();
+
+        if (! $optionRow || ! $optionRow->showsOnProductPage()) {
+            return null;
+        }
+
+        return $optionRow;
     }
 
     private function requiresOptionSelection(Product $product): bool
     {
-        return ProductOptionValue::query()
-            ->where('product_id', $product->id)
-            ->where('is_active', true)
-            ->exists();
+        return $product->hasVisibleOptionRows();
     }
 
     /**

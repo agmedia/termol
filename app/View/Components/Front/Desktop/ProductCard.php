@@ -93,8 +93,7 @@ class ProductCard extends Component
         $hoverImageWidth = max(1, (int) ($hoverMedia?->width ?? $imageWidth));
         $hoverImageHeight = max(1, (int) ($hoverMedia?->height ?? $imageHeight));
 
-        $optionRows = $this->product->optionValues
-            ->where('is_active', true)
+        $optionRows = $this->product->visibleOptionRows()
             ->values()
             ->map(function ($row) use ($locale, $fallbackLocale): array {
                 $rowId = (int) $row->id;

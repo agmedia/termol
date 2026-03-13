@@ -268,6 +268,56 @@
             line-height: 1.4;
         }
 
+        .catalog-filter-sticky-shell {
+            position: relative;
+            z-index: 30;
+            --catalog-sticky-bleed: 12px;
+        }
+
+        @media (min-width: 640px) {
+            .catalog-filter-sticky-shell {
+                --catalog-sticky-bleed: 16px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .catalog-filter-sticky-shell {
+                --catalog-sticky-bleed: 24px;
+            }
+        }
+
+        .catalog-filter-sticky-bar {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(10px);
+        }
+
+        .catalog-filter-sticky-shell.is-pinned {
+            min-height: var(--catalog-sticky-height, auto);
+        }
+
+        .catalog-filter-sticky-shell.is-pinned .catalog-filter-sticky-bar {
+            position: fixed;
+            top: var(--catalog-sticky-top, var(--site-header-bottom, 60px));
+            left: calc(var(--catalog-sticky-left, 0px) - var(--catalog-sticky-bleed, 0px));
+            width: calc(var(--catalog-sticky-width, 100%) + (var(--catalog-sticky-bleed, 0px) * 2));
+            z-index: 35;
+            box-sizing: border-box;
+            background: #fff;
+            backdrop-filter: none;
+            padding-top: .5rem;
+            padding-bottom: .5rem !important;
+            padding-left: var(--catalog-sticky-bleed, 0px);
+            padding-right: var(--catalog-sticky-bleed, 0px);
+            border-bottom-color: transparent !important;
+            box-shadow: 0 14px 28px rgba(15, 23, 42, .08);
+        }
+
+        @supports not ((backdrop-filter: blur(10px))) {
+            .catalog-filter-sticky-bar {
+                background: rgba(255, 255, 255, 0.99);
+            }
+        }
+
         .catalog-switch {
             position: relative;
             flex-shrink: 0;
@@ -359,24 +409,26 @@
 
         @media (max-width: 1024px) {
             .catalog-mobile-filter-toolbar {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) auto;
+                display: flex;
                 align-items: center;
+                justify-content: flex-start;
                 gap: .55rem;
             }
 
             .catalog-mobile-filter-trigger {
                 display: inline-flex;
                 height: 42px;
-                width: 100%;
-                min-width: 0;
+                width: auto;
+                min-width: 132px;
+                max-width: 100%;
+                flex: 0 1 auto;
                 align-items: center;
                 justify-content: flex-start;
                 gap: .55rem;
                 border: 1px solid #cbd5e1;
                 background: #fff;
-                padding: 0 1rem;
-                font-size: .95rem;
+                padding: 0 .9rem;
+                font-size: .92rem;
                 font-weight: 700;
                 color: #334155;
                 transition: border-color .15s ease, background-color .15s ease, color .15s ease;
@@ -397,6 +449,7 @@
                 display: flex;
                 align-items: center;
                 gap: .5rem;
+                margin-left: auto;
             }
 
             .catalog-mobile-grid-toggle {
@@ -512,6 +565,14 @@
                 border-color: #94a3b8;
                 background: #f8fafc;
                 color: #334155;
+            }
+
+            .catalog-filter-sticky-shell.is-pinned .catalog-filter-sticky-bar {
+                padding-bottom: .5rem !important;
+            }
+
+            .catalog-filter-sticky-shell.is-pinned .catalog-mobile-filter-panel {
+                margin-top: .7rem;
             }
         }
 
@@ -828,7 +889,7 @@
             }
 
             .catalog-filter-composition {
-                width: 130px;
+                width: 112px;
             }
 
             .catalog-filter-composition .catalog-filter-select,
@@ -837,13 +898,96 @@
                 font-size: .75rem;
             }
 
+            .catalog-filter-color {
+                width: 112px;
+            }
+
+            .catalog-filter-custom.is-color .catalog-filter-custom-button,
+            .catalog-filter-custom.is-color .catalog-filter-custom-item {
+                text-transform: none;
+                letter-spacing: 0;
+            }
+
+            .catalog-filter-custom.is-color .catalog-filter-custom-list {
+                width: min(290px, calc(100vw - 40px));
+                max-width: min(290px, calc(100vw - 40px));
+                max-height: 340px;
+                padding: .35rem;
+                border-radius: 12px;
+            }
+
+            .catalog-filter-custom.is-color .catalog-filter-custom-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: .75rem;
+                padding: .45rem;
+                border-radius: 10px;
+                font-size: .95rem;
+            }
+
+            .catalog-filter-color-item-content {
+                display: flex;
+                min-width: 0;
+                flex: 1 1 auto;
+                align-items: center;
+                gap: .8rem;
+            }
+
+            .catalog-filter-color-swatch {
+                display: inline-flex;
+                width: 32px;
+                height: 32px;
+                flex-shrink: 0;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                background: #fff;
+                background-position: center;
+                background-size: cover;
+            }
+
+            .catalog-filter-color-label {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                font-size: .95rem;
+                font-weight: 500;
+                color: #111827;
+            }
+
+            .catalog-filter-color-count {
+                display: inline-flex;
+                min-width: 28px;
+                height: 28px;
+                flex-shrink: 0;
+                align-items: center;
+                justify-content: center;
+                border-radius: 999px;
+                background: #f1f5f9;
+                padding: 0 .5rem;
+                font-size: .82rem;
+                font-weight: 700;
+                color: #6b7280;
+            }
+
+            .catalog-filter-custom.is-color .catalog-filter-custom-item.is-selected {
+                background: #f8fafc;
+                box-shadow: inset 0 0 0 1px #d1d5db;
+                font-weight: 500;
+            }
+
             .catalog-filter-custom.is-composition .catalog-filter-custom-list {
                 max-width: min(420px, calc(100vw - 40px));
             }
 
             @media (min-width: 1280px) {
                 .catalog-filter-composition {
-                    width: 145px;
+                    width: 124px;
+                }
+
+                .catalog-filter-color {
+                    width: 124px;
                 }
             }
         }
@@ -888,7 +1032,8 @@
 
     @if ($showCategoryFilters)
         <section class="relative z-20 px-3 pt-3 pb-4 sm:px-4 lg:px-6">
-            <div class="border-b border-slate-200/90 pb-4">
+            <div class="catalog-filter-sticky-shell" data-sticky-filter-shell>
+            <div class="catalog-filter-sticky-bar border-b border-slate-200/90 pb-4" data-sticky-filter-bar>
         <div class="max-[1024px]:block min-[1025px]:hidden" data-mobile-filter-root>
             <div class="catalog-mobile-filter-toolbar">
                 <button
@@ -1146,12 +1291,13 @@
             @foreach ($orderedCategoryFilters as $filterOption)
                 @php
                     $isCompositionFilter = in_array((string) ($filterOption['query_key'] ?? ''), ['attr_sastav', 'attr_material'], true);
+                    $isColorFilter = (string) ($filterOption['kind'] ?? 'default') === 'color';
                 @endphp
-                <div class="{{ $isCompositionFilter ? 'catalog-filter-composition' : 'w-[108px] xl:w-[118px]' }}">
-                    <select name="{{ $filterOption['query_key'] }}" class="catalog-filter-select catalog-filter-inline-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter @if($isCompositionFilter) data-filter-kind="composition" @endif>
+                <div class="{{ $isCompositionFilter ? 'catalog-filter-composition' : ($isColorFilter ? 'catalog-filter-color' : 'w-[108px] xl:w-[118px]') }}">
+                    <select name="{{ $filterOption['query_key'] }}" class="catalog-filter-select catalog-filter-inline-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter @if($isCompositionFilter) data-filter-kind="composition" @elseif($isColorFilter) data-filter-kind="color" @endif>
                         <option value="">{{ $filterOption['label'] }}</option>
                         @foreach (($filterOption['values'] ?? []) as $value)
-                            <option value="{{ $value['id'] }}" @selected((string) ($filterOption['selected'] ?? '') === (string) $value['id'])>
+                            <option value="{{ $value['id'] }}" @selected((string) ($filterOption['selected'] ?? '') === (string) $value['id']) @if($isColorFilter) data-filter-count="{{ (int) ($value['count'] ?? 0) }}" @if(!empty($value['swatch_image_url'])) data-filter-swatch="{{ $value['swatch_image_url'] }}" @endif @endif>
                                 {{ $value['label'] }}
                             </option>
                         @endforeach
@@ -1198,6 +1344,7 @@
                 @endif
             </div>
         </form>
+            </div>
             </div>
         </section>
     @endif
@@ -1350,6 +1497,16 @@
                 });
             };
 
+            const closeAllCustomSelects = () => {
+                document.querySelectorAll('[data-custom-select].is-open').forEach((root) => {
+                    root.classList.remove('is-open');
+                    const button = root.querySelector('[data-custom-select-button]');
+                    if (button) {
+                        button.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            };
+
             const initPriceRange = (root) => {
                 if (root.dataset.priceRangeInit === '1') {
                     return;
@@ -1460,6 +1617,69 @@
                 syncRangeState();
             };
 
+            const initStickyFilterBar = () => {
+                const shell = document.querySelector('[data-sticky-filter-shell]');
+                const bar = shell?.querySelector('[data-sticky-filter-bar]');
+
+                if (!shell || !bar || shell.dataset.stickyInit === '1') {
+                    return;
+                }
+
+                shell.dataset.stickyInit = '1';
+
+                let rafId = 0;
+                const readStickyOffset = () => {
+                    const rootStyles = window.getComputedStyle(document.documentElement);
+                    const cssValue = parseFloat(rootStyles.getPropertyValue('--site-header-bottom'));
+                    if (Number.isFinite(cssValue) && cssValue > 0) {
+                        return cssValue;
+                    }
+
+                    const header = document.querySelector('.site-main-header');
+                    if (header instanceof HTMLElement) {
+                        return Math.max(0, header.getBoundingClientRect().bottom);
+                    }
+
+                    return 60;
+                };
+
+                const applyStickyState = () => {
+                    rafId = 0;
+
+                    const stickyOffset = readStickyOffset();
+                    const shellRect = shell.getBoundingClientRect();
+                    const barRect = bar.getBoundingClientRect();
+                    const shouldPin = shellRect.top <= stickyOffset;
+
+                    if (!shouldPin) {
+                        shell.classList.remove('is-pinned');
+                        shell.style.removeProperty('--catalog-sticky-height');
+                        shell.style.removeProperty('--catalog-sticky-top');
+                        shell.style.removeProperty('--catalog-sticky-left');
+                        shell.style.removeProperty('--catalog-sticky-width');
+                        return;
+                    }
+
+                    shell.style.setProperty('--catalog-sticky-height', `${Math.ceil(barRect.height)}px`);
+                    shell.style.setProperty('--catalog-sticky-top', `${Math.round(stickyOffset)}px`);
+                    shell.style.setProperty('--catalog-sticky-left', `${Math.round(shellRect.left)}px`);
+                    shell.style.setProperty('--catalog-sticky-width', `${Math.round(shellRect.width)}px`);
+                    shell.classList.add('is-pinned');
+                };
+
+                const requestApply = () => {
+                    if (rafId) {
+                        return;
+                    }
+
+                    rafId = window.requestAnimationFrame(applyStickyState);
+                };
+
+                requestApply();
+                window.addEventListener('scroll', requestApply, { passive: true });
+                window.addEventListener('resize', requestApply);
+            };
+
             const init = () => {
                 document.querySelectorAll('[data-mobile-filter-root]').forEach((root) => {
                     if (root.dataset.mobileFilterInit === '1') {
@@ -1478,6 +1698,9 @@
                         panel.classList.toggle('grid', isHidden);
                         toggle.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
                         root.classList.toggle('is-open', isHidden);
+                        window.requestAnimationFrame(() => {
+                            window.dispatchEvent(new Event('resize'));
+                        });
                     });
                 });
 
@@ -1529,6 +1752,7 @@
                             closePricePanel(root);
                             return;
                         }
+                        closeAllCustomSelects();
                         closeAllPricePanels(root);
                         openPanel();
                     });
@@ -1537,6 +1761,8 @@
                         event.stopPropagation();
                     });
                 });
+
+                initStickyFilterBar();
             };
 
             if (document.readyState === 'loading') {

@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\HasMedia;
 
 class Product extends Model implements HasMedia
@@ -194,5 +195,26 @@ class Product extends Model implements HasMedia
         }
 
         return self::$approvedCommentSummaryCache[$cacheKey];
+    }
+
+    /**
+     * @return Collection<int, ProductOptionValue>
+     */
+    public function visibleOptionRows(): Collection
+    {
+        $this->loadMissing([
+            'optionValues.optionValue.option:id,payload',
+            'optionValues.parentOptionValue.option:id,payload',
+        ]);
+
+        return $this->optionValues
+            ->where('is_active', true)
+            ->filter(static fn (ProductOptionValue $row): bool => $row->showsOnProductPage())
+            ->values();
+    }
+
+    public function hasVisibleOptionRows(): bool
+    {
+        return $this->visibleOptionRows()->isNotEmpty();
     }
 }

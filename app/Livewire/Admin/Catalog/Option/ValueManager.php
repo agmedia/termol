@@ -7,19 +7,26 @@ use App\Models\Catalog\Option\OptionValue;
 use App\Models\Catalog\Option\OptionValueTranslation;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class ValueManager extends Component
 {
+    use WithFileUploads;
     use WithPagination;
 
     public int $optionId;
     public string $search = '';
     public string $locale = 'en';
     public ?int $editingId = null;
+    public ?TemporaryUploadedFile $swatchImageUpload = null;
+    public ?string $currentSwatchImagePath = null;
+    public bool $removeSwatchImage = false;
 
     public array $form = [
         'code' => '',
@@ -75,6 +82,17 @@ class ValueManager extends Component
             return;
         }
 
+        $existingValue = $this->editingId
+            ? OptionValue::query()
+                ->where('option_id', $this->optionId)
+                ->findOrFail($this->editingId)
+            : null;
+        $oldSwatchImagePath = $this->swatchImagePathFromPayload($existingValue?->payload);
+        $newSwatchImagePath = $this->swatchImageUpload instanceof TemporaryUploadedFile
+            ? $this->swatchImageUpload->store('catalog/option-values/swatch', 'public')
+            : null;
+        $payload = $this->mergeSwatchImagePayload($payload, $newSwatchImagePath);
+
         $userId = auth()->id();
         $wasEditing = (bool) $this->editingId;
 
@@ -120,6 +138,11 @@ class ValueManager extends Component
                 ->log('Option value saved');
         });
 
+        $savedSwatchImagePath = $this->swatchImagePathFromPayload($payload);
+        if ($this->canDeleteStoredSwatchPath($oldSwatchImagePath) && $oldSwatchImagePath !== $savedSwatchImagePath) {
+            Storage::disk('public')->delete($oldSwatchImagePath);
+        }
+
         $this->dispatch('notify', type: 'success', message: $wasEditing ? __('Value updated.') : __('Value created.'));
         $this->resetForm();
     }
@@ -142,6 +165,9 @@ class ValueManager extends Component
         $this->form['payload_text'] = $value->payload
             ? json_encode($value->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
             : '';
+        $this->currentSwatchImagePath = $this->swatchImagePathFromPayload($value->payload);
+        $this->swatchImageUpload = null;
+        $this->removeSwatchImage = false;
 
         if ($translation) {
             $this->form['name'] = $translation->name;
@@ -179,6 +205,30 @@ class ValueManager extends Component
     public function cancelEdit(): void
     {
         $this->resetForm();
+    }
+
+    public function updatedSwatchImageUpload(): void
+    {
+        $this->removeSwatchImage = false;
+        $this->validateOnly('swatchImageUpload', [
+            'swatchImageUpload' => ['nullable', 'image', 'max:5120'],
+        ]);
+    }
+
+    public function clearSwatchImage(): void
+    {
+        $this->swatchImageUpload = null;
+        $this->currentSwatchImagePath = null;
+        $this->removeSwatchImage = true;
+    }
+
+    public function getSwatchPreviewUrlProperty(): ?string
+    {
+        if ($this->swatchImageUpload instanceof TemporaryUploadedFile) {
+            return $this->swatchImageUpload->temporaryUrl();
+        }
+
+        return $this->swatchPathToUrl($this->currentSwatchImagePath);
     }
 
     public function render()
@@ -224,7 +274,7 @@ class ValueManager extends Component
     /**
      * @return array<string, mixed>
      */
-    private function rules(): array
+    protected function rules(): array
     {
         return [
             'form.code' => [
@@ -238,6 +288,7 @@ class ValueManager extends Component
             'form.is_active' => ['boolean'],
             'form.sort_order' => ['nullable', 'integer', 'min:0'],
             'form.payload_text' => ['nullable', 'string'],
+            'swatchImageUpload' => ['nullable', 'image', 'max:5120'],
             'form.name' => ['required', 'string', 'max:255'],
             'form.slug' => [
                 'required',
@@ -279,6 +330,9 @@ class ValueManager extends Component
     private function resetForm(): void
     {
         $this->editingId = null;
+        $this->swatchImageUpload = null;
+        $this->currentSwatchImagePath = null;
+        $this->removeSwatchImage = false;
         $this->form = [
             'code' => '',
             'is_active' => true,
@@ -322,5 +376,60 @@ class ValueManager extends Component
         }
 
         return $decoded;
+    }
+
+    /**
+     * @param  array<mixed>|null  $payload
+     * @return array<mixed>|null
+     */
+    private function mergeSwatchImagePayload(?array $payload, ?string $newSwatchImagePath): ?array
+    {
+        $payload = is_array($payload) ? $payload : [];
+
+        if ($this->removeSwatchImage) {
+            unset($payload['swatch_image_path']);
+        }
+
+        if (is_string($newSwatchImagePath) && $newSwatchImagePath !== '') {
+            $payload['swatch_image_path'] = $newSwatchImagePath;
+        }
+
+        return $payload === [] ? null : $payload;
+    }
+
+    /**
+     * @param  array<mixed>|null  $payload
+     */
+    private function swatchImagePathFromPayload(?array $payload): string
+    {
+        $path = trim((string) data_get($payload, 'swatch_image_path', ''));
+
+        return $path;
+    }
+
+    private function swatchPathToUrl(?string $path): ?string
+    {
+        $path = trim((string) $path);
+
+        if ($path === '') {
+            return null;
+        }
+
+        if (Str::startsWith($path, ['http://', 'https://', '//', '/'])) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
+    }
+
+    private function canDeleteStoredSwatchPath(?string $path): bool
+    {
+        $path = trim((string) $path);
+
+        if ($path === '') {
+            return false;
+        }
+
+        return ! Str::startsWith($path, ['http://', 'https://', '//', '/']);
     }
 }
