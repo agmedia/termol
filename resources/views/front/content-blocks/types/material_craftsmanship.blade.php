@@ -49,21 +49,12 @@
             text-align: center;
         }
 
-        #material-comparison-{{ $block->id }} .materials-title {
-            margin: 0;
-            color: #0f172a;
-            font-size: 2.25rem;
-            line-height: 1.04;
-            letter-spacing: -0.045em;
-            font-weight: 600;
-        }
-
         #material-comparison-{{ $block->id }} .materials-subtitle {
             max-width: 640px;
-            margin: 14px auto 0;
+            margin: 0.5rem auto 0;
             color: #64748b;
-            font-size: 1rem;
-            line-height: 1.75;
+            font-size: 0.875rem;
+            line-height: 1.7;
         }
 
         #material-comparison-{{ $block->id }} .materials-grid {
@@ -76,18 +67,18 @@
             height: 100%;
             background: #ffffff;
             border: 1px solid #dbe4ee;
-            padding: 2rem 1.75rem 1.85rem;
+            padding: 1.5rem 1.15rem 1.4rem;
         }
 
         #material-comparison-{{ $block->id }} .material-top {
             display: flex;
             align-items: flex-start;
-            gap: 1rem;
+            gap: 0.875rem;
         }
 
         #material-comparison-{{ $block->id }} .material-hero-icon {
-            width: 62px;
-            height: 62px;
+            width: 52px;
+            height: 52px;
             border-radius: 999px;
             flex-shrink: 0;
             display: inline-flex;
@@ -96,28 +87,28 @@
         }
 
         #material-comparison-{{ $block->id }} .material-kicker {
-            margin: 4px 0 8px;
-            font-size: 10px;
+            margin: 0 0 0.35rem;
+            font-size: 9px;
             line-height: 1.4;
             font-weight: 600;
-            letter-spacing: 0.28em;
+            letter-spacing: 0.24em;
             text-transform: uppercase;
         }
 
         #material-comparison-{{ $block->id }} .material-name {
             margin: 0;
             color: #0f172a;
-            font-size: 1.95rem;
-            line-height: 1.02;
+            font-size: 1.15rem;
+            line-height: 1.15;
             letter-spacing: -0.045em;
             font-weight: 600;
         }
 
         #material-comparison-{{ $block->id }} .material-intro {
-            margin: 1.5rem 0 0;
+            margin: 1rem 0 0;
             color: #526072;
-            font-size: 1rem;
-            line-height: 1.8;
+            font-size: 0.92rem;
+            line-height: 1.75;
         }
 
         #material-comparison-{{ $block->id }} summary::-webkit-details-marker {
@@ -132,13 +123,13 @@
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            margin-top: 1.1rem;
+            margin-top: 0.95rem;
             cursor: pointer;
             color: #0f172a;
-            font-size: 12px;
+            font-size: 11px;
             line-height: 1.2;
             font-weight: 700;
-            letter-spacing: 0.18em;
+            letter-spacing: 0.16em;
             text-transform: uppercase;
             list-style: none;
         }
@@ -148,10 +139,10 @@
         }
 
         #material-comparison-{{ $block->id }} .material-body {
-            margin-top: 0.95rem;
+            margin-top: 0.8rem;
             color: #526072;
-            font-size: 15px;
-            line-height: 1.8;
+            font-size: 14px;
+            line-height: 1.7;
         }
 
         #material-comparison-{{ $block->id }} .material-body p {
@@ -164,19 +155,21 @@
 
         #material-comparison-{{ $block->id }} .material-benefits {
             display: grid;
-            gap: 1rem;
-            margin-top: 1.9rem;
-            padding-top: 1.35rem;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.5rem;
+            margin-top: 1.35rem;
+            padding-top: 1rem;
             border-top: 1px solid #edf2f7;
         }
 
         #material-comparison-{{ $block->id }} .material-benefit {
             min-width: 0;
+            text-align: center;
         }
 
         #material-comparison-{{ $block->id }} .material-benefit-icon {
-            width: 50px;
-            height: 50px;
+            width: 42px;
+            height: 42px;
             border-radius: 999px;
             display: inline-flex;
             align-items: center;
@@ -184,22 +177,72 @@
         }
 
         #material-comparison-{{ $block->id }} .material-benefit-label {
-            margin: 0.8rem 0 0;
+            margin: 0.55rem 0 0;
             color: #0f172a;
-            font-size: 11px;
-            line-height: 1.55;
+            font-size: 9px;
+            line-height: 1.45;
             font-weight: 600;
-            letter-spacing: 0.15em;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
         }
 
         @media (min-width: 640px) {
+            #material-comparison-{{ $block->id }} .materials-subtitle {
+                font-size: 1rem;
+            }
+
             #material-comparison-{{ $block->id }} .material-card {
                 padding: 2.25rem 2rem 2rem;
             }
 
+            #material-comparison-{{ $block->id }} .material-hero-icon {
+                width: 62px;
+                height: 62px;
+            }
+
+            #material-comparison-{{ $block->id }} .material-kicker {
+                margin: 4px 0 8px;
+                font-size: 10px;
+                letter-spacing: 0.28em;
+            }
+
+            #material-comparison-{{ $block->id }} .material-name {
+                font-size: 1.65rem;
+                line-height: 1.06;
+            }
+
+            #material-comparison-{{ $block->id }} .material-intro {
+                margin-top: 1.35rem;
+                font-size: 1rem;
+            }
+
+            #material-comparison-{{ $block->id }} .material-summary {
+                margin-top: 1.1rem;
+                font-size: 12px;
+                letter-spacing: 0.18em;
+            }
+
+            #material-comparison-{{ $block->id }} .material-body {
+                font-size: 15px;
+                line-height: 1.8;
+            }
+
             #material-comparison-{{ $block->id }} .material-benefits {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 1rem;
+                margin-top: 1.9rem;
+                padding-top: 1.35rem;
+            }
+
+            #material-comparison-{{ $block->id }} .material-benefit-icon {
+                width: 50px;
+                height: 50px;
+            }
+
+            #material-comparison-{{ $block->id }} .material-benefit-label {
+                margin-top: 0.8rem;
+                font-size: 11px;
+                line-height: 1.55;
+                letter-spacing: 0.15em;
             }
         }
 
@@ -207,12 +250,21 @@
             #material-comparison-{{ $block->id }} .materials-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+
+            #material-comparison-{{ $block->id }} .material-name {
+                font-size: 1.7rem;
+                line-height: 1.08;
+            }
         }
     </style>
 
     <div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="materials-heading">
-            <h2 class="materials-title">{{ $title }}</h2>
+        <div class="max-[540px]:mb-5 mb-8 text-center">
+            <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
+                <span class="h-px flex-1 bg-slate-300"></span>
+                <h2 class="max-[540px]:text-[1.18rem] max-[540px]:leading-[1.65rem] text-[1.35rem] leading-[1.95rem] sm:text-[1.7rem] sm:leading-[2.5rem] font-semibold text-slate-900">{{ $title }}</h2>
+                <span class="h-px flex-1 bg-slate-300"></span>
+            </div>
 
             @if ($subtitle !== '')
                 <p class="materials-subtitle">{{ $subtitle }}</p>
