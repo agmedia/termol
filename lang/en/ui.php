@@ -107,6 +107,54 @@ return [
                 'returns' => 'Returns and exchange within 14 days',
                 'secure' => '100% secure online payment',
             ],
+            'material_craftsmanship' => [
+                'eyebrow' => 'Material guide',
+                'default_title' => 'Micromodal or Giza cotton?',
+                'default_subtitle' => 'Two premium fabrics, two different skin feels. Pick the one that suits you best.',
+                'expand' => 'View more',
+                'materials' => [
+                    'micromodal' => [
+                        'eyebrow' => 'For a silky feel',
+                        'title' => 'Micromodal',
+                        'intro' => 'A light, very soft and elastic fabric for anyone who wants a smooth body-close feel.',
+                        'body_1' => 'Micromodal combines natural and regenerated cellulose fibers known for exceptional lightness and fineness. When worn, it gives a silky sensation on skin. A single micromodal yarn is almost 40 times thinner than human hair, which makes the garment extremely elastic and soft to the touch.',
+                        'body_2' => 'Micromodal does not shrink or deform during wear or after washing, and thanks to its hypoallergenic qualities it is ideal for sensitive or problematic skin. Its softness and close-to-body fit make it an excellent choice for underwear and other intimate apparel.',
+                        'bullets' => [
+                            'silky touch',
+                            'very elastic',
+                            'hypoallergenic',
+                        ],
+                    ],
+                    'giza' => [
+                        'eyebrow' => 'For a clean cotton feel',
+                        'title' => 'Giza cotton',
+                        'intro' => 'Fine Egyptian cotton for a breathable, fresh and naturally luxurious wearing feel.',
+                        'body_1' => 'Giza cotton is an Egyptian cotton often called the king of cotton because its long fibers make it one of the finest cottons in the world. Continuous fibers create fewer joins, which means stronger yarns and longer-lasting knitwear. Its light, soft and fluffy structure gives the skin a fresh, gentle feel.',
+                        'body_2' => 'Knits made from Giza cotton are especially elastic, strong and highly absorbent, helping airflow and temperature balance. Because of its hypoallergenic qualities it is also a strong choice for sensitive or problematic skin. Wearing Giza cotton is an experience in itself.',
+                        'bullets' => [
+                            'breathable feel',
+                            'high absorbency',
+                            'long-lasting knit',
+                        ],
+                    ],
+                ],
+                'compare' => [
+                    'rows' => [
+                        'soft' => [
+                            'label' => 'You want a silky feeling',
+                            'value' => 'Choose Micromodal',
+                        ],
+                        'cotton' => [
+                            'label' => 'You want a premium cotton feeling',
+                            'value' => 'Choose Giza cotton',
+                        ],
+                        'fit' => [
+                            'label' => 'You want a style for long-day comfort',
+                            'value' => 'Choose by whether you prefer a softer or drier feel',
+                        ],
+                    ],
+                ],
+            ],
             'footer' => [
                 'shop' => 'Shop',
                 'help' => 'Help',

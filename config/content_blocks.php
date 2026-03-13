@@ -32,6 +32,7 @@ return [
         'desktop_hero_banner' => 'Desktop Hero Banner',
         'full_width_image_slider' => 'Desktop Full Width Image Slider',
         'dual_image_cta' => 'Desktop Dual Image CTA',
+        'material_craftsmanship' => 'Material & Craftsmanship Section',
         'category_editorial_tiles' => 'Category Editorial Tiles',
         'instagram_curated_grid' => 'Instagram Curated Grid',
         'mobile_hero_banner' => 'Mobile Hero Banner',

@@ -275,6 +275,44 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('https://www.instagram.com/p/demo-post/', false);
     }
 
+    public function test_home_renders_material_and_craftsmanship_block(): void
+    {
+        $block = ContentBlock::query()->create([
+            'code' => 'home-material-craftsmanship',
+            'name' => 'Home Material & Craftsmanship',
+            'type' => 'material_craftsmanship',
+            'is_active' => true,
+            'payload' => null,
+        ]);
+
+        $block->translations()->create([
+            'locale' => 'hr',
+            'title' => 'Micromodal ili Giza pamuk?',
+            'subtitle' => 'Dva premium osjećaja za kupce koji žele birati prema materijalu, ne samo prema modelu.',
+            'body_html' => null,
+            'cta_label' => 'Pogledaj premium modele',
+            'cta_url' => '/shop',
+            'payload' => null,
+        ]);
+
+        $block->slots()->create([
+            'placement' => 'home.after_products',
+            'frontend_variant' => 'desktop',
+            'target_type' => null,
+            'target_ref' => null,
+            'sort_order' => 220,
+            'is_active' => true,
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Micromodal ili Giza pamuk?')
+            ->assertSee('Micromodal')
+            ->assertSee('Giza pamuk')
+            ->assertSee('Vidi više')
+            ->assertSee('/shop', false);
+    }
+
     public function test_category_page_includes_sastav_filter_and_filters_products(): void
     {
         $this->useEnglishStorefrontLocale();

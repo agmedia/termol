@@ -947,6 +947,7 @@ class Form extends Component
             'desktop_hero_banner',
             'full_width_image_slider',
             'dual_image_cta',
+            'material_craftsmanship',
             'category_editorial_tiles',
             'instagram_curated_grid',
             'five_star_reviews_carousel',
@@ -982,6 +983,7 @@ class Form extends Component
             'desktop_hero_banner',
             'full_width_image_slider',
             'dual_image_cta',
+            'material_craftsmanship',
             'instagram_curated_grid',
             'five_star_reviews_carousel',
             'blogs_carousel',
@@ -1961,6 +1963,14 @@ BLADE,
         </div>
     </section>
 @endif
+BLADE,
+            'material_craftsmanship' => <<<'BLADE'
+@include('front.content-blocks.types.material_craftsmanship', [
+    'block' => $block,
+    'translation' => $translation,
+    'slot' => $slot ?? null,
+    'blockItems' => $blockItems ?? collect(),
+])
 BLADE,
             'category_editorial_tiles' => <<<'BLADE'
 @include('front.content-blocks.types.category_editorial_tiles', [

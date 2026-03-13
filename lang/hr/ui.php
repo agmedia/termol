@@ -107,6 +107,54 @@ return [
                 'returns' => 'Povrat i zamjena unutar 14 dana',
                 'secure' => '100% sigurna online naplata',
             ],
+            'material_craftsmanship' => [
+                'eyebrow' => 'Vodič kroz materijale',
+                'default_title' => 'Micromodal ili Giza pamuk?',
+                'default_subtitle' => 'Dva premium materijala, dva različita osjećaja na koži. Odaberi onaj koji ti više odgovara.',
+                'expand' => 'Vidi više',
+                'materials' => [
+                    'micromodal' => [
+                        'eyebrow' => 'Za svilenkast feel',
+                        'title' => 'Micromodal',
+                        'intro' => 'Lagan, vrlo mekan i elastičan materijal za one koji žele gladak osjećaj uz tijelo.',
+                        'body_1' => 'Micromodal je kombinacija prirodnih i regeneriranih celuloznih vlakana koje se odlikuju izvanrednom lakoćom i finoćom. Nošenjem micromodala osjetit ćete svilenkast osjećaj na svojoj koži. Debljina jedne micromodalne pređe je gotovo 40 puta tanja od ljudske kose, što odjeću čini iznimno elastičnom i mekanom na dodir.',
+                        'body_2' => 'Micromodal se ne skuplja i ne deformira tijekom nošenja i nakon pranja, a zbog svojih hipoalergenih svojstava idealan je za osobe s osjetljivom i problematičnom kožom. Neusporediva mekoća i savršeno prianjanje uz tijelo čine ga izvrsnim izborom za muško donje rublje i drugu intimnu odjeću.',
+                        'bullets' => [
+                            'svilenkast dodir',
+                            'vrlo elastičan',
+                            'hipoalergen',
+                        ],
+                    ],
+                    'giza' => [
+                        'eyebrow' => 'Za clean cotton feel',
+                        'title' => 'Giza pamuk',
+                        'intro' => 'Fini egipatski pamuk za prozračan, svjež i prirodno luksuzan osjećaj pri nošenju.',
+                        'body_1' => 'Giza pamuk je egipatski pamuk koji slovi kao kralj pamuka jer je zahvaljujući svojim dugačkim nitima najfiniji pamuk na svijetu. Neprekinuta vlakna imaju manje spojeva te tako daju jače niti i dugotrajnije pletivo. Lagana, pahuljasta i mekana struktura Vašoj će koži pružiti osjećaj svježine i nježnosti.',
+                        'body_2' => 'Pletiva izrađena od giza pamuka osobito su elastična, čvrsta te izrazito upijajuća pa omogućavaju dobru izmjenu topline i prozračnosti. Zbog svojih hipoalergenih svojstava idealan su izbor za osobe s osjetljivom i problematičnom kožom. Nošenje giza pamuka iskustvo je samo po sebi koje želite isprobati.',
+                        'bullets' => [
+                            'prozračan osjećaj',
+                            'izrazito upijajući',
+                            'dugotrajno pletivo',
+                        ],
+                    ],
+                ],
+                'compare' => [
+                    'rows' => [
+                        'soft' => [
+                            'label' => 'Želiš svilenkast osjećaj',
+                            'value' => 'Odaberi Micromodal',
+                        ],
+                        'cotton' => [
+                            'label' => 'Želiš premium cotton osjećaj',
+                            'value' => 'Odaberi Giza pamuk',
+                        ],
+                        'fit' => [
+                            'label' => 'Želiš model za dugi dan nošenja',
+                            'value' => 'Biraj prema tome voliš li mekši ili suši feel',
+                        ],
+                    ],
+                ],
+            ],
             'footer' => [
                 'shop' => 'Shop',
                 'help' => 'Pomoć',
