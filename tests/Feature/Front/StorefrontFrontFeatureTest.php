@@ -219,6 +219,93 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('https://www.instagram.com/p/demo-post/', false);
     }
 
+    public function test_category_page_includes_sastav_filter_and_filters_products(): void
+    {
+        $this->useEnglishStorefrontLocale();
+
+        [$category, $categorySlug] = $this->seedCategory();
+        [$bambooProduct, $bambooSlug] = $this->seedProduct($category->id);
+        [$linenProduct, $linenSlug] = $this->seedProduct($category->id);
+
+        $bambooAttribute = Attribute::query()->create([
+            'code' => 'sastav-bamboo',
+            'group_code' => 'sastav',
+            'type' => Attribute::TYPE_SELECT,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $bambooAttribute->translations()->create([
+            'locale' => 'en',
+            'group_name' => 'Composition',
+            'name' => 'Bamboo',
+            'slug' => 'sastav-bamboo',
+            'description' => null,
+            'payload' => null,
+        ]);
+
+        $linenAttribute = Attribute::query()->create([
+            'code' => 'sastav-linen',
+            'group_code' => 'sastav',
+            'type' => Attribute::TYPE_SELECT,
+            'is_active' => true,
+            'sort_order' => 2,
+        ]);
+
+        $linenAttribute->translations()->create([
+            'locale' => 'en',
+            'group_name' => 'Composition',
+            'name' => 'Linen',
+            'slug' => 'sastav-linen',
+            'description' => null,
+            'payload' => null,
+        ]);
+
+        $bambooProduct->attributes()->attach($bambooAttribute->id, [
+            'sort_order' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $linenProduct->attributes()->attach($linenAttribute->id, [
+            'sort_order' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->attachProductSizeOptions($bambooProduct, ['S', 'M']);
+        $this->attachProductSizeOptions($linenProduct, ['M', 'L']);
+
+        $bambooName = 'Product '.$bambooSlug;
+        $linenName = 'Product '.$linenSlug;
+
+        $this->get('/category/'.$categorySlug)
+            ->assertOk()
+            ->assertSee('Composition')
+            ->assertSee('name="attr_sastav"', false)
+            ->assertSee('Bamboo')
+            ->assertSee('Linen')
+            ->assertSee($bambooName)
+            ->assertSee($linenName);
+
+        $categoryResponse = $this->get('/category/'.$categorySlug);
+        $categoryHtml = $categoryResponse->getContent();
+        $this->assertIsString($categoryHtml);
+        $this->assertNotFalse(strpos($categoryHtml, 'name="size"'));
+        $this->assertNotFalse(strpos($categoryHtml, 'name="attr_sastav"'));
+        $this->assertLessThan(
+            strpos($categoryHtml, 'name="attr_sastav"'),
+            strpos($categoryHtml, 'name="size"')
+        );
+
+        $this->get('/category/'.$categorySlug.'?attr_sastav='.$bambooAttribute->id)
+            ->assertOk()
+            ->assertSee('Composition')
+            ->assertSee('Bamboo')
+            ->assertSee($bambooName)
+            ->assertDontSee($linenName);
+    }
+
     public function test_mobile_home_renders_instagram_curated_grid_assets_and_slider_init(): void
     {
         $block = ContentBlock::query()->create([

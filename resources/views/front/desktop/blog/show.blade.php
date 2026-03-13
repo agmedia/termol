@@ -63,6 +63,88 @@
 @section('main_class', 'mx-auto w-full max-w-7xl px-6 pt-0 pb-8')
 
 @section('content')
+    <style>
+        [data-blog-gallery-hotspot-root] .ag-hotspot-toggle {
+            isolation: isolate;
+        }
+
+        [data-blog-gallery-hotspot-root] .ag-hotspot-toggle::before {
+            content: '';
+            position: absolute;
+            inset: -8px;
+            z-index: -1;
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            background: rgba(255, 255, 255, 0.2);
+            pointer-events: none;
+            animation: ag-hotspot-pulse 1.9s ease-out infinite;
+        }
+
+        [data-blog-gallery-hotspot-root] .ag-hotspot-toggle[aria-expanded="true"]::before {
+            opacity: 0;
+            animation: none;
+        }
+
+        [data-blog-gallery-hotspot-root] .ag-hotspot-panel {
+            overflow: visible;
+        }
+
+        [data-blog-gallery-hotspot-root] .ag-hotspot-panel > a {
+            position: relative;
+            z-index: 1;
+        }
+
+        [data-blog-gallery-hotspot-root] .ag-hotspot-caret {
+            width: 14px;
+            height: 18px;
+            pointer-events: none;
+        }
+
+        [data-blog-gallery-hotspot-root] .ag-hotspot-caret::before,
+        [data-blog-gallery-hotspot-root] .ag-hotspot-caret::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            clip-path: polygon(0 50%, 100% 0, 100% 100%);
+        }
+
+        [data-blog-gallery-hotspot-root] .ag-hotspot-caret::before {
+            background: rgb(226 232 240);
+        }
+
+        [data-blog-gallery-hotspot-root] .ag-hotspot-caret::after {
+            inset: 1px 0 1px 1px;
+            background: #fff;
+        }
+
+        [data-blog-gallery-hotspot-root] .ag-hotspot-panel.is-side-right .ag-hotspot-caret {
+            left: -13px;
+            transform: translateY(-50%);
+        }
+
+        [data-blog-gallery-hotspot-root] .ag-hotspot-panel.is-side-left .ag-hotspot-caret {
+            right: -13px;
+            transform: translateY(-50%) scaleX(-1);
+        }
+
+        @keyframes ag-hotspot-pulse {
+            0% {
+                transform: scale(0.9);
+                opacity: 0.85;
+            }
+
+            70% {
+                transform: scale(1.35);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1.35);
+                opacity: 0;
+            }
+        }
+    </style>
+
     <section class="mb-8 px-1">
         <div class="front-soft-hero px-6 py-4 text-center sm:px-8 sm:py-5">
             <nav aria-label="Breadcrumb" class="mb-2">
@@ -165,7 +247,7 @@
                             @endphp
                             <button
                                 type="button"
-                                class="absolute z-20 inline-flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/90 bg-white text-[22px] font-light leading-none text-slate-900 shadow-md transition-colors hover:bg-slate-200"
+                                class="ag-hotspot-toggle absolute z-20 inline-flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/90 bg-white text-[22px] font-light leading-none text-slate-900 shadow-md transition-colors hover:bg-slate-200"
                                 style="left: {{ number_format(max(3, min(97, (float) ($hotspot['x'] ?? 50))), 2, '.', '') }}%; top: {{ number_format(max(3, min(97, (float) ($hotspot['y'] ?? 50))), 2, '.', '') }}%;"
                                 data-blog-hotspot-toggle
                                 data-target="{{ $hotspotDomId }}"
@@ -177,13 +259,13 @@
 
                             <div
                                 id="{{ $hotspotDomId }}"
-                                class="absolute z-30 hidden w-[210px] rounded-xl border border-slate-200 bg-white shadow-xl"
+                                class="ag-hotspot-panel absolute z-30 hidden w-[210px] rounded-xl border border-slate-200 bg-white shadow-xl"
                                 data-anchor-x="{{ number_format(max(3, min(97, (float) ($hotspot['x'] ?? 50))), 2, '.', '') }}"
                                 data-anchor-y="{{ number_format(max(3, min(97, (float) ($hotspot['y'] ?? 50))), 2, '.', '') }}"
                                 data-blog-hotspot-panel
                             >
                                 <span
-                                    class="absolute h-3 w-3 rotate-45 bg-white"
+                                    class="ag-hotspot-caret absolute"
                                     data-blog-hotspot-caret
                                     aria-hidden="true"
                                 ></span>
@@ -322,27 +404,21 @@
 
                 panel.style.left = left + 'px';
                 panel.style.top = top + 'px';
+                panel.classList.toggle('is-side-right', side === 'right');
+                panel.classList.toggle('is-side-left', side === 'left');
 
                 if (!caret) {
                     return;
                 }
 
-                const caretTop = Math.max(10, Math.min(panelHeight - 14, anchorY - top - 6));
+                const caretTop = Math.max(12, Math.min(panelHeight - 12, anchorY - top));
                 caret.style.top = caretTop + 'px';
                 if (side === 'right') {
-                    caret.style.left = '-7px';
+                    caret.style.left = '-13px';
                     caret.style.right = '';
-                    caret.style.borderTop = '1px solid rgb(226 232 240)';
-                    caret.style.borderLeft = '1px solid rgb(226 232 240)';
-                    caret.style.borderRight = '0';
-                    caret.style.borderBottom = '0';
                 } else {
-                    caret.style.right = '-7px';
+                    caret.style.right = '-13px';
                     caret.style.left = '';
-                    caret.style.borderBottom = '1px solid rgb(226 232 240)';
-                    caret.style.borderRight = '1px solid rgb(226 232 240)';
-                    caret.style.borderTop = '0';
-                    caret.style.borderLeft = '0';
                 }
             };
 

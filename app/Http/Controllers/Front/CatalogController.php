@@ -246,7 +246,11 @@ class CatalogController extends Controller
 
         if ($showCategoryFilters) {
             $configuredOptionIds = $this->configuredFilterOptionIds();
-            $configuredAttributeGroups = $this->configuredFilterAttributeGroups();
+            $configuredAttributeGroups = array_values(array_unique([
+                ...$this->configuredFilterAttributeGroups(),
+                'sastav',
+                'material',
+            ]));
             $optionFilters = $this->catalogOptionFilters($locale, $fallbackLocale, $configuredOptionIds, $categoryScopeIds);
             $attributeFilters = $this->catalogAttributeFilters($locale, $fallbackLocale, $configuredAttributeGroups, $categoryScopeIds);
 
@@ -675,7 +679,22 @@ class CatalogController extends Controller
                     continue;
                 }
 
-                $label = ucfirst(str_replace('_', ' ', $groupCode));
+                $firstTranslation = $groupRows
+                    ->flatMap(fn (Attribute $attribute) => $attribute->translations)
+                    ->firstWhere('locale', $locale)
+                    ?? $groupRows->flatMap(fn (Attribute $attribute) => $attribute->translations)->firstWhere('locale', $fallbackLocale)
+                    ?? $groupRows->flatMap(fn (Attribute $attribute) => $attribute->translations)->first();
+
+                $label = match ($groupCode) {
+                    'sastav' => in_array(strtolower($locale), ['hr', 'hr-hr'], true) ? 'Sastav' : 'Composition',
+                    'material' => in_array(strtolower($locale), ['hr', 'hr-hr'], true) ? 'Sastav' : 'Composition',
+                    default => trim((string) ($firstTranslation?->group_name ?? '')),
+                };
+
+                if ($label === '') {
+                    $label = ucfirst(str_replace('_', ' ', $groupCode));
+                }
+
                 $values = $groupRows
                     ->map(function (Attribute $attribute) use ($locale, $fallbackLocale): array {
                         $translation = $attribute->translations->firstWhere('locale', $locale)

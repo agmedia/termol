@@ -13,7 +13,9 @@
 
     const setLabel = (select, button) => {
         const selected = select.options[select.selectedIndex];
-        button.textContent = selected ? selected.textContent || '' : '';
+        const label = selected ? selected.textContent || '' : '';
+        button.textContent = label;
+        button.title = label;
         const isPlaceholder = !selected || String(selected.value || '').trim() === '';
         button.classList.toggle('is-placeholder', isPlaceholder);
     };
@@ -33,6 +35,9 @@
         custom.setAttribute('data-custom-select', '');
         if (select.classList.contains('catalog-filter-sort')) {
             custom.classList.add('is-sort');
+        }
+        if (select.dataset.filterKind === 'composition') {
+            custom.classList.add('is-composition');
         }
 
         const button = document.createElement('button');

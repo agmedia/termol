@@ -21,6 +21,43 @@
         || collect(array_keys(request()->query()))
             ->contains(fn ($key): bool => str_starts_with((string) $key, 'opt_') || str_starts_with((string) $key, 'attr_'))
         || (string) ($filters['sort'] ?? 'newest') !== 'newest';
+    $sizeFilterLabel = mb_strtolower(trim((string) __('ui.shop.filters.size')));
+    $sizeOptionFilter = null;
+    $compositionAttributeFilter = null;
+    $orderedCategoryFilters = collect();
+
+    foreach (($optionFilters ?? []) as $filterOption) {
+        $queryKey = (string) ($filterOption['query_key'] ?? '');
+        $label = mb_strtolower(trim((string) ($filterOption['label'] ?? '')));
+
+        if ($queryKey === 'size' || $label === $sizeFilterLabel) {
+            $sizeOptionFilter = $filterOption;
+            continue;
+        }
+
+        $orderedCategoryFilters->push($filterOption);
+    }
+
+    foreach (($attributeFilters ?? []) as $attributeFilter) {
+        if (in_array((string) ($attributeFilter['query_key'] ?? ''), ['attr_sastav', 'attr_material'], true)) {
+            $compositionAttributeFilter = $attributeFilter;
+            continue;
+        }
+
+        $orderedCategoryFilters->push($attributeFilter);
+    }
+
+    if ($compositionAttributeFilter !== null) {
+        if ($sizeOptionFilter !== null) {
+            $orderedCategoryFilters->prepend($compositionAttributeFilter);
+            $orderedCategoryFilters->prepend($sizeOptionFilter);
+        } else {
+            $orderedCategoryFilters->prepend($compositionAttributeFilter);
+        }
+    } elseif ($sizeOptionFilter !== null) {
+        $orderedCategoryFilters->prepend($sizeOptionFilter);
+    }
+
     $gridClass = match ($currentCols) {
         1 => 'grid grid-cols-1 gap-y-5',
         2 => 'grid grid-cols-2 gap-x-4 gap-y-5',
@@ -95,6 +132,10 @@
                 background-repeat: no-repeat;
                 background-position: right .65rem center;
                 background-size: 12px 12px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                line-height: 34px;
             }
 
             .catalog-filter-custom-button.is-placeholder {
@@ -143,6 +184,9 @@
                 color: #1e293b;
                 text-transform: uppercase;
                 letter-spacing: .02em;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
 
             .catalog-filter-custom-item.is-placeholder {
@@ -173,6 +217,22 @@
                 color: #0f172a;
                 font-weight: 600;
                 box-shadow: inset 3px 0 0 #0f172a;
+            }
+
+            .catalog-filter-composition {
+                width: 250px;
+            }
+
+            .catalog-filter-composition .catalog-filter-select,
+            .catalog-filter-custom.is-composition .catalog-filter-custom-button,
+            .catalog-filter-custom.is-composition .catalog-filter-custom-item {
+                font-size: .75rem;
+            }
+
+            @media (min-width: 1280px) {
+                .catalog-filter-composition {
+                    width: 290px;
+                }
             }
         }
     </style>
@@ -288,26 +348,13 @@
                         </select>
                     </div>
                 @endif
-                @foreach (($optionFilters ?? []) as $filterOption)
+                @foreach ($orderedCategoryFilters as $filterOption)
                     <div>
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $filterOption['label'] }}</label>
                         <select name="{{ $filterOption['query_key'] }}" class="h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
                             <option value="">{{ __('ui.shop.filters.select_option') }}</option>
                             @foreach (($filterOption['values'] ?? []) as $value)
                                 <option value="{{ $value['id'] }}" @selected((string) ($filterOption['selected'] ?? '') === (string) $value['id'])>
-                                    {{ $value['label'] }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                @endforeach
-                @foreach (($attributeFilters ?? []) as $attributeFilter)
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $attributeFilter['label'] }}</label>
-                        <select name="{{ $attributeFilter['query_key'] }}" class="h-[42px] w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
-                            <option value="">{{ __('ui.shop.filters.select_option') }}</option>
-                            @foreach (($attributeFilter['values'] ?? []) as $value)
-                                <option value="{{ $value['id'] }}" @selected((string) ($attributeFilter['selected'] ?? '') === (string) $value['id'])>
                                     {{ $value['label'] }}
                                 </option>
                             @endforeach
@@ -379,26 +426,16 @@
                     </select>
                 </div>
             @endif
-            @foreach (($optionFilters ?? []) as $filterOption)
-                <div class="w-[190px] xl:w-[210px]">
+            @foreach ($orderedCategoryFilters as $filterOption)
+                @php
+                    $isCompositionFilter = in_array((string) ($filterOption['query_key'] ?? ''), ['attr_sastav', 'attr_material'], true);
+                @endphp
+                <div class="{{ $isCompositionFilter ? 'catalog-filter-composition' : 'w-[190px] xl:w-[210px]' }}">
                     <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ $filterOption['label'] }}</label>
-                    <select name="{{ $filterOption['query_key'] }}" class="catalog-filter-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
+                    <select name="{{ $filterOption['query_key'] }}" class="catalog-filter-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter @if($isCompositionFilter) data-filter-kind="composition" @endif>
                         <option value="">{{ __('ui.shop.filters.select_option') }}</option>
                         @foreach (($filterOption['values'] ?? []) as $value)
                             <option value="{{ $value['id'] }}" @selected((string) ($filterOption['selected'] ?? '') === (string) $value['id'])>
-                                {{ $value['label'] }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-            @endforeach
-            @foreach (($attributeFilters ?? []) as $attributeFilter)
-                <div class="w-[190px] xl:w-[210px]">
-                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ $attributeFilter['label'] }}</label>
-                    <select name="{{ $attributeFilter['query_key'] }}" class="catalog-filter-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
-                        <option value="">{{ __('ui.shop.filters.select_option') }}</option>
-                        @foreach (($attributeFilter['values'] ?? []) as $value)
-                            <option value="{{ $value['id'] }}" @selected((string) ($attributeFilter['selected'] ?? '') === (string) $value['id'])>
                                 {{ $value['label'] }}
                             </option>
                         @endforeach
