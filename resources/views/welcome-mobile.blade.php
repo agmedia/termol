@@ -18,6 +18,11 @@
 </head>
 <body class="theme-light" data-highlight="highlight-red">
 @php
+    $mobileStoreName = trim((string) ($storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop')));
+    if ($mobileStoreName === '') {
+        $mobileStoreName = (string) config('app.name', 'AG Shop');
+    }
+
     $mobileHeroBlocks = app(\App\Services\Content\ContentBlockResolver::class)->forPlacement(
         'home.hero',
         app()->getLocale(),
@@ -30,6 +35,7 @@
     $isFrontPreview = false;
     $frontPreviewBlock = null;
     $frontPreviewPlacement = null;
+    $showDemoFallback = false;
 
     $viewer = auth()->user();
     $canPreviewBlock = $viewer && ($viewer->isA('superadmin') || $viewer->can('content.blocks'));
@@ -65,6 +71,8 @@
             }
         }
     }
+
+    $showDemoFallback = $mobileHeroBlocks->isEmpty() && app()->isLocal();
 @endphp
 <div id="preloader">
     <div class="spinner-border color-highlight" role="status"></div>
@@ -72,7 +80,7 @@
 
 <div id="page">
     <div class="header header-fixed header-logo-center header-auto-show">
-        <a href="/" class="header-title">Store</a>
+        <a href="/" class="header-title">{{ $mobileStoreName }}</a>
         <a href="/" class="header-icon header-icon-1" aria-label="Home">
             <i class="fas fa-chevron-left"></i>
         </a>
@@ -96,7 +104,7 @@
     </div>
 
     <div class="page-title page-title-fixed">
-        <h1>{{ config('app.name', 'AG Shop') }} Store</h1>
+        <h1>{{ $mobileStoreName }}</h1>
         <a href="#" class="page-title-icon shadow-xl bg-theme color-theme" data-menu="menu-share" aria-label="Share">
             <i class="fa fa-share-alt"></i>
         </a>
@@ -127,7 +135,9 @@
 
         @if ($mobileHeroBlocks->isNotEmpty())
             @include('components.content-placement', ['items' => $mobileHeroBlocks])
-        @else
+        @endif
+
+        @if ($showDemoFallback)
             <div class="splide single-slider slider-no-arrows slider-no-dots" id="single-slider-1">
                 <div class="splide__track">
                     <div class="splide__list">
@@ -173,8 +183,6 @@
                     </div>
                 </div>
             </div>
-        @endif
-
         <div class="splide topic-slider slider-no-arrows slider-no-dots pb-2" id="topic-slider-1">
             <div class="splide__track">
                 <div class="splide__list">
@@ -422,6 +430,7 @@
         <h1 class="text-center mt-3 pt-2"><i class="fa fa-shopping-bag color-brown-dark fa-3x"></i></h1>
         <h3 class="text-center pt-2">Added to cart</h3>
     </div>
+        @endif
 
     <div id="menu-main" class="menu menu-box-left rounded-0" data-menu-width="280">
         @include('front.mobile.menu-main')
