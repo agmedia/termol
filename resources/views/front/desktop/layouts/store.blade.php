@@ -102,6 +102,193 @@
         position: relative;
         z-index: 1;
     }
+
+    [data-header-search-panel] {
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transition: max-height .22s ease, opacity .18s ease;
+    }
+
+    [data-header-search-panel].is-open {
+        max-height: 5.75rem;
+        overflow: visible;
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .header-search-form {
+        position: relative;
+    }
+
+    .header-search-suggestions {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 0.65rem);
+        z-index: 70;
+        overflow: hidden;
+        border: 1px solid #d9e1ea;
+        background: #fff;
+        box-shadow: 0 22px 40px rgba(15, 23, 42, .14);
+    }
+
+    .header-search-suggestions[hidden] {
+        display: none !important;
+    }
+
+    .header-search-suggestions-meta {
+        padding: .8rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
+        font-size: .88rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .header-search-suggestions-list {
+        max-height: min(60vh, 27rem);
+        overflow: auto;
+    }
+
+    .header-search-suggestion {
+        display: grid;
+        grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+        align-items: center;
+        gap: .9rem;
+        width: 100%;
+        padding: .8rem 1rem;
+        border-bottom: 1px solid #eef2f7;
+        background: #fff;
+        text-align: left;
+        transition: background-color .14s ease;
+    }
+
+    .header-search-suggestion:last-child {
+        border-bottom: 0;
+    }
+
+    .header-search-suggestion:hover,
+    .header-search-suggestion.is-active {
+        background: #f8fafc;
+    }
+
+    .header-search-suggestion-thumb {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 3.5rem;
+        height: 4.25rem;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        overflow: hidden;
+    }
+
+    .header-search-suggestion-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .header-search-suggestion-copy {
+        min-width: 0;
+    }
+
+    .header-search-suggestion-title {
+        display: block;
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1.3;
+        color: #0f172a;
+        word-break: break-word;
+    }
+
+    .header-search-suggestion-sku {
+        display: block;
+        margin-top: .2rem;
+        font-size: .8rem;
+        color: #64748b;
+    }
+
+    .header-search-suggestion-prices {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: .2rem;
+        white-space: nowrap;
+        text-align: right;
+    }
+
+    .header-search-suggestion-price {
+        font-size: .95rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .header-search-suggestion-old-price {
+        font-size: .8rem;
+        color: #94a3b8;
+        text-decoration: line-through;
+    }
+
+    .header-search-suggestions-empty,
+    .header-search-suggestions-loading {
+        padding: 1rem;
+        font-size: .9rem;
+        color: #334155;
+    }
+
+    .header-search-suggestions-footer {
+        border-top: 1px solid #e2e8f0;
+        background: #fff;
+    }
+
+    .header-search-suggestions-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: .9rem 1rem;
+        font-size: .85rem;
+        font-weight: 700;
+        color: #0f172a;
+        transition: background-color .14s ease, color .14s ease;
+    }
+
+    .header-search-suggestions-link:hover {
+        background: #f8fafc;
+        color: #334155;
+    }
+
+    @media (max-width: 1023px) {
+        [data-header-search-panel].is-open {
+            max-height: 5.25rem;
+        }
+
+        .header-search-suggestions {
+            top: calc(100% + 0.55rem);
+            left: -0.25rem;
+            right: -0.25rem;
+        }
+
+        .header-search-suggestion {
+            grid-template-columns: 3rem minmax(0, 1fr);
+            gap: .75rem;
+            padding: .75rem;
+        }
+
+        .header-search-suggestion-thumb {
+            width: 3rem;
+            height: 3.8rem;
+        }
+
+        .header-search-suggestion-prices {
+            grid-column: 2;
+            align-items: flex-start;
+            text-align: left;
+        }
+    }
 </style>
 
 <header class="site-main-header sticky top-0 z-40 bg-white">
@@ -236,9 +423,24 @@
     </div>
 </header>
 
-<div class="max-h-0 overflow-hidden border-b border-slate-200 bg-white opacity-0 transition-all duration-300 pointer-events-none" data-header-search-panel>
+@php
+    $searchAutocompleteEnabled = (bool) app(\App\Services\Settings\SystemSettingsService::class)->get('store_search_autocomplete_enabled', false);
+@endphp
+<div class="border-b border-slate-200 bg-white" data-header-search-panel>
     <div class="px-4 py-3 sm:px-6 lg:px-8">
-        <form method="GET" action="{{ route('shop.index') }}" class="flex items-center gap-2">
+        <form
+            method="GET"
+            action="{{ route('shop.index') }}"
+            class="header-search-form flex items-center gap-2"
+            autocomplete="off"
+            data-header-search-form
+            data-autocomplete-enabled="{{ $searchAutocompleteEnabled ? '1' : '0' }}"
+            data-autocomplete-endpoint="{{ $searchAutocompleteEnabled ? route('search.autocomplete') : '' }}"
+            data-autocomplete-results-label="{{ __('ui.shop.search_autocomplete.results', ['count' => '__COUNT__']) }}"
+            data-autocomplete-empty-label="{{ __('ui.shop.search_autocomplete.no_results', ['query' => '__QUERY__']) }}"
+            data-autocomplete-loading-label="{{ __('ui.shop.search_autocomplete.searching') }}"
+            data-autocomplete-view-all-label="{{ __('ui.shop.search_autocomplete.view_all') }}"
+        >
             @foreach (['category', 'manufacturer', 'size', 'sort', 'cols'] as $queryKey)
                 @if (request()->routeIs('shop.index') && request()->filled($queryKey))
                     <input type="hidden" name="{{ $queryKey }}" value="{{ (string) request()->query($queryKey) }}">
@@ -250,11 +452,24 @@
                 value="{{ (string) request()->query('q', '') }}"
                 placeholder="{{ __('ui.shop.filters.search_placeholder') }}"
                 class="h-[42px] w-full border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none ring-0 focus:border-slate-500 focus:ring-1 focus:ring-slate-300/60"
+                autocomplete="off"
+                autocapitalize="none"
+                autocorrect="off"
+                spellcheck="false"
                 data-header-search-input
             >
             <button type="submit" class="inline-flex h-[42px] items-center justify-center border border-slate-900 bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-700">
                 {{ __('ui.shop.filters.search') }}
             </button>
+            <div class="header-search-suggestions" data-header-search-suggestions hidden>
+                <div class="header-search-suggestions-meta" data-header-search-suggestions-meta></div>
+                <div class="header-search-suggestions-loading" data-header-search-loading hidden></div>
+                <div class="header-search-suggestions-empty" data-header-search-empty hidden></div>
+                <div class="header-search-suggestions-list" data-header-search-suggestions-list></div>
+                <div class="header-search-suggestions-footer" data-header-search-footer hidden>
+                    <a href="{{ route('shop.index') }}" class="header-search-suggestions-link" data-header-search-view-all></a>
+                </div>
+            </div>
         </form>
     </div>
 </div>

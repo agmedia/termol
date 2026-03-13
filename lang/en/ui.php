@@ -8,6 +8,12 @@ return [
         'page_title' => 'Shop',
         'title' => 'Shop Products',
         'subtitle' => 'Search and filter your live catalog.',
+        'search_autocomplete' => [
+            'results' => 'Found :count products',
+            'no_results' => 'No results for ":query".',
+            'searching' => 'Searching...',
+            'view_all' => 'View all results',
+        ],
         'load_more' => 'Load more',
         'loading' => 'Loading...',
         'end_of_list' => 'No more products.',

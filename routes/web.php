@@ -67,6 +67,7 @@ Route::middleware(['front.locale', 'front.device'])
 
         Route::get('/', [StorefrontController::class, 'home'])->name('home');
 
+        Route::get('search/autocomplete', [CatalogController::class, 'autocomplete'])->name('search.autocomplete');
         Route::get('shop', [CatalogController::class, 'index'])->name('shop.index');
         Route::get('categories', [CatalogController::class, 'categories'])->name('categories.index');
         Route::get('category/{slug}', [CatalogController::class, 'showCategory'])->name('categories.show');

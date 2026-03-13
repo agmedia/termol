@@ -8,6 +8,12 @@ return [
         'page_title' => 'Shop',
         'title' => 'Shop Proizvodi',
         'subtitle' => 'Pretraži i filtriraj aktivni katalog.',
+        'search_autocomplete' => [
+            'results' => 'Pronađeno :count artikala',
+            'no_results' => 'Nema rezultata za upit ":query".',
+            'searching' => 'Pretraživanje...',
+            'view_all' => 'Prikaži sve rezultate',
+        ],
         'load_more' => 'Učitaj još',
         'loading' => 'Učitavanje...',
         'end_of_list' => 'Nema više artikala.',

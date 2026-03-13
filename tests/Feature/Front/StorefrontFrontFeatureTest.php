@@ -119,6 +119,60 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertSame([$product->id], $query->pluck('id')->all());
     }
 
+    public function test_search_autocomplete_is_not_available_when_disabled(): void
+    {
+        app(SystemSettingsService::class)->put('store_search_autocomplete_enabled', false);
+
+        $this->getJson('/search/autocomplete?q=prod')
+            ->assertNotFound();
+    }
+
+    public function test_search_autocomplete_returns_product_name_sku_price_and_old_price_when_available(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        app(SystemSettingsService::class)->put('store_search_autocomplete_enabled', true);
+
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $product->update([
+            'sku' => 'AUTO-123',
+            'base_price' => 100,
+        ]);
+
+        $product->translations()->where('locale', 'en')->update([
+            'name' => 'Autocomplete Product',
+            'excerpt' => 'Autocomplete excerpt',
+            'description' => 'Autocomplete description',
+        ]);
+
+        $action = CatalogAction::query()->create([
+            'code' => 'auto-'.strtolower((string) str()->random(6)),
+            'scope' => CatalogAction::SCOPE_PRODUCT,
+            'type' => CatalogAction::TYPE_PERCENTAGE,
+            'discount_value' => 20,
+            'target_type' => CatalogAction::TARGET_PRODUCT,
+            'audience_type' => CatalogAction::AUDIENCE_ALL,
+            'is_active' => true,
+            'starts_at' => now()->subHour(),
+            'ends_at' => now()->addHour(),
+        ]);
+
+        $action->targets()->create([
+            'target_type' => CatalogAction::TARGET_PRODUCT,
+            'target_id' => $product->id,
+        ]);
+
+        $this->getJson('/search/autocomplete?q=Auto')
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('items.0.name', 'Autocomplete Product')
+            ->assertJsonPath('items.0.sku', 'AUTO-123')
+            ->assertJsonPath('items.0.price', '80.00 €')
+            ->assertJsonPath('items.0.old_price', '100.00 €')
+            ->assertJsonPath('items.0.has_discount', true);
+    }
+
     public function test_home_renders_configured_navigation_with_subcategories(): void
     {
         [$parent, $parentSlug] = $this->seedCategory();

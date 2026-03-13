@@ -389,6 +389,14 @@
                         <input type="checkbox" wire:model="form.store_product_fit_finder_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
                         {{ __('admin.settings.store.products.fit_finder_enabled') }}
                     </label>
+                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 md:col-span-2">
+                        <input type="checkbox" wire:model="form.store_search_autocomplete_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                        {{ __('admin.settings.store.products.search_autocomplete_enabled') }}
+                    </label>
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <h3 class="text-sm font-bold text-slate-800">{{ __('admin.settings.store.products.search_autocomplete_title') }}</h3>
+                        <p class="mt-1 text-xs text-slate-600">{{ __('admin.settings.store.products.search_autocomplete_help') }}</p>
+                    </div>
                     <div class="md:col-span-2 rounded-xl border border-slate-200 p-4">
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.settings.store.products.mobile_default_grid_label') }}</label>
                         <p class="mb-3 text-xs text-slate-600">{{ __('admin.settings.store.products.mobile_default_grid_help') }}</p>

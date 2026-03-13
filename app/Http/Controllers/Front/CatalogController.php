@@ -15,9 +15,12 @@ use App\Models\Catalog\Product\Product;
 use App\Models\User;
 use App\Services\Content\ContentBlockResolver;
 use App\Services\Front\WishlistService;
+use App\Services\Pricing\ProductPricePresentationService;
 use App\Services\Settings\SystemSettingsService;
+use App\Support\Media\MediaUrl;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Response;
 use Illuminate\Http\RedirectResponse;
@@ -32,6 +35,85 @@ class CatalogController extends Controller
 {
     use ResolvesFrontendView;
     use ResolvesGridColumns;
+
+    public function autocomplete(Request $request): JsonResponse
+    {
+        abort_unless(
+            (bool) app(SystemSettingsService::class)->get('store_search_autocomplete_enabled', false),
+            404
+        );
+
+        $locale = app()->getLocale();
+        $fallbackLocale = (string) config('app.locale');
+        $search = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($search) < 2) {
+            return response()->json([
+                'query' => $search,
+                'total' => 0,
+                'items' => [],
+                'search_url' => route('shop.index', ['q' => $search]),
+            ]);
+        }
+
+        $query = Product::query()
+            ->where('products.is_active', true)
+            ->with([
+                'taxRate:id,rate,rate_type,is_active',
+                'translations' => fn ($translationQuery) => $translationQuery
+                    ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt'])
+                    ->whereIn('locale', [$locale, $fallbackLocale]),
+                'media',
+            ]);
+
+        $this->applyProductSearch($query, $locale, $fallbackLocale, $search);
+
+        $total = (clone $query)->count('products.id');
+        $viewer = $request->user();
+        $pricing = app(ProductPricePresentationService::class);
+        $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', false);
+
+        $products = $query
+            ->orderByDesc('products.id')
+            ->limit(8)
+            ->get()
+            ->map(function (Product $product) use ($locale, $fallbackLocale, $viewer, $pricing, $preferWebp): array {
+                $translation = $product->translations->firstWhere('locale', $locale)
+                    ?? $product->translations->firstWhere('locale', $fallbackLocale)
+                    ?? $product->translations->first();
+
+                $slug = (string) ($translation?->slug ?? $product->id);
+                $price = $pricing->forProduct($product, $viewer);
+                $mainMedia = $product->media->firstWhere('collection_name', 'product_main')
+                    ?? $product->media->firstWhere('collection_name', 'product_gallery')
+                    ?? $product->getFirstMedia('product_main')
+                    ?? $product->getFirstMedia('product_gallery');
+                $imageUrl = MediaUrl::conversionOrNull($mainMedia, 'card_320w', $preferWebp)
+                    ?? MediaUrl::conversionOrNull($mainMedia, 'card_480w', $preferWebp)
+                    ?? ($mainMedia ? (string) $mainMedia->getUrl() : null);
+                $oldGross = $price['old_gross'] ?? null;
+
+                return [
+                    'id' => (int) $product->id,
+                    'name' => (string) ($translation?->name ?? $product->code),
+                    'sku' => (string) ($product->sku ?: $product->code),
+                    'url' => route('products.show', ['slug' => $slug]),
+                    'image_url' => $imageUrl,
+                    'price' => number_format((float) ($price['current_gross'] ?? 0), 2).' €',
+                    'old_price' => $oldGross !== null ? number_format((float) $oldGross, 2).' €' : null,
+                    'has_discount' => $oldGross !== null && (float) $oldGross > (float) ($price['current_gross'] ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return response()->json([
+            'query' => $search,
+            'total' => $total,
+            'items' => $products,
+            'search_url' => route('shop.index', ['q' => $search]),
+        ]);
+    }
 
     public function index(Request $request): Response|RedirectResponse
     {
