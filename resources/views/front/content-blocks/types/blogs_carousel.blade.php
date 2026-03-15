@@ -232,7 +232,7 @@
                                                 @endif
                                             </div>
                                             <div class="p-4">
-                                                <h3 class="text-center text-[1.02rem] leading-[1.4rem] font-semibold text-slate-900 min-[541px]:text-lg min-[541px]:leading-snug lg:text-xl">{{ $postTitle }}</h3>
+                                                <h3 class=" text-[1.02rem] leading-[1.4rem] font-semibold text-slate-900 min-[541px]:text-lg min-[541px]:leading-snug lg:text-xl">{{ $postTitle }}</h3>
                                                 @if ($postExcerpt !== '')
                                                     <p class="mt-2 text-sm text-slate-600">{{ \Illuminate\Support\Str::limit($postExcerpt, 120, '...') }}</p>
                                                 @endif
@@ -277,8 +277,8 @@
                                         breakpoints: {
                                             1280: { perPage: Math.min(3, Math.max(1, count)) },
                                             1024: { perPage: Math.min(2, Math.max(1, count)) },
-                                            860: { perPage: 1, gap: '1rem' },
-                                            640: { perPage: 1, gap: '0.8rem' },
+                                            860: { perPage: 2, gap: '1rem' },
+                                            640: { perPage: 1.2, gap: '0.8rem' },
                                         },
                                     }).mount();
                                 });

@@ -69,7 +69,7 @@
                 </div>
             @endif
 
-            <div class="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start lg:gap-10 xl:gap-12">
+            <div class="grid grid-cols-2 gap-6 md:grid-cols-2 md:items-start lg:gap-10 xl:gap-12">
                 @foreach ($slides as $media)
                     @php
                         $imageUrl1200 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_1200w', $preferWebp);
