@@ -288,6 +288,73 @@
             align-items: flex-start;
             text-align: left;
         }
+
+        [data-mobile-menu-root] {
+            position: fixed;
+            inset: 0;
+            width: 100dvw;
+            height: 100dvh;
+            z-index: 9700;
+        }
+
+        [data-mobile-menu-root] > [data-mobile-menu-close] {
+            position: fixed;
+            inset: 0;
+        }
+
+        [data-mobile-menu-panel] {
+            position: fixed;
+            inset: 0 auto 0 0;
+            width: 100dvw !important;
+            min-width: 100dvw;
+            max-width: none !important;
+            height: 100dvh;
+            max-height: 100dvh;
+            overflow-y: auto;
+        }
+
+        body.desktop-mobile-menu-open #cookie-consent-floating-button {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+
+        .desktop-mobile-menu-list {
+            border-top: 0;
+        }
+
+        .desktop-mobile-menu-row {
+            border: 0 !important;
+            box-shadow: inset 0 -1px 0 #e2e8f0;
+        }
+
+        .desktop-mobile-menu-row-active {
+            background: #f8fafc;
+            box-shadow: inset 3px 0 0 #0f172a, inset 0 -1px 0 #e2e8f0;
+        }
+
+        .desktop-mobile-menu-link-active {
+            color: #0f172a !important;
+            font-weight: 700 !important;
+        }
+
+        .desktop-mobile-menu-group,
+        .desktop-mobile-menu-group > summary,
+        .desktop-mobile-menu-group > ul,
+        .desktop-mobile-menu-children > li,
+        .desktop-mobile-menu-children > li > details,
+        .desktop-mobile-menu-children > li > a {
+            border: 0 !important;
+        }
+
+        .desktop-mobile-menu-children,
+        .desktop-mobile-menu-children li {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            list-style: none;
+        }
     }
 </style>
 
@@ -474,9 +541,9 @@
     </div>
 </div>
 
-<div class="pointer-events-none fixed inset-0 z-[60] lg:hidden" data-mobile-menu-root>
+<div class="pointer-events-none fixed inset-0 lg:hidden" data-mobile-menu-root>
     <button type="button" class="absolute inset-0 bg-black/45 opacity-0 transition-opacity duration-300" aria-label="{{ __('ui.front.desktop.close_navigation') }}" data-mobile-menu-close></button>
-    <aside class="absolute inset-y-0 left-0 flex w-[90vw] max-w-md -translate-x-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-out" data-mobile-menu-panel>
+    <aside class="absolute inset-y-0 left-0 flex w-full max-w-none -translate-x-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-out" data-mobile-menu-panel>
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-4">
             <span class="text-xl font-black tracking-tight text-slate-900">{{ (string) ($storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop')) }}</span>
             <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.close_navigation') }}" data-mobile-menu-close>

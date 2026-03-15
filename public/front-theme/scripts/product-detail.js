@@ -113,6 +113,189 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    const LIGHTGALLERY_MIN_SCALE = 1;
+    const LIGHTGALLERY_MAX_SCALE = 4;
+    const LIGHTGALLERY_SCALE_STEP = 0.25;
+
+    const ensureLightGalleryStyles = function () {
+        if (document.querySelector('[data-product-lightgallery-style="1"]')) {
+            return;
+        }
+
+        const style = document.createElement('style');
+        style.setAttribute('data-product-lightgallery-style', '1');
+        style.textContent = [
+            '.lg-backdrop{z-index:12000!important;}',
+            '.lg-container,.lg-outer{z-index:12001!important;}',
+            '.product-lightgallery-zoom{position:fixed;top:calc(env(safe-area-inset-top,0px) + 4.5rem);right:1rem;z-index:12002;display:flex;flex-direction:column;gap:.65rem;}',
+            '.product-lightgallery-zoom__btn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:1px solid rgba(255,255,255,.28);background:rgba(15,23,42,.82);color:#fff;border-radius:0;box-shadow:0 10px 24px rgba(15,23,42,.22);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:opacity .2s ease,transform .2s ease;}',
+            '.product-lightgallery-zoom__btn:hover{opacity:1;transform:translateY(-1px);}',
+            '.product-lightgallery-zoom__btn[disabled]{opacity:.38;cursor:not-allowed;transform:none;}',
+            '.product-lightgallery-zoom__btn svg{display:block;width:20px;height:20px;}',
+            '.lg-current .lg-object,.lg-current .lg-image,.lg-current img{transform-origin:center center;transition:transform .2s ease;}',
+            '@media (max-width:768px){.product-lightgallery-zoom{top:calc(env(safe-area-inset-top,0px) + 4rem);right:.9rem;gap:.55rem;}.product-lightgallery-zoom__btn{width:40px;height:40px;}.product-lightgallery-zoom__btn svg{width:18px;height:18px;}}',
+        ].join('');
+
+        document.head.appendChild(style);
+    };
+
+    const clampLightGalleryScale = function (value) {
+        return Math.min(LIGHTGALLERY_MAX_SCALE, Math.max(LIGHTGALLERY_MIN_SCALE, value));
+    };
+
+    const getCurrentLightGalleryImage = function (container) {
+        if (!container) {
+            return null;
+        }
+
+        const selectors = [
+            '.lg-item.lg-current .lg-object',
+            '.lg-item.lg-current .lg-image',
+            '.lg-item.lg-current img',
+            '.lg-current .lg-object',
+            '.lg-current .lg-image',
+            '.lg-current img',
+        ];
+
+        for (let index = 0; index < selectors.length; index += 1) {
+            const image = container.querySelector(selectors[index]);
+            if (image) {
+                return image;
+            }
+        }
+
+        return null;
+    };
+
+    const getLightGalleryImageScale = function (image) {
+        if (!image) {
+            return LIGHTGALLERY_MIN_SCALE;
+        }
+
+        const raw = Number.parseFloat(String(image.dataset.productLightgalleryScale || LIGHTGALLERY_MIN_SCALE));
+        if (!Number.isFinite(raw)) {
+            return LIGHTGALLERY_MIN_SCALE;
+        }
+
+        return clampLightGalleryScale(raw);
+    };
+
+    const applyLightGalleryScale = function (image, scale) {
+        if (!image) {
+            return;
+        }
+
+        const normalized = clampLightGalleryScale(scale);
+        image.dataset.productLightgalleryScale = String(normalized);
+        image.style.transform = normalized > 1 ? 'scale(' + normalized + ')' : 'scale(1)';
+        image.style.cursor = normalized > 1 ? 'zoom-out' : '';
+    };
+
+    const syncLightGalleryZoomState = function (container) {
+        if (!container) {
+            return;
+        }
+
+        const currentImage = getCurrentLightGalleryImage(container);
+        const imageNodes = Array.from(container.querySelectorAll('.lg-item img, .lg-item .lg-object, .lg-item .lg-image'));
+
+        imageNodes.forEach(function (image) {
+            if (image !== currentImage) {
+                image.dataset.productLightgalleryScale = String(LIGHTGALLERY_MIN_SCALE);
+                image.style.transform = 'scale(1)';
+                image.style.cursor = '';
+            }
+        });
+
+        if (currentImage) {
+            applyLightGalleryScale(currentImage, getLightGalleryImageScale(currentImage));
+        }
+
+        const zoomInButton = container.querySelector('[data-gallery-zoom-in]');
+        const zoomOutButton = container.querySelector('[data-gallery-zoom-out]');
+        const currentScale = currentImage ? getLightGalleryImageScale(currentImage) : LIGHTGALLERY_MIN_SCALE;
+
+        if (zoomInButton) {
+            zoomInButton.disabled = currentScale >= LIGHTGALLERY_MAX_SCALE;
+        }
+
+        if (zoomOutButton) {
+            zoomOutButton.disabled = currentScale <= LIGHTGALLERY_MIN_SCALE;
+        }
+    };
+
+    const adjustCurrentLightGalleryScale = function (container, delta) {
+        const currentImage = getCurrentLightGalleryImage(container);
+        if (!currentImage) {
+            return;
+        }
+
+        const currentScale = getLightGalleryImageScale(currentImage);
+        applyLightGalleryScale(currentImage, currentScale + delta);
+        syncLightGalleryZoomState(container);
+    };
+
+    const ensureLightGalleryZoomControls = function (container) {
+        if (!container || container.querySelector('[data-product-lightgallery-zoom="1"]')) {
+            return;
+        }
+
+        const controls = document.createElement('div');
+        controls.className = 'product-lightgallery-zoom';
+        controls.setAttribute('data-product-lightgallery-zoom', '1');
+        controls.innerHTML = [
+            '<button type="button" class="product-lightgallery-zoom__btn" data-gallery-zoom-in aria-label="Uvećaj sliku" title="Uvećaj sliku"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path><path d="M11 8.4v5.2"></path><path d="M8.4 11h5.2"></path></svg></button>',
+            '<button type="button" class="product-lightgallery-zoom__btn" data-gallery-zoom-out aria-label="Smanji sliku" title="Smanji sliku"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path><path d="M8.4 11h5.2"></path></svg></button>',
+        ].join('');
+
+        const zoomInButton = controls.querySelector('[data-gallery-zoom-in]');
+        const zoomOutButton = controls.querySelector('[data-gallery-zoom-out]');
+
+        zoomInButton.addEventListener('click', function () {
+            adjustCurrentLightGalleryScale(container, LIGHTGALLERY_SCALE_STEP);
+        });
+
+        zoomOutButton.addEventListener('click', function () {
+            adjustCurrentLightGalleryScale(container, -LIGHTGALLERY_SCALE_STEP);
+        });
+
+        container.appendChild(controls);
+    };
+
+    const attachLightGalleryEnhancements = function () {
+        const container = document.querySelector('.lg-container') || document.querySelector('.lg-outer');
+        if (!container) {
+            return;
+        }
+
+        ensureLightGalleryStyles();
+        ensureLightGalleryZoomControls(container);
+        syncLightGalleryZoomState(container);
+
+        if (container.__productLightgalleryObserverAttached === true) {
+            return;
+        }
+
+        const observerTarget = container.querySelector('.lg-inner') || container;
+        const observer = new MutationObserver(function () {
+            syncLightGalleryZoomState(container);
+        });
+
+        observer.observe(observerTarget, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ['class'],
+        });
+
+        container.__productLightgalleryObserverAttached = true;
+        container.__productLightgalleryObserver = observer;
+    };
+
+    const scheduleLightGalleryEnhancements = function () {
+        window.setTimeout(attachLightGalleryEnhancements, 80);
+    };
+
     let galleryBox = null;
     if (galleryItems.length && typeof window.lightGallery === 'function') {
         const previousGalleryRoot = document.querySelector('[data-product-lightgallery="1"]');
@@ -123,6 +306,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const galleryRoot = document.createElement('div');
         galleryRoot.setAttribute('data-product-lightgallery', '1');
         document.body.appendChild(galleryRoot);
+
+        ensureLightGalleryStyles();
 
         galleryBox = window.lightGallery(galleryRoot, {
             dynamic: true,
@@ -142,6 +327,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 showCloseIcon: true,
                 download: false,
             },
+        });
+
+        galleryRoot.addEventListener('lgAfterOpen', scheduleLightGalleryEnhancements);
+        galleryRoot.addEventListener('lgAfterSlide', scheduleLightGalleryEnhancements);
+        galleryRoot.addEventListener('lgBeforeClose', function () {
+            const container = document.querySelector('.lg-container') || document.querySelector('.lg-outer');
+            if (!container) {
+                return;
+            }
+
+            const images = container.querySelectorAll('.lg-item img, .lg-item .lg-object, .lg-item .lg-image');
+            images.forEach(function (image) {
+                image.dataset.productLightgalleryScale = String(LIGHTGALLERY_MIN_SCALE);
+                image.style.transform = 'scale(1)';
+                image.style.cursor = '';
+            });
         });
     }
 
@@ -176,6 +377,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             try {
                 galleryBox.openGallery(normalized);
+                scheduleLightGalleryEnhancements();
             } catch (error) {
                 openFallbackImage(normalized);
             }

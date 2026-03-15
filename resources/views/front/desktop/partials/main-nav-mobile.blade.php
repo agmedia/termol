@@ -8,7 +8,7 @@
 @endphp
 
 @if ($hasNavigation)
-    <div class="overflow-y-auto border-t border-slate-200 px-0 text-sm uppercase tracking-[0.03em] text-slate-900">
+    <div class="desktop-mobile-menu-list overflow-y-auto px-0 text-sm uppercase tracking-[0.03em] text-slate-900">
         @foreach ($mainNavigation as $item)
             @php
                 $children = collect($item['children'] ?? []);
@@ -18,8 +18,8 @@
             @endphp
 
             @if ($hasChildren)
-                <details class="group/nav border-b border-slate-200">
-                    <summary class="relative flex min-h-[56px] cursor-pointer list-none items-center px-4 py-3 hover:bg-slate-50">
+                <details class="group/nav desktop-mobile-menu-group" data-mobile-menu-accordion>
+                    <summary class="desktop-mobile-menu-row relative flex min-h-[56px] cursor-pointer list-none items-center px-4 py-3 hover:bg-slate-50">
                         <a
                             href="{{ $item['url'] ?? '#' }}"
                             class="min-w-0 flex-1 truncate pr-12 text-[14px] font-semibold"
@@ -40,25 +40,25 @@
                             </svg>
                         </span>
                     </summary>
-                    <ul class="m-0 list-none px-0 pb-0 text-[13px]">
+                    <ul class="desktop-mobile-menu-children text-[13px]">
                         @foreach ($children as $child)
                             @include('front.desktop.partials.main-nav-mobile-child', ['child' => $child, 'level' => 0])
                         @endforeach
                     </ul>
                 </details>
             @else
-                <a href="{{ $item['url'] ?? '#' }}" class="flex min-h-[56px] items-center border-b border-slate-200 px-4 py-3 text-[14px] font-semibold hover:bg-slate-50" @if($target) target="{{ $target }}" rel="{{ $rel }}" @endif>{{ $item['label'] }}</a>
+                <a href="{{ $item['url'] ?? '#' }}" class="desktop-mobile-menu-row flex min-h-[56px] items-center px-4 py-3 text-[14px] font-semibold hover:bg-slate-50" @if($target) target="{{ $target }}" rel="{{ $rel }}" @endif>{{ $item['label'] }}</a>
             @endif
         @endforeach
     </div>
 @else
-    <nav class="overflow-y-auto border-t border-slate-200 px-0 text-sm uppercase tracking-[0.03em] text-slate-900">
-        <a href="{{ route('shop.index') }}" class="flex min-h-[56px] items-center border-b border-slate-200 px-4 py-3 text-[14px] font-semibold hover:bg-slate-50">{{ __('ui.front.desktop.nav.new') }}</a>
-        <a href="{{ route('categories.index') }}" class="flex min-h-[56px] items-center border-b border-slate-200 px-4 py-3 text-[14px] font-semibold hover:bg-slate-50">Kategorije</a>
+    <nav class="desktop-mobile-menu-list overflow-y-auto px-0 text-sm uppercase tracking-[0.03em] text-slate-900">
+        <a href="{{ route('shop.index') }}" class="desktop-mobile-menu-row flex min-h-[56px] items-center px-4 py-3 text-[14px] font-semibold hover:bg-slate-50">{{ __('ui.front.desktop.nav.new') }}</a>
+        <a href="{{ route('categories.index') }}" class="desktop-mobile-menu-row flex min-h-[56px] items-center px-4 py-3 text-[14px] font-semibold hover:bg-slate-50">Kategorije</a>
         @if ($showBlog)
-            <a href="{{ route('blog.index') }}" class="flex min-h-[56px] items-center border-b border-slate-200 px-4 py-3 text-[14px] font-semibold hover:bg-slate-50">{{ __('ui.front.desktop.nav.blog') }}</a>
+            <a href="{{ route('blog.index') }}" class="desktop-mobile-menu-row flex min-h-[56px] items-center px-4 py-3 text-[14px] font-semibold hover:bg-slate-50">{{ __('ui.front.desktop.nav.blog') }}</a>
         @endif
-        <a href="{{ route('faq.index') }}" class="flex min-h-[56px] items-center border-b border-slate-200 px-4 py-3 text-[14px] font-semibold hover:bg-slate-50">{{ __('ui.front.desktop.nav.faq') }}</a>
-        <a href="{{ route('contact.create') }}" class="flex min-h-[56px] items-center border-b border-slate-200 px-4 py-3 text-[14px] font-semibold hover:bg-slate-50">{{ __('ui.front.desktop.nav.contact') }}</a>
+        <a href="{{ route('faq.index') }}" class="desktop-mobile-menu-row flex min-h-[56px] items-center px-4 py-3 text-[14px] font-semibold hover:bg-slate-50">{{ __('ui.front.desktop.nav.faq') }}</a>
+        <a href="{{ route('contact.create') }}" class="desktop-mobile-menu-row flex min-h-[56px] items-center px-4 py-3 text-[14px] font-semibold hover:bg-slate-50">{{ __('ui.front.desktop.nav.contact') }}</a>
     </nav>
 @endif

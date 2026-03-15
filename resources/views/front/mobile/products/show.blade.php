@@ -109,7 +109,7 @@
 
     <div class="card card-style">
         @if ($gallery->isNotEmpty())
-            <div class="content p-0" data-mobile-product-gallery>
+            <div class="content p-0" style="margin-top: -1px;" data-mobile-product-gallery>
                 <div class="d-flex overflow-auto" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; overflow-y: hidden;" data-mobile-gallery-track>
                     @foreach ($gallery as $index => $image)
                         <button

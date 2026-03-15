@@ -7,10 +7,10 @@
     $rel = !empty($child['open_in_new_tab']) ? 'noopener noreferrer' : null;
 @endphp
 
-<li class="border-b border-slate-200">
+<li>
 @if ($children->isNotEmpty())
-        <details class="group/subnav">
-            <summary class="relative flex min-h-[52px] cursor-pointer list-none items-center py-3 pr-3 text-[13px] text-slate-700 hover:bg-slate-50 hover:text-slate-900" style="padding-left: {{ $padding }}rem;">
+        <details class="group/subnav desktop-mobile-menu-group" data-mobile-menu-accordion>
+            <summary class="desktop-mobile-menu-row relative flex min-h-[52px] cursor-pointer list-none items-center py-3 pr-3 text-[13px] text-slate-700 hover:bg-slate-50 hover:text-slate-900" style="padding-left: {{ $padding }}rem;">
                 <a
                     href="{{ $child['url'] ?? '#' }}"
                     class="min-w-0 flex-1 truncate pr-11 {{ $labelWeightClass }}"
@@ -31,14 +31,14 @@
                     </svg>
                 </span>
             </summary>
-            <ul class="m-0 list-none p-0">
+            <ul class="desktop-mobile-menu-children">
                 @foreach ($children as $nestedChild)
                     @include('front.desktop.partials.main-nav-mobile-child', ['child' => $nestedChild, 'level' => $level + 1])
                 @endforeach
             </ul>
         </details>
     @else
-        <a href="{{ $child['url'] ?? '#' }}" class="flex min-h-[52px] items-center py-3 text-[13px] {{ $leafWeightClass }} text-slate-700 hover:bg-slate-100 hover:text-slate-900" style="padding-left: {{ $padding }}rem;">
+        <a href="{{ $child['url'] ?? '#' }}" class="desktop-mobile-menu-row flex min-h-[52px] items-center py-3 text-[13px] {{ $leafWeightClass }} text-slate-700 hover:bg-slate-100 hover:text-slate-900" style="padding-left: {{ $padding }}rem;">
             {{ $child['label'] ?? '' }}
         </a>
     @endif

@@ -64,7 +64,7 @@
             position: fixed !important;
             left: 1rem !important;
             bottom: 1rem !important;
-            z-index: 2147483647 !important;
+            z-index: 9500 !important;
             display: inline-flex !important;
             visibility: visible !important;
             opacity: 1 !important;

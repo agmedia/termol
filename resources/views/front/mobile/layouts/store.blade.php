@@ -91,7 +91,7 @@
 
     @include('front.partials.analytics-ecommerce')
 
-    <div id="menu-main" class="menu menu-box-left rounded-0" data-menu-width="280">
+    <div id="menu-main" class="menu menu-box-left rounded-0" data-menu-width="cover">
         @include('front.mobile.menu-main')
     </div>
     <div id="menu-colors" class="menu menu-box-bottom rounded-m" data-menu-load="/front-theme/menu-colors.html" data-menu-height="480"></div>
