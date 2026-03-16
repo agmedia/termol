@@ -1,10 +1,11 @@
 (() => {
     const init = () => {
         const root = document.querySelector('[data-mobile-menu-root]');
-        if (!root || root.dataset.menuInit === '1') {
+        if (!root) {
+            document.body.classList.remove('overflow-hidden');
+            document.body.classList.remove('desktop-mobile-menu-open');
             return;
         }
-        root.dataset.menuInit = '1';
 
         const panel = root.querySelector('[data-mobile-menu-panel]');
         const overlay = root.querySelector('[data-mobile-menu-close]');
@@ -12,7 +13,26 @@
         const closeButtons = root.querySelectorAll('[data-mobile-menu-close]');
         const accordionSections = root.querySelectorAll('[data-mobile-menu-accordion]');
         const menuLinks = Array.from(root.querySelectorAll('a[href]'));
-        const storageKey = 'desktop-mobile-menu-last-path';
+        const accordionStateKey = 'desktop-mobile-menu-accordion-state';
+        let isRestoringAccordionState = false;
+
+        const forceClosedState = () => {
+            root.classList.add('pointer-events-none');
+            root.dataset.menuOpen = '0';
+            overlay?.classList.remove('opacity-100');
+            overlay?.classList.add('opacity-0');
+            panel?.classList.add('-translate-x-full');
+            panel?.classList.remove('translate-x-0');
+            document.body.classList.remove('overflow-hidden');
+            document.body.classList.remove('desktop-mobile-menu-open');
+        };
+
+        forceClosedState();
+
+        if (root.dataset.menuInit === '1') {
+            return;
+        }
+        root.dataset.menuInit = '1';
 
         const normalizePath = (href) => {
             try {
@@ -28,6 +48,12 @@
             }
         };
 
+        const slugify = (value) => value
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, '-')
+            .replace(/[^a-z0-9\-/_]/g, '');
+
         const getSectionDepth = (link) => {
             let depth = 0;
             let currentSection = link.closest('details');
@@ -40,21 +66,40 @@
             return depth;
         };
 
-        const readStoredPath = () => {
+        const getSectionKey = (section) => {
+            if (section.dataset.menuSectionKey) {
+                return section.dataset.menuSectionKey;
+            }
+
+            const link = section.querySelector(':scope > summary [data-mobile-nav-link]');
+            const path = link ? normalizePath(link.href) : null;
+            const fallbackLabel = link ? slugify(link.textContent || '') : '';
+            const key = path || fallbackLabel || '';
+
+            if (key) {
+                section.dataset.menuSectionKey = key;
+            }
+
+            return key;
+        };
+
+        const readAccordionState = () => {
             try {
-                return sessionStorage.getItem(storageKey) || '';
+                const raw = sessionStorage.getItem(accordionStateKey);
+                if (!raw) {
+                    return {};
+                }
+
+                const parsed = JSON.parse(raw);
+                return parsed && typeof parsed === 'object' ? parsed : {};
             } catch {
-                return '';
+                return {};
             }
         };
 
-        const storePath = (path) => {
-            if (!path) {
-                return;
-            }
-
+        const writeAccordionState = (state) => {
             try {
-                sessionStorage.setItem(storageKey, path);
+                sessionStorage.setItem(accordionStateKey, JSON.stringify(state));
             } catch {
                 // Ignore storage failures and keep menu functional.
             }
@@ -90,6 +135,17 @@
 
                 return [];
             });
+        };
+
+        const restoreAccordionState = () => {
+            const accordionState = readAccordionState();
+
+            isRestoringAccordionState = true;
+            accordionSections.forEach((section) => {
+                const key = getSectionKey(section);
+                section.open = key ? Boolean(accordionState[key]) : false;
+            });
+            isRestoringAccordionState = false;
         };
 
         const findBestLinkForPath = (path) => menuLinks
@@ -139,25 +195,38 @@
         const syncMenuState = () => {
             const currentPath = normalizePath(window.location.href);
             const currentLink = currentPath ? findBestLinkForPath(currentPath) : null;
-            const fallbackPath = currentLink ? null : readStoredPath();
-            const targetLink = currentLink ?? (fallbackPath ? findBestLinkForPath(fallbackPath) : null);
 
-            if (!targetLink) {
+            restoreAccordionState();
+            clearActiveState();
+
+            if (!currentLink) {
                 return;
             }
 
-            revealLinkPath(targetLink);
+            const accordionState = readAccordionState();
+            const sectionsToReveal = [];
+            let currentSection = currentLink.closest('details');
+
+            while (currentSection) {
+                sectionsToReveal.unshift(currentSection);
+                currentSection = currentSection.parentElement?.closest('details') ?? null;
+            }
+
+            isRestoringAccordionState = true;
+            sectionsToReveal.forEach((section) => {
+                const key = getSectionKey(section);
+                if (key && !Object.prototype.hasOwnProperty.call(accordionState, key)) {
+                    section.open = true;
+                }
+            });
+            isRestoringAccordionState = false;
+
+            clearActiveState();
+            revealLinkPath(currentLink);
         };
 
         const closeMenu = () => {
-            root.classList.add('pointer-events-none');
-            root.dataset.menuOpen = '0';
-            overlay?.classList.remove('opacity-100');
-            overlay?.classList.add('opacity-0');
-            panel?.classList.add('-translate-x-full');
-            panel?.classList.remove('translate-x-0');
-            document.body.classList.remove('overflow-hidden');
-            document.body.classList.remove('desktop-mobile-menu-open');
+            forceClosedState();
         };
 
         const openMenu = (event) => {
@@ -182,6 +251,17 @@
         closeButtons.forEach((button) => button.addEventListener('click', closeMenu));
         accordionSections.forEach((section) => {
             section.addEventListener('toggle', () => {
+                if (isRestoringAccordionState) {
+                    return;
+                }
+
+                const key = getSectionKey(section);
+                if (key) {
+                    const accordionState = readAccordionState();
+                    accordionState[key] = section.open;
+                    writeAccordionState(accordionState);
+                }
+
                 if (!section.open) {
                     return;
                 }
@@ -200,7 +280,6 @@
         });
         menuLinks.forEach((link) => {
             link.addEventListener('click', () => {
-                storePath(normalizePath(link.href));
                 closeMenu();
             });
         });

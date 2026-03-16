@@ -6,8 +6,8 @@
 <style>
     .scroll-to-top-button {
         position: fixed;
-        right: calc(1rem + env(safe-area-inset-right, 0px));
-        bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+        right: 1rem;
+        bottom: 1rem;
         z-index: 9998;
         display: inline-flex;
         align-items: center;
