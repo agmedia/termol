@@ -408,6 +408,17 @@
         }
 
         @media (max-width: 1024px) {
+            body.desktop-mobile-filter-open {
+                overflow: hidden;
+            }
+
+            body.desktop-mobile-filter-open #cookie-consent-floating-button {
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+            }
+
             .catalog-mobile-filter-toolbar {
                 display: flex;
                 align-items: center;
@@ -477,11 +488,14 @@
             }
 
             .catalog-mobile-filter-panel {
+                flex: 1 1 auto;
                 gap: 1rem;
-                margin-top: .85rem;
-                border: 1px solid #dbe4ee;
-                background: #fbfcfe;
+                margin-top: 0;
+                border: 0;
+                background: #fff;
                 padding: 1rem;
+                overflow-y: auto;
+                align-content: flex-start;
             }
 
             .catalog-mobile-filter-group {
@@ -567,12 +581,84 @@
                 color: #334155;
             }
 
-            .catalog-filter-sticky-shell.is-pinned .catalog-filter-sticky-bar {
-                padding-bottom: .5rem !important;
+            .catalog-mobile-filter-drawer {
+                position: fixed;
+                inset: 0;
+                z-index: 9750;
+                align-items: stretch;
+                justify-content: flex-end;
             }
 
-            .catalog-filter-sticky-shell.is-pinned .catalog-mobile-filter-panel {
-                margin-top: .7rem;
+            .catalog-mobile-filter-drawer-backdrop {
+                position: absolute;
+                inset: 0;
+                border: 0;
+                background: rgba(15, 23, 42, .48);
+            }
+
+            .catalog-mobile-filter-drawer-panel {
+                position: relative;
+                display: flex;
+                width: 100dvw;
+                min-width: 100dvw;
+                height: 100dvh;
+                max-height: 100dvh;
+                flex-direction: column;
+                background: #fff;
+                box-shadow: -18px 0 40px rgba(15, 23, 42, .16);
+            }
+
+            .catalog-mobile-filter-drawer-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                border-bottom: 1px solid #e2e8f0;
+                padding: 1rem;
+            }
+
+            .catalog-mobile-filter-drawer-title {
+                font-size: 1rem;
+                font-weight: 800;
+                letter-spacing: .05em;
+                text-transform: uppercase;
+                color: #0f172a;
+            }
+
+            .catalog-mobile-filter-drawer-close {
+                display: inline-flex;
+                height: 44px;
+                width: 44px;
+                flex-shrink: 0;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid #cbd5e1;
+                background: #fff;
+                color: #334155;
+                transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+            }
+
+            .catalog-mobile-filter-drawer-close:hover {
+                border-color: #94a3b8;
+                background: #f8fafc;
+                color: #0f172a;
+            }
+
+            .catalog-filter-sticky-shell.is-pinned {
+                min-height: auto;
+            }
+
+            .catalog-filter-sticky-shell.is-pinned .catalog-filter-sticky-bar {
+                position: static;
+                top: auto;
+                left: auto;
+                width: auto;
+                box-shadow: none;
+                padding-top: 0;
+                padding-bottom: 1rem !important;
+                padding-left: 0;
+                padding-right: 0;
+                border-bottom-color: rgba(226, 232, 240, .9) !important;
             }
         }
 
@@ -1041,7 +1127,7 @@
                     class="catalog-mobile-filter-trigger"
                     data-mobile-filter-toggle
                     aria-expanded="false"
-                    aria-controls="category-mobile-filter-panel"
+                    aria-controls="category-mobile-filter-drawer"
                 >
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                         <path d="M4 7h16M7 12h10M10 17h4"></path>
@@ -1064,128 +1150,141 @@
                 @endforeach
                 </div>
             </div>
-            <form method="GET" action="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="catalog-mobile-filter-panel mt-3 hidden" data-mobile-filter-panel id="category-mobile-filter-panel">
-                <input type="hidden" name="q" value="{{ $filters['q'] ?? '' }}">
-                @if ($hasSubcategories)
-                    <div class="catalog-mobile-filter-group">
-                        <select
-                            id="shop-category-mobile"
-                            class="catalog-mobile-filter-select"
-                            aria-label="{{ __('ui.shop.filters.category') }}"
-                            data-category-redirect
-                            data-default-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}"
-                        >
-                            <option value="" data-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" @selected(true)>{{ __('ui.shop.filters.category') }}</option>
-                            @foreach (($subcategories ?? collect()) as $subCategory)
-                                @php
-                                    $subCategoryTranslation = $subCategory->translations->firstWhere('locale', $locale)
-                                        ?? $subCategory->translations->firstWhere('locale', $fallbackLocale);
-                                @endphp
-                                <option value="{{ $subCategoryTranslation?->slug }}" data-url="{{ $subCategoryTranslation?->slug ? route('categories.show', ['slug' => $subCategoryTranslation->slug]) : route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}">
-                                    {{ $subCategoryTranslation?->name ?? $subCategory->code }} ({{ $subCategory->products_count }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                @endif
-                @if ($showManufacturers)
-                    <div class="catalog-mobile-filter-group">
-                        <select id="shop-manufacturer-mobile" name="manufacturer" class="catalog-mobile-filter-select" aria-label="{{ __('ui.shop.filters.manufacturer') }}" data-auto-submit-filter>
-                            <option value="">{{ __('ui.shop.filters.manufacturer') }}</option>
-                            @foreach ($manufacturers as $manufacturer)
-                                @php
-                                    $manufacturerTranslation = $manufacturer->translations->firstWhere('locale', $locale)
-                                        ?? $manufacturer->translations->firstWhere('locale', $fallbackLocale);
-                                @endphp
-                                <option value="{{ $manufacturerTranslation?->slug }}" @selected(($filters['manufacturer'] ?? '') === ($manufacturerTranslation?->slug ?? ''))>
-                                    {{ $manufacturerTranslation?->name ?? $manufacturer->code }} ({{ $manufacturer->products_count }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                @endif
-                @foreach ($orderedCategoryFilters as $filterOption)
-                    <div class="catalog-mobile-filter-group">
-                        <select name="{{ $filterOption['query_key'] }}" class="catalog-mobile-filter-select" aria-label="{{ $filterOption['label'] }}" data-auto-submit-filter>
-                            <option value="">{{ $filterOption['label'] }}</option>
-                            @foreach (($filterOption['values'] ?? []) as $value)
-                                <option value="{{ $value['id'] }}" @selected((string) ($filterOption['selected'] ?? '') === (string) $value['id'])>
-                                    {{ $value['label'] }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                @endforeach
-                <div class="catalog-mobile-filter-group">
-                    <div class="catalog-mobile-price-card">
-                        <span class="catalog-mobile-price-heading">{{ __('ui.shop.filters.price') }}</span>
-                        <div
-                            data-price-range-root
-                            data-price-min-bound="{{ $priceSliderMin }}"
-                            data-price-max-bound="{{ $priceSliderMax }}"
-                        >
-                            <input type="hidden" name="price_min" value="{{ $priceMinValue }}" data-price-range-hidden-min>
-                            <input type="hidden" name="price_max" value="{{ $priceMaxValue }}" data-price-range-hidden-max>
-                            <div class="catalog-price-range-values">
-                                <div class="catalog-price-range-value">
-                                    <span class="catalog-price-range-value-label">{{ __('ui.shop.filters.price_from') }}</span>
-                                    <span class="catalog-price-range-value-amount" data-price-range-current-min>{{ $priceSliderSelectedMin }} €</span>
-                                </div>
-                                <div class="catalog-price-range-value text-right">
-                                    <span class="catalog-price-range-value-label">{{ __('ui.shop.filters.price_to') }}</span>
-                                    <span class="catalog-price-range-value-amount" data-price-range-current-max>{{ $priceSliderSelectedMax }} €</span>
-                                </div>
-                            </div>
-                            <div class="catalog-price-range-slider">
-                                <div class="catalog-price-range-track"></div>
-                                <div class="catalog-price-range-progress" data-price-range-progress></div>
-                                <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMin }}" data-price-range-min>
-                                <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMax }}" data-price-range-max>
-                            </div>
-                            <div class="catalog-price-range-scale">
-                                <span>{{ $priceSliderMin }} €</span>
-                                <span>{{ $priceSliderMax }} €</span>
-                            </div>
-                            <div class="catalog-price-promo-toggle">
-                                <div class="catalog-price-promo-copy">
-                                    <span class="catalog-price-promo-label">{{ __('ui.shop.filters.promotion_only') }}</span>
-                                    <span class="catalog-price-promo-hint">{{ __('ui.shop.filters.promotion_only_hint') }}</span>
-                                </div>
-                                <label class="catalog-switch" aria-label="{{ __('ui.shop.filters.promotion_only') }}">
-                                    <input type="checkbox" name="promo_only" value="1" @checked($promoOnlyEnabled) @disabled($promoToggleDisabled) data-price-range-promo>
-                                    <span class="catalog-switch-track" aria-hidden="true"></span>
-                                </label>
-                            </div>
-                            <button type="button" class="catalog-price-reset" data-price-filter-reset @disabled(! $hasPricePanelFilter)>
-                                <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                                    <path d="M8 2.25V.75M8 2.25A5.75 5.75 0 1 1 2.93 5.28M8 2.25L5.8 4.45"></path>
-                                </svg>
-                                <span>{{ __('ui.shop.filters.reset') }}</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="catalog-mobile-filter-group">
-                    <select id="shop-sort-mobile" name="sort" class="catalog-mobile-filter-select" aria-label="{{ __('ui.shop.filters.sort') }}" data-auto-submit-filter>
-                        <option value="newest" @selected(($filters['sort'] ?? 'newest') === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
-                        <option value="oldest" @selected(($filters['sort'] ?? '') === 'oldest')>{{ __('ui.shop.filters.oldest') }}</option>
-                        <option value="price_low" @selected(($filters['sort'] ?? '') === 'price_low')>{{ __('ui.shop.filters.price_low') }}</option>
-                        <option value="price_high" @selected(($filters['sort'] ?? '') === 'price_high')>{{ __('ui.shop.filters.price_high') }}</option>
-                        <option value="stock_high" @selected(($filters['sort'] ?? '') === 'stock_high')>{{ __('ui.shop.filters.stock_high') }}</option>
-                    </select>
-                </div>
-                <input type="hidden" name="cols" value="{{ $mobileCols }}">
-                @if ($hasActiveFilters)
-                    <div class="catalog-mobile-reset-wrap" data-global-filter-reset>
-                        <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="catalog-mobile-reset-link">
-                            <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                                <path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5"></path>
+            <div class="catalog-mobile-filter-drawer hidden" data-mobile-filter-drawer id="category-mobile-filter-drawer">
+                <button type="button" class="catalog-mobile-filter-drawer-backdrop" data-mobile-filter-close aria-label="{{ __('ui.front.desktop.close_navigation') }}"></button>
+                <div class="catalog-mobile-filter-drawer-panel">
+                    <div class="catalog-mobile-filter-drawer-header">
+                        <h2 class="catalog-mobile-filter-drawer-title">{{ __('ui.shop.filters.open') }}</h2>
+                        <button type="button" class="catalog-mobile-filter-drawer-close" data-mobile-filter-close aria-label="{{ __('ui.front.desktop.close_navigation') }}">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M6 6l12 12M18 6L6 18"></path>
                             </svg>
-                            <span>{{ __('ui.shop.filters.reset') }}</span>
-                        </a>
+                        </button>
                     </div>
-                @endif
-            </form>
+                    <form method="GET" action="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="catalog-mobile-filter-panel grid auto-rows-min gap-4" data-mobile-filter-panel id="category-mobile-filter-panel">
+                        <input type="hidden" name="q" value="{{ $filters['q'] ?? '' }}">
+                        @if ($hasSubcategories)
+                            <div class="catalog-mobile-filter-group">
+                                <select
+                                    id="shop-category-mobile"
+                                    class="catalog-mobile-filter-select"
+                                    aria-label="{{ __('ui.shop.filters.category') }}"
+                                    data-category-redirect
+                                    data-default-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}"
+                                >
+                                    <option value="" data-url="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" @selected(true)>{{ __('ui.shop.filters.category') }}</option>
+                                    @foreach (($subcategories ?? collect()) as $subCategory)
+                                        @php
+                                            $subCategoryTranslation = $subCategory->translations->firstWhere('locale', $locale)
+                                                ?? $subCategory->translations->firstWhere('locale', $fallbackLocale);
+                                        @endphp
+                                        <option value="{{ $subCategoryTranslation?->slug }}" data-url="{{ $subCategoryTranslation?->slug ? route('categories.show', ['slug' => $subCategoryTranslation->slug]) : route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}">
+                                            {{ $subCategoryTranslation?->name ?? $subCategory->code }} ({{ $subCategory->products_count }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
+                        @if ($showManufacturers)
+                            <div class="catalog-mobile-filter-group">
+                                <select id="shop-manufacturer-mobile" name="manufacturer" class="catalog-mobile-filter-select" aria-label="{{ __('ui.shop.filters.manufacturer') }}" data-auto-submit-filter>
+                                    <option value="">{{ __('ui.shop.filters.manufacturer') }}</option>
+                                    @foreach ($manufacturers as $manufacturer)
+                                        @php
+                                            $manufacturerTranslation = $manufacturer->translations->firstWhere('locale', $locale)
+                                                ?? $manufacturer->translations->firstWhere('locale', $fallbackLocale);
+                                        @endphp
+                                        <option value="{{ $manufacturerTranslation?->slug }}" @selected(($filters['manufacturer'] ?? '') === ($manufacturerTranslation?->slug ?? ''))>
+                                            {{ $manufacturerTranslation?->name ?? $manufacturer->code }} ({{ $manufacturer->products_count }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
+                        @foreach ($orderedCategoryFilters as $filterOption)
+                            <div class="catalog-mobile-filter-group">
+                                <select name="{{ $filterOption['query_key'] }}" class="catalog-mobile-filter-select" aria-label="{{ $filterOption['label'] }}" data-auto-submit-filter>
+                                    <option value="">{{ $filterOption['label'] }}</option>
+                                    @foreach (($filterOption['values'] ?? []) as $value)
+                                        <option value="{{ $value['id'] }}" @selected((string) ($filterOption['selected'] ?? '') === (string) $value['id'])>
+                                            {{ $value['label'] }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endforeach
+                        <div class="catalog-mobile-filter-group">
+                            <div class="catalog-mobile-price-card">
+                                <span class="catalog-mobile-price-heading">{{ __('ui.shop.filters.price') }}</span>
+                                <div
+                                    data-price-range-root
+                                    data-price-min-bound="{{ $priceSliderMin }}"
+                                    data-price-max-bound="{{ $priceSliderMax }}"
+                                >
+                                    <input type="hidden" name="price_min" value="{{ $priceMinValue }}" data-price-range-hidden-min>
+                                    <input type="hidden" name="price_max" value="{{ $priceMaxValue }}" data-price-range-hidden-max>
+                                    <div class="catalog-price-range-values">
+                                        <div class="catalog-price-range-value">
+                                            <span class="catalog-price-range-value-label">{{ __('ui.shop.filters.price_from') }}</span>
+                                            <span class="catalog-price-range-value-amount" data-price-range-current-min>{{ $priceSliderSelectedMin }} €</span>
+                                        </div>
+                                        <div class="catalog-price-range-value text-right">
+                                            <span class="catalog-price-range-value-label">{{ __('ui.shop.filters.price_to') }}</span>
+                                            <span class="catalog-price-range-value-amount" data-price-range-current-max>{{ $priceSliderSelectedMax }} €</span>
+                                        </div>
+                                    </div>
+                                    <div class="catalog-price-range-slider">
+                                        <div class="catalog-price-range-track"></div>
+                                        <div class="catalog-price-range-progress" data-price-range-progress></div>
+                                        <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMin }}" data-price-range-min>
+                                        <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMax }}" data-price-range-max>
+                                    </div>
+                                    <div class="catalog-price-range-scale">
+                                        <span>{{ $priceSliderMin }} €</span>
+                                        <span>{{ $priceSliderMax }} €</span>
+                                    </div>
+                                    <div class="catalog-price-promo-toggle">
+                                        <div class="catalog-price-promo-copy">
+                                            <span class="catalog-price-promo-label">{{ __('ui.shop.filters.promotion_only') }}</span>
+                                            <span class="catalog-price-promo-hint">{{ __('ui.shop.filters.promotion_only_hint') }}</span>
+                                        </div>
+                                        <label class="catalog-switch" aria-label="{{ __('ui.shop.filters.promotion_only') }}">
+                                            <input type="checkbox" name="promo_only" value="1" @checked($promoOnlyEnabled) @disabled($promoToggleDisabled) data-price-range-promo>
+                                            <span class="catalog-switch-track" aria-hidden="true"></span>
+                                        </label>
+                                    </div>
+                                    <button type="button" class="catalog-price-reset" data-price-filter-reset @disabled(! $hasPricePanelFilter)>
+                                        <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                                            <path d="M8 2.25V.75M8 2.25A5.75 5.75 0 1 1 2.93 5.28M8 2.25L5.8 4.45"></path>
+                                        </svg>
+                                        <span>{{ __('ui.shop.filters.reset') }}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="catalog-mobile-filter-group">
+                            <select id="shop-sort-mobile" name="sort" class="catalog-mobile-filter-select" aria-label="{{ __('ui.shop.filters.sort') }}" data-auto-submit-filter>
+                                <option value="newest" @selected(($filters['sort'] ?? 'newest') === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
+                                <option value="oldest" @selected(($filters['sort'] ?? '') === 'oldest')>{{ __('ui.shop.filters.oldest') }}</option>
+                                <option value="price_low" @selected(($filters['sort'] ?? '') === 'price_low')>{{ __('ui.shop.filters.price_low') }}</option>
+                                <option value="price_high" @selected(($filters['sort'] ?? '') === 'price_high')>{{ __('ui.shop.filters.price_high') }}</option>
+                                <option value="stock_high" @selected(($filters['sort'] ?? '') === 'stock_high')>{{ __('ui.shop.filters.stock_high') }}</option>
+                            </select>
+                        </div>
+                        <input type="hidden" name="cols" value="{{ $mobileCols }}">
+                        @if ($hasActiveFilters)
+                            <div class="catalog-mobile-reset-wrap" data-global-filter-reset>
+                                <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="catalog-mobile-reset-link">
+                                    <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                                        <path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5"></path>
+                                    </svg>
+                                    <span>{{ __('ui.shop.filters.reset') }}</span>
+                                </a>
+                            </div>
+                        @endif
+                    </form>
+                </div>
+            </div>
         </div>
 
         <form method="GET" action="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="hidden gap-x-3 gap-y-2.5 min-[1025px]:flex min-[1025px]:flex-wrap min-[1025px]:items-end min-[1025px]:justify-start" data-desktop-filter-form>
@@ -1646,6 +1745,15 @@
                 const applyStickyState = () => {
                     rafId = 0;
 
+                    if (window.matchMedia('(max-width: 1024px)').matches) {
+                        shell.classList.remove('is-pinned');
+                        shell.style.removeProperty('--catalog-sticky-height');
+                        shell.style.removeProperty('--catalog-sticky-top');
+                        shell.style.removeProperty('--catalog-sticky-left');
+                        shell.style.removeProperty('--catalog-sticky-width');
+                        return;
+                    }
+
                     const stickyOffset = readStickyOffset();
                     const shellRect = shell.getBoundingClientRect();
                     const barRect = bar.getBoundingClientRect();
@@ -1687,20 +1795,59 @@
                     }
                     root.dataset.mobileFilterInit = '1';
                     const toggle = root.querySelector('[data-mobile-filter-toggle]');
-                    const panel = root.querySelector('[data-mobile-filter-panel]');
-                    if (!toggle || !panel) {
+                    const drawer = root.querySelector('[data-mobile-filter-drawer]');
+                    const closeButtons = root.querySelectorAll('[data-mobile-filter-close]');
+                    if (!toggle || !drawer) {
                         return;
                     }
 
+                    if (drawer.dataset.mobileFilterMounted !== '1') {
+                        drawer.dataset.mobileFilterMounted = '1';
+                        document.body.appendChild(drawer);
+                    }
+
+                    const openDrawer = () => {
+                        drawer.classList.remove('hidden');
+                        drawer.classList.add('flex');
+                        toggle.setAttribute('aria-expanded', 'true');
+                        root.classList.add('is-open');
+                        document.body.classList.add('overflow-hidden', 'desktop-mobile-filter-open');
+                    };
+
+                    const closeDrawer = () => {
+                        drawer.classList.add('hidden');
+                        drawer.classList.remove('flex');
+                        toggle.setAttribute('aria-expanded', 'false');
+                        root.classList.remove('is-open');
+                        document.body.classList.remove('desktop-mobile-filter-open');
+                        if (!document.body.classList.contains('desktop-mobile-menu-open')) {
+                            document.body.classList.remove('overflow-hidden');
+                        }
+                    };
+
                     toggle.addEventListener('click', () => {
-                        const isHidden = panel.classList.contains('hidden');
-                        panel.classList.toggle('hidden', !isHidden);
-                        panel.classList.toggle('grid', isHidden);
-                        toggle.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
-                        root.classList.toggle('is-open', isHidden);
-                        window.requestAnimationFrame(() => {
-                            window.dispatchEvent(new Event('resize'));
-                        });
+                        if (drawer.classList.contains('hidden')) {
+                            openDrawer();
+                            return;
+                        }
+
+                        closeDrawer();
+                    });
+
+                    closeButtons.forEach((button) => {
+                        button.addEventListener('click', closeDrawer);
+                    });
+
+                    document.addEventListener('keydown', (event) => {
+                        if (event.key === 'Escape' && !drawer.classList.contains('hidden')) {
+                            closeDrawer();
+                        }
+                    });
+
+                    window.addEventListener('resize', () => {
+                        if (window.innerWidth >= 1025 && !drawer.classList.contains('hidden')) {
+                            closeDrawer();
+                        }
                     });
                 });
 
