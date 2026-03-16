@@ -419,39 +419,60 @@
                 pointer-events: none !important;
             }
 
-            .catalog-filter-sticky-shell {
-                position: sticky;
-                top: var(--site-header-bottom, 60px);
-                z-index: 32;
+            .catalog-mobile-filter-rail {
+                width: 100%;
+                max-width: 100%;
             }
 
             .catalog-filter-sticky-bar {
-                position: relative;
                 background: #fff;
                 backdrop-filter: none;
+                position: relative;
+                z-index: 1;
+                box-sizing: border-box;
+                padding-top: .6rem !important;
+                padding-bottom: .55rem !important;
+                overflow: visible;
+                border-bottom-color: rgba(226, 232, 240, .9) !important;
+            }
+
+            .catalog-filter-sticky-shell.is-pinned .catalog-filter-sticky-bar {
+                left: 50%;
+                width: 100vw;
+                transform: translateX(-50%);
+                padding-top: .6rem !important;
+                padding-bottom: .55rem !important;
+                padding-left: max(.75rem, env(safe-area-inset-left, 0px));
+                padding-right: max(.75rem, env(safe-area-inset-right, 0px));
+                box-shadow: 0 12px 24px rgba(15, 23, 42, .08);
+            }
+
+            .catalog-filter-sticky-shell.is-pinned .catalog-mobile-filter-rail {
+                width: min(100%, var(--catalog-sticky-width, 100%));
+                margin-left: auto;
+                margin-right: auto;
             }
 
             .catalog-mobile-filter-toolbar {
-                display: flex;
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
                 align-items: center;
-                justify-content: flex-start;
                 gap: .55rem;
+                width: 100%;
             }
 
             .catalog-mobile-filter-trigger {
                 display: inline-flex;
-                height: 42px;
-                width: auto;
-                min-width: 132px;
-                max-width: 100%;
-                flex: 0 1 auto;
+                min-width: 0;
+                height: 40px;
+                width: 100%;
                 align-items: center;
                 justify-content: flex-start;
                 gap: .55rem;
                 border: 1px solid #cbd5e1;
                 background: #fff;
                 padding: 0 .9rem;
-                font-size: .92rem;
+                font-size: .9rem;
                 font-weight: 700;
                 color: #334155;
                 transition: border-color .15s ease, background-color .15s ease, color .15s ease;
@@ -460,6 +481,7 @@
             .catalog-mobile-filter-trigger:hover {
                 border-color: #94a3b8;
                 background: #f8fafc;
+                color: #0f172a;
             }
 
             .catalog-mobile-filter-trigger[aria-expanded="true"] {
@@ -469,32 +491,37 @@
             }
 
             .catalog-mobile-grid-group {
-                display: flex;
-                align-items: center;
-                gap: .5rem;
-                margin-left: auto;
+                display: inline-grid;
+                grid-auto-flow: column;
+                align-items: stretch;
+                flex-shrink: 0;
+                border: 1px solid #cbd5e1;
+                background: #fff;
             }
 
             .catalog-mobile-grid-toggle {
                 display: inline-flex;
-                height: 42px;
-                width: 42px;
+                height: 40px;
+                width: 40px;
                 align-items: center;
                 justify-content: center;
-                border: 1px solid #cbd5e1;
+                border: 0;
+                border-left: 1px solid #e2e8f0;
                 background: #fff;
-                color: #94a3b8;
-                transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+                color: #64748b;
+                transition: background-color .15s ease, color .15s ease;
+            }
+
+            .catalog-mobile-grid-toggle:first-child {
+                border-left: 0;
             }
 
             .catalog-mobile-grid-toggle:hover {
-                border-color: #94a3b8;
                 background: #f8fafc;
-                color: #64748b;
+                color: #0f172a;
             }
 
             .catalog-mobile-grid-toggle.is-active {
-                border-color: #0f172a;
                 background: #0f172a;
                 color: #fff;
             }
@@ -656,22 +683,6 @@
                 color: #0f172a;
             }
 
-            .catalog-filter-sticky-shell.is-pinned {
-                min-height: auto;
-            }
-
-            .catalog-filter-sticky-shell.is-pinned .catalog-filter-sticky-bar {
-                position: static;
-                top: auto;
-                left: auto;
-                width: auto;
-                box-shadow: none;
-                padding-top: 0;
-                padding-bottom: 1rem !important;
-                padding-left: 0;
-                padding-right: 0;
-                border-bottom-color: rgba(226, 232, 240, .9) !important;
-            }
         }
 
         @media (min-width: 1025px) {
@@ -1132,7 +1143,7 @@
         <section class="relative z-20 px-3 pt-3 pb-4 sm:px-4 lg:px-6">
             <div class="catalog-filter-sticky-shell" data-sticky-filter-shell>
             <div class="catalog-filter-sticky-bar border-b border-slate-200/90 pb-4" data-sticky-filter-bar>
-        <div class="max-[1024px]:block min-[1025px]:hidden" data-mobile-filter-root>
+        <div class="catalog-mobile-filter-rail max-[1024px]:block min-[1025px]:hidden" data-mobile-filter-root>
             <div class="catalog-mobile-filter-toolbar">
                 <button
                     type="button"
@@ -1756,15 +1767,6 @@
 
                 const applyStickyState = () => {
                     rafId = 0;
-
-                    if (window.matchMedia('(max-width: 1024px)').matches) {
-                        shell.classList.remove('is-pinned');
-                        shell.style.removeProperty('--catalog-sticky-height');
-                        shell.style.removeProperty('--catalog-sticky-top');
-                        shell.style.removeProperty('--catalog-sticky-left');
-                        shell.style.removeProperty('--catalog-sticky-width');
-                        return;
-                    }
 
                     const stickyOffset = readStickyOffset();
                     const shellRect = shell.getBoundingClientRect();

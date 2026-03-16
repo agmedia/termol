@@ -31,6 +31,31 @@
     @endphp
 
     <style>
+        .catalog-filter-sticky-shell {
+            position: relative;
+            z-index: 30;
+        }
+
+        .catalog-filter-sticky-shell.is-pinned {
+            min-height: var(--catalog-sticky-height, auto);
+        }
+
+        .catalog-filter-sticky-shell.is-pinned .catalog-filter-sticky-bar {
+            position: fixed;
+            top: var(--catalog-sticky-top, var(--site-header-bottom, 60px));
+            left: var(--catalog-sticky-left, 0px);
+            width: var(--catalog-sticky-width, 100%);
+            z-index: 35;
+            box-sizing: border-box;
+            background: #fff;
+            padding-top: 0;
+            padding-bottom: .75rem !important;
+            padding-left: 0;
+            padding-right: 0;
+            border-bottom-color: rgba(226, 232, 240, .9) !important;
+            box-shadow: 0 12px 24px rgba(15, 23, 42, .08);
+        }
+
         @media (max-width: 1024px) {
             body.desktop-mobile-filter-open {
                 overflow: hidden;
@@ -43,12 +68,115 @@
                 pointer-events: none !important;
             }
 
-            [data-mobile-filter-root] {
-                position: sticky;
-                top: var(--site-header-bottom, 60px);
-                z-index: 32;
-                display: block;
+            .catalog-filter-sticky-shell {
+                margin-left: 0;
+                margin-right: 0;
+            }
+
+            .catalog-mobile-filter-rail {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .catalog-filter-sticky-bar {
                 background: #fff;
+                position: relative;
+                z-index: 1;
+                box-sizing: border-box;
+                padding-top: .6rem !important;
+                padding-bottom: .55rem !important;
+                overflow: visible;
+                border-bottom-color: rgba(226, 232, 240, .9) !important;
+            }
+
+            .catalog-filter-sticky-shell.is-pinned .catalog-filter-sticky-bar {
+                left: 50%;
+                width: 100vw;
+                transform: translateX(-50%);
+                padding-top: .6rem !important;
+                padding-bottom: .55rem !important;
+                padding-left: max(.75rem, env(safe-area-inset-left, 0px));
+                padding-right: max(.75rem, env(safe-area-inset-right, 0px));
+                box-shadow: 0 12px 24px rgba(15, 23, 42, .08);
+            }
+
+            .catalog-filter-sticky-shell.is-pinned .catalog-mobile-filter-rail {
+                width: min(100%, var(--catalog-sticky-width, 100%));
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .catalog-mobile-filter-toolbar {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: center;
+                gap: .55rem;
+                width: 100%;
+            }
+
+            .catalog-mobile-filter-trigger {
+                display: inline-flex;
+                min-width: 0;
+                height: 40px;
+                width: 100%;
+                align-items: center;
+                justify-content: flex-start;
+                gap: .55rem;
+                border: 1px solid #cbd5e1;
+                background: #fff;
+                padding: 0 .9rem;
+                font-size: .9rem;
+                font-weight: 700;
+                color: #334155;
+                transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+            }
+
+            .catalog-mobile-filter-trigger:hover {
+                border-color: #94a3b8;
+                background: #f8fafc;
+                color: #0f172a;
+            }
+
+            .catalog-mobile-filter-trigger[aria-expanded="true"] {
+                border-color: #0f172a;
+                background: #f8fafc;
+                color: #0f172a;
+            }
+
+            .catalog-mobile-grid-group {
+                display: inline-grid;
+                grid-auto-flow: column;
+                align-items: stretch;
+                flex-shrink: 0;
+                border: 1px solid #cbd5e1;
+                background: #fff;
+            }
+
+            .catalog-mobile-grid-toggle {
+                display: inline-flex;
+                height: 40px;
+                width: 40px;
+                align-items: center;
+                justify-content: center;
+                border: 0;
+                border-left: 1px solid #e2e8f0;
+                background: #fff;
+                color: #64748b;
+                transition: background-color .15s ease, color .15s ease;
+            }
+
+            .catalog-mobile-grid-toggle:first-child {
+                border-left: 0;
+            }
+
+            .catalog-mobile-grid-toggle:hover {
+                background: #f8fafc;
+                color: #0f172a;
+            }
+
+            .catalog-mobile-grid-toggle.is-active {
+                background: #0f172a;
+                color: #fff;
             }
 
             .catalog-mobile-filter-drawer {
@@ -359,12 +487,13 @@
     </section>
 
     <section class="relative z-20 px-3 pt-3 pb-4 sm:px-4 lg:px-6">
-        <div class="border-b border-slate-200/90 pb-4">
-        <div class="max-[1024px]:block min-[1025px]:hidden" data-mobile-filter-root>
-            <div class="flex items-center gap-2">
+        <div class="catalog-filter-sticky-shell" data-sticky-filter-shell>
+        <div class="catalog-filter-sticky-bar border-b border-slate-200/90 pb-4" data-sticky-filter-bar>
+        <div class="catalog-mobile-filter-rail max-[1024px]:block min-[1025px]:hidden" data-mobile-filter-root>
+            <div class="catalog-mobile-filter-toolbar">
                 <button
                     type="button"
-                    class="flex h-[42px] min-w-0 flex-1 items-center justify-start gap-2 border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                    class="catalog-mobile-filter-trigger"
                     data-mobile-filter-toggle
                     aria-expanded="false"
                     aria-controls="shop-mobile-filter-drawer"
@@ -374,11 +503,11 @@
                     </svg>
                     {{ __('ui.shop.filters.open') }}
                 </button>
-                <div class="flex h-[42px] items-center gap-2">
+                <div class="catalog-mobile-grid-group">
                 @foreach ([1, 2] as $cols)
                     <a
                         href="{{ route('shop.index', array_merge(request()->query(), ['cols' => $cols])) }}"
-                        class="inline-flex h-[42px] w-[42px] items-center justify-center border border-slate-300 {{ $mobileCols === $cols ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-100' }}"
+                        class="catalog-mobile-grid-toggle {{ $mobileCols === $cols ? 'is-active' : '' }}"
                         aria-label="{{ __('ui.shop.filters.grid') }} {{ $cols }}"
                     >
                         <span class="flex h-4 items-stretch gap-[2px]">
@@ -388,8 +517,8 @@
                         </span>
                     </a>
                 @endforeach
-                </div>
-            </div>
+        </div>
+        </div>
             <div class="catalog-mobile-filter-drawer hidden" data-mobile-filter-drawer id="shop-mobile-filter-drawer">
                 <button type="button" class="catalog-mobile-filter-drawer-backdrop" data-mobile-filter-close aria-label="{{ __('ui.front.desktop.close_navigation') }}"></button>
                 <div class="catalog-mobile-filter-drawer-panel">
@@ -654,6 +783,78 @@
     @endif
     <script>
         (() => {
+            const initStickyFilterBar = () => {
+                const shell = document.querySelector('[data-sticky-filter-shell]');
+                const bar = shell?.querySelector('[data-sticky-filter-bar]');
+
+                if (!shell || !bar || shell.dataset.stickyInit === '1') {
+                    return;
+                }
+
+                shell.dataset.stickyInit = '1';
+
+                let rafId = 0;
+                const readStickyOffset = () => {
+                    const rootStyles = window.getComputedStyle(document.documentElement);
+                    const cssValue = parseFloat(rootStyles.getPropertyValue('--site-header-bottom'));
+                    if (Number.isFinite(cssValue) && cssValue > 0) {
+                        return cssValue;
+                    }
+
+                    const header = document.querySelector('.site-main-header');
+                    if (header instanceof HTMLElement) {
+                        return Math.max(0, header.getBoundingClientRect().bottom);
+                    }
+
+                    return 60;
+                };
+
+                const applyStickyState = () => {
+                    rafId = 0;
+
+                    if (!window.matchMedia('(max-width: 1024px)').matches) {
+                        shell.classList.remove('is-pinned');
+                        shell.style.removeProperty('--catalog-sticky-height');
+                        shell.style.removeProperty('--catalog-sticky-top');
+                        shell.style.removeProperty('--catalog-sticky-left');
+                        shell.style.removeProperty('--catalog-sticky-width');
+                        return;
+                    }
+
+                    const stickyOffset = readStickyOffset();
+                    const shellRect = shell.getBoundingClientRect();
+                    const barRect = bar.getBoundingClientRect();
+                    const shouldPin = shellRect.top <= stickyOffset;
+
+                    if (!shouldPin) {
+                        shell.classList.remove('is-pinned');
+                        shell.style.removeProperty('--catalog-sticky-height');
+                        shell.style.removeProperty('--catalog-sticky-top');
+                        shell.style.removeProperty('--catalog-sticky-left');
+                        shell.style.removeProperty('--catalog-sticky-width');
+                        return;
+                    }
+
+                    shell.style.setProperty('--catalog-sticky-height', `${Math.ceil(barRect.height)}px`);
+                    shell.style.setProperty('--catalog-sticky-top', `${Math.round(stickyOffset)}px`);
+                    shell.style.setProperty('--catalog-sticky-left', `${Math.round(shellRect.left)}px`);
+                    shell.style.setProperty('--catalog-sticky-width', `${Math.round(shellRect.width)}px`);
+                    shell.classList.add('is-pinned');
+                };
+
+                const requestApply = () => {
+                    if (rafId) {
+                        return;
+                    }
+
+                    rafId = window.requestAnimationFrame(applyStickyState);
+                };
+
+                requestApply();
+                window.addEventListener('scroll', requestApply, { passive: true });
+                window.addEventListener('resize', requestApply);
+            };
+
             const init = () => {
                 document.querySelectorAll('[data-mobile-filter-root]').forEach((root) => {
                     if (root.dataset.mobileFilterInit === '1') {
@@ -734,6 +935,8 @@
                         form.submit();
                     });
                 });
+
+                initStickyFilterBar();
             };
 
             if (document.readyState === 'loading') {
