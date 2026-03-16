@@ -43,6 +43,14 @@
                 pointer-events: none !important;
             }
 
+            [data-mobile-filter-root] {
+                position: sticky;
+                top: var(--site-header-bottom, 60px);
+                z-index: 32;
+                display: block;
+                background: #fff;
+            }
+
             .catalog-mobile-filter-drawer {
                 position: fixed;
                 inset: 0;

@@ -419,6 +419,18 @@
                 pointer-events: none !important;
             }
 
+            .catalog-filter-sticky-shell {
+                position: sticky;
+                top: var(--site-header-bottom, 60px);
+                z-index: 32;
+            }
+
+            .catalog-filter-sticky-bar {
+                position: relative;
+                background: #fff;
+                backdrop-filter: none;
+            }
+
             .catalog-mobile-filter-toolbar {
                 display: flex;
                 align-items: center;

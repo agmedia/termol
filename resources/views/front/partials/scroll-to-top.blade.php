@@ -6,7 +6,7 @@
 <style>
     .scroll-to-top-button {
         position: fixed;
-        right: 1rem;
+        right: calc(1rem + env(safe-area-inset-right, 0px));
         bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
         z-index: 9998;
         display: inline-flex;
@@ -22,7 +22,10 @@
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transform: translateY(10px) scale(0.92);
+        -webkit-transform: translate3d(0, 10px, 0) scale(0.92);
+        transform: translate3d(0, 10px, 0) scale(0.92);
+        backface-visibility: hidden;
+        will-change: opacity, transform;
         transition: opacity .24s ease, transform .28s ease, visibility .24s ease, box-shadow .24s ease;
     }
 
@@ -30,7 +33,8 @@
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
-        transform: translateY(0) scale(1);
+        -webkit-transform: translate3d(0, 0, 0) scale(1);
+        transform: translate3d(0, 0, 0) scale(1);
     }
 
     .scroll-to-top-button:hover {
@@ -53,6 +57,19 @@
         .scroll-to-top-button,
         .scroll-to-top-button svg {
             transition: none;
+        }
+    }
+
+    @media (hover: none) and (pointer: coarse) {
+        .scroll-to-top-button,
+        .scroll-to-top-button.is-visible,
+        .scroll-to-top-button:hover {
+            -webkit-transform: none;
+            transform: none;
+        }
+
+        .scroll-to-top-button:hover svg {
+            transform: none;
         }
     }
 </style>
