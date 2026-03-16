@@ -13,7 +13,7 @@
         const closeButtons = root.querySelectorAll('[data-mobile-menu-close]');
         const accordionSections = root.querySelectorAll('[data-mobile-menu-accordion]');
         const menuLinks = Array.from(root.querySelectorAll('a[href]'));
-        const accordionStateKey = 'desktop-mobile-menu-accordion-state';
+        const accordionStateKey = 'desktop-mobile-menu-accordion-state-v2';
         let isRestoringAccordionState = false;
 
         const forceClosedState = () => {
@@ -169,22 +169,6 @@
             if (!link) {
                 return;
             }
-
-            accordionSections.forEach((section) => {
-                section.open = false;
-            });
-
-            const sectionsToOpen = [];
-            let currentSection = link.closest('details');
-
-            while (currentSection) {
-                sectionsToOpen.unshift(currentSection);
-                currentSection = currentSection.parentElement?.closest('details') ?? null;
-            }
-
-            sectionsToOpen.forEach((section) => {
-                section.open = true;
-            });
 
             clearActiveState();
             link.classList.add('desktop-mobile-menu-link-active');
