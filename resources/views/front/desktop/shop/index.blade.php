@@ -108,75 +108,130 @@
 
             .catalog-mobile-filter-toolbar {
                 display: grid;
-                grid-template-columns: minmax(0, 1fr) auto;
+                grid-template-columns: minmax(0, 1fr) auto auto;
                 align-items: center;
-                gap: .55rem;
+                gap: .5rem;
                 width: 100%;
             }
 
             .catalog-mobile-filter-trigger {
                 display: inline-flex;
                 min-width: 0;
-                height: 40px;
+                height: 32px;
                 width: 100%;
                 align-items: center;
                 justify-content: flex-start;
-                gap: .55rem;
-                border: 1px solid #cbd5e1;
+                gap: .45rem;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
                 background: #fff;
-                padding: 0 .9rem;
-                font-size: .9rem;
-                font-weight: 700;
-                color: #334155;
+                padding: 0 .8rem;
+                font-size: .84rem;
+                font-weight: 600;
+                color: #111827;
                 transition: border-color .15s ease, background-color .15s ease, color .15s ease;
             }
 
+            .catalog-mobile-filter-trigger-label {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
             .catalog-mobile-filter-trigger:hover {
-                border-color: #94a3b8;
+                border-color: #9ca3af;
                 background: #f8fafc;
-                color: #0f172a;
+                color: #334155;
             }
 
             .catalog-mobile-filter-trigger[aria-expanded="true"] {
                 border-color: #0f172a;
                 background: #f8fafc;
-                color: #0f172a;
+                color: #111827;
+            }
+
+            .catalog-mobile-filter-reset {
+                display: inline-flex;
+                height: 32px;
+                flex-shrink: 0;
+                align-items: center;
+                justify-content: center;
+                gap: .45rem;
+                border: 1px solid #fda4af;
+                border-radius: 4px;
+                background: #fff;
+                padding: 0 .85rem;
+                font-size: .74rem;
+                font-weight: 700;
+                letter-spacing: .08em;
+                text-transform: uppercase;
+                color: #b91c1c;
+                white-space: nowrap;
+                transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+            }
+
+            .catalog-mobile-filter-reset:hover {
+                border-color: #fb7185;
+                background: #fff1f2;
+                color: #be123c;
             }
 
             .catalog-mobile-grid-group {
-                display: inline-grid;
-                grid-auto-flow: column;
+                display: inline-flex;
                 align-items: stretch;
+                gap: .5rem;
                 flex-shrink: 0;
-                border: 1px solid #cbd5e1;
-                background: #fff;
             }
 
             .catalog-mobile-grid-toggle {
                 display: inline-flex;
-                height: 40px;
-                width: 40px;
+                height: 32px;
+                width: 32px;
                 align-items: center;
                 justify-content: center;
-                border: 0;
-                border-left: 1px solid #e2e8f0;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
                 background: #fff;
                 color: #64748b;
-                transition: background-color .15s ease, color .15s ease;
-            }
-
-            .catalog-mobile-grid-toggle:first-child {
-                border-left: 0;
+                transition: border-color .15s ease, background-color .15s ease, color .15s ease;
             }
 
             .catalog-mobile-grid-toggle:hover {
+                border-color: #9ca3af;
                 background: #f8fafc;
-                color: #0f172a;
+                color: #334155;
             }
 
             .catalog-mobile-grid-toggle.is-active {
+                border-color: #0f172a;
                 background: #0f172a;
                 color: #fff;
+            }
+
+            @media (max-width: 430px) {
+                .catalog-mobile-filter-toolbar {
+                    gap: .45rem;
+                }
+
+                .catalog-mobile-filter-trigger {
+                    height: 30px;
+                    gap: .35rem;
+                    padding: 0 .65rem;
+                    font-size: .78rem;
+                }
+
+                .catalog-mobile-filter-reset {
+                    height: 30px;
+                    gap: .3rem;
+                    padding: 0 .65rem;
+                    font-size: .68rem;
+                }
+
+                .catalog-mobile-grid-toggle {
+                    height: 30px;
+                    width: 30px;
+                }
             }
 
             .catalog-mobile-filter-drawer {
@@ -501,8 +556,16 @@
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                         <path d="M4 7h16M7 12h10M10 17h4"></path>
                     </svg>
-                    {{ __('ui.shop.filters.open') }}
+                    <span class="catalog-mobile-filter-trigger-label">{{ __('ui.shop.filters.open') }}</span>
                 </button>
+                @if ($hasActiveFilters)
+                    <a href="{{ route('shop.index') }}" class="catalog-mobile-filter-reset" aria-label="{{ __('ui.shop.filters.reset') }}">
+                        <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                            <path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5"></path>
+                        </svg>
+                        <span>{{ __('ui.shop.filters.reset') }}</span>
+                    </a>
+                @endif
                 <div class="catalog-mobile-grid-group">
                 @foreach ([1, 2] as $cols)
                     <a

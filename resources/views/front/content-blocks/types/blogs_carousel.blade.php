@@ -263,6 +263,7 @@
                                     el.dataset.splideReady = '1';
 
                                     const count = el.querySelectorAll('.splide__slide').length;
+                                    const mobilePaddingRight = count > 1 ? '18%' : '0';
                                     new window.Splide(el, {
                                         type: count > 1 ? 'loop' : 'slide',
                                         perPage: Math.min(4, Math.max(1, count)),
@@ -277,8 +278,12 @@
                                         breakpoints: {
                                             1280: { perPage: Math.min(3, Math.max(1, count)) },
                                             1024: { perPage: Math.min(2, Math.max(1, count)) },
-                                            860: { perPage: 2, gap: '1rem' },
-                                            640: { perPage: 1.2, gap: '0.8rem' },
+                                            860: { perPage: Math.min(2, Math.max(1, count)), gap: '1rem' },
+                                            640: {
+                                                perPage: 1,
+                                                gap: '0.8rem',
+                                                padding: { left: '0', right: mobilePaddingRight },
+                                            },
                                         },
                                     }).mount();
                                 });
