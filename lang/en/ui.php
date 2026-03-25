@@ -212,6 +212,7 @@ return [
         'add_to_cart' => 'Add to cart',
         'to_cart' => 'To cart',
         'add' => 'Add',
+        'unavailable' => 'Unavailable',
         'lowest_price_30_days' => 'Lowest price in the last 30 days: :price',
         'comments_title' => 'Comments',
         'comments_empty' => 'There are no comments for this product yet.',

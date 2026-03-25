@@ -93,7 +93,10 @@ class ProductCard extends Component
         $hoverImageWidth = max(1, (int) ($hoverMedia?->width ?? $imageWidth));
         $hoverImageHeight = max(1, (int) ($hoverMedia?->height ?? $imageHeight));
 
-        $optionRows = $this->product->visibleOptionRows()
+        $visibleOptionRows = $this->product->visibleOptionRows();
+        $availableOptionRows = $this->product->availableOptionRows();
+
+        $optionRows = $availableOptionRows
             ->values()
             ->map(function ($row) use ($locale, $fallbackLocale): array {
                 $rowId = (int) $row->id;
@@ -169,6 +172,9 @@ class ProductCard extends Component
             'hoverImageWidth' => $hoverImageWidth,
             'hoverImageHeight' => $hoverImageHeight,
             'optionRows' => $optionRows,
+            'hasVisibleOptionRows' => $visibleOptionRows->isNotEmpty(),
+            'hasAvailableOptionRows' => $availableOptionRows->isNotEmpty(),
+            'isPurchasable' => $this->product->storefrontIsPurchasable(),
             'isWishlisted' => app(WishlistService::class)->has((int) $this->product->id),
             'price' => $priceData['current_price'],
             'oldPrice' => $priceData['old_price'],

@@ -8,7 +8,9 @@ use App\Models\Settings\Local\OrderStatus;
 use App\Models\User;
 use App\Models\User\LoyaltyTransaction;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Http\Client\Request;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Spatie\Activitylog\Models\Activity;
@@ -35,7 +37,7 @@ class OrdersFeatureTest extends TestCase
 
         $this->actingAs($admin)->get('/admin/orders/'.$order->id.'/invoice')
             ->assertOk()
-            ->assertSee('Invoice');
+            ->assertSee(__('Invoice'));
     }
 
     public function test_customer_cannot_open_orders_pages(): void
@@ -420,6 +422,68 @@ class OrdersFeatureTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_generate_kipos_test_payload_from_order_view(): void
+    {
+        $this->enableKiposOrderFlow();
+
+        $admin = $this->makeUserWithRole('admin');
+        $status = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        $order = $this->createKiposOrder($status, $admin, 'AG-TEST-0012');
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $order->id])
+            ->call('generateKiposPreview')
+            ->assertHasNoErrors();
+
+        $fresh = $order->fresh();
+        $kiposPayload = is_array($fresh?->payload) ? (array) ($fresh->payload['kipos_order'] ?? []) : [];
+
+        $this->assertSame('KHRAG-TEST-0012', data_get($kiposPayload, 'last_preview.request.narudzba.CMS_ID'));
+        $this->assertSame('W5004', data_get($kiposPayload, 'last_preview.request.stavke.0.IDROBA'));
+        $this->assertSame('99.90', data_get($kiposPayload, 'last_preview.line_total'));
+        $this->assertNull(data_get($kiposPayload, 'last_error'));
+    }
+
+    public function test_admin_can_send_kipos_order_from_saved_test_payload(): void
+    {
+        $this->enableKiposOrderFlow();
+
+        $admin = $this->makeUserWithRole('admin');
+        $status = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        $order = $this->createKiposOrder($status, $admin, 'AG-TEST-0013');
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $order->id])
+            ->call('generateKiposPreview')
+            ->assertHasNoErrors();
+
+        Http::fake([
+            '*narudzba/create*' => Http::response([
+                'status' => 'ok',
+                'erp_order_id' => 'ERP-123',
+            ], 200),
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $order->id])
+            ->call('sendKiposOrder')
+            ->assertHasNoErrors();
+
+        Http::assertSent(function (Request $request): bool {
+            return $request->method() === 'POST'
+                && str_contains($request->url(), 'narudzba/create')
+                && data_get($request->data(), 'narudzba.CMS_ID') === 'KHRAG-TEST-0013'
+                && data_get($request->data(), 'stavke.0.IDROBA') === 'W5004';
+        });
+
+        $fresh = $order->fresh();
+        $kiposPayload = is_array($fresh?->payload) ? (array) ($fresh->payload['kipos_order'] ?? []) : [];
+
+        $this->assertSame('ERP-123', data_get($kiposPayload, 'last_send.response.erp_order_id'));
+        $this->assertSame('ok', data_get($kiposPayload, 'last_send.response.status'));
+        $this->assertNull(data_get($kiposPayload, 'last_error'));
+    }
+
     private function makeUserWithRole(string $role): User
     {
         Bouncer::role()->firstOrCreate(['name' => 'superadmin']);
@@ -498,6 +562,81 @@ class OrdersFeatureTest extends TestCase
             'paid_at' => null,
             'created_by' => $user->id,
             'updated_by' => $user->id,
+        ]);
+    }
+
+    private function createKiposOrder(OrderStatus $status, User $user, string $number): Order
+    {
+        $order = Order::query()->create([
+            'order_number' => $number,
+            'status_id' => $status->id,
+            'user_id' => $user->id,
+            'source' => 'web',
+            'locale' => 'hr',
+            'currency_code' => 'EUR',
+            'currency_rate' => 1,
+            'customer_name' => $user->name,
+            'customer_email' => $user->email,
+            'customer_phone' => '+38591000111',
+            'billing_first_name' => 'Test',
+            'billing_last_name' => 'User',
+            'billing_address_line_1' => 'Street 1',
+            'billing_postal_code' => '10000',
+            'billing_city' => 'Zagreb',
+            'billing_country_code' => 'HR',
+            'shipping_first_name' => 'Test',
+            'shipping_last_name' => 'User',
+            'shipping_address_line_1' => 'Street 1',
+            'shipping_postal_code' => '10000',
+            'shipping_city' => 'Zagreb',
+            'shipping_country_code' => 'HR',
+            'payment_method_code' => 'bank',
+            'payment_method_name' => 'Bank Transfer',
+            'shipping_method_code' => 'standard',
+            'shipping_method_name' => 'Standard Shipping',
+            'item_qty' => 1,
+            'subtotal' => 99.90,
+            'shipping_total' => 0,
+            'payment_fee_total' => 0,
+            'discount_total' => 0,
+            'tax_total' => 0,
+            'grand_total' => 99.90,
+            'customer_note' => 'Manual ERP test',
+            'admin_note' => null,
+            'payload' => null,
+            'placed_at' => now(),
+            'paid_at' => null,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+
+        $order->items()->create([
+            'sku' => 'W5004',
+            'code' => 'W5004',
+            'name' => 'Kipos Test Item',
+            'unit_price' => 99.90,
+            'discount_amount' => 0,
+            'tax_rate' => 0,
+            'tax_amount' => 0,
+            'quantity' => 1,
+            'line_total' => 99.90,
+            'sort_order' => 1,
+            'payload' => null,
+        ]);
+
+        return $order;
+    }
+
+    private function enableKiposOrderFlow(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'catalog_use_kipos_api' => true,
+            'kipos_api_enabled' => true,
+            'kipos_api_base_uri' => 'http://balidd.dyndns.org:8080/kipos.web.api/?route=',
+            'kipos_api_query_suffix' => 'webshop=1',
+            'kipos_order_prefix' => 'KHR',
+            'kipos_order_valuta' => '978',
+            'kipos_order_customer_cms_id' => '1',
         ]);
     }
 }

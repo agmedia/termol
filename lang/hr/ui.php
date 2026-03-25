@@ -213,6 +213,7 @@ return [
         'add_to_cart' => 'Dodaj u košaricu',
         'to_cart' => 'U košaricu',
         'add' => 'Dodaj',
+        'unavailable' => 'Nedostupno',
         'lowest_price_30_days' => 'Najniža cijena u prethodnih 30 dana: :price',
         'comments_title' => 'Komentari',
         'comments_empty' => 'Još nema komentara za ovaj artikl.',

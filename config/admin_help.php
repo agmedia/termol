@@ -602,7 +602,7 @@ return [
         ],
         'admin.settings.api.*' => [
             'title' => 'Settings / API',
-            'summary' => 'Manage two API integrations: internal Wholesale API token access and external Luceed connector + full sync action console.',
+            'summary' => 'Manage API integrations: internal Wholesale API, Kipos catalog + ERP connector, and external Luceed sync console.',
             'sections' => [
                 [
                     'title' => 'Wholesale API',
@@ -620,6 +620,25 @@ return [
                         '3) Copy plain token once and store securely.',
                         '4) Revoke token immediately on client/system change.',
                         '5) Disable user API access to revoke all user tokens at once.',
+                    ],
+                ],
+                [
+                    'title' => 'Kipos API',
+                    'items' => [
+                        'Connection tab stores Kipos base route, webshop suffix, timeout, and optional image base URI fallback.',
+                        'Sync Manager exposes granular manual actions so prices, quantities, actions, content, and images can be run independently.',
+                        'Product import maps Kipos `IDODJEL` to local product code and Kipos `IDROBA` to local SKU / option rows.',
+                        'ERP order send runs only from admin order detail and stores preview/send payloads plus ERP response in order payload.',
+                    ],
+                ],
+                [
+                    'title' => 'Kipos Workflow',
+                    'items' => [
+                        '1) Enable Kipos in Catalog Features (`Use Kipos API`) and enable connector toggle in Kipos API settings.',
+                        '2) Save Kipos connection values and run Test Connection against product feed.',
+                        '3) Configure import category, size option, price field, and quantity overwrite map in Sync Settings.',
+                        '4) Run import once, then use narrow actions like Update Prices, Update Quantities, Update Actions, or Update Images as needed.',
+                        '5) Open any admin order and use Test Payload / Send to ERP when invoice should be sent manually.',
                     ],
                 ],
                 [

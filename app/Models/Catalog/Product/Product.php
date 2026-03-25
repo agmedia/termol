@@ -200,21 +200,51 @@ class Product extends Model implements HasMedia
     /**
      * @return Collection<int, ProductOptionValue>
      */
-    public function visibleOptionRows(): Collection
+    public function visibleOptionRows(bool $inStockOnly = false): Collection
     {
         $this->loadMissing([
             'optionValues.optionValue.option:id,payload',
             'optionValues.parentOptionValue.option:id,payload',
         ]);
 
-        return $this->optionValues
+        $rows = $this->optionValues
             ->where('is_active', true)
             ->filter(static fn (ProductOptionValue $row): bool => $row->showsOnProductPage())
             ->values();
+
+        if (! $inStockOnly) {
+            return $rows;
+        }
+
+        return $rows
+            ->filter(static fn (ProductOptionValue $row): bool => (int) $row->stock_qty > 0)
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, ProductOptionValue>
+     */
+    public function availableOptionRows(): Collection
+    {
+        return $this->visibleOptionRows(inStockOnly: true);
     }
 
     public function hasVisibleOptionRows(): bool
     {
         return $this->visibleOptionRows()->isNotEmpty();
+    }
+
+    public function hasAvailableOptionRows(): bool
+    {
+        return $this->availableOptionRows()->isNotEmpty();
+    }
+
+    public function storefrontIsPurchasable(): bool
+    {
+        if ($this->hasVisibleOptionRows()) {
+            return $this->hasAvailableOptionRows();
+        }
+
+        return (int) $this->stock_qty > 0;
     }
 }

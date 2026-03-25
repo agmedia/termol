@@ -25,8 +25,15 @@
                 </button>
             @endforeach
         </div>
+        <p class="mb-4 text-xs text-slate-500">{{ __('Saving applies only to the currently open tab.') }}</p>
 
         <form wire:submit="save" class="space-y-4">
+            @if ($errors->any())
+                <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                    <p class="font-semibold">{{ __('Please review the highlighted fields before saving this tab.') }}</p>
+                </div>
+            @endif
+
             @if ($tab === 'email')
                 <div class="grid gap-4 md:grid-cols-2">
                     <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 md:col-span-2">
@@ -251,18 +258,22 @@
                     <div>
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Mailchimp API Key') }}</label>
                         <input type="text" wire:model="form.store_newsletter_mailchimp_api_key" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                        @error('form.store_newsletter_mailchimp_api_key') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Mailchimp List ID') }}</label>
                         <input type="text" wire:model="form.store_newsletter_mailchimp_list_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                        @error('form.store_newsletter_mailchimp_list_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Klaviyo API Key') }}</label>
                         <input type="text" wire:model="form.store_newsletter_klaviyo_api_key" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                        @error('form.store_newsletter_klaviyo_api_key') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Klaviyo List ID') }}</label>
                         <input type="text" wire:model="form.store_newsletter_klaviyo_list_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                        @error('form.store_newsletter_klaviyo_list_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
                 </div>
             @endif

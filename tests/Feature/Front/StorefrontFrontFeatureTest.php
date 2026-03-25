@@ -915,6 +915,84 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertSame(1, app(\App\Services\Front\CartService::class)->summary()['item_qty']);
     }
 
+    public function test_product_detail_hides_out_of_stock_option_values(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product, $slug] = $this->seedProduct($category->id);
+
+        $this->attachProductSizeOptions($product, ['S', 'L'], [
+            'S' => 4,
+            'L' => 0,
+        ]);
+        $product->update(['stock_qty' => 4]);
+
+        $this->get('/product/'.$slug)
+            ->assertOk()
+            ->assertSee('data-size-label="S"', false)
+            ->assertDontSee('data-size-label="L"', false)
+            ->assertSee('color: #ffffff !important;', false);
+    }
+
+    public function test_shop_card_hides_out_of_stock_option_values(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $this->attachProductSizeOptions($product, ['S', 'L'], [
+            'S' => 2,
+            'L' => 0,
+        ]);
+        $product->update(['stock_qty' => 2]);
+
+        $this->get('/shop')
+            ->assertOk()
+            ->assertSee('data-option-label="S"', false)
+            ->assertDontSee('data-option-label="L"', false);
+    }
+
+    public function test_product_detail_shows_unavailable_when_all_option_values_are_out_of_stock(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product, $slug] = $this->seedProduct($category->id);
+
+        $this->attachProductSizeOptions($product, ['S', 'M'], [
+            'S' => 0,
+            'M' => 0,
+        ]);
+        $product->update(['stock_qty' => 0]);
+
+        $this->get('/product/'.$slug)
+            ->assertOk()
+            ->assertSee('Unavailable')
+            ->assertDontSee('data-size-label="S"', false)
+            ->assertDontSee('data-size-label="M"', false);
+    }
+
+    public function test_add_to_cart_returns_unavailable_when_all_option_values_are_out_of_stock(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $this->attachProductSizeOptions($product, ['S', 'M'], [
+            'S' => 0,
+            'M' => 0,
+        ]);
+        $product->update(['stock_qty' => 0]);
+
+        $this->postJson('/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 1,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Product option is unavailable or out of stock.');
+    }
+
     public function test_product_detail_renders_attribute_panels_in_requested_order_without_store_check_button(): void
     {
         $this->useEnglishStorefrontLocale();
@@ -1305,7 +1383,7 @@ class StorefrontFrontFeatureTest extends TestCase
     /**
      * @param  array<int, string>  $labels
      */
-    private function attachProductSizeOptions(Product $product, array $labels): void
+    private function attachProductSizeOptions(Product $product, array $labels, array $stockByLabel = []): void
     {
         $option = Option::query()->create([
             'code' => 'size-'.strtolower((string) str()->random(6)),
@@ -1350,7 +1428,7 @@ class StorefrontFrontFeatureTest extends TestCase
                 'parent_option_value_id' => null,
                 'mode' => 'single',
                 'sku' => 'OPT-'.strtoupper((string) str()->random(4)),
-                'stock_qty' => 5,
+                'stock_qty' => max(0, (int) ($stockByLabel[$label] ?? 5)),
                 'price_override' => null,
                 'sort_order' => $index + 1,
                 'is_active' => true,

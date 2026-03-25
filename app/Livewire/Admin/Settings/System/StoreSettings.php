@@ -9,8 +9,10 @@ use App\Models\Catalog\Option\Option;
 use App\Models\Content\Page\InfoPage;
 use App\Support\Media\MediaProfileRegistry;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
@@ -207,48 +209,27 @@ class StoreSettings extends Component
         $this->authorizeAccess();
 
         $this->form = $this->sanitizeSelectableSettings($this->form);
-        $validated = $this->validate($this->rules());
-        $payload = $this->sanitizeSelectableSettings($validated['form']);
-        $payload['store_schema_product_currency'] = strtoupper((string) ($payload['store_schema_product_currency'] ?? 'EUR'));
-        $payload['store_schema_address_country'] = strtoupper((string) ($payload['store_schema_address_country'] ?? 'HR'));
-        $payload['store_analytics_purchase_event_name'] = trim((string) ($payload['store_analytics_purchase_event_name'] ?? 'purchase')) ?: 'purchase';
+        $validated = $this->validate($this->rulesForCurrentTab());
+        $normalizedForm = $this->sanitizeSelectableSettings(array_merge($this->form, $validated['form'] ?? []));
+        $payload = Arr::only($normalizedForm, $this->currentTabSettingKeys());
 
-        if ($this->logoUpload) {
-            $payload['store_brand_logo_path'] = $this->logoUpload->store('store-settings', 'public');
+        if (array_key_exists('store_schema_product_currency', $payload)) {
+            $payload['store_schema_product_currency'] = strtoupper((string) ($payload['store_schema_product_currency'] ?? 'EUR'));
         }
-        if ($this->faviconUpload) {
-            $payload = array_merge($payload, $this->processFaviconUpload($this->faviconUpload));
+
+        if (array_key_exists('store_schema_address_country', $payload)) {
+            $payload['store_schema_address_country'] = strtoupper((string) ($payload['store_schema_address_country'] ?? 'HR'));
         }
-        if ($this->ogDefaultImageUpload) {
-            $payload['store_og_default_image_path'] = $this->ogDefaultImageUpload->store('store-settings', 'public');
+
+        if (array_key_exists('store_analytics_purchase_event_name', $payload)) {
+            $payload['store_analytics_purchase_event_name'] = trim((string) ($payload['store_analytics_purchase_event_name'] ?? 'purchase')) ?: 'purchase';
         }
-        if ($this->ogHomeImageUpload) {
-            $payload['store_og_home_image_path'] = $this->ogHomeImageUpload->store('store-settings', 'public');
-        }
-        if ($this->ogCategoryImageUpload) {
-            $payload['store_og_category_image_path'] = $this->ogCategoryImageUpload->store('store-settings', 'public');
-        }
-        if ($this->ogProductImageUpload) {
-            $payload['store_og_product_image_path'] = $this->ogProductImageUpload->store('store-settings', 'public');
-        }
-        if ($this->ogPageImageUpload) {
-            $payload['store_og_page_image_path'] = $this->ogPageImageUpload->store('store-settings', 'public');
-        }
-        if ($this->ogBlogImageUpload) {
-            $payload['store_og_blog_image_path'] = $this->ogBlogImageUpload->store('store-settings', 'public');
-        }
+
+        $payload = array_merge($payload, $this->uploadPayloadForCurrentTab());
 
         app(SystemSettingsService::class)->putMany($payload);
         $this->form = array_merge($this->form, $payload);
-
-        $this->logoUpload = null;
-        $this->faviconUpload = null;
-        $this->ogDefaultImageUpload = null;
-        $this->ogHomeImageUpload = null;
-        $this->ogCategoryImageUpload = null;
-        $this->ogProductImageUpload = null;
-        $this->ogPageImageUpload = null;
-        $this->ogBlogImageUpload = null;
+        $this->resetUploadsForCurrentTab();
 
         $this->dispatch('notify', type: 'success', message: __('Store settings saved.'));
     }
@@ -421,6 +402,30 @@ class StoreSettings extends Component
             'ogPageImageUpload' => ['nullable', 'image', 'max:4096'],
             'ogBlogImageUpload' => ['nullable', 'image', 'max:4096'],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function rulesForCurrentTab(): array
+    {
+        $allowedFormRules = array_fill_keys(
+            array_map(static fn (string $key): string => 'form.'.$key, $this->currentTabSettingKeys()),
+            true
+        );
+        $allowedUploadRules = array_fill_keys($this->currentTabUploadKeys(), true);
+
+        return array_filter($this->rules(), function (mixed $rule, string $key) use ($allowedFormRules, $allowedUploadRules): bool {
+            if (isset($allowedFormRules[$key]) || isset($allowedUploadRules[$key])) {
+                return true;
+            }
+
+            if (str_ends_with($key, '.*')) {
+                return isset($allowedFormRules[Str::before($key, '.*')]);
+            }
+
+            return false;
+        }, ARRAY_FILTER_USE_BOTH);
     }
 
     public function render()
@@ -921,6 +926,102 @@ class StoreSettings extends Component
             ->all();
 
         return $values;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function currentTabSettingKeys(): array
+    {
+        return array_values(array_filter(
+            array_keys($this->form),
+            fn (string $key): bool => match ($this->tab) {
+                'email' => str_starts_with($key, 'store_email_'),
+                'branding' => str_starts_with($key, 'store_brand_')
+                    || str_starts_with($key, 'store_footer_')
+                    || str_starts_with($key, 'store_social_'),
+                'newsletter' => str_starts_with($key, 'store_newsletter_'),
+                'integrations' => str_starts_with($key, 'store_captcha_')
+                    || str_starts_with($key, 'store_analytics_'),
+                'pricing' => str_starts_with($key, 'store_pricing_'),
+                'images' => str_starts_with($key, 'store_images_'),
+                'products' => str_starts_with($key, 'store_product_')
+                    || $key === 'store_search_autocomplete_enabled',
+                'seo' => str_starts_with($key, 'store_seo_'),
+                'og' => str_starts_with($key, 'store_og_'),
+                'schema' => str_starts_with($key, 'store_schema_'),
+                'announcement' => str_starts_with($key, 'store_announcement_'),
+                'cookies' => str_starts_with($key, 'store_cookie_'),
+                default => false,
+            }
+        ));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function currentTabUploadKeys(): array
+    {
+        return match ($this->tab) {
+            'branding' => ['logoUpload', 'faviconUpload'],
+            'og' => [
+                'ogDefaultImageUpload',
+                'ogHomeImageUpload',
+                'ogCategoryImageUpload',
+                'ogProductImageUpload',
+                'ogPageImageUpload',
+                'ogBlogImageUpload',
+            ],
+            default => [],
+        };
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function uploadPayloadForCurrentTab(): array
+    {
+        $payload = [];
+
+        if ($this->tab === 'branding') {
+            if ($this->logoUpload) {
+                $payload['store_brand_logo_path'] = $this->logoUpload->store('store-settings', 'public');
+            }
+
+            if ($this->faviconUpload) {
+                $payload = array_merge($payload, $this->processFaviconUpload($this->faviconUpload));
+            }
+        }
+
+        if ($this->tab === 'og') {
+            if ($this->ogDefaultImageUpload) {
+                $payload['store_og_default_image_path'] = $this->ogDefaultImageUpload->store('store-settings', 'public');
+            }
+            if ($this->ogHomeImageUpload) {
+                $payload['store_og_home_image_path'] = $this->ogHomeImageUpload->store('store-settings', 'public');
+            }
+            if ($this->ogCategoryImageUpload) {
+                $payload['store_og_category_image_path'] = $this->ogCategoryImageUpload->store('store-settings', 'public');
+            }
+            if ($this->ogProductImageUpload) {
+                $payload['store_og_product_image_path'] = $this->ogProductImageUpload->store('store-settings', 'public');
+            }
+            if ($this->ogPageImageUpload) {
+                $payload['store_og_page_image_path'] = $this->ogPageImageUpload->store('store-settings', 'public');
+            }
+            if ($this->ogBlogImageUpload) {
+                $payload['store_og_blog_image_path'] = $this->ogBlogImageUpload->store('store-settings', 'public');
+            }
+        }
+
+        return $payload;
+    }
+
+    private function resetUploadsForCurrentTab(): void
+    {
+        foreach ($this->currentTabUploadKeys() as $uploadKey) {
+            $this->{$uploadKey} = null;
+        }
     }
 
     /**

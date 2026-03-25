@@ -60,7 +60,9 @@
         })
         ->values();
 
-    $optionRows = $product->visibleOptionRows();
+    $allOptionRows = $product->visibleOptionRows();
+    $optionRows = $product->availableOptionRows();
+    $isPurchasable = $product->storefrontIsPurchasable();
     $hasLinkedOptions = $optionRows->contains(fn ($row) => (int) ($row->parent_option_value_id ?? 0) > 0);
     $primaryOptionLabel = __('ui.cart.modal.option');
     $secondaryOptionLabel = __('ui.cart.modal.option');
@@ -210,10 +212,11 @@
             }
         }
 
-        [data-product-detail-form] .product-size-radio:checked + .product-size-label {
+        [data-product-detail-form] .product-size-radio:checked + .product-size-label,
+        [data-product-detail-form] .product-size-radio:checked + .product-size-label span {
             border-color: #0f172a;
             background: #0f172a;
-            color: #ffffff;
+            color: #ffffff !important;
         }
 
         [data-fit-finder-modal] [data-fit-step].hidden {
@@ -636,19 +639,26 @@
                 @endif
 
                 <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:gap-2">
-                    <div class="inline-flex h-10 items-stretch" data-qty-control>
-                        <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 text-xl font-semibold text-slate-700 hover:bg-slate-100" data-qty-dec aria-label="Decrease quantity">-</button>
-                        <input type="text" name="quantity" value="1" inputmode="numeric" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" class="h-10 w-10 border-y border-r border-slate-300 border-l-0 bg-white p-0 text-center text-base font-normal text-slate-900" data-qty-input>
-                        <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 text-xl font-semibold text-slate-700 hover:bg-slate-100" data-qty-inc aria-label="Increase quantity">+</button>
-                    </div>
+                    @if ($isPurchasable)
+                        <div class="inline-flex h-10 items-stretch" data-qty-control>
+                            <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 text-xl font-semibold text-slate-700 hover:bg-slate-100" data-qty-dec aria-label="Decrease quantity">-</button>
+                            <input type="text" name="quantity" value="1" inputmode="numeric" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" class="h-10 w-10 border-y border-r border-slate-300 border-l-0 bg-white p-0 text-center text-base font-normal text-slate-900" data-qty-input>
+                            <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 text-xl font-semibold text-slate-700 hover:bg-slate-100" data-qty-inc aria-label="Increase quantity">+</button>
+                        </div>
 
-                    <button type="submit" class="inline-flex h-10 min-w-0 items-center justify-center gap-2 border border-slate-900 bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-700 sm:px-4 sm:text-sm" aria-label="{{ __('ui.product.add_to_cart') }}">
-                        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M7 9h10l-1 10H8L7 9Z"></path>
-                            <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
-                        </svg>
-                        <span class="text-center leading-tight sm:truncate">{{ __('ui.product.add_to_cart') }}</span>
-                    </button>
+                        <button type="submit" class="inline-flex h-10 min-w-0 items-center justify-center gap-2 border border-slate-900 bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-700 sm:px-4 sm:text-sm" aria-label="{{ __('ui.product.add_to_cart') }}">
+                            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M7 9h10l-1 10H8L7 9Z"></path>
+                                <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
+                            </svg>
+                            <span class="text-center leading-tight sm:truncate">{{ __('ui.product.add_to_cart') }}</span>
+                        </button>
+                    @else
+                        <div></div>
+                        <button type="button" disabled class="inline-flex h-10 min-w-0 items-center justify-center gap-2 border border-slate-300 bg-slate-100 px-3 text-xs font-semibold text-slate-500 sm:px-4 sm:text-sm" aria-label="{{ __('ui.product.unavailable') }}">
+                            <span class="text-center leading-tight sm:truncate">{{ __('ui.product.unavailable') }}</span>
+                        </button>
+                    @endif
 
                     <button
                         type="submit"

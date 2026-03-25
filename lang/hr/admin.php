@@ -47,6 +47,7 @@ return [
             'store_settings' => 'Postavke trgovine',
             'api' => 'API',
             'wholesale_api' => 'Wholesale API',
+            'kipos_api' => 'Kipos API',
             'luceed_api' => 'Luceed API',
             'user' => 'Korisnik',
             'users' => 'Korisnici',

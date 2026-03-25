@@ -1,0 +1,208 @@
+<?php
+
+namespace App\Livewire\Admin\Settings\Api;
+
+use App\Jobs\RunKiposSyncActionJob;
+use App\Models\Integrations\KiposSyncRun;
+use App\Services\Integrations\Kipos\KiposSyncService;
+use Livewire\Component;
+use Livewire\WithPagination;
+use Silber\Bouncer\BouncerFacade as Bouncer;
+
+class KiposSyncManager extends Component
+{
+    use WithPagination;
+
+    private const RUNS_PAGE_NAME = 'kiposSyncRunsPage';
+
+    public string $tab = 'actions';
+
+    /**
+     * @var array<string, mixed>
+     */
+    public array $syncForm = [
+        'kipos_sync_default_locale' => 'hr',
+        'kipos_sync_import_category_id' => null,
+        'kipos_sync_size_option_id' => null,
+        'kipos_sync_price_field' => 'CIJENA_MPC',
+        'kipos_sync_action_price_field' => 'AKCIJSKA_CIJENA',
+        'kipos_sync_stock_warehouse_ids' => '',
+        'kipos_sync_quantity_overrides' => '',
+        'kipos_order_prefix' => 'KHR',
+        'kipos_order_valuta' => '978',
+        'kipos_order_customer_cms_id' => '1',
+        'kipos_order_shipping_item_code' => '',
+        'kipos_order_payment_fee_item_code' => '',
+        'kipos_order_private_at_company_id' => 2,
+        'kipos_order_private_de_company_id' => 3,
+    ];
+
+    public string $runningActionKey = '';
+
+    public ?int $lastRunId = null;
+
+    public function mount(KiposSyncService $syncService): void
+    {
+        $this->authorizeAccess();
+
+        $this->syncForm = array_merge($this->syncForm, $syncService->syncSettings());
+
+        $tab = (string) request()->query('tab', 'actions');
+        if (in_array($tab, ['actions', 'settings', 'history', 'help'], true)) {
+            $this->tab = $tab;
+        }
+    }
+
+    public function setTab(string $tab): void
+    {
+        $this->authorizeAccess();
+
+        if (! in_array($tab, ['actions', 'settings', 'history', 'help'], true)) {
+            return;
+        }
+
+        $this->tab = $tab;
+    }
+
+    public function saveSyncSettings(KiposSyncService $syncService): void
+    {
+        $this->authorizeAccess();
+
+        $validated = $this->validate($this->rules());
+        $payload = $this->normalizeSyncPayload($validated['syncForm']);
+
+        $syncService->saveSyncSettings($payload);
+        $this->syncForm = array_merge($this->syncForm, $payload);
+
+        $this->dispatch('notify', type: 'success', message: __('Kipos sync settings saved.'));
+    }
+
+    public function runAction(string $actionKey, KiposSyncService $syncService): void
+    {
+        $this->authorizeAccess();
+
+        $this->runningActionKey = $actionKey;
+        $queuedRun = null;
+
+        try {
+            $existingRun = KiposSyncRun::query()
+                ->where('action_key', $actionKey)
+                ->whereIn('status', ['queued', 'started'])
+                ->latest('id')
+                ->first();
+
+            if ($existingRun) {
+                $this->lastRunId = $existingRun->id;
+                $this->dispatch('notify', type: 'info', message: __('This Kipos sync action is already queued or running. Watch the run log below.'));
+                return;
+            }
+
+            $queuedRun = $syncService->queue($actionKey, auth()->id());
+            $this->lastRunId = $queuedRun->id;
+            RunKiposSyncActionJob::dispatch($queuedRun->id);
+            $this->dispatch('notify', type: 'info', message: __('Kipos sync action queued. Background worker will process it and the run log will refresh here automatically.'));
+        } catch (\Throwable $exception) {
+            if ($queuedRun instanceof KiposSyncRun && $queuedRun->status === 'queued') {
+                $queuedRun->fill([
+                    'status' => 'failed',
+                    'summary' => 'Queue dispatch failed.',
+                    'error_message' => $exception->getMessage(),
+                    'finished_at' => now(),
+                ])->save();
+            }
+
+            $this->dispatch('notify', type: 'error', message: __('Kipos sync action failed: :error', ['error' => $exception->getMessage()]));
+        } finally {
+            $this->runningActionKey = '';
+            $this->resetPage(pageName: self::RUNS_PAGE_NAME);
+        }
+    }
+
+    public function render(KiposSyncService $syncService)
+    {
+        $runs = KiposSyncRun::query()
+            ->with('initiator:id,name,email')
+            ->latest('id')
+            ->paginate(12, ['*'], self::RUNS_PAGE_NAME);
+
+        $lastRun = null;
+        if ($this->lastRunId) {
+            $lastRun = KiposSyncRun::query()->with('initiator:id,name,email')->find($this->lastRunId);
+        }
+
+        return view('livewire.admin.settings.api.kipos-sync-manager', [
+            'actionGroups' => $syncService->actionGroups(),
+            'endpointMap' => $syncService->endpointMap(),
+            'runs' => $runs,
+            'lastRun' => $lastRun,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function rules(): array
+    {
+        return [
+            'syncForm.kipos_sync_default_locale' => ['required', 'string', 'max:12'],
+            'syncForm.kipos_sync_import_category_id' => ['nullable', 'integer', 'min:1'],
+            'syncForm.kipos_sync_size_option_id' => ['nullable', 'integer', 'min:1'],
+            'syncForm.kipos_sync_price_field' => ['required', 'string', 'max:60'],
+            'syncForm.kipos_sync_action_price_field' => ['required', 'string', 'max:60'],
+            'syncForm.kipos_sync_stock_warehouse_ids' => ['nullable', 'string', 'max:500'],
+            'syncForm.kipos_sync_quantity_overrides' => ['nullable', 'string', 'max:6000'],
+            'syncForm.kipos_order_prefix' => ['required', 'string', 'max:20'],
+            'syncForm.kipos_order_valuta' => ['required', 'string', 'max:12'],
+            'syncForm.kipos_order_customer_cms_id' => ['required', 'string', 'max:30'],
+            'syncForm.kipos_order_shipping_item_code' => ['nullable', 'string', 'max:120'],
+            'syncForm.kipos_order_payment_fee_item_code' => ['nullable', 'string', 'max:120'],
+            'syncForm.kipos_order_private_at_company_id' => ['nullable', 'integer', 'min:1'],
+            'syncForm.kipos_order_private_de_company_id' => ['nullable', 'integer', 'min:1'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>
+     */
+    private function normalizeSyncPayload(array $raw): array
+    {
+        return [
+            'kipos_sync_default_locale' => strtolower(trim((string) ($raw['kipos_sync_default_locale'] ?? 'hr'))),
+            'kipos_sync_import_category_id' => $this->nullablePositiveInt($raw['kipos_sync_import_category_id'] ?? null),
+            'kipos_sync_size_option_id' => $this->nullablePositiveInt($raw['kipos_sync_size_option_id'] ?? null),
+            'kipos_sync_price_field' => strtoupper(trim((string) ($raw['kipos_sync_price_field'] ?? 'CIJENA_MPC'))),
+            'kipos_sync_action_price_field' => strtoupper(trim((string) ($raw['kipos_sync_action_price_field'] ?? 'AKCIJSKA_CIJENA'))),
+            'kipos_sync_stock_warehouse_ids' => trim((string) ($raw['kipos_sync_stock_warehouse_ids'] ?? '')),
+            'kipos_sync_quantity_overrides' => trim((string) ($raw['kipos_sync_quantity_overrides'] ?? '')),
+            'kipos_order_prefix' => strtoupper(trim((string) ($raw['kipos_order_prefix'] ?? 'KHR'))),
+            'kipos_order_valuta' => trim((string) ($raw['kipos_order_valuta'] ?? '978')),
+            'kipos_order_customer_cms_id' => trim((string) ($raw['kipos_order_customer_cms_id'] ?? '1')),
+            'kipos_order_shipping_item_code' => strtoupper(trim((string) ($raw['kipos_order_shipping_item_code'] ?? ''))),
+            'kipos_order_payment_fee_item_code' => strtoupper(trim((string) ($raw['kipos_order_payment_fee_item_code'] ?? ''))),
+            'kipos_order_private_at_company_id' => $this->nullablePositiveInt($raw['kipos_order_private_at_company_id'] ?? null),
+            'kipos_order_private_de_company_id' => $this->nullablePositiveInt($raw['kipos_order_private_de_company_id'] ?? null),
+        ];
+    }
+
+    private function nullablePositiveInt(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $int = (int) $value;
+
+        return $int > 0 ? $int : null;
+    }
+
+    private function authorizeAccess(): void
+    {
+        $user = auth()->user();
+
+        abort_unless(
+            $user && (Bouncer::is($user)->an('superadmin') || $user->can('settings.api.manage')),
+            403
+        );
+    }
+}

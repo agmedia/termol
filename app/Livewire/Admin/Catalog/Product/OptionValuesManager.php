@@ -597,14 +597,14 @@ class OptionValuesManager extends Component
 
         if ($this->mode === 'single') {
             $validValueIds = array_flip($this->valueIdsForOption($this->singleOptionId));
-            $this->rows = array_map(function (array $row) use ($validValueIds): array {
+            $this->rows = array_values(array_filter(array_map(function (array $row) use ($validValueIds): ?array {
                 $valueId = (int) ($row['option_value_id'] ?? 0);
                 if ($valueId <= 0 || !isset($validValueIds[$valueId])) {
-                    $row['option_value_id'] = null;
+                    return null;
                 }
 
                 return $row;
-            }, $this->rows);
+            }, $this->rows)));
 
             return;
         }
@@ -612,20 +612,20 @@ class OptionValuesManager extends Component
         $validParentIds = array_flip($this->valueIdsForOption($this->primaryOptionId));
         $validValueIds = array_flip($this->valueIdsForOption($this->secondaryOptionId));
 
-        $this->rows = array_map(function (array $row) use ($validParentIds, $validValueIds): array {
+        $this->rows = array_values(array_filter(array_map(function (array $row) use ($validParentIds, $validValueIds): ?array {
             $parentId = (int) ($row['parent_option_value_id'] ?? 0);
             $valueId = (int) ($row['option_value_id'] ?? 0);
 
             if ($parentId <= 0 || !isset($validParentIds[$parentId])) {
-                $row['parent_option_value_id'] = null;
+                return null;
             }
 
             if ($valueId <= 0 || !isset($validValueIds[$valueId])) {
-                $row['option_value_id'] = null;
+                return null;
             }
 
             return $row;
-        }, $this->rows);
+        }, $this->rows)));
     }
 
     private function rowTemplate(?int $valueId, ?int $parentValueId): array

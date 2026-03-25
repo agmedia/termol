@@ -13,6 +13,106 @@
         </div>
     @else
         <div class="space-y-4">
+            @if ($isProductMedia)
+                <section class="rounded-xl border border-slate-200 bg-white p-4">
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h3 class="text-sm font-semibold text-slate-800">{{ __('Kipos single-product image sync') }}</h3>
+                                @if ($kiposProductCode !== '')
+                                    <span class="admin-chip">KIPOS {{ $kiposProductCode }}</span>
+                                @endif
+                            </div>
+                            <p class="mt-1 text-xs text-slate-500">{{ __('Run Kipos image import only for this product so you can test one article directly from the media tab. Replace updates both the main image and gallery images.') }}</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                wire:click="importProductImagesFromKipos"
+                                wire:loading.attr="disabled"
+                                wire:target="importProductImagesFromKipos"
+                                @if ($kiposImageAction !== '' || ! $kiposProductImagesEnabled) disabled @endif
+                                class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {{ __('Kipos import ako nema slika') }}
+                            </button>
+                            <button
+                                type="button"
+                                wire:click="replaceProductImagesFromKipos"
+                                wire:loading.attr="disabled"
+                                wire:target="replaceProductImagesFromKipos"
+                                @if ($kiposImageAction !== '' || ! $kiposProductImagesEnabled) disabled @endif
+                                class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {{ __('Kipos zamijeni glavnu + galeriju') }}
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (! $kiposProductImagesEnabled)
+                        <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                            {{ __('Enable Catalog Feature `Use Kipos API` and activate Kipos API settings before using single-product image sync here.') }}
+                        </div>
+                    @endif
+
+                    @if ($kiposImageError)
+                        <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                            {{ $kiposImageError }}
+                        </div>
+                    @endif
+
+                    @if ($kiposImageResult)
+                        <div class="mt-3 grid gap-3 md:grid-cols-4">
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Updated') }}</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-900">{{ $kiposImageResult['updated_products'] ?? 0 }}</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Main') }}</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-900">{{ $kiposImageResult['main_images_attached'] ?? 0 }}</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Gallery') }}</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-900">{{ $kiposImageResult['gallery_images_attached'] ?? 0 }}</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Failures') }}</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-900">{{ $kiposImageResult['download_failures'] ?? 0 }}</p>
+                            </div>
+                        </div>
+                        <p class="mt-3 text-sm text-slate-700">{{ $kiposImageResult['summary'] ?? '-' }}</p>
+
+                        @if (! empty($kiposImageResult['download_failure_details'] ?? []))
+                            <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-rose-700">{{ __('Kipos failure details') }}</p>
+                                <div class="mt-3 space-y-2 text-sm text-rose-900">
+                                    @foreach (($kiposImageResult['download_failure_details'] ?? []) as $failure)
+                                        <div class="rounded-xl border border-rose-200 bg-white px-3 py-2">
+                                            <p class="font-semibold">
+                                                @if (! empty($failure['status']))
+                                                    HTTP {{ $failure['status'] }}
+                                                @else
+                                                    {{ str_replace('_', ' ', (string) ($failure['reason'] ?? 'download_failed')) }}
+                                                @endif
+                                            </p>
+                                            @if (! empty($failure['file_name']))
+                                                <p class="break-all text-xs text-rose-800">{{ $failure['file_name'] }}</p>
+                                            @endif
+                                            @if (! empty($failure['url']))
+                                                <p class="break-all text-xs text-rose-700">{{ $failure['url'] }}</p>
+                                            @endif
+                                            @if (! empty($failure['message']))
+                                                <p class="text-xs text-rose-700">{{ $failure['message'] }}</p>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+                    @endif
+                </section>
+            @endif
+
             @foreach ($collections as $collectionName => $collectionConfig)
                 @php
                     $collectionMedia = $mediaByCollection[$collectionName] ?? collect();

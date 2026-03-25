@@ -175,7 +175,7 @@ class CatalogController extends Controller
                     ->orderBy('order_column')
                     ->orderBy('id'),
                 'optionValues' => fn ($q) => $q
-                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'is_active', 'sort_order'])
+                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'stock_qty', 'is_active', 'sort_order'])
                     ->where('is_active', true)
                     ->orderBy('sort_order')
                     ->orderBy('id')
@@ -470,7 +470,7 @@ class CatalogController extends Controller
                         ->orderBy('order_column')
                         ->orderBy('id'),
                     'optionValues' => fn ($q) => $q
-                        ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'is_active', 'sort_order'])
+                        ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'stock_qty', 'is_active', 'sort_order'])
                         ->where('is_active', true)
                         ->orderBy('sort_order')
                         ->orderBy('id')

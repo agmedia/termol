@@ -51,7 +51,8 @@
         })
         ->values();
 
-    $optionRows = $product->visibleOptionRows();
+    $optionRows = $product->availableOptionRows();
+    $isPurchasable = $product->storefrontIsPurchasable();
     $hasLinkedOptions = $optionRows->contains(fn ($row) => (int) ($row->parent_option_value_id ?? 0) > 0);
     $primaryOptionLabel = __('ui.cart.modal.option');
     $secondaryOptionLabel = __('ui.cart.modal.option');
@@ -238,22 +239,30 @@
                 @endif
 
                 <div class="row mb-2">
-                    <div class="col-5">
-                        <div class="d-flex h-100" data-qty-control>
-                            <button type="button" class="btn btn-border border-gray-dark color-gray-dark rounded-0" data-qty-dec>-</button>
-                            <input type="text" name="quantity" value="1" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" class="form-control text-center rounded-0" data-qty-input>
-                            <button type="button" class="btn btn-border border-gray-dark color-gray-dark rounded-0" data-qty-inc>+</button>
+                    @if ($isPurchasable)
+                        <div class="col-5">
+                            <div class="d-flex h-100" data-qty-control>
+                                <button type="button" class="btn btn-border border-gray-dark color-gray-dark rounded-0" data-qty-dec>-</button>
+                                <input type="text" name="quantity" value="1" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" class="form-control text-center rounded-0" data-qty-input>
+                                <button type="button" class="btn btn-border border-gray-dark color-gray-dark rounded-0" data-qty-inc>+</button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="col-7">
-                        <button type="submit" class="btn btn-full bg-black color-white font-600 rounded-0 mt-1 d-inline-flex align-items-center justify-content-center gap-2">
-                            <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" aria-hidden="true">
-                                <path d="M7 9h10l-1 10H8L7 9Z"></path>
-                                <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
-                            </svg>
-                            {{ __('ui.product.add_to_cart') }}
-                        </button>
-                    </div>
+                        <div class="col-7">
+                            <button type="submit" class="btn btn-full bg-black color-white font-600 rounded-0 mt-1 d-inline-flex align-items-center justify-content-center gap-2">
+                                <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" aria-hidden="true">
+                                    <path d="M7 9h10l-1 10H8L7 9Z"></path>
+                                    <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
+                                </svg>
+                                {{ __('ui.product.add_to_cart') }}
+                            </button>
+                        </div>
+                    @else
+                        <div class="col-12">
+                            <button type="button" disabled class="btn btn-full border border-gray-300 bg-light color-gray-dark font-600 rounded-0 mt-1">
+                                {{ __('ui.product.unavailable') }}
+                            </button>
+                        </div>
+                    @endif
                 </div>
             </form>
 

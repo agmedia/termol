@@ -46,9 +46,23 @@ class CartController extends Controller
             ? (int) $validated['product_option_value_id']
             : null;
 
-        $requiresOption = $product->hasVisibleOptionRows();
+        $hasVisibleOptions = $product->hasVisibleOptionRows();
+        $hasAvailableOptions = $product->hasAvailableOptionRows();
 
-        if ($requiresOption && ! $optionValueId) {
+        if ($hasVisibleOptions && ! $hasAvailableOptions) {
+            $message = __('ui.cart.status.unavailable');
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => $message,
+                ], 422);
+            }
+
+            return back()->with('status', $message);
+        }
+
+        if ($hasAvailableOptions && ! $optionValueId) {
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'ok' => false,

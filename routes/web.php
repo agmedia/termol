@@ -409,10 +409,15 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
 
                             $features = app(\App\Services\Catalog\CatalogFeatureService::class);
                             $catalogUseApi = $features->useApi();
+                            $catalogUseKipos = $features->useKiposApi();
                             $catalogUseLuceed = $features->useLuceedApi();
 
                             if ($catalogUseApi) {
                                 return redirect()->route('admin.settings.api.wholesale');
+                            }
+
+                            if ($catalogUseKipos) {
+                                return redirect()->route('admin.settings.api.kipos');
                             }
 
                             if ($catalogUseLuceed) {
@@ -434,6 +439,16 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
 
                             return view('admin.settings.api.wholesale');
                         })->name('wholesale');
+
+                        Route::middleware('catalog.feature:catalog_use_kipos_api')->get('kipos', function () {
+                            $current = auth()->user();
+                            abort_unless(
+                                $current && ($current->isA('superadmin') || $current->can('settings.api.manage')),
+                                403
+                            );
+
+                            return view('admin.settings.api.kipos');
+                        })->name('kipos');
 
                         Route::middleware('catalog.feature:catalog_use_luceed_api')->get('luceed', function () {
                             $current = auth()->user();

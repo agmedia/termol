@@ -6,6 +6,7 @@ use App\Models\Catalog\Product\Product;
 use App\Models\Content\Blog\BlogPost;
 use App\Models\Content\ContentBlock;
 use App\Services\Content\InstagramPostOEmbedService;
+use App\Services\Integrations\Kipos\KiposSyncService;
 use App\Support\Media\MediaProfileRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
@@ -53,6 +54,15 @@ class Manager extends Component
      * }>
      */
     public array $meta = [];
+
+    public string $kiposImageAction = '';
+
+    /**
+     * @var array<string, mixed>|null
+     */
+    public ?array $kiposImageResult = null;
+
+    public ?string $kiposImageError = null;
 
     public function mount(string $modelClass, ?int $modelId = null, string $locale = ''): void
     {
@@ -214,6 +224,16 @@ class Manager extends Component
         $this->meta = [];
 
         $this->dispatch('notify', type: 'success', message: __('Image copied to main collection.'));
+    }
+
+    public function importProductImagesFromKipos(KiposSyncService $kiposSync): void
+    {
+        $this->syncProductImagesFromKipos(false, $kiposSync);
+    }
+
+    public function replaceProductImagesFromKipos(KiposSyncService $kiposSync): void
+    {
+        $this->syncProductImagesFromKipos(true, $kiposSync);
     }
 
     public function updatedMeta(mixed $value, string $key): void
@@ -477,6 +497,7 @@ class Manager extends Component
         $mediaByCollection = $this->mediaByCollection;
         $this->primeMetaInputs($mediaByCollection);
         $record = $this->record;
+        $kiposSync = app(KiposSyncService::class);
         $isContentBlock = $record instanceof \App\Models\Content\ContentBlock;
         $blockType = $isContentBlock ? (string) ($record->type ?? '') : '';
         $isDualImageCtaBlock = $blockType === 'dual_image_cta';
@@ -485,6 +506,7 @@ class Manager extends Component
         $isLinkableSliderBlock = in_array($blockType, ['full_width_image_slider', 'desktopfullwidthimageslider'], true);
         $isBlogPostMedia = $record instanceof BlogPost;
         $supportsProductHotspots = $isBlogPostMedia || $isLinkableSliderBlock;
+        $isProductMedia = $record instanceof Product;
 
         return view('livewire.admin.media.manager', [
             'collections' => $this->collections,
@@ -498,6 +520,9 @@ class Manager extends Component
             'isBlogPostMedia' => $isBlogPostMedia,
             'supportsProductHotspots' => $supportsProductHotspots,
             'hotspotProductOptions' => $supportsProductHotspots ? $this->hotspotProductOptions : collect(),
+            'isProductMedia' => $isProductMedia,
+            'kiposProductImagesEnabled' => $isProductMedia && $kiposSync->connectorEnabled(),
+            'kiposProductCode' => $isProductMedia ? strtoupper(trim((string) ($record->code ?? ''))) : '',
         ]);
     }
 
@@ -716,6 +741,33 @@ class Manager extends Component
         $number = max($min, min(100.0, $number));
 
         return round($number, 2);
+    }
+
+    private function syncProductImagesFromKipos(bool $replaceExisting, KiposSyncService $kiposSync): void
+    {
+        $record = $this->record;
+        if (! $record instanceof Product) {
+            $this->dispatch('notify', type: 'warning', message: __('Kipos image sync is available only for product media.'));
+            return;
+        }
+
+        $this->kiposImageAction = $replaceExisting ? 'replace' : 'import';
+
+        try {
+            $this->kiposImageResult = $kiposSync->syncProductImages($record, $replaceExisting, $this->locale);
+            $this->kiposImageError = null;
+            $this->meta = [];
+
+            $updated = (int) ($this->kiposImageResult['updated_products'] ?? 0);
+            $message = (string) ($this->kiposImageResult['summary'] ?? __('Kipos product image sync completed.'));
+
+            $this->dispatch('notify', type: $updated > 0 ? 'success' : 'info', message: $message);
+        } catch (\Throwable $exception) {
+            $this->kiposImageError = $exception->getMessage();
+            $this->dispatch('notify', type: 'error', message: __('Kipos product image sync failed: :error', ['error' => $exception->getMessage()]));
+        } finally {
+            $this->kiposImageAction = '';
+        }
     }
 
     private function shouldImportInstagramPreview(Media $media, string $linkUrl): bool

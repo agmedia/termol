@@ -19,11 +19,11 @@ class DashboardFeatureTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/dashboard')
             ->assertOk()
-            ->assertSee('Performance Overview')
-            ->assertSee('Order Pipeline')
-            ->assertSee('Sales Trend')
-            ->assertSee('Recent Orders')
-            ->assertSee('Feature Flags');
+            ->assertSee(__('Performance Overview'))
+            ->assertSee(__('Order Pipeline'))
+            ->assertSee(__('Sales Trend (:days Days)', ['days' => 7]))
+            ->assertSee(__('Recent Orders'))
+            ->assertSee(__('Feature Flags'));
     }
 
     public function test_dashboard_hides_loyalty_and_tracking_sections_when_disabled(): void
@@ -38,9 +38,9 @@ class DashboardFeatureTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/dashboard')
             ->assertOk()
-            ->assertDontSee('Loyalty Net Points')
-            ->assertDontSee('Recent Loyalty Activity')
-            ->assertDontSee('Recent Tracking Events');
+            ->assertDontSee(__('Loyalty Net Points'))
+            ->assertDontSee(__('Recent Loyalty Activity'))
+            ->assertDontSee(__('Recent Tracking Events'));
     }
 
     private function makeUserWithRole(string $role): User
@@ -56,4 +56,3 @@ class DashboardFeatureTest extends TestCase
         return $user;
     }
 }
-

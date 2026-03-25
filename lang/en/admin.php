@@ -47,6 +47,7 @@ return [
             'store_settings' => 'Store Settings',
             'api' => 'API',
             'wholesale_api' => 'Wholesale API',
+            'kipos_api' => 'Kipos API',
             'luceed_api' => 'Luceed API',
             'user' => 'User',
             'users' => 'Users',

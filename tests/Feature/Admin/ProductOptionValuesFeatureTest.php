@@ -97,6 +97,61 @@ class ProductOptionValuesFeatureTest extends TestCase
         ]);
     }
 
+    public function test_option_values_manager_hides_rows_from_other_option_groups_in_single_mode(): void
+    {
+        app(SystemSettingsService::class)->put('catalog_use_options', true);
+
+        $user = $this->makeAdminUser();
+        $product = $this->createProduct($user);
+
+        $size = $this->createOption($user, 'size', 'Size', 'size');
+        $color = $this->createOption($user, 'color', 'Color', 'color');
+
+        $small = $this->createOptionValue($user, $size, 's', 'S', 's');
+        $skin = $this->createOptionValue($user, $color, 'skin', 'Skin', 'skin');
+
+        $product->options()->sync([
+            $size->id => [
+                'is_required' => true,
+                'sort_order' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        ProductOptionValue::query()->create([
+            'product_id' => $product->id,
+            'option_value_id' => $small->id,
+            'parent_option_value_id' => null,
+            'mode' => 'single',
+            'sku' => 'P-OPT-1-S',
+            'stock_qty' => 6,
+            'price_override' => 0,
+            'sort_order' => 0,
+            'is_active' => true,
+            'combination_hash' => hash('sha256', 's:'.$small->id),
+        ]);
+
+        ProductOptionValue::query()->create([
+            'product_id' => $product->id,
+            'option_value_id' => $skin->id,
+            'parent_option_value_id' => null,
+            'mode' => 'single',
+            'sku' => null,
+            'stock_qty' => 0,
+            'price_override' => null,
+            'sort_order' => 1,
+            'is_active' => true,
+            'combination_hash' => hash('sha256', 's:'.$skin->id),
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(OptionValuesManager::class, ['productId' => $product->id])
+            ->assertSet('mode', 'single')
+            ->assertCount('rows', 1)
+            ->assertSet('rows.0.option_value_id', $small->id);
+    }
+
     private function makeAdminUser(): User
     {
         $user = User::factory()->create();
