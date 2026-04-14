@@ -6,6 +6,7 @@ use App\Models\Sales\Order\Order;
 use App\Models\Settings\Local\OrderStatus;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -59,6 +60,37 @@ class Manager extends Component
 
     public function updatedDateTo(): void
     {
+        $this->resetPage(pageName: self::PAGE_NAME);
+    }
+
+    public function delete(int $orderId): void
+    {
+        $order = Order::query()->find($orderId);
+        if (! $order) {
+            $this->dispatch('notify', type: 'warning', message: __('Order not found.'));
+
+            return;
+        }
+
+        $properties = [
+            'order_id' => $orderId,
+            'order_number' => $order->order_number,
+            'item_qty' => (int) $order->item_qty,
+            'grand_total' => (float) $order->grand_total,
+        ];
+
+        DB::transaction(function () use ($order): void {
+            $order->delete();
+        });
+
+        activity('orders')
+            ->performedOn($order)
+            ->causedBy(auth()->user())
+            ->event('deleted')
+            ->withProperties($properties)
+            ->log('Order deleted from admin.');
+
+        $this->dispatch('notify', type: 'success', message: __('Order deleted.'));
         $this->resetPage(pageName: self::PAGE_NAME);
     }
 

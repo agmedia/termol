@@ -180,14 +180,24 @@
                                 </span>
                             </td>
                             <td class="px-3 py-2 text-right">
-                                <a href="{{ route('admin.products.edit', ['product' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
-                                    {{ __('admin.common.edit') }}
-                                </a>
-                                @if ($features['catalog_use_options'])
-                                    <a href="{{ route('admin.products.options', ['product' => $row->id, 'locale' => $locale]) }}" class="ml-1 rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
-                                        {{ __('Option Values') }}
+                                <div class="inline-flex items-center gap-1">
+                                    <a href="{{ route('admin.products.edit', ['product' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                                        {{ __('admin.common.edit') }}
                                     </a>
-                                @endif
+                                    @if ($features['catalog_use_options'])
+                                        <a href="{{ route('admin.products.options', ['product' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                                            {{ __('Option Values') }}
+                                        </a>
+                                    @endif
+                                    <button
+                                        type="button"
+                                        wire:click="delete({{ (int) $row->id }})"
+                                        wire:confirm="{{ __('Delete product \':name\'?', ['name' => $tr?->name ?? $row->code]) }}"
+                                        class="rounded-lg border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                                    >
+                                        {{ __('admin.common.delete') }}
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     @empty

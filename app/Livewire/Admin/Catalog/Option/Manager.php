@@ -4,6 +4,9 @@ namespace App\Livewire\Admin\Catalog\Option;
 
 use App\Models\Catalog\Option\Option;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -26,6 +29,51 @@ class Manager extends Component
 
     public function updatedLocale(): void
     {
+        $this->resetPage();
+    }
+
+    public function delete(int $optionId): void
+    {
+        $option = Option::query()
+            ->with('values:id,option_id,payload')
+            ->find($optionId);
+
+        if (! $option) {
+            $this->dispatch('notify', type: 'warning', message: __('Option not found.'));
+
+            return;
+        }
+
+        $swatchPaths = collect($option->values)
+            ->map(fn ($value): string => trim((string) data_get($value->payload, 'swatch_image_path', '')))
+            ->filter(fn (string $path): bool => $this->canDeleteStoredSwatchPath($path))
+            ->unique()
+            ->values()
+            ->all();
+
+        $properties = [
+            'option_id' => $optionId,
+            'code' => $option->code,
+            'type' => $option->type,
+            'value_count' => $option->values->count(),
+        ];
+
+        DB::transaction(function () use ($option): void {
+            $option->delete();
+        });
+
+        if ($swatchPaths !== []) {
+            Storage::disk('public')->delete($swatchPaths);
+        }
+
+        activity('catalog_options')
+            ->performedOn($option)
+            ->causedBy(auth()->user())
+            ->event('deleted')
+            ->withProperties($properties)
+            ->log('Option deleted');
+
+        $this->dispatch('notify', type: 'success', message: __('Option deleted.'));
         $this->resetPage();
     }
 
@@ -61,5 +109,16 @@ class Manager extends Component
             'rows' => $rows,
             'perPage' => $perPage,
         ]);
+    }
+
+    private function canDeleteStoredSwatchPath(?string $path): bool
+    {
+        $path = trim((string) $path);
+
+        if ($path === '') {
+            return false;
+        }
+
+        return ! Str::startsWith($path, ['http://', 'https://', '//', '/']);
     }
 }

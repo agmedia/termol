@@ -2,13 +2,16 @@
 
 namespace App\Livewire\Admin\Catalog\Product;
 
+use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Product\Product;
 use App\Models\Catalog\Product\ProductTranslation;
+use App\Models\Content\Support\Comment;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -72,6 +75,46 @@ class Manager extends Component
         $this->manufacturerFilter = 'all';
         $this->categoryFilter = 'all';
         $this->sortBy = 'newest';
+        $this->resetPage();
+    }
+
+    public function delete(int $productId): void
+    {
+        $product = Product::query()->find($productId);
+        if (! $product) {
+            $this->dispatch('notify', type: 'warning', message: __('Product not found.'));
+
+            return;
+        }
+
+        $properties = [
+            'product_id' => $productId,
+            'code' => $product->code,
+            'sku' => $product->sku,
+        ];
+
+        DB::transaction(function () use ($product): void {
+            DB::table('catalog_action_targets')
+                ->where('target_type', CatalogAction::TARGET_PRODUCT)
+                ->where('target_id', $product->id)
+                ->delete();
+
+            Comment::query()
+                ->where('commentable_type', Product::class)
+                ->where('commentable_id', $product->id)
+                ->delete();
+
+            $product->delete();
+        });
+
+        activity('catalog_products')
+            ->performedOn($product)
+            ->causedBy(auth()->user())
+            ->event('deleted')
+            ->withProperties($properties)
+            ->log('Product deleted');
+
+        $this->dispatch('notify', type: 'success', message: __('Product deleted.'));
         $this->resetPage();
     }
 

@@ -32,10 +32,22 @@
         if ($productIds !== []) {
             $products = \App\Models\Catalog\Product\Product::query()
                 ->whereIn('id', $productIds)
-                ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+                ->with([
+                    'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                    'media' => fn ($q) => $q->whereIn('collection_name', ['product_main', 'product_gallery']),
+                ])
                 ->get()
                 ->sortBy(fn ($row) => array_search((int) $row->id, $productIds, true))
                 ->values();
+
+            if ((string) $block->type === 'products_carousel') {
+                $products = $products
+                    ->filter(function ($product): bool {
+                        return $product->media
+                            ->contains(fn ($media): bool => \App\Support\Media\MediaUrl::hasUsableSource($media, ['card_720w', 'card_480w', 'card_320w']));
+                    })
+                    ->values();
+            }
         }
 
         $categories = collect();

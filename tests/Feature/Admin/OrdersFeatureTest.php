@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Livewire\Admin\Sales\Order\Manager as OrderManager;
 use App\Livewire\Admin\Sales\Order\Show as OrderShow;
 use App\Models\Sales\Order\Order;
 use App\Models\Settings\Local\OrderStatus;
@@ -38,6 +39,56 @@ class OrdersFeatureTest extends TestCase
         $this->actingAs($admin)->get('/admin/orders/'.$order->id.'/invoice')
             ->assertOk()
             ->assertSee(__('Invoice'));
+    }
+
+    public function test_admin_can_delete_order_from_index_manager(): void
+    {
+        $admin = $this->makeUserWithRole('admin');
+        $status = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        $order = $this->createOrder($status, $admin, 'AG-TEST-DELETE-1');
+
+        $order->items()->create([
+            'product_id' => null,
+            'product_option_value_id' => null,
+            'sku' => 'DELETE-SKU',
+            'code' => 'DELETE-CODE',
+            'name' => 'Delete Item',
+            'unit_price' => 99.90,
+            'discount_amount' => 0,
+            'tax_rate' => 25,
+            'tax_amount' => 24.99,
+            'quantity' => 1,
+            'line_total' => 124.89,
+            'sort_order' => 0,
+            'payload' => null,
+        ]);
+
+        LoyaltyTransaction::query()->create([
+            'user_id' => $admin->id,
+            'order_id' => $order->id,
+            'event_key' => 'order:'.$order->id.':manual-delete-test',
+            'type' => 'manual_adjustment',
+            'points' => 10,
+            'note' => 'Delete test',
+            'payload' => null,
+            'created_by' => $admin->id,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(OrderManager::class)
+            ->call('delete', $order->id)
+            ->assertDispatched('notify');
+
+        $this->assertDatabaseMissing('orders', [
+            'id' => $order->id,
+        ]);
+        $this->assertDatabaseMissing('order_items', [
+            'order_id' => $order->id,
+        ]);
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'event_key' => 'order:'.$order->id.':manual-delete-test',
+            'order_id' => null,
+        ]);
     }
 
     public function test_customer_cannot_open_orders_pages(): void

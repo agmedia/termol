@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Livewire\Admin\Catalog\Action\Form as ActionForm;
+use App\Livewire\Admin\Catalog\Action\Manager as ActionManager;
 use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Product\Product;
@@ -70,6 +71,51 @@ class CatalogActionsFeatureTest extends TestCase
             'Promo Test 10',
             (string) $action->translation('en')->first()?->title
         );
+    }
+
+    public function test_admin_can_delete_action_from_manager(): void
+    {
+        app(SystemSettingsService::class)->put('catalog_use_actions', true);
+
+        $user = $this->makeAdminUser();
+        $product = $this->createProduct($user, code: 'delete-action-product', sku: 'DEL-ACT-1');
+
+        $action = CatalogAction::query()->create([
+            'code' => 'delete-action',
+            'scope' => CatalogAction::SCOPE_PRODUCT,
+            'type' => CatalogAction::TYPE_PERCENTAGE,
+            'discount_value' => 10,
+            'target_type' => CatalogAction::TARGET_PRODUCT,
+            'audience_type' => CatalogAction::AUDIENCE_ALL,
+            'is_active' => true,
+            'priority' => 10,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $action->translations()->create([
+            'locale' => 'en',
+            'title' => 'Delete Action',
+        ]);
+        $action->targets()->create([
+            'target_type' => CatalogAction::TARGET_PRODUCT,
+            'target_id' => $product->id,
+            'sort_order' => 0,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ActionManager::class)
+            ->call('delete', $action->id)
+            ->assertDispatched('notify');
+
+        $this->assertDatabaseMissing('catalog_actions', [
+            'id' => $action->id,
+        ]);
+        $this->assertDatabaseMissing('catalog_action_translations', [
+            'action_id' => $action->id,
+        ]);
+        $this->assertDatabaseMissing('catalog_action_targets', [
+            'action_id' => $action->id,
+        ]);
     }
 
     public function test_action_resolver_selects_best_price_action(): void

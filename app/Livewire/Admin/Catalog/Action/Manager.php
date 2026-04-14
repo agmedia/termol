@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\Catalog\Action;
 
 use App\Models\Catalog\Action\CatalogAction;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -44,6 +45,37 @@ class Manager extends Component
 
     public function updatedStateFilter(): void
     {
+        $this->resetPage();
+    }
+
+    public function delete(int $actionId): void
+    {
+        $action = CatalogAction::query()->find($actionId);
+        if (! $action) {
+            $this->dispatch('notify', type: 'warning', message: __('Action not found.'));
+
+            return;
+        }
+
+        $properties = [
+            'action_id' => $actionId,
+            'code' => $action->code,
+            'scope' => $action->scope,
+            'type' => $action->type,
+        ];
+
+        DB::transaction(function () use ($action): void {
+            $action->delete();
+        });
+
+        activity('catalog_actions')
+            ->performedOn($action)
+            ->causedBy(auth()->user())
+            ->event('deleted')
+            ->withProperties($properties)
+            ->log('Catalog action deleted');
+
+        $this->dispatch('notify', type: 'success', message: __('Action deleted.'));
         $this->resetPage();
     }
 

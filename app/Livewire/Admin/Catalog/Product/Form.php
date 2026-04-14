@@ -110,7 +110,9 @@ class Form extends Component
                 'code' => trim((string) $validated['form']['code']),
                 'sku' => trim((string) $validated['form']['sku']) !== '' ? trim((string) $validated['form']['sku']) : null,
                 'is_active' => (bool) $validated['form']['is_active'],
-                'tax_rate_id' => (int) (($validated['form']['tax_rate_id'] ?? null) ?: $this->defaultTaxRateId()),
+                'tax_rate_id' => ($validated['form']['tax_rate_id'] ?? null)
+                    ? (int) $validated['form']['tax_rate_id']
+                    : $this->defaultTaxRateId(),
                 'base_price' => (float) $validated['form']['base_price'],
                 'stock_qty' => (int) $validated['form']['stock_qty'],
                 'payload' => $payload,

@@ -121,9 +121,19 @@
                             </td>
                             <td class="px-3 py-2 text-center text-slate-600">{{ optional($placedAt)->format('Y-m-d H:i') }}</td>
                             <td class="px-3 py-2 text-right">
-                                <a href="{{ route('admin.orders.show', ['order' => $row->id]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
-                                    {{ __('Show') }}
-                                </a>
+                                <div class="inline-flex items-center gap-1">
+                                    <a href="{{ route('admin.orders.show', ['order' => $row->id]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                                        {{ __('Show') }}
+                                    </a>
+                                    <button
+                                        type="button"
+                                        wire:click="delete({{ (int) $row->id }})"
+                                        wire:confirm="{{ __('Delete order \':number\'?', ['number' => $row->order_number]) }}"
+                                        class="rounded-lg border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                                    >
+                                        {{ __('admin.common.delete') }}
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     @empty

@@ -71,6 +71,14 @@
                                 <div class="inline-flex items-center gap-1">
                                     <a href="{{ route('admin.options.values', ['option' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Values') }}</a>
                                     <a href="{{ route('admin.options.edit', ['option' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('admin.common.edit') }}</a>
+                                    <button
+                                        type="button"
+                                        wire:click="delete({{ (int) $row->id }})"
+                                        wire:confirm="{{ __('Delete option \':name\'?', ['name' => $tr?->name ?? $row->code]) }}"
+                                        class="rounded-lg border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                                    >
+                                        {{ __('admin.common.delete') }}
+                                    </button>
                                 </div>
                             </td>
                         </tr>

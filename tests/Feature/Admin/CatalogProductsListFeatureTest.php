@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Catalog\Action\CatalogAction;
 use App\Livewire\Admin\Catalog\Product\Manager as ProductManager;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Product\Product;
+use App\Models\Content\Support\Comment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -95,6 +97,7 @@ class CatalogProductsListFeatureTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(ProductManager::class)
+            ->set('locale', 'en')
             ->set('stateFilter', 'active')
             ->set('stockFilter', 'in_stock')
             ->set('categoryFilter', (string) $targetCategory->id)
@@ -113,8 +116,67 @@ class CatalogProductsListFeatureTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(ProductManager::class)
+            ->set('locale', 'en')
             ->set('sortBy', 'price_desc')
             ->assertSeeInOrder(['Price High', 'Price Mid', 'Price Low']);
+    }
+
+    public function test_admin_can_delete_product_from_list_and_cleanup_related_records(): void
+    {
+        $user = $this->makeAdminUser();
+        $product = $this->makeProduct($user, 'P-DELETE-1', 'Delete Product', true, 4, 12);
+
+        $action = CatalogAction::query()->create([
+            'code' => 'delete-product-action',
+            'scope' => CatalogAction::SCOPE_PRODUCT,
+            'type' => CatalogAction::TYPE_PERCENTAGE,
+            'discount_value' => 5,
+            'target_type' => CatalogAction::TARGET_PRODUCT,
+            'audience_type' => CatalogAction::AUDIENCE_ALL,
+            'is_active' => true,
+            'priority' => 10,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $action->targets()->create([
+            'target_type' => CatalogAction::TARGET_PRODUCT,
+            'target_id' => $product->id,
+            'sort_order' => 0,
+        ]);
+
+        $comment = Comment::query()->create([
+            'commentable_type' => Product::class,
+            'commentable_id' => $product->id,
+            'user_id' => $user->id,
+            'parent_id' => null,
+            'author_name' => $user->name,
+            'author_email' => $user->email,
+            'locale' => 'en',
+            'body' => 'Delete me',
+            'rating' => 5,
+            'status' => Comment::STATUS_APPROVED,
+            'is_featured' => false,
+            'reviewed_by' => $user->id,
+            'reviewed_at' => now(),
+            'payload' => null,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ProductManager::class)
+            ->call('delete', $product->id)
+            ->assertDispatched('notify');
+
+        $this->assertDatabaseMissing('products', [
+            'id' => $product->id,
+        ]);
+        $this->assertDatabaseMissing('catalog_action_targets', [
+            'action_id' => $action->id,
+            'target_type' => CatalogAction::TARGET_PRODUCT,
+            'target_id' => $product->id,
+        ]);
+        $this->assertSoftDeleted('content_comments', [
+            'id' => $comment->id,
+        ]);
     }
 
     private function makeProduct(User $user, string $code, string $name, bool $isActive, int $stockQty, float $basePrice): Product
@@ -155,4 +217,3 @@ class CatalogProductsListFeatureTest extends TestCase
         return $user;
     }
 }
-

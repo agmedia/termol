@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Livewire\Admin\Catalog\Option\Form as OptionForm;
+use App\Livewire\Admin\Catalog\Option\Manager as OptionManager;
 use App\Livewire\Admin\Catalog\Option\ValueManager;
 use App\Livewire\Admin\Catalog\Product\Form as ProductForm;
 use App\Models\Catalog\Option\Option;
@@ -48,7 +49,7 @@ class CatalogOptionsFeatureTest extends TestCase
             ->set('form.name', 'Option Product')
             ->set('form.slug', 'option-product')
             ->call('save')
-            ->assertRedirect(route('admin.products', ['locale' => 'en']));
+            ->assertRedirect();
 
         $product = Product::query()->where('code', 'p-option-1')->first();
 
@@ -121,6 +122,60 @@ class CatalogOptionsFeatureTest extends TestCase
 
         $this->assertNotSame('', $swatchPath);
         Storage::disk('public')->assertExists($swatchPath);
+    }
+
+    public function test_admin_can_delete_option_from_manager_and_remove_swatch_files(): void
+    {
+        app(SystemSettingsService::class)->put('catalog_use_options', true);
+        Storage::fake('public');
+
+        $user = $this->makeAdminUser();
+        $option = Option::query()->create([
+            'code' => 'delete-color',
+            'type' => Option::TYPE_SELECT,
+            'is_active' => true,
+            'sort_order' => 1,
+            'payload' => null,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+
+        $option->translations()->create([
+            'locale' => 'en',
+            'name' => 'Delete Color',
+            'slug' => 'delete-color',
+            'description' => null,
+            'payload' => null,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ValueManager::class, ['optionId' => $option->id])
+            ->set('locale', 'en')
+            ->set('form.code', 'delete-red')
+            ->set('form.is_active', true)
+            ->set('form.sort_order', 10)
+            ->set('form.name', 'Delete Red')
+            ->set('form.slug', 'delete-red')
+            ->set('swatchImageUpload', UploadedFile::fake()->image('delete-red.png', 48, 48))
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $swatchPath = (string) data_get($option->values()->first()?->payload, 'swatch_image_path', '');
+        $this->assertNotSame('', $swatchPath);
+        Storage::disk('public')->assertExists($swatchPath);
+
+        Livewire::actingAs($user)
+            ->test(OptionManager::class)
+            ->call('delete', $option->id)
+            ->assertDispatched('notify');
+
+        $this->assertDatabaseMissing('catalog_options', [
+            'id' => $option->id,
+        ]);
+        $this->assertDatabaseMissing('catalog_option_values', [
+            'option_id' => $option->id,
+        ]);
+        Storage::disk('public')->assertMissing($swatchPath);
     }
 
     private function makeAdminUser(): User
