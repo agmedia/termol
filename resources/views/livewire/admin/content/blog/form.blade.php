@@ -109,7 +109,7 @@
 
                 <div class="mt-4" wire:key="blog-post-body-{{ $postId ?? 'new' }}-{{ $form['locale'] }}">
                     <label for="blog-post-body-html" class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Body') }}</label>
-                    <textarea id="blog-post-body-html" rows="14" wire:model.live.debounce.300ms="form.body_html" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    <x-admin.quill-field id="blog-post-body-html" rows="14" wire:model.live.debounce.300ms="form.body_html" />
                 </div>
 
                 <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">

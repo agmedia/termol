@@ -109,7 +109,7 @@
                             </button>
                         </div>
                     </div>
-                    <textarea id="info-page-body-html" rows="10" wire:model.live.debounce.300ms="form.body_html" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    <x-admin.quill-field id="info-page-body-html" rows="10" wire:model.live.debounce.300ms="form.body_html" />
                     <textarea rows="16" class="hidden w-full rounded-xl border border-slate-300 bg-slate-950 px-3 py-2 font-mono text-xs leading-5 text-slate-100" spellcheck="false" data-html-mode-source></textarea>
                 </div>
 

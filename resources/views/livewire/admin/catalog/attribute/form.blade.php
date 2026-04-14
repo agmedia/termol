@@ -104,7 +104,7 @@
 
                 <div class="mt-3">
                     <label for="attribute-description-html" class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Description') }}</label>
-                    <textarea id="attribute-description-html" rows="6" wire:model.live.debounce.300ms="form.description" data-quill-editor class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    <x-admin.quill-field id="attribute-description-html" rows="6" wire:model.live.debounce.300ms="form.description" />
                 </div>
             </div>
 
