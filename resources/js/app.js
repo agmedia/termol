@@ -706,17 +706,17 @@ const initLivewireEditorMorphGuard = () => {
             return false;
         }
 
-        const isAceWrapper = element.classList.contains('admin-ace-inline');
-        if (!isAceWrapper) {
-            return false;
+        if (element.classList.contains('admin-ace-inline')) {
+            const anchor = element.previousElementSibling;
+            return anchor instanceof HTMLTextAreaElement && anchor.matches('textarea[data-ace-inline]');
         }
 
-        const anchor = element.previousElementSibling;
-        if (!(anchor instanceof HTMLTextAreaElement)) {
-            return false;
+        if (element.classList.contains('admin-quill')) {
+            const anchor = element.previousElementSibling;
+            return anchor instanceof HTMLTextAreaElement && anchor.matches('textarea[data-quill-editor]');
         }
 
-        return anchor.matches('textarea[data-ace-inline]');
+        return false;
     };
 
     const register = () => {
