@@ -22,6 +22,8 @@ use RuntimeException;
 
 class KiposSyncService
 {
+    private const STALE_STARTED_RUN_AFTER_MINUTES = 45;
+
     private ?int $runInitiatedBy = null;
 
     public function __construct(
@@ -181,11 +183,7 @@ class KiposSyncService
     {
         $action = $this->resolveAction($actionKey);
 
-        $activeRun = KiposSyncRun::query()
-            ->where('action_key', $actionKey)
-            ->whereIn('status', ['queued', 'started'])
-            ->latest('id')
-            ->first();
+        $activeRun = $this->activeRun($actionKey);
 
         if ($activeRun) {
             return $activeRun;
@@ -200,6 +198,17 @@ class KiposSyncService
             'finished_at' => null,
             'initiated_by' => $initiatedBy,
         ]);
+    }
+
+    public function activeRun(string $actionKey): ?KiposSyncRun
+    {
+        $this->markStaleStartedRunsAsFailed($actionKey);
+
+        return KiposSyncRun::query()
+            ->where('action_key', $actionKey)
+            ->whereIn('status', ['queued', 'started'])
+            ->latest('id')
+            ->first();
     }
 
     public function run(string $actionKey, ?int $initiatedBy = null): KiposSyncRun
@@ -318,6 +327,33 @@ class KiposSyncService
         }
 
         return $run->fresh(['initiator']) ?? $run;
+    }
+
+    private function markStaleStartedRunsAsFailed(string $actionKey): void
+    {
+        $threshold = now()->subMinutes(self::STALE_STARTED_RUN_AFTER_MINUTES);
+
+        KiposSyncRun::query()
+            ->where('action_key', $actionKey)
+            ->where('status', 'started')
+            ->where(function ($query) use ($threshold): void {
+                $query
+                    ->where('started_at', '<=', $threshold)
+                    ->orWhere(function ($nested) use ($threshold): void {
+                        $nested
+                            ->whereNull('started_at')
+                            ->where('updated_at', '<=', $threshold);
+                    });
+            })
+            ->get()
+            ->each(function (KiposSyncRun $run): void {
+                $run->fill([
+                    'status' => 'failed',
+                    'summary' => 'Execution marked as failed because the previous run became stale.',
+                    'error_message' => 'Previous background worker did not finish this run. Queueing a fresh retry is now allowed.',
+                    'finished_at' => now(),
+                ])->save();
+            });
     }
 
     /**

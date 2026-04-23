@@ -85,20 +85,14 @@ class KiposSyncManager extends Component
         $queuedRun = null;
 
         try {
-            $existingRun = KiposSyncRun::query()
-                ->where('action_key', $actionKey)
-                ->whereIn('status', ['queued', 'started'])
-                ->latest('id')
-                ->first();
+            $queuedRun = $syncService->queue($actionKey, auth()->id());
+            $this->lastRunId = $queuedRun->id;
 
-            if ($existingRun) {
-                $this->lastRunId = $existingRun->id;
+            if (! $queuedRun->wasRecentlyCreated) {
                 $this->dispatch('notify', type: 'info', message: __('This Kipos sync action is already queued or running. Watch the run log below.'));
                 return;
             }
 
-            $queuedRun = $syncService->queue($actionKey, auth()->id());
-            $this->lastRunId = $queuedRun->id;
             RunKiposSyncActionJob::dispatch($queuedRun->id);
             $this->dispatch('notify', type: 'info', message: __('Kipos sync action queued. Background worker will process it and the run log will refresh here automatically.'));
         } catch (\Throwable $exception) {

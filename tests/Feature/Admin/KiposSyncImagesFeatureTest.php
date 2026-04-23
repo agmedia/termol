@@ -19,6 +19,13 @@ class KiposSyncImagesFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Http::preventStrayRequests();
+    }
+
     public function test_update_images_skips_html_responses_and_preserves_existing_media(): void
     {
         Storage::fake('public');
@@ -114,20 +121,23 @@ class KiposSyncImagesFeatureTest extends TestCase
 
         $this->enableKiposImageSync();
 
-        Http::fake([
-            '*getOdjelSlike*' => Http::response([
-                [
-                    'IDODJEL' => 'M7003',
-                    'URL' => 'M7003',
-                    'NAZIV' => 'M7003',
-                    'GLAVNA' => 'D',
-                    'TIP' => 'SLIKA',
-                ],
-            ], 200),
-            '*slike/M7003*' => Http::response($this->tinyPng(), 200, [
-                'Content-Type' => 'image/png',
-            ]),
-        ]);
+        Http::fake(array_merge(
+            $this->singleProductRouteMisses('M7003'),
+            [
+                '*getOdjelSlike*' => Http::response([
+                    [
+                        'IDODJEL' => 'M7003',
+                        'URL' => 'M7003',
+                        'NAZIV' => 'M7003',
+                        'GLAVNA' => 'D',
+                        'TIP' => 'SLIKA',
+                    ],
+                ], 200),
+                '*slike/M7003*' => Http::response($this->tinyPng(), 200, [
+                    'Content-Type' => 'image/png',
+                ]),
+            ]
+        ));
 
         Livewire::actingAs($admin)
             ->test(MediaManager::class, [
@@ -159,27 +169,30 @@ class KiposSyncImagesFeatureTest extends TestCase
 
         $this->enableKiposImageSync();
 
-        Http::fake([
-            '*getOdjelSlike*' => Http::response([
-                [
-                    'IDODJEL' => 'M7032',
-                    'URL' => 'http://example.test/kipos/M7032_SNY05027.jpg',
-                    'NAZIV' => 'M7032_SNY05027.jpg',
-                    'GLAVNA' => false,
-                    'TIP' => 'SLIKA',
-                ],
-                [
-                    'IDODJEL' => 'M7032',
-                    'URL' => 'http://example.test/kipos/M7032_SNY05028.jpg',
-                    'NAZIV' => 'M7032_SNY05028.jpg',
-                    'GLAVNA' => false,
-                    'TIP' => 'SLIKA',
-                ],
-            ], 200),
-            'http://example.test/kipos/*' => Http::response('not found', 404, [
-                'Content-Type' => 'text/html; charset=UTF-8',
-            ]),
-        ]);
+        Http::fake(array_merge(
+            $this->singleProductRouteMisses('M7032'),
+            [
+                '*getOdjelSlike*' => Http::response([
+                    [
+                        'IDODJEL' => 'M7032',
+                        'URL' => 'http://example.test/kipos/M7032_SNY05027.jpg',
+                        'NAZIV' => 'M7032_SNY05027.jpg',
+                        'GLAVNA' => false,
+                        'TIP' => 'SLIKA',
+                    ],
+                    [
+                        'IDODJEL' => 'M7032',
+                        'URL' => 'http://example.test/kipos/M7032_SNY05028.jpg',
+                        'NAZIV' => 'M7032_SNY05028.jpg',
+                        'GLAVNA' => false,
+                        'TIP' => 'SLIKA',
+                    ],
+                ], 200),
+                'http://example.test/kipos/*' => Http::response('not found', 404, [
+                    'Content-Type' => 'text/html; charset=UTF-8',
+                ]),
+            ]
+        ));
 
         $result = app(KiposSyncService::class)->syncProductImages($product, true, 'hr');
 
@@ -292,5 +305,19 @@ class KiposSyncImagesFeatureTest extends TestCase
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5Wk1cAAAAASUVORK5CYII=',
             true
         );
+    }
+
+    /**
+     * @return array<string, \Illuminate\Http\Client\ResponseSequence|\Illuminate\Http\Client\Response>
+     */
+    private function singleProductRouteMisses(string $code): array
+    {
+        return [
+            '*getSlike/'.$code.'*' => Http::response([], 404),
+            '*getItemSlike/'.$code.'*' => Http::response([], 404),
+            '*getItemOdjelSlike/'.$code.'*' => Http::response([], 404),
+            '*getOdjelItemsSlike/'.$code.'*' => Http::response([], 404),
+            '*getOdjelSlike/'.$code.'*' => Http::response([], 404),
+        ];
     }
 }

@@ -4,13 +4,17 @@ namespace App\Services\Integrations\Kipos;
 
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Settings\SystemSettingsService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Http\Client\PendingRequest;
 use InvalidArgumentException;
 use RuntimeException;
 
 class KiposSdkService
 {
     public const PROBE_ITEMS = 'sif_roba/getitems';
+    private const GET_RETRY_ATTEMPTS = 3;
+    private const GET_RETRY_DELAY_MICROSECONDS = 250000;
 
     public function __construct(
         private readonly SystemSettingsService $settings,
@@ -160,7 +164,7 @@ class KiposSdkService
 
         $response = $method === 'post'
             ? $client->post($url, $payload)
-            : $client->get($url);
+            : $this->performGetWithRetry($client, $url);
 
         if (! $response->successful()) {
             throw new RuntimeException(sprintf(
@@ -176,6 +180,23 @@ class KiposSdkService
         }
 
         return $decoded;
+    }
+
+    private function performGetWithRetry(PendingRequest $client, string $url)
+    {
+        for ($attempt = 1; $attempt <= self::GET_RETRY_ATTEMPTS; $attempt++) {
+            try {
+                return $client->get($url);
+            } catch (ConnectionException $exception) {
+                if ($attempt === self::GET_RETRY_ATTEMPTS) {
+                    throw $exception;
+                }
+
+                usleep(self::GET_RETRY_DELAY_MICROSECONDS);
+            }
+        }
+
+        throw new RuntimeException('Kipos GET retry loop finished without a response.');
     }
 
     /**

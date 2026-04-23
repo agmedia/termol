@@ -60,6 +60,42 @@ class KiposSyncManagerFeatureTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_stale_started_run_is_failed_before_retry_is_queued(): void
+    {
+        Queue::fake();
+
+        $admin = $this->makeUserWithRole('superadmin');
+
+        $staleRun = KiposSyncRun::query()->create([
+            'action_key' => 'update_images',
+            'action_label' => 'Update Images',
+            'status' => 'started',
+            'summary' => 'Execution started.',
+            'started_at' => now()->subMinutes(46),
+            'initiated_by' => $admin->id,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->call('runAction', 'update_images')
+            ->assertHasNoErrors()
+            ->assertDispatched('notify');
+
+        $staleRun->refresh();
+        $replacementRun = KiposSyncRun::query()->where('action_key', 'update_images')->latest('id')->first();
+
+        $this->assertSame('failed', $staleRun->status);
+        $this->assertSame(
+            'Execution marked as failed because the previous run became stale.',
+            $staleRun->summary
+        );
+        $this->assertNotNull($replacementRun);
+        $this->assertNotSame($staleRun->id, $replacementRun?->id);
+        $this->assertSame('queued', $replacementRun?->status);
+        Queue::assertPushedOn(config('queue.kipos_queue', 'kipos'), RunKiposSyncActionJob::class);
+        Queue::assertPushed(RunKiposSyncActionJob::class, 1);
+    }
+
     private function makeUserWithRole(string $role): User
     {
         Bouncer::role()->firstOrCreate(['name' => 'superadmin']);
