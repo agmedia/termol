@@ -10,8 +10,9 @@
     $allowedRoutes = config('content_blocks.route_whitelist', []);
     $displayTitle = trim((string) ($translation?->title ?? ''));
     $displaySubtitle = trim((string) ($translation?->subtitle ?? ''));
-    $source = in_array((string) ($mergedPayload['blog_source'] ?? 'latest'), ['latest', 'featured'], true)
-        ? (string) $mergedPayload['blog_source']
+    $sourceCandidate = (string) ($mergedPayload['blog_source'] ?? 'latest');
+    $source = in_array($sourceCandidate, ['latest', 'featured'], true)
+        ? $sourceCandidate
         : 'latest';
     $limit = max(1, min(12, (int) ($mergedPayload['items_limit'] ?? 6)));
 
