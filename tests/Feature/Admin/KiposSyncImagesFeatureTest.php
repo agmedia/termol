@@ -258,6 +258,64 @@ class KiposSyncImagesFeatureTest extends TestCase
         $this->assertSame(1, $fresh?->getMedia('product_gallery')->count());
     }
 
+    public function test_update_images_falls_back_to_specific_product_routes_when_bulk_feed_misses_product(): void
+    {
+        Storage::fake('public');
+        config([
+            'media-library.disk_name' => 'public',
+            'media-library.queue_conversions_by_default' => false,
+        ]);
+
+        $admin = User::factory()->create();
+        $product = $this->createProduct($admin, 'M7035');
+        $remoteImage = UploadedFile::fake()->image('remote.jpg', 40, 40);
+
+        $this->enableKiposImageSync();
+
+        Http::fake([
+            '*getOdjelSlike&webshop=1' => Http::response([], 200),
+            '*getSlike&webshop=1' => Http::response([], 200),
+            '*getSlike/M7035*' => Http::response([], 404),
+            '*getItemSlike/M7035*' => Http::response([], 404),
+            '*getItemOdjelSlike/M7035*' => Http::response([], 404),
+            '*getOdjelItemsSlike/M7035*' => Http::response([
+                [
+                    'IDROBA' => 'M7035.L',
+                    'IDODJEL' => 'M7035',
+                    'URL' => 'http://example.test/kipos/ODJELI/M7035/ODJEL_M7035.jpg',
+                    'NAZIV' => 'ODJEL_M7035.jpg',
+                    'GLAVNA' => true,
+                    'TIP' => 'SLIKA',
+                    'VRSTA' => 'ODJEL',
+                ],
+                [
+                    'IDROBA' => 'M7035.L',
+                    'IDODJEL' => 'M7035',
+                    'URL' => 'http://example.test/kipos/ODJELI/M7035/M7035_gallery.jpg',
+                    'NAZIV' => 'M7035_gallery.jpg',
+                    'GLAVNA' => false,
+                    'TIP' => 'SLIKA',
+                    'VRSTA' => 'ODJEL',
+                ],
+            ], 200),
+            '*getOdjelSlike/M7035*' => Http::response([], 404),
+            'http://example.test/kipos/*' => Http::response(file_get_contents($remoteImage->getPathname()), 200, [
+                'Content-Type' => 'image/jpeg',
+            ]),
+        ]);
+
+        $run = app(KiposSyncService::class)->run('update_images', $admin->id);
+
+        $fresh = $product->fresh();
+
+        $this->assertSame('success', $run->status);
+        $this->assertSame(1, (int) (($run->stats ?? [])['updated_products'] ?? 0));
+        $this->assertSame(1, (int) (($run->stats ?? [])['matched_products'] ?? 0));
+        $this->assertSame(1, (int) (($run->stats ?? [])['fallback_product_lookups'] ?? 0));
+        $this->assertSame('ODJEL_M7035.jpg', $fresh?->getFirstMedia('product_main')?->file_name);
+        $this->assertSame(1, $fresh?->getMedia('product_gallery')->count());
+    }
+
     private function createProduct(User $admin, string $code): Product
     {
         $product = Product::query()->create([

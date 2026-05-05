@@ -94,7 +94,7 @@ class KiposSyncManager extends Component
             }
 
             RunKiposSyncActionJob::dispatch($queuedRun->id);
-            $this->dispatch('notify', type: 'info', message: __('Kipos sync action queued. Background worker will process it and the run log will refresh here automatically.'));
+            $this->dispatch('notify', type: 'info', message: __('Kipos sync action queued. Background worker will process it and the run log will refresh here automatically. If the status stays `QUEUED`, the `kipos` queue worker is not active.'));
         } catch (\Throwable $exception) {
             if ($queuedRun instanceof KiposSyncRun && $queuedRun->status === 'queued') {
                 $queuedRun->fill([

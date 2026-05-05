@@ -4,7 +4,7 @@
         <p class="mt-2 text-sm text-slate-600">{{ __('Granular Kipos console: import products once, then run only content, prices, quantities, actions, or images when needed.') }}</p>
         <p class="mt-2 text-xs text-slate-500">{{ __('Every action runs manually in admin and writes a persistent run log with exact stats / error details.') }}</p>
         <div class="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900">
-            {{ __('Long Kipos sync actions now run in background on the dedicated `kipos` queue so the admin screen does not time out. Keep a worker active for that queue, for example `php artisan queue:work --queue=kipos,default`.') }}
+            {{ __('Long Kipos sync actions now run in background on the dedicated `kipos` queue so the admin screen does not time out. Keep a worker active for that queue, for example `php artisan queue:work --queue=kipos,default`. If a run stays in `QUEUED` status, that worker is not currently processing jobs.') }}
         </div>
     </div>
 

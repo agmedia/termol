@@ -908,7 +908,8 @@ class KiposSyncService
                 'translations' => fn ($query) => $query->where('locale', $locale),
                 'media',
             ])
-            ->whereIn('code', array_keys($grouped))
+            ->whereNotNull('code')
+            ->where('code', '!=', '')
             ->get()
             ->keyBy(fn (Product $product): string => strtoupper((string) $product->code));
 
@@ -924,11 +925,47 @@ class KiposSyncService
         $mainAttached = 0;
         $galleryAttached = 0;
         $downloadFailures = 0;
+        $fallbackLookups = 0;
+        $processedCodes = [];
 
         foreach ($grouped as $groupCode => $imageRows) {
             $product = $products->get($groupCode);
             if (! $product) {
                 $unmatchedProducts++;
+                continue;
+            }
+
+            $processedCodes[$groupCode] = true;
+            $matchedProducts++;
+            $stats = $this->syncImageRowsForProduct(
+                product: $product,
+                imageRows: $imageRows,
+                replaceExisting: $replaceExisting,
+                locale: $locale
+            );
+
+            $updatedProducts += (int) ($stats['updated_products'] ?? 0);
+            $skippedExisting += (int) ($stats['skipped_existing'] ?? 0);
+            $skippedWithoutRemote += (int) ($stats['skipped_without_remote'] ?? 0);
+            $mainAttached += (int) ($stats['main_images_attached'] ?? 0);
+            $galleryAttached += (int) ($stats['gallery_images_attached'] ?? 0);
+            $downloadFailures += (int) ($stats['download_failures'] ?? 0);
+        }
+
+        foreach ($products as $groupCode => $product) {
+            if (isset($processedCodes[$groupCode])) {
+                continue;
+            }
+
+            if (! $replaceExisting && $this->productHasLocalImages($product)) {
+                $skippedExisting++;
+                continue;
+            }
+
+            $fallbackLookups++;
+            $imageRows = $this->remoteImageRowsForProduct($product, $grouped);
+            if ($imageRows === []) {
+                $skippedWithoutRemote++;
                 continue;
             }
 
@@ -959,6 +996,7 @@ class KiposSyncService
             'gallery_images_attached' => $galleryAttached,
             'download_failures' => $downloadFailures,
             'replace_existing' => $replaceExisting,
+            'fallback_product_lookups' => $fallbackLookups,
         ];
     }
 
@@ -994,7 +1032,7 @@ class KiposSyncService
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function remoteImageRowsForProduct(Product $product): array
+    private function remoteImageRowsForProduct(Product $product, ?array $groupedFallback = null): array
     {
         $departmentCode = strtoupper(trim((string) $product->code));
         $itemCodes = $this->productImageLookupItemCodes($product);
@@ -1020,9 +1058,16 @@ class KiposSyncService
             return $this->dedupeRemoteImageRows($rows);
         }
 
-        $grouped = $this->remoteImageRowsByGroup();
+        $grouped = $groupedFallback ?? $this->remoteImageRowsByGroup();
 
         return $grouped[$departmentCode] ?? [];
+    }
+
+    private function productHasLocalImages(Product $product): bool
+    {
+        return $product->media
+            ->whereIn('collection_name', ['product_main', 'product_gallery'])
+            ->isNotEmpty();
     }
 
     /**
