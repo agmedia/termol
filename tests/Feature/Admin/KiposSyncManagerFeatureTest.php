@@ -96,6 +96,53 @@ class KiposSyncManagerFeatureTest extends TestCase
         Queue::assertPushed(RunKiposSyncActionJob::class, 1);
     }
 
+    public function test_component_polls_only_while_kipos_run_is_active(): void
+    {
+        $admin = $this->makeUserWithRole('superadmin');
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->assertDontSeeHtml('wire:poll.5s');
+
+        KiposSyncRun::query()->create([
+            'action_key' => 'update_images',
+            'action_label' => 'Update Images',
+            'status' => 'queued',
+            'summary' => 'Queued from admin. Waiting for background worker.',
+            'initiated_by' => $admin->id,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->assertSeeHtml('wire:poll.5s');
+    }
+
+    public function test_component_marks_stale_started_runs_failed_and_stops_polling(): void
+    {
+        $admin = $this->makeUserWithRole('superadmin');
+
+        $staleRun = KiposSyncRun::query()->create([
+            'action_key' => 'update_images',
+            'action_label' => 'Update Images',
+            'status' => 'started',
+            'summary' => 'Execution started.',
+            'started_at' => now()->subMinutes(46),
+            'initiated_by' => $admin->id,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->assertDontSeeHtml('wire:poll.5s');
+
+        $staleRun->refresh();
+
+        $this->assertSame('failed', $staleRun->status);
+        $this->assertSame(
+            'Execution marked as failed because the previous run became stale.',
+            $staleRun->summary
+        );
+    }
+
     private function makeUserWithRole(string $role): User
     {
         Bouncer::role()->firstOrCreate(['name' => 'superadmin']);

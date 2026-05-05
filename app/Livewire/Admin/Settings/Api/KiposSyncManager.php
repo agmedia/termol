@@ -129,6 +129,7 @@ class KiposSyncManager extends Component
             'endpointMap' => $syncService->endpointMap(),
             'runs' => $runs,
             'lastRun' => $lastRun,
+            'shouldPoll' => $syncService->hasActiveRuns(),
         ]);
     }
 

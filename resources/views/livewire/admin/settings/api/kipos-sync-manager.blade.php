@@ -1,4 +1,4 @@
-<div class="space-y-6" wire:poll.5s>
+<div class="space-y-6" @if($shouldPoll) wire:poll.5s @endif>
     <div class="admin-panel admin-search-panel p-6">
         <h2 class="text-xl font-semibold tracking-tight">{{ __('Kipos Sync Manager') }}</h2>
         <p class="mt-2 text-sm text-slate-600">{{ __('Granular Kipos console: import products once, then run only content, prices, quantities, actions, or images when needed.') }}</p>

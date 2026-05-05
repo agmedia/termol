@@ -211,6 +211,15 @@ class KiposSyncService
             ->first();
     }
 
+    public function hasActiveRuns(): bool
+    {
+        $this->markStaleStartedRunsAsFailed();
+
+        return KiposSyncRun::query()
+            ->whereIn('status', ['queued', 'started'])
+            ->exists();
+    }
+
     public function run(string $actionKey, ?int $initiatedBy = null): KiposSyncRun
     {
         $action = $this->resolveAction($actionKey);
@@ -329,12 +338,12 @@ class KiposSyncService
         return $run->fresh(['initiator']) ?? $run;
     }
 
-    private function markStaleStartedRunsAsFailed(string $actionKey): void
+    private function markStaleStartedRunsAsFailed(?string $actionKey = null): void
     {
         $threshold = now()->subMinutes(self::STALE_STARTED_RUN_AFTER_MINUTES);
 
         KiposSyncRun::query()
-            ->where('action_key', $actionKey)
+            ->when($actionKey !== null, fn ($query) => $query->where('action_key', $actionKey))
             ->where('status', 'started')
             ->where(function ($query) use ($threshold): void {
                 $query
