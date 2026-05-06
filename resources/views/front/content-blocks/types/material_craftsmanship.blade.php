@@ -19,7 +19,7 @@
         [
             'key' => 'micromodal',
             'tone' => 'dark',
-            'icon' => asset('front-theme/images/GIZA_PAMUK.svg'),
+            'icon' => asset('front-theme/images/MIKROMODAL.svg'),
             'eyebrow' => $materialText('materials.micromodal.eyebrow'),
             'title' => $materialText('materials.micromodal.title'),
             'intro' => $materialText('materials.micromodal.intro'),
@@ -34,7 +34,7 @@
         [
             'key' => 'giza',
             'tone' => 'light',
-            'icon' => asset('front-theme/images/MIKROMODAL.svg'),
+            'icon' => asset('front-theme/images/GIZA_PAMUK.svg'),
             'eyebrow' => $materialText('materials.giza.eyebrow'),
             'title' => $materialText('materials.giza.title'),
             'intro' => $materialText('materials.giza.intro'),
