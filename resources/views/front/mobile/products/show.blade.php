@@ -102,6 +102,19 @@
                 scroll-behavior: auto;
             }
         }
+
+        [data-mobile-gallery-frame] {
+            aspect-ratio: 2 / 3;
+            overflow: hidden;
+            background: #f8fafc;
+        }
+
+        [data-mobile-gallery-frame] img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: top center;
+        }
     </style>
 
     @if ($topBlocks->isNotEmpty())
@@ -117,6 +130,7 @@
                             type="button"
                             class="border-0 bg-transparent p-0 flex-shrink-0"
                             style="min-width: 100%; scroll-snap-align: start;"
+                            data-mobile-gallery-frame
                             data-gallery-open="{{ $index }}"
                             aria-label="{{ $image['alt'] }}"
                         >
@@ -124,7 +138,6 @@
                                 src="{{ $image['full'] }}"
                                 alt="{{ $image['alt'] }}"
                                 class="d-block w-100"
-                                style="height: auto;"
                                 loading="{{ $loop->first ? 'eager' : 'lazy' }}"
                                 decoding="async"
                             >

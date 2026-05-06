@@ -135,6 +135,19 @@
             display: none;
         }
 
+        .product-detail-gallery-frame {
+            display: block;
+            aspect-ratio: 2 / 3;
+        }
+
+        .product-detail-gallery-image {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: top center;
+        }
+
         @media (max-width: 768px) {
             .product-detail-layout {
                 gap: .75rem;
@@ -147,6 +160,8 @@
             .product-ipad-slider .splide__slide > button {
                 display: block;
                 width: 100%;
+                aspect-ratio: 2 / 3;
+                overflow: hidden;
                 border: 0;
                 padding: 0;
                 background: #f8fafc;
@@ -156,7 +171,9 @@
                 display: block;
                 width: 100%;
                 max-width: 100%;
-                height: auto;
+                height: 100%;
+                object-fit: cover;
+                object-position: top center;
             }
 
             .product-ipad-slider .splide__pagination {
@@ -399,7 +416,7 @@
                         @foreach ($topGallery as $index => $image)
                             <button
                                 type="button"
-                                class="overflow-hidden border border-slate-200 bg-slate-50"
+                                class="product-detail-gallery-frame overflow-hidden border border-slate-200 bg-slate-50"
                                 data-gallery-thumb
                                 data-index="{{ $index }}"
                                 data-full="{{ $image['full'] }}"
@@ -410,7 +427,7 @@
                                     <img
                                         src="{{ $image['display'] }}"
                                         alt="{{ $image['alt'] }}"
-                                        class="block h-auto w-full bg-slate-50"
+                                        class="product-detail-gallery-image bg-slate-50"
                                         loading="{{ $loop->first ? 'eager' : 'lazy' }}"
                                         decoding="async"
                                         @if ($index === 0) data-gallery-main @endif
@@ -427,7 +444,7 @@
                                     @php $index = $bottomIndex + 2; @endphp
                                     <button
                                         type="button"
-                                        class="overflow-hidden border border-slate-200 bg-slate-50"
+                                        class="product-detail-gallery-frame overflow-hidden border border-slate-200 bg-slate-50"
                                         data-gallery-thumb
                                         data-index="{{ $index }}"
                                         data-full="{{ $image['full'] }}"
@@ -438,7 +455,7 @@
                                         <img
                                             src="{{ $image['display'] }}"
                                             alt="{{ $image['alt'] }}"
-                                            class="block h-auto w-full bg-slate-50"
+                                            class="product-detail-gallery-image bg-slate-50"
                                             loading="lazy"
                                             decoding="async"
                                         >
@@ -453,7 +470,7 @@
                                     @php $index = $tailIndex + 2 + $middleBottomCount; @endphp
                                     <button
                                         type="button"
-                                        class="overflow-hidden border border-slate-200 bg-slate-50"
+                                        class="product-detail-gallery-frame overflow-hidden border border-slate-200 bg-slate-50"
                                         data-gallery-thumb
                                         data-index="{{ $index }}"
                                         data-full="{{ $image['full'] }}"
@@ -464,7 +481,7 @@
                                         <img
                                             src="{{ $image['display'] }}"
                                             alt="{{ $image['alt'] }}"
-                                            class="block h-auto w-full bg-slate-50"
+                                            class="product-detail-gallery-image bg-slate-50"
                                             loading="lazy"
                                             decoding="async"
                                         >
