@@ -295,7 +295,29 @@ class StorefrontFrontFeatureTest extends TestCase
             'body_html' => null,
             'cta_label' => 'Pogledaj premium modele',
             'cta_url' => '/shop',
-            'payload' => null,
+            'payload' => [
+                'material_craftsmanship' => [
+                    'expand_label' => 'Vidi više',
+                    'materials' => [
+                        'micromodal' => [
+                            'eyebrow' => 'Za svilenkast feel',
+                            'title' => 'Micromodal',
+                            'intro' => 'Lagan, vrlo mekan i elastičan materijal.',
+                            'body_1' => 'Micromodal detalj prvi.',
+                            'body_2' => 'Micromodal detalj drugi.',
+                            'bullets' => ['svilenkast dodir', 'vrlo elastičan', 'hipoalergen'],
+                        ],
+                        'giza' => [
+                            'eyebrow' => 'Za clean cotton feel',
+                            'title' => 'Giza pamuk',
+                            'intro' => 'Fini egipatski pamuk.',
+                            'body_1' => 'Giza detalj prvi.',
+                            'body_2' => 'Giza detalj drugi.',
+                            'bullets' => ['prozračan osjećaj', 'izrazito upijajući', 'dugotrajno pletivo'],
+                        ],
+                    ],
+                ],
+            ],
         ]);
 
         $block->slots()->create([
@@ -340,7 +362,7 @@ class StorefrontFrontFeatureTest extends TestCase
                         'micromodal' => [
                             'eyebrow' => 'Admin modal eyebrow',
                             'title' => 'Admin micromodal',
-                            'intro' => 'Admin micromodal uvod.',
+                            'intro' => '',
                             'body_1' => 'Admin micromodal prvi tekst.',
                             'body_2' => 'Admin micromodal drugi tekst.',
                             'bullets' => [
@@ -381,6 +403,7 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('Otvori detalje')
             ->assertSee('Admin micromodal')
             ->assertSee('Admin dugotrajno')
+            ->assertDontSee('Lagan, vrlo mekan i elastičan materijal za one koji žele gladak osjećaj uz tijelo.')
             ->assertSee('front-theme/images/GIZA_PAMUK.svg', false)
             ->assertSee('front-theme/images/MIKROMODAL.svg', false)
             ->assertSee('front-theme/images/SVILENKASTI_DODIR.svg', false)

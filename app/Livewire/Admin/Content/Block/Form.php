@@ -11,7 +11,6 @@ use App\Services\Content\ContentBlockResolver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Lang;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 
@@ -500,7 +499,7 @@ class Form extends Component
             'items_limit' => 6,
             'reviews_featured_only' => false,
             'blog_source' => 'latest',
-            'material_craftsmanship' => $this->materialCraftsmanshipFormValues(null, (string) config('app.locale')),
+            'material_craftsmanship' => $this->materialCraftsmanshipFormValues(null),
             'template_body' => $this->defaultTemplateForType($defaultType),
 
             'slot_placement' => array_key_first($this->placements) ?: 'home.hero',
@@ -559,7 +558,7 @@ class Form extends Component
         $this->form['blog_source'] = in_array($blogSource, ['latest', 'featured'], true)
             ? $blogSource
             : 'latest';
-        $this->form['material_craftsmanship'] = $this->materialCraftsmanshipFormValues($translationPayload, $preferredLocale);
+        $this->form['material_craftsmanship'] = $this->materialCraftsmanshipFormValues($translationPayload);
 
         $this->form['slot_placement'] = (string) ($slot?->placement ?? (array_key_first($this->placements) ?: 'home.hero'));
         $loadedVariant = (string) ($slot?->frontend_variant ?? 'all');
@@ -629,7 +628,7 @@ class Form extends Component
         $this->form['blog_source'] = in_array($blogSource, ['latest', 'featured'], true)
             ? $blogSource
             : 'latest';
-        $this->form['material_craftsmanship'] = $this->materialCraftsmanshipFormValues($translationPayload, (string) $this->form['locale']);
+        $this->form['material_craftsmanship'] = $this->materialCraftsmanshipFormValues($translationPayload);
     }
 
     private function clearTranslationFields(): void
@@ -643,10 +642,10 @@ class Form extends Component
         $this->form['items_limit'] = 6;
         $this->form['reviews_featured_only'] = false;
         $this->form['blog_source'] = 'latest';
-        $this->form['material_craftsmanship'] = $this->materialCraftsmanshipFormValues(null, (string) ($this->form['locale'] ?? config('app.locale')));
+        $this->form['material_craftsmanship'] = $this->materialCraftsmanshipFormValues(null);
     }
 
-    private function materialCraftsmanshipFormValues(?array $translationPayload, string $locale): array
+    private function materialCraftsmanshipFormValues(?array $translationPayload): array
     {
         $stored = data_get($translationPayload ?? [], 'material_craftsmanship', []);
         if (! is_array($stored)) {
@@ -656,8 +655,7 @@ class Form extends Component
         $values = [
             'expand_label' => $this->materialCraftsmanshipValue(
                 $stored,
-                'expand_label',
-                $this->materialCraftsmanshipLangValue($locale, 'expand')
+                'expand_label'
             ),
             'materials' => [],
         ];
@@ -667,8 +665,7 @@ class Form extends Component
             foreach (self::MATERIAL_CRAFTSMANSHIP_TEXT_FIELDS as $field) {
                 $material[$field] = $this->materialCraftsmanshipValue(
                     $stored,
-                    "materials.{$materialKey}.{$field}",
-                    $this->materialCraftsmanshipLangValue($locale, "materials.{$materialKey}.{$field}")
+                    "materials.{$materialKey}.{$field}"
                 );
             }
 
@@ -676,8 +673,7 @@ class Form extends Component
             for ($index = 0; $index < self::MATERIAL_CRAFTSMANSHIP_BULLET_COUNT; $index++) {
                 $material['bullets'][$index] = $this->materialCraftsmanshipValue(
                     $stored,
-                    "materials.{$materialKey}.bullets.{$index}",
-                    $this->materialCraftsmanshipLangValue($locale, "materials.{$materialKey}.bullets.{$index}")
+                    "materials.{$materialKey}.bullets.{$index}"
                 );
             }
 
@@ -689,48 +685,31 @@ class Form extends Component
 
     private function materialCraftsmanshipPayloadFromForm(array $values): array
     {
-        $hasValue = false;
         $payload = [
             'expand_label' => $this->cleanMaterialCraftsmanshipText(data_get($values, 'expand_label', '')),
             'materials' => [],
         ];
-        $hasValue = $hasValue || $payload['expand_label'] !== '';
 
         foreach (self::MATERIAL_CRAFTSMANSHIP_MATERIAL_KEYS as $materialKey) {
             $material = [];
             foreach (self::MATERIAL_CRAFTSMANSHIP_TEXT_FIELDS as $field) {
                 $material[$field] = $this->cleanMaterialCraftsmanshipText(data_get($values, "materials.{$materialKey}.{$field}", ''));
-                $hasValue = $hasValue || $material[$field] !== '';
             }
 
             $material['bullets'] = [];
             for ($index = 0; $index < self::MATERIAL_CRAFTSMANSHIP_BULLET_COUNT; $index++) {
                 $material['bullets'][$index] = $this->cleanMaterialCraftsmanshipText(data_get($values, "materials.{$materialKey}.bullets.{$index}", ''));
-                $hasValue = $hasValue || $material['bullets'][$index] !== '';
             }
 
             $payload['materials'][$materialKey] = $material;
         }
 
-        return $hasValue ? $payload : [];
+        return $payload;
     }
 
-    private function materialCraftsmanshipValue(array $payload, string $path, string $fallback): string
+    private function materialCraftsmanshipValue(array $payload, string $path): string
     {
         $value = data_get($payload, $path);
-        $value = is_scalar($value) ? trim((string) $value) : '';
-
-        return $value !== '' ? $value : $fallback;
-    }
-
-    private function materialCraftsmanshipLangValue(string $locale, string $path): string
-    {
-        $translations = Lang::get('ui.front.desktop.material_craftsmanship', [], $locale);
-        if (! is_array($translations)) {
-            return '';
-        }
-
-        $value = data_get($translations, $path, '');
 
         return is_scalar($value) ? trim((string) $value) : '';
     }

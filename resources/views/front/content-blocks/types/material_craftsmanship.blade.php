@@ -5,48 +5,45 @@
         $materialPayload = [];
     }
 
-    $materialText = static function (string $path, mixed $fallback = '') use ($materialPayload): string {
+    $materialText = static function (string $path) use ($materialPayload): string {
         $value = data_get($materialPayload, $path);
-        $value = is_scalar($value) ? trim((string) $value) : '';
 
-        return $value !== '' ? $value : (string) $fallback;
+        return is_scalar($value) ? trim((string) $value) : '';
     };
 
-    $title = trim((string) ($translation?->title ?? '')) !== ''
-        ? trim((string) $translation->title)
-        : __('ui.front.desktop.material_craftsmanship.default_title');
+    $title = trim((string) ($translation?->title ?? ''));
     $subtitle = trim((string) ($translation?->subtitle ?? ''));
-    $expandLabel = $materialText('expand_label', __('ui.front.desktop.material_craftsmanship.expand'));
+    $expandLabel = $materialText('expand_label');
 
     $materials = [
         [
             'key' => 'micromodal',
             'tone' => 'dark',
             'icon' => asset('front-theme/images/GIZA_PAMUK.svg'),
-            'eyebrow' => $materialText('materials.micromodal.eyebrow', __('ui.front.desktop.material_craftsmanship.materials.micromodal.eyebrow')),
-            'title' => $materialText('materials.micromodal.title', __('ui.front.desktop.material_craftsmanship.materials.micromodal.title')),
-            'intro' => $materialText('materials.micromodal.intro', __('ui.front.desktop.material_craftsmanship.materials.micromodal.intro')),
-            'body_1' => $materialText('materials.micromodal.body_1', __('ui.front.desktop.material_craftsmanship.materials.micromodal.body_1')),
-            'body_2' => $materialText('materials.micromodal.body_2', __('ui.front.desktop.material_craftsmanship.materials.micromodal.body_2')),
+            'eyebrow' => $materialText('materials.micromodal.eyebrow'),
+            'title' => $materialText('materials.micromodal.title'),
+            'intro' => $materialText('materials.micromodal.intro'),
+            'body_1' => $materialText('materials.micromodal.body_1'),
+            'body_2' => $materialText('materials.micromodal.body_2'),
             'bullets' => [
-                ['icon' => asset('front-theme/images/SVILENKASTI_DODIR.svg'), 'text' => $materialText('materials.micromodal.bullets.0', __('ui.front.desktop.material_craftsmanship.materials.micromodal.bullets.0'))],
-                ['icon' => asset('front-theme/images/ELASTICNOST.svg'), 'text' => $materialText('materials.micromodal.bullets.1', __('ui.front.desktop.material_craftsmanship.materials.micromodal.bullets.1'))],
-                ['icon' => asset('front-theme/images/HIPOALERGEN.svg'), 'text' => $materialText('materials.micromodal.bullets.2', __('ui.front.desktop.material_craftsmanship.materials.micromodal.bullets.2'))],
+                ['icon' => asset('front-theme/images/SVILENKASTI_DODIR.svg'), 'text' => $materialText('materials.micromodal.bullets.0')],
+                ['icon' => asset('front-theme/images/ELASTICNOST.svg'), 'text' => $materialText('materials.micromodal.bullets.1')],
+                ['icon' => asset('front-theme/images/HIPOALERGEN.svg'), 'text' => $materialText('materials.micromodal.bullets.2')],
             ],
         ],
         [
             'key' => 'giza',
             'tone' => 'light',
             'icon' => asset('front-theme/images/MIKROMODAL.svg'),
-            'eyebrow' => $materialText('materials.giza.eyebrow', __('ui.front.desktop.material_craftsmanship.materials.giza.eyebrow')),
-            'title' => $materialText('materials.giza.title', __('ui.front.desktop.material_craftsmanship.materials.giza.title')),
-            'intro' => $materialText('materials.giza.intro', __('ui.front.desktop.material_craftsmanship.materials.giza.intro')),
-            'body_1' => $materialText('materials.giza.body_1', __('ui.front.desktop.material_craftsmanship.materials.giza.body_1')),
-            'body_2' => $materialText('materials.giza.body_2', __('ui.front.desktop.material_craftsmanship.materials.giza.body_2')),
+            'eyebrow' => $materialText('materials.giza.eyebrow'),
+            'title' => $materialText('materials.giza.title'),
+            'intro' => $materialText('materials.giza.intro'),
+            'body_1' => $materialText('materials.giza.body_1'),
+            'body_2' => $materialText('materials.giza.body_2'),
             'bullets' => [
-                ['icon' => asset('front-theme/images/PROZRACAN.svg'), 'text' => $materialText('materials.giza.bullets.0', __('ui.front.desktop.material_craftsmanship.materials.giza.bullets.0'))],
-                ['icon' => asset('front-theme/images/UPOJNOST.svg'), 'text' => $materialText('materials.giza.bullets.1', __('ui.front.desktop.material_craftsmanship.materials.giza.bullets.1'))],
-                ['icon' => asset('front-theme/images/DUGOTRAJAN.svg'), 'text' => $materialText('materials.giza.bullets.2', __('ui.front.desktop.material_craftsmanship.materials.giza.bullets.2'))],
+                ['icon' => asset('front-theme/images/PROZRACAN.svg'), 'text' => $materialText('materials.giza.bullets.0')],
+                ['icon' => asset('front-theme/images/UPOJNOST.svg'), 'text' => $materialText('materials.giza.bullets.1')],
+                ['icon' => asset('front-theme/images/DUGOTRAJAN.svg'), 'text' => $materialText('materials.giza.bullets.2')],
             ],
         ],
     ];
@@ -321,21 +318,32 @@
     </style>
 
     <div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="max-[540px]:mb-5 mb-8 text-center">
-            <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
-                @include('front.partials.section-heading-line', ['side' => 'left'])
-                <h2 class="max-[540px]:text-[1.18rem] max-[540px]:leading-[1.65rem] text-[1.35rem] leading-[1.95rem] sm:text-[1.7rem] sm:leading-[2.5rem] font-semibold text-slate-900">{{ $title }}</h2>
-                @include('front.partials.section-heading-line', ['side' => 'right'])
-            </div>
+        @if ($title !== '' || $subtitle !== '')
+            <div class="max-[540px]:mb-5 mb-8 text-center">
+                @if ($title !== '')
+                    <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
+                        @include('front.partials.section-heading-line', ['side' => 'left'])
+                        <h2 class="max-[540px]:text-[1.18rem] max-[540px]:leading-[1.65rem] text-[1.35rem] leading-[1.95rem] sm:text-[1.7rem] sm:leading-[2.5rem] font-semibold text-slate-900">{{ $title }}</h2>
+                        @include('front.partials.section-heading-line', ['side' => 'right'])
+                    </div>
+                @endif
 
-            @if ($subtitle !== '')
-                <p class="materials-subtitle">{{ $subtitle }}</p>
-            @endif
-        </div>
+                @if ($subtitle !== '')
+                    <p class="materials-subtitle">{{ $subtitle }}</p>
+                @endif
+            </div>
+        @endif
 
         <div class="materials-grid">
             @foreach ($materials as $material)
                 @php
+                    $hasBody = $material['body_1'] !== '' || $material['body_2'] !== '';
+                    $visibleBullets = array_values(array_filter($material['bullets'], static fn (array $bullet): bool => $bullet['text'] !== ''));
+                    $hasMaterialContent = $material['eyebrow'] !== ''
+                        || $material['title'] !== ''
+                        || $material['intro'] !== ''
+                        || $hasBody
+                        || $visibleBullets !== [];
                     $eyebrowStyle = $material['tone'] === 'dark' ? 'color:#5b6f8d;' : 'color:#8a6f58;';
                     $heroIconStyle = $material['tone'] === 'dark'
                         ? 'background:#eef2ff;color:#23344d;'
@@ -344,6 +352,7 @@
                         ? 'background:#f3f6fb;color:#23344d;'
                         : 'background:#faf5ef;color:#6c5948;';
                 @endphp
+                @continue(! $hasMaterialContent)
 
                 <article class="material-card">
                     <div class="material-top">
@@ -352,41 +361,55 @@
                         </span>
 
                         <div>
-                            <p class="material-kicker" style="{{ $eyebrowStyle }}">{{ $material['eyebrow'] }}</p>
-                            <h3 class="material-name">{{ $material['title'] }}</h3>
+                            @if ($material['eyebrow'] !== '')
+                                <p class="material-kicker" style="{{ $eyebrowStyle }}">{{ $material['eyebrow'] }}</p>
+                            @endif
+                            @if ($material['title'] !== '')
+                                <h3 class="material-name">{{ $material['title'] }}</h3>
+                            @endif
                         </div>
                     </div>
 
-                    <p class="material-intro">{{ $material['intro'] }}</p>
+                    @if ($material['intro'] !== '')
+                        <p class="material-intro">{{ $material['intro'] }}</p>
+                    @endif
 
-                    <details>
-                        <summary class="material-summary">
-                            <span>{{ $expandLabel }}</span>
-                            <svg class="material-expand-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="m6 9 6 6 6-6"></path>
-                            </svg>
-                        </summary>
+                    @if ($expandLabel !== '' && $hasBody)
+                        <details>
+                            <summary class="material-summary">
+                                <span>{{ $expandLabel }}</span>
+                                <svg class="material-expand-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="m6 9 6 6 6-6"></path>
+                                </svg>
+                            </summary>
 
-                        <div class="material-body-wrap">
-                            <div class="material-body-inner">
-                                <div class="material-body">
-                                    <p>{{ $material['body_1'] }}</p>
-                                    <p>{{ $material['body_2'] }}</p>
+                            <div class="material-body-wrap">
+                                <div class="material-body-inner">
+                                    <div class="material-body">
+                                        @if ($material['body_1'] !== '')
+                                            <p>{{ $material['body_1'] }}</p>
+                                        @endif
+                                        @if ($material['body_2'] !== '')
+                                            <p>{{ $material['body_2'] }}</p>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </details>
+                        </details>
+                    @endif
 
-                    <div class="material-benefits">
-                        @foreach ($material['bullets'] as $bullet)
-                            <div class="material-benefit">
-                                <span class="material-benefit-icon" style="{{ $benefitIconStyle }}">
-                                    <img src="{{ $bullet['icon'] }}" alt="" class="material-benefit-icon-img" loading="lazy" decoding="async" aria-hidden="true">
-                                </span>
-                                <p class="material-benefit-label">{{ $bullet['text'] }}</p>
-                            </div>
-                        @endforeach
-                    </div>
+                    @if ($visibleBullets !== [])
+                        <div class="material-benefits">
+                            @foreach ($visibleBullets as $bullet)
+                                    <div class="material-benefit">
+                                        <span class="material-benefit-icon" style="{{ $benefitIconStyle }}">
+                                            <img src="{{ $bullet['icon'] }}" alt="" class="material-benefit-icon-img" loading="lazy" decoding="async" aria-hidden="true">
+                                        </span>
+                                        <p class="material-benefit-label">{{ $bullet['text'] }}</p>
+                                    </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </article>
             @endforeach
         </div>

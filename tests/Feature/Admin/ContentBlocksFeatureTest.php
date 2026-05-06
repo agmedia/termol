@@ -143,6 +143,7 @@ class ContentBlocksFeatureTest extends TestCase
                 ->set('form.title', 'Micromodal ili Giza pamuk?')
                 ->set('form.material_craftsmanship.expand_label', 'Otvori detalje')
                 ->set('form.material_craftsmanship.materials.micromodal.title', 'Micromodal iz admina')
+                ->set('form.material_craftsmanship.materials.micromodal.intro', '')
                 ->set('form.material_craftsmanship.materials.giza.bullets.2', 'Dugotrajno iz admina')
                 ->call('save')
                 ->assertRedirect(route('admin.content.blocks'));
@@ -156,6 +157,7 @@ class ContentBlocksFeatureTest extends TestCase
 
             $this->assertSame('Otvori detalje', data_get($translation->payload, 'material_craftsmanship.expand_label'));
             $this->assertSame('Micromodal iz admina', data_get($translation->payload, 'material_craftsmanship.materials.micromodal.title'));
+            $this->assertSame('', data_get($translation->payload, 'material_craftsmanship.materials.micromodal.intro'));
             $this->assertSame('Dugotrajno iz admina', data_get($translation->payload, 'material_craftsmanship.materials.giza.bullets.2'));
         } finally {
             File::delete(resource_path("views/front/content-blocks/instances/{$code}.blade.php"));
