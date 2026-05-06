@@ -11,11 +11,27 @@ use App\Services\Content\ContentBlockResolver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class Form extends Component
 {
+    private const MATERIAL_CRAFTSMANSHIP_MATERIAL_KEYS = [
+        'micromodal',
+        'giza',
+    ];
+
+    private const MATERIAL_CRAFTSMANSHIP_TEXT_FIELDS = [
+        'eyebrow',
+        'title',
+        'intro',
+        'body_1',
+        'body_2',
+    ];
+
+    private const MATERIAL_CRAFTSMANSHIP_BULLET_COUNT = 3;
+
     private const ITEM_TYPE_MAP = [
         'products' => 'product',
         'products_carousel' => 'product',
@@ -279,6 +295,20 @@ class Form extends Component
         $translationPayload['blog_source'] = in_array($blogSource, ['latest', 'featured'], true) ? $blogSource : 'latest';
         unset($translationPayload['render_mode'], $translationPayload['body_html_container_class']);
 
+        if ((string) $validated['form']['type'] === 'material_craftsmanship') {
+            $materialCraftsmanshipPayload = $this->materialCraftsmanshipPayloadFromForm(
+                (array) data_get($validated, 'form.material_craftsmanship', [])
+            );
+
+            if ($materialCraftsmanshipPayload !== []) {
+                $translationPayload['material_craftsmanship'] = $materialCraftsmanshipPayload;
+            } else {
+                unset($translationPayload['material_craftsmanship']);
+            }
+        } else {
+            unset($translationPayload['material_craftsmanship']);
+        }
+
         $itemType = $this->itemTypeForBlockType((string) $validated['form']['type']);
         $selectedIds = collect((array) ($validated['form']['selected_item_ids'] ?? []))
             ->map(fn ($id) => (int) $id)
@@ -422,6 +452,16 @@ class Form extends Component
             'form.items_limit' => ['nullable', 'integer', 'min:1', 'max:50'],
             'form.reviews_featured_only' => ['boolean'],
             'form.blog_source' => ['nullable', Rule::in(['latest', 'featured'])],
+            'form.material_craftsmanship' => ['nullable', 'array'],
+            'form.material_craftsmanship.expand_label' => ['nullable', 'string', 'max:120'],
+            'form.material_craftsmanship.materials' => ['nullable', 'array'],
+            'form.material_craftsmanship.materials.*.eyebrow' => ['nullable', 'string', 'max:160'],
+            'form.material_craftsmanship.materials.*.title' => ['nullable', 'string', 'max:160'],
+            'form.material_craftsmanship.materials.*.intro' => ['nullable', 'string', 'max:600'],
+            'form.material_craftsmanship.materials.*.body_1' => ['nullable', 'string', 'max:4000'],
+            'form.material_craftsmanship.materials.*.body_2' => ['nullable', 'string', 'max:4000'],
+            'form.material_craftsmanship.materials.*.bullets' => ['nullable', 'array'],
+            'form.material_craftsmanship.materials.*.bullets.*' => ['nullable', 'string', 'max:160'],
             'form.template_body' => ['nullable', 'string'],
 
             'form.slot_placement' => ['required', 'string', 'max:120'],
@@ -460,6 +500,7 @@ class Form extends Component
             'items_limit' => 6,
             'reviews_featured_only' => false,
             'blog_source' => 'latest',
+            'material_craftsmanship' => $this->materialCraftsmanshipFormValues(null, (string) config('app.locale')),
             'template_body' => $this->defaultTemplateForType($defaultType),
 
             'slot_placement' => array_key_first($this->placements) ?: 'home.hero',
@@ -518,6 +559,7 @@ class Form extends Component
         $this->form['blog_source'] = in_array($blogSource, ['latest', 'featured'], true)
             ? $blogSource
             : 'latest';
+        $this->form['material_craftsmanship'] = $this->materialCraftsmanshipFormValues($translationPayload, $preferredLocale);
 
         $this->form['slot_placement'] = (string) ($slot?->placement ?? (array_key_first($this->placements) ?: 'home.hero'));
         $loadedVariant = (string) ($slot?->frontend_variant ?? 'all');
@@ -587,6 +629,7 @@ class Form extends Component
         $this->form['blog_source'] = in_array($blogSource, ['latest', 'featured'], true)
             ? $blogSource
             : 'latest';
+        $this->form['material_craftsmanship'] = $this->materialCraftsmanshipFormValues($translationPayload, (string) $this->form['locale']);
     }
 
     private function clearTranslationFields(): void
@@ -600,6 +643,101 @@ class Form extends Component
         $this->form['items_limit'] = 6;
         $this->form['reviews_featured_only'] = false;
         $this->form['blog_source'] = 'latest';
+        $this->form['material_craftsmanship'] = $this->materialCraftsmanshipFormValues(null, (string) ($this->form['locale'] ?? config('app.locale')));
+    }
+
+    private function materialCraftsmanshipFormValues(?array $translationPayload, string $locale): array
+    {
+        $stored = data_get($translationPayload ?? [], 'material_craftsmanship', []);
+        if (! is_array($stored)) {
+            $stored = [];
+        }
+
+        $values = [
+            'expand_label' => $this->materialCraftsmanshipValue(
+                $stored,
+                'expand_label',
+                $this->materialCraftsmanshipLangValue($locale, 'expand')
+            ),
+            'materials' => [],
+        ];
+
+        foreach (self::MATERIAL_CRAFTSMANSHIP_MATERIAL_KEYS as $materialKey) {
+            $material = [];
+            foreach (self::MATERIAL_CRAFTSMANSHIP_TEXT_FIELDS as $field) {
+                $material[$field] = $this->materialCraftsmanshipValue(
+                    $stored,
+                    "materials.{$materialKey}.{$field}",
+                    $this->materialCraftsmanshipLangValue($locale, "materials.{$materialKey}.{$field}")
+                );
+            }
+
+            $material['bullets'] = [];
+            for ($index = 0; $index < self::MATERIAL_CRAFTSMANSHIP_BULLET_COUNT; $index++) {
+                $material['bullets'][$index] = $this->materialCraftsmanshipValue(
+                    $stored,
+                    "materials.{$materialKey}.bullets.{$index}",
+                    $this->materialCraftsmanshipLangValue($locale, "materials.{$materialKey}.bullets.{$index}")
+                );
+            }
+
+            $values['materials'][$materialKey] = $material;
+        }
+
+        return $values;
+    }
+
+    private function materialCraftsmanshipPayloadFromForm(array $values): array
+    {
+        $hasValue = false;
+        $payload = [
+            'expand_label' => $this->cleanMaterialCraftsmanshipText(data_get($values, 'expand_label', '')),
+            'materials' => [],
+        ];
+        $hasValue = $hasValue || $payload['expand_label'] !== '';
+
+        foreach (self::MATERIAL_CRAFTSMANSHIP_MATERIAL_KEYS as $materialKey) {
+            $material = [];
+            foreach (self::MATERIAL_CRAFTSMANSHIP_TEXT_FIELDS as $field) {
+                $material[$field] = $this->cleanMaterialCraftsmanshipText(data_get($values, "materials.{$materialKey}.{$field}", ''));
+                $hasValue = $hasValue || $material[$field] !== '';
+            }
+
+            $material['bullets'] = [];
+            for ($index = 0; $index < self::MATERIAL_CRAFTSMANSHIP_BULLET_COUNT; $index++) {
+                $material['bullets'][$index] = $this->cleanMaterialCraftsmanshipText(data_get($values, "materials.{$materialKey}.bullets.{$index}", ''));
+                $hasValue = $hasValue || $material['bullets'][$index] !== '';
+            }
+
+            $payload['materials'][$materialKey] = $material;
+        }
+
+        return $hasValue ? $payload : [];
+    }
+
+    private function materialCraftsmanshipValue(array $payload, string $path, string $fallback): string
+    {
+        $value = data_get($payload, $path);
+        $value = is_scalar($value) ? trim((string) $value) : '';
+
+        return $value !== '' ? $value : $fallback;
+    }
+
+    private function materialCraftsmanshipLangValue(string $locale, string $path): string
+    {
+        $translations = Lang::get('ui.front.desktop.material_craftsmanship', [], $locale);
+        if (! is_array($translations)) {
+            return '';
+        }
+
+        $value = data_get($translations, $path, '');
+
+        return is_scalar($value) ? trim((string) $value) : '';
+    }
+
+    private function cleanMaterialCraftsmanshipText(mixed $value): string
+    {
+        return is_scalar($value) ? trim((string) $value) : '';
     }
 
     private function itemTypeForBlockType(string $type): ?string

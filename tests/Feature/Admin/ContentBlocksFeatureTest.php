@@ -9,6 +9,7 @@ use App\Models\Content\ContentBlock;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -125,6 +126,40 @@ class ContentBlocksFeatureTest extends TestCase
             ->assertSee('No items selected.')
             ->set('form.type', 'desktop_hero_banner')
             ->assertSet('form.slot_frontend_variant', 'desktop');
+    }
+
+    public function test_material_craftsmanship_text_fields_are_saved_to_translation_payload(): void
+    {
+        $user = $this->makeAdminUser();
+        $code = 'material-widget-payload-test';
+
+        try {
+            Livewire::actingAs($user)
+                ->test(BlockForm::class)
+                ->set('form.locale', 'hr')
+                ->set('form.type', 'material_craftsmanship')
+                ->set('form.code', $code)
+                ->set('form.name', 'Material Widget Payload Test')
+                ->set('form.title', 'Micromodal ili Giza pamuk?')
+                ->set('form.material_craftsmanship.expand_label', 'Otvori detalje')
+                ->set('form.material_craftsmanship.materials.micromodal.title', 'Micromodal iz admina')
+                ->set('form.material_craftsmanship.materials.giza.bullets.2', 'Dugotrajno iz admina')
+                ->call('save')
+                ->assertRedirect(route('admin.content.blocks'));
+
+            $translation = ContentBlock::query()
+                ->where('code', $code)
+                ->firstOrFail()
+                ->translations()
+                ->where('locale', 'hr')
+                ->firstOrFail();
+
+            $this->assertSame('Otvori detalje', data_get($translation->payload, 'material_craftsmanship.expand_label'));
+            $this->assertSame('Micromodal iz admina', data_get($translation->payload, 'material_craftsmanship.materials.micromodal.title'));
+            $this->assertSame('Dugotrajno iz admina', data_get($translation->payload, 'material_craftsmanship.materials.giza.bullets.2'));
+        } finally {
+            File::delete(resource_path("views/front/content-blocks/instances/{$code}.blade.php"));
+        }
     }
 
     public function test_admin_can_import_instagram_preview_into_block_slide_on_save_meta(): void

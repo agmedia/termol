@@ -189,7 +189,64 @@
                     </div>
                 @endif
 
-                <p class="mt-3 text-xs text-slate-500">{{ __('Main markup/content is edited in the Blade Template section below (Ace).') }}</p>
+                @if (($form['type'] ?? '') === 'material_craftsmanship')
+                    <div class="mt-5 border-t border-slate-200 pt-5">
+                        <p class="admin-section-title">{{ __('Material Widget Texts') }}</p>
+                        <p class="mt-1 text-xs text-slate-500">{{ __('These fields control the two material cards and their icon labels.') }}</p>
+
+                        <div class="mt-4">
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Expand Label') }}</label>
+                            <input type="text" wire:model="form.material_craftsmanship.expand_label" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                            @error('form.material_craftsmanship.expand_label') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div class="mt-4 grid gap-4">
+                            @foreach (['micromodal' => __('Micromodal'), 'giza' => __('Giza pamuk')] as $materialKey => $materialLabel)
+                                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <p class="text-sm font-semibold text-slate-900">{{ $materialLabel }}</p>
+
+                                    <div class="mt-3 grid gap-3 md:grid-cols-2">
+                                        <div>
+                                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Eyebrow') }}</label>
+                                            <input type="text" wire:model="form.material_craftsmanship.materials.{{ $materialKey }}.eyebrow" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                                        </div>
+                                        <div>
+                                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Card Title') }}</label>
+                                            <input type="text" wire:model="form.material_craftsmanship.materials.{{ $materialKey }}.title" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Intro Text') }}</label>
+                                        <textarea rows="2" wire:model="form.material_craftsmanship.materials.{{ $materialKey }}.intro" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                                    </div>
+
+                                    <div class="mt-3 grid gap-3 md:grid-cols-2">
+                                        <div>
+                                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Expanded Text 1') }}</label>
+                                            <textarea rows="4" wire:model="form.material_craftsmanship.materials.{{ $materialKey }}.body_1" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Expanded Text 2') }}</label>
+                                            <textarea rows="4" wire:model="form.material_craftsmanship.materials.{{ $materialKey }}.body_2" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3 grid gap-3 md:grid-cols-3">
+                                        @for ($bulletIndex = 0; $bulletIndex < 3; $bulletIndex++)
+                                            <div>
+                                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Icon Label') }} {{ $bulletIndex + 1 }}</label>
+                                                <input type="text" wire:model="form.material_craftsmanship.materials.{{ $materialKey }}.bullets.{{ $bulletIndex }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                                            </div>
+                                        @endfor
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @else
+                    <p class="mt-3 text-xs text-slate-500">{{ __('Main markup/content is edited in the Blade Template section below (Ace).') }}</p>
+                @endif
             </div>
 
             <div class="admin-panel admin-form-panel p-6">

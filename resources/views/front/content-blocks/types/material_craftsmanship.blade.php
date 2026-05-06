@@ -1,39 +1,52 @@
 @php
+    $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
+    $materialPayload = data_get($translationPayload, 'material_craftsmanship', []);
+    if (! is_array($materialPayload)) {
+        $materialPayload = [];
+    }
+
+    $materialText = static function (string $path, mixed $fallback = '') use ($materialPayload): string {
+        $value = data_get($materialPayload, $path);
+        $value = is_scalar($value) ? trim((string) $value) : '';
+
+        return $value !== '' ? $value : (string) $fallback;
+    };
+
     $title = trim((string) ($translation?->title ?? '')) !== ''
         ? trim((string) $translation->title)
         : __('ui.front.desktop.material_craftsmanship.default_title');
     $subtitle = trim((string) ($translation?->subtitle ?? ''));
-    $expandLabel = __('ui.front.desktop.material_craftsmanship.expand');
+    $expandLabel = $materialText('expand_label', __('ui.front.desktop.material_craftsmanship.expand'));
 
     $materials = [
         [
             'key' => 'micromodal',
             'tone' => 'dark',
-            'icon' => 'spark',
-            'eyebrow' => __('ui.front.desktop.material_craftsmanship.materials.micromodal.eyebrow'),
-            'title' => __('ui.front.desktop.material_craftsmanship.materials.micromodal.title'),
-            'intro' => __('ui.front.desktop.material_craftsmanship.materials.micromodal.intro'),
-            'body_1' => __('ui.front.desktop.material_craftsmanship.materials.micromodal.body_1'),
-            'body_2' => __('ui.front.desktop.material_craftsmanship.materials.micromodal.body_2'),
+            'icon' => asset('front-theme/images/GIZA_PAMUK.svg'),
+            'eyebrow' => $materialText('materials.micromodal.eyebrow', __('ui.front.desktop.material_craftsmanship.materials.micromodal.eyebrow')),
+            'title' => $materialText('materials.micromodal.title', __('ui.front.desktop.material_craftsmanship.materials.micromodal.title')),
+            'intro' => $materialText('materials.micromodal.intro', __('ui.front.desktop.material_craftsmanship.materials.micromodal.intro')),
+            'body_1' => $materialText('materials.micromodal.body_1', __('ui.front.desktop.material_craftsmanship.materials.micromodal.body_1')),
+            'body_2' => $materialText('materials.micromodal.body_2', __('ui.front.desktop.material_craftsmanship.materials.micromodal.body_2')),
             'bullets' => [
-                ['icon' => 'touch', 'text' => __('ui.front.desktop.material_craftsmanship.materials.micromodal.bullets.0')],
-                ['icon' => 'fit', 'text' => __('ui.front.desktop.material_craftsmanship.materials.micromodal.bullets.1')],
-                ['icon' => 'shield', 'text' => __('ui.front.desktop.material_craftsmanship.materials.micromodal.bullets.2')],
+                ['icon' => asset('front-theme/images/SVILENKASTI_DODIR.svg'), 'text' => $materialText('materials.micromodal.bullets.0', __('ui.front.desktop.material_craftsmanship.materials.micromodal.bullets.0'))],
+                ['icon' => asset('front-theme/images/ELASTICNOST.svg'), 'text' => $materialText('materials.micromodal.bullets.1', __('ui.front.desktop.material_craftsmanship.materials.micromodal.bullets.1'))],
+                ['icon' => asset('front-theme/images/HIPOALERGEN.svg'), 'text' => $materialText('materials.micromodal.bullets.2', __('ui.front.desktop.material_craftsmanship.materials.micromodal.bullets.2'))],
             ],
         ],
         [
             'key' => 'giza',
             'tone' => 'light',
-            'icon' => 'cotton',
-            'eyebrow' => __('ui.front.desktop.material_craftsmanship.materials.giza.eyebrow'),
-            'title' => __('ui.front.desktop.material_craftsmanship.materials.giza.title'),
-            'intro' => __('ui.front.desktop.material_craftsmanship.materials.giza.intro'),
-            'body_1' => __('ui.front.desktop.material_craftsmanship.materials.giza.body_1'),
-            'body_2' => __('ui.front.desktop.material_craftsmanship.materials.giza.body_2'),
+            'icon' => asset('front-theme/images/MIKROMODAL.svg'),
+            'eyebrow' => $materialText('materials.giza.eyebrow', __('ui.front.desktop.material_craftsmanship.materials.giza.eyebrow')),
+            'title' => $materialText('materials.giza.title', __('ui.front.desktop.material_craftsmanship.materials.giza.title')),
+            'intro' => $materialText('materials.giza.intro', __('ui.front.desktop.material_craftsmanship.materials.giza.intro')),
+            'body_1' => $materialText('materials.giza.body_1', __('ui.front.desktop.material_craftsmanship.materials.giza.body_1')),
+            'body_2' => $materialText('materials.giza.body_2', __('ui.front.desktop.material_craftsmanship.materials.giza.body_2')),
             'bullets' => [
-                ['icon' => 'air', 'text' => __('ui.front.desktop.material_craftsmanship.materials.giza.bullets.0')],
-                ['icon' => 'drop', 'text' => __('ui.front.desktop.material_craftsmanship.materials.giza.bullets.1')],
-                ['icon' => 'shield', 'text' => __('ui.front.desktop.material_craftsmanship.materials.giza.bullets.2')],
+                ['icon' => asset('front-theme/images/PROZRACAN.svg'), 'text' => $materialText('materials.giza.bullets.0', __('ui.front.desktop.material_craftsmanship.materials.giza.bullets.0'))],
+                ['icon' => asset('front-theme/images/UPOJNOST.svg'), 'text' => $materialText('materials.giza.bullets.1', __('ui.front.desktop.material_craftsmanship.materials.giza.bullets.1'))],
+                ['icon' => asset('front-theme/images/DUGOTRAJAN.svg'), 'text' => $materialText('materials.giza.bullets.2', __('ui.front.desktop.material_craftsmanship.materials.giza.bullets.2'))],
             ],
         ],
     ];
@@ -82,6 +95,13 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+        }
+
+        #material-comparison-{{ $block->id }} .material-hero-icon-img {
+            display: block;
+            width: 52px;
+            height: 52px;
+            object-fit: contain;
         }
 
         #material-comparison-{{ $block->id }} .material-kicker {
@@ -201,6 +221,13 @@
             justify-content: center;
         }
 
+        #material-comparison-{{ $block->id }} .material-benefit-icon-img {
+            display: block;
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+        }
+
         #material-comparison-{{ $block->id }} .material-benefit-label {
             margin: 0.55rem 0 0;
             color: #0f172a;
@@ -221,6 +248,11 @@
             }
 
             #material-comparison-{{ $block->id }} .material-hero-icon {
+                width: 62px;
+                height: 62px;
+            }
+
+            #material-comparison-{{ $block->id }} .material-hero-icon-img {
                 width: 62px;
                 height: 62px;
             }
@@ -259,8 +291,13 @@
             }
 
             #material-comparison-{{ $block->id }} .material-benefit-icon {
-                width: 50px;
-                height: 50px;
+                width: 58px;
+                height: 58px;
+            }
+
+            #material-comparison-{{ $block->id }} .material-benefit-icon-img {
+                width: 58px;
+                height: 58px;
             }
 
             #material-comparison-{{ $block->id }} .material-benefit-label {
@@ -311,26 +348,7 @@
                 <article class="material-card">
                     <div class="material-top">
                         <span class="material-hero-icon" style="{{ $heroIconStyle }}">
-                            @switch($material['icon'])
-                                @case('spark')
-                                    <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        <path d="M12 3.5v4"></path>
-                                        <path d="M12 16.5v4"></path>
-                                        <path d="M3.5 12h4"></path>
-                                        <path d="M16.5 12h4"></path>
-                                        <path d="m6.2 6.2 2.8 2.8"></path>
-                                        <path d="m15 15 2.8 2.8"></path>
-                                        <path d="m17.8 6.2-2.8 2.8"></path>
-                                        <path d="m9 15-2.8 2.8"></path>
-                                    </svg>
-                                    @break
-                                @default
-                                    <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        <path d="M7.5 10A3.6 3.6 0 0 1 12 6.2 3.6 3.6 0 0 1 16.5 10"></path>
-                                        <path d="M8 10.2c-2 0-3.6 1.6-3.6 3.6S6 17.4 8 17.4h8c2 0 3.6-1.6 3.6-3.6s-1.6-3.6-3.6-3.6"></path>
-                                        <path d="M12 9.4v8"></path>
-                                    </svg>
-                            @endswitch
+                            <img src="{{ $material['icon'] }}" alt="" class="material-hero-icon-img" loading="lazy" decoding="async" aria-hidden="true">
                         </span>
 
                         <div>
@@ -363,43 +381,7 @@
                         @foreach ($material['bullets'] as $bullet)
                             <div class="material-benefit">
                                 <span class="material-benefit-icon" style="{{ $benefitIconStyle }}">
-                                    @switch($bullet['icon'])
-                                        @case('touch')
-                                            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                <path d="M12 4.2c2.7 2.9 4 5 4 7a4 4 0 1 1-8 0c0-2 1.3-4.1 4-7Z"></path>
-                                            </svg>
-                                            @break
-                                        @case('fit')
-                                            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                <path d="M4.5 12h15"></path>
-                                                <path d="m8.2 8.3-3.7 3.7 3.7 3.7"></path>
-                                                <path d="m15.8 8.3 3.7 3.7-3.7 3.7"></path>
-                                            </svg>
-                                            @break
-                                        @case('air')
-                                            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                <path d="M4 9h10.5c1.8 0 3-1 3-2.2 0-1.3-1-2.2-2.2-2.2"></path>
-                                                <path d="M4 14.5h13.5c1.8 0 3 1 3 2.2 0 1.3-1 2.2-2.2 2.2"></path>
-                                            </svg>
-                                            @break
-                                        @case('drop')
-                                            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                <path d="M12 3.5c3.2 4.1 4.6 6.6 4.6 8.8a4.6 4.6 0 1 1-9.2 0c0-2.2 1.4-4.7 4.6-8.8Z"></path>
-                                            </svg>
-                                            @break
-                                        @case('shield')
-                                            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                <path d="M12 3 6 5.5v5.2c0 4 2.5 7.7 6 9.3 3.5-1.6 6-5.3 6-9.3V5.5L12 3Z"></path>
-                                                <path d="m9.7 12.4 1.7 1.8 3.6-3.8"></path>
-                                            </svg>
-                                            @break
-                                        @default
-                                            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                <path d="M7.5 10A3.6 3.6 0 0 1 12 6.2 3.6 3.6 0 0 1 16.5 10"></path>
-                                                <path d="M8 10.2c-2 0-3.6 1.6-3.6 3.6S6 17.4 8 17.4h8c2 0 3.6-1.6 3.6-3.6s-1.6-3.6-3.6-3.6"></path>
-                                                <path d="M12 9.4v8"></path>
-                                            </svg>
-                                    @endswitch
+                                    <img src="{{ $bullet['icon'] }}" alt="" class="material-benefit-icon-img" loading="lazy" decoding="async" aria-hidden="true">
                                 </span>
                                 <p class="material-benefit-label">{{ $bullet['text'] }}</p>
                             </div>

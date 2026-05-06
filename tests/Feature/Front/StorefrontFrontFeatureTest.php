@@ -316,6 +316,77 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('/shop', false);
     }
 
+    public function test_material_and_craftsmanship_block_uses_payload_texts_and_uploaded_icons(): void
+    {
+        $block = ContentBlock::query()->create([
+            'code' => 'home-material-craftsmanship-custom',
+            'name' => 'Home Material & Craftsmanship Custom',
+            'type' => 'material_craftsmanship',
+            'is_active' => true,
+            'payload' => null,
+        ]);
+
+        $block->translations()->create([
+            'locale' => 'hr',
+            'title' => 'Materijali iz admina',
+            'subtitle' => 'Podnaslov iz admina.',
+            'body_html' => null,
+            'cta_label' => null,
+            'cta_url' => null,
+            'payload' => [
+                'material_craftsmanship' => [
+                    'expand_label' => 'Otvori detalje',
+                    'materials' => [
+                        'micromodal' => [
+                            'eyebrow' => 'Admin modal eyebrow',
+                            'title' => 'Admin micromodal',
+                            'intro' => 'Admin micromodal uvod.',
+                            'body_1' => 'Admin micromodal prvi tekst.',
+                            'body_2' => 'Admin micromodal drugi tekst.',
+                            'bullets' => [
+                                'Admin svilenkast dodir',
+                                'Admin elasticnost',
+                                'Admin hipoalergen',
+                            ],
+                        ],
+                        'giza' => [
+                            'eyebrow' => 'Admin giza eyebrow',
+                            'title' => 'Admin Giza',
+                            'intro' => 'Admin giza uvod.',
+                            'body_1' => 'Admin giza prvi tekst.',
+                            'body_2' => 'Admin giza drugi tekst.',
+                            'bullets' => [
+                                'Admin prozracan',
+                                'Admin upojnost',
+                                'Admin dugotrajno',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $block->slots()->create([
+            'placement' => 'home.after_products',
+            'frontend_variant' => 'desktop',
+            'target_type' => null,
+            'target_ref' => null,
+            'sort_order' => 220,
+            'is_active' => true,
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Materijali iz admina')
+            ->assertSee('Otvori detalje')
+            ->assertSee('Admin micromodal')
+            ->assertSee('Admin dugotrajno')
+            ->assertSee('front-theme/images/GIZA_PAMUK.svg', false)
+            ->assertSee('front-theme/images/MIKROMODAL.svg', false)
+            ->assertSee('front-theme/images/SVILENKASTI_DODIR.svg', false)
+            ->assertSee('front-theme/images/DUGOTRAJAN.svg', false);
+    }
+
     public function test_products_carousel_keeps_blank_subtitle_empty(): void
     {
         $this->useEnglishStorefrontLocale();
