@@ -11,7 +11,7 @@
 
     $productName = (string) ($payload['product_name'] ?? ($translation?->title ?? 'Transit Pro Backpack'));
     $price = (string) ($payload['price'] ?? 'EUR 89');
-    $specs = (string) ($payload['specs'] ?? ($translation?->subtitle ?? 'Water-resistant shell, 25L capacity, padded laptop sleeve.'));
+    $specs = trim((string) ($payload['specs'] ?? ($translation?->subtitle ?? '')));
     $allowedRoutes = config('content_blocks.route_whitelist', []);
 
     $resolveRouteUrl = function (?string $routeName, mixed $routeParams, string $fallbackUrl = '#') use ($allowedRoutes): string {
@@ -54,7 +54,9 @@
         <div>
             <p class="text-sm font-semibold uppercase tracking-[0.16em] text-white/85">{{ $badge }}</p>
             <h2 class="mt-3 text-3xl font-extrabold tracking-tight">{{ $productName }}</h2>
-            <p class="mt-4 max-w-xl text-base text-white/90">{{ $specs }}</p>
+            @if ($specs !== '')
+                <p class="mt-4 max-w-xl text-base text-white/90">{{ $specs }}</p>
+            @endif
         </div>
 
         <div class="rounded-2xl border border-white/20 bg-white/10 p-5">
@@ -74,10 +76,12 @@
                     <p class="mt-1 text-sm font-semibold">{{ $price }}</p>
                 </div>
 
-                <div class="col-span-2 rounded-xl bg-white/10 p-3">
-                    <p class="text-xs uppercase tracking-[0.14em] text-white/70">{{ $specsLabel }}</p>
-                    <p class="mt-1 text-sm font-semibold">{{ $specs }}</p>
-                </div>
+                @if ($specs !== '')
+                    <div class="col-span-2 rounded-xl bg-white/10 p-3">
+                        <p class="text-xs uppercase tracking-[0.14em] text-white/70">{{ $specsLabel }}</p>
+                        <p class="mt-1 text-sm font-semibold">{{ $specs }}</p>
+                    </div>
+                @endif
             </div>
 
             <div class="mt-5 flex flex-wrap gap-2">

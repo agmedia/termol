@@ -4,7 +4,7 @@
     $payload = array_merge($basePayload, $translationPayload);
 
     $title = $translation?->title ?: 'Modern essentials';
-    $subtitle = $translation?->subtitle ?: 'Browse category picks and essentials.';
+    $subtitle = trim((string) ($translation?->subtitle ?? ''));
     $ctaLabel = $translation?->cta_label ?: 'Shop';
     $ctaUrl = $translation?->cta_url ?: '#categories';
     $sliderId = 'mobile-hero-slider-'.$block->id;
@@ -31,7 +31,9 @@
                         <div class="card card-style mb-3 {{ $slideClass }}" data-card-height="300">
                             <div class="card-bottom mb-3 ms-3 me-3">
                                 <h1 class="color-white font-800 mb-n2">{{ $categoryName }}</h1>
-                                <p class="color-white font-14 mb-2 opacity-60">{{ $subtitle }}</p>
+                                @if ($subtitle !== '')
+                                    <p class="color-white font-14 mb-2 opacity-60">{{ $subtitle }}</p>
+                                @endif
                                 <a href="{{ $ctaUrl }}" class="btn btn-xxs rounded-xs bg-white color-black font-700 mt-2">
                                     {{ trim($ctaLabel.' '.$categoryName) }}
                                 </a>
@@ -47,7 +49,9 @@
     <div class="card card-style mb-3 bg-19" data-card-height="300">
         <div class="card-bottom mb-3 ms-3 me-3">
             <h1 class="color-white font-800 mb-n2">{{ $title }}</h1>
-            <p class="color-white font-14 mb-2 opacity-60">{{ $subtitle }}</p>
+            @if ($subtitle !== '')
+                <p class="color-white font-14 mb-2 opacity-60">{{ $subtitle }}</p>
+            @endif
             <a href="{{ $ctaUrl }}" class="btn btn-xxs rounded-xs bg-white color-black font-700 mt-2">{{ $ctaLabel }}</a>
         </div>
         <div class="card-overlay bg-black opacity-60"></div>

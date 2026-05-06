@@ -1,6 +1,6 @@
 @php
     $title = $translation?->title ?: 'Modern essentials, built for everyday carry.';
-    $subtitle = $translation?->subtitle ?: 'AGShop combines durable materials, clean silhouettes and practical storage to keep your daily setup lightweight and ready.';
+    $subtitle = trim((string) ($translation?->subtitle ?? ''));
     $primaryCtaLabel = $translation?->cta_label ?: 'Shop featured';
     $primaryCtaUrl = $translation?->cta_url ?: '#featured';
 @endphp

@@ -8,9 +8,7 @@
     $title = trim((string) ($translation?->title ?? '')) !== ''
         ? trim((string) $translation->title)
         : 'Prati nas na Instagramu';
-    $subtitle = trim((string) ($translation?->subtitle ?? '')) !== ''
-        ? trim((string) $translation->subtitle)
-        : '@kozo_bodywear';
+    $subtitle = trim((string) ($translation?->subtitle ?? ''));
     $ctaUrl = trim((string) ($translation?->cta_url ?? ''));
 @endphp
 

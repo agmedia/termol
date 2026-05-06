@@ -316,6 +316,69 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('/shop', false);
     }
 
+    public function test_products_carousel_keeps_blank_subtitle_empty(): void
+    {
+        $this->useEnglishStorefrontLocale();
+
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $image = UploadedFile::fake()->image('carousel-product.jpg', 1200, 1600);
+        $product->addMedia($image->getPathname())
+            ->usingName('carousel-product')
+            ->usingFileName('carousel-product.jpg')
+            ->toMediaCollection('product_main');
+
+        $block = ContentBlock::query()->create([
+            'code' => 'home-products-blank-subtitle',
+            'name' => 'Home Products Blank Subtitle',
+            'type' => 'products_carousel',
+            'is_active' => true,
+            'payload' => null,
+        ]);
+
+        $block->translations()->create([
+            'locale' => 'en',
+            'title' => 'New arrivals',
+            'subtitle' => '',
+            'body_html' => null,
+            'cta_label' => null,
+            'cta_url' => null,
+            'payload' => null,
+        ]);
+
+        $block->translations()->create([
+            'locale' => 'hr',
+            'title' => 'Novo',
+            'subtitle' => 'Fallback subtitle',
+            'body_html' => null,
+            'cta_label' => null,
+            'cta_url' => null,
+            'payload' => null,
+        ]);
+
+        $block->items()->create([
+            'item_type' => 'product',
+            'item_id' => $product->id,
+            'sort_order' => 1,
+        ]);
+
+        $block->slots()->create([
+            'placement' => 'home.after_products',
+            'frontend_variant' => 'desktop',
+            'target_type' => null,
+            'target_ref' => null,
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('New arrivals')
+            ->assertSee('data-products-carousel-splide', false)
+            ->assertDontSee('Fallback subtitle');
+    }
+
     public function test_home_renders_footer_newsletter_validation_hooks(): void
     {
         $this->get('/')

@@ -1063,31 +1063,17 @@ BLADE,
     $displayTitle = trim((string) ($translation?->title ?? ''));
     $displaySubtitle = trim((string) ($translation?->subtitle ?? ''));
 
-    if ($displayTitle === '' || $displaySubtitle === '') {
-        $allTranslations = $block->translations()->get(['locale', 'title', 'subtitle']);
+    if ($displayTitle === '') {
+        $allTranslations = $block->translations()->get(['locale', 'title']);
 
+        $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->title ?? ''));
         if ($displayTitle === '') {
-            $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->title ?? ''));
-            if ($displayTitle === '') {
-                $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->title ?? ''));
-            }
-            if ($displayTitle === '') {
-                $displayTitle = trim((string) ($allTranslations->first(
-                    static fn ($row): bool => trim((string) ($row->title ?? '')) !== ''
-                )?->title ?? ''));
-            }
+            $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->title ?? ''));
         }
-
-        if ($displaySubtitle === '') {
-            $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->subtitle ?? ''));
-            if ($displaySubtitle === '') {
-                $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->subtitle ?? ''));
-            }
-            if ($displaySubtitle === '') {
-                $displaySubtitle = trim((string) ($allTranslations->first(
-                    static fn ($row): bool => trim((string) ($row->subtitle ?? '')) !== ''
-                )?->subtitle ?? ''));
-            }
+        if ($displayTitle === '') {
+            $displayTitle = trim((string) ($allTranslations->first(
+                static fn ($row): bool => trim((string) ($row->title ?? '')) !== ''
+            )?->title ?? ''));
         }
     }
 
@@ -1280,31 +1266,17 @@ BLADE,
     $displaySubtitle = trim((string) ($translation?->subtitle ?? ''));
     $itemsLimit = max(1, (int) ($mergedPayload['items_limit'] ?? 6));
 
-    if ($displayTitle === '' || $displaySubtitle === '') {
-        $allTranslations = $block->translations()->get(['locale', 'title', 'subtitle']);
+    if ($displayTitle === '') {
+        $allTranslations = $block->translations()->get(['locale', 'title']);
 
+        $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->title ?? ''));
         if ($displayTitle === '') {
-            $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->title ?? ''));
-            if ($displayTitle === '') {
-                $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->title ?? ''));
-            }
-            if ($displayTitle === '') {
-                $displayTitle = trim((string) ($allTranslations->first(
-                    static fn ($row): bool => trim((string) ($row->title ?? '')) !== ''
-                )?->title ?? ''));
-            }
+            $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->title ?? ''));
         }
-
-        if ($displaySubtitle === '') {
-            $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->subtitle ?? ''));
-            if ($displaySubtitle === '') {
-                $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->subtitle ?? ''));
-            }
-            if ($displaySubtitle === '') {
-                $displaySubtitle = trim((string) ($allTranslations->first(
-                    static fn ($row): bool => trim((string) ($row->subtitle ?? '')) !== ''
-                )?->subtitle ?? ''));
-            }
+        if ($displayTitle === '') {
+            $displayTitle = trim((string) ($allTranslations->first(
+                static fn ($row): bool => trim((string) ($row->title ?? '')) !== ''
+            )?->title ?? ''));
         }
     }
 
@@ -1558,7 +1530,7 @@ BLADE,
             'desktop_hero_banner' => <<<'BLADE'
 @php
     $title = $translation?->title ?: 'Modern essentials, built for everyday carry.';
-    $subtitle = $translation?->subtitle ?: 'AGShop combines durable materials, clean silhouettes and practical storage to keep your daily setup lightweight and ready.';
+    $subtitle = trim((string) ($translation?->subtitle ?? ''));
     $primaryCtaLabel = $translation?->cta_label ?: 'Shop featured';
     $primaryCtaUrl = $translation?->cta_url ?: '#featured';
 @endphp
@@ -1757,31 +1729,17 @@ BLADE,
     $displayTitle = trim((string) ($translation?->title ?? ''));
     $displaySubtitle = trim((string) ($translation?->subtitle ?? ''));
 
-    if ($displayTitle === '' || $displaySubtitle === '') {
-        $allTranslations = $block->translations()->get(['locale', 'title', 'subtitle']);
+    if ($displayTitle === '') {
+        $allTranslations = $block->translations()->get(['locale', 'title']);
 
+        $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->title ?? ''));
         if ($displayTitle === '') {
-            $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->title ?? ''));
-            if ($displayTitle === '') {
-                $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->title ?? ''));
-            }
-            if ($displayTitle === '') {
-                $displayTitle = trim((string) ($allTranslations->first(
-                    static fn ($row): bool => trim((string) ($row->title ?? '')) !== ''
-                )?->title ?? ''));
-            }
+            $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->title ?? ''));
         }
-
-        if ($displaySubtitle === '') {
-            $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->subtitle ?? ''));
-            if ($displaySubtitle === '') {
-                $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->subtitle ?? ''));
-            }
-            if ($displaySubtitle === '') {
-                $displaySubtitle = trim((string) ($allTranslations->first(
-                    static fn ($row): bool => trim((string) ($row->subtitle ?? '')) !== ''
-                )?->subtitle ?? ''));
-            }
+        if ($displayTitle === '') {
+            $displayTitle = trim((string) ($allTranslations->first(
+                static fn ($row): bool => trim((string) ($row->title ?? '')) !== ''
+            )?->title ?? ''));
         }
     }
 @endphp
@@ -1995,7 +1953,7 @@ BLADE,
     $payload = array_merge($basePayload, $translationPayload);
 
     $title = $translation?->title ?: 'Modern essentials';
-    $subtitle = $translation?->subtitle ?: 'Browse category picks and essentials.';
+    $subtitle = trim((string) ($translation?->subtitle ?? ''));
     $ctaLabel = $translation?->cta_label ?: 'Shop';
     $ctaUrl = $translation?->cta_url ?: '#categories';
     $sliderId = 'mobile-hero-slider-'.$block->id;
@@ -2022,7 +1980,9 @@ BLADE,
                         <div class="card card-style mb-3 {{ $slideClass }}" data-card-height="300">
                             <div class="card-bottom mb-3 ms-3 me-3">
                                 <h1 class="color-white font-800 mb-n2">{{ $categoryName }}</h1>
-                                <p class="color-white font-14 mb-2 opacity-60">{{ $subtitle }}</p>
+                                @if ($subtitle !== '')
+                                    <p class="color-white font-14 mb-2 opacity-60">{{ $subtitle }}</p>
+                                @endif
                                 <a href="{{ $ctaUrl }}" class="btn btn-xxs rounded-xs bg-white color-black font-700 mt-2">
                                     {{ trim($ctaLabel.' '.$categoryName) }}
                                 </a>
@@ -2038,7 +1998,9 @@ BLADE,
     <div class="card card-style mb-3 bg-19" data-card-height="300">
         <div class="card-bottom mb-3 ms-3 me-3">
             <h1 class="color-white font-800 mb-n2">{{ $title }}</h1>
-            <p class="color-white font-14 mb-2 opacity-60">{{ $subtitle }}</p>
+            @if ($subtitle !== '')
+                <p class="color-white font-14 mb-2 opacity-60">{{ $subtitle }}</p>
+            @endif
             <a href="{{ $ctaUrl }}" class="btn btn-xxs rounded-xs bg-white color-black font-700 mt-2">{{ $ctaLabel }}</a>
         </div>
         <div class="card-overlay bg-black opacity-60"></div>

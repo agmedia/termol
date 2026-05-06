@@ -1,6 +1,6 @@
 @php
     $sectionTitle = $translation?->title ?: 'Shop by category';
-    $sectionSubtitle = $translation?->subtitle ?: 'Locker-like layout rhythm with a cleaner ecommerce direction for AGShop.';
+    $sectionSubtitle = trim((string) ($translation?->subtitle ?? ''));
     $itemCtaLabel = $translation?->cta_label ?: 'Explore collection';
 @endphp
 

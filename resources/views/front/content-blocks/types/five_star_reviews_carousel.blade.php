@@ -9,31 +9,17 @@
     $displaySubtitle = trim((string) ($translation?->subtitle ?? ''));
     $itemsLimit = max(1, (int) ($mergedPayload['items_limit'] ?? 6));
 
-    if ($displayTitle === '' || $displaySubtitle === '') {
-        $allTranslations = $block->translations()->get(['locale', 'title', 'subtitle']);
+    if ($displayTitle === '') {
+        $allTranslations = $block->translations()->get(['locale', 'title']);
 
+        $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->title ?? ''));
         if ($displayTitle === '') {
-            $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->title ?? ''));
-            if ($displayTitle === '') {
-                $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->title ?? ''));
-            }
-            if ($displayTitle === '') {
-                $displayTitle = trim((string) ($allTranslations->first(
-                    static fn ($row): bool => trim((string) ($row->title ?? '')) !== ''
-                )?->title ?? ''));
-            }
+            $displayTitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->title ?? ''));
         }
-
-        if ($displaySubtitle === '') {
-            $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $locale)?->subtitle ?? ''));
-            if ($displaySubtitle === '') {
-                $displaySubtitle = trim((string) ($allTranslations->firstWhere('locale', $fallbackLocale)?->subtitle ?? ''));
-            }
-            if ($displaySubtitle === '') {
-                $displaySubtitle = trim((string) ($allTranslations->first(
-                    static fn ($row): bool => trim((string) ($row->subtitle ?? '')) !== ''
-                )?->subtitle ?? ''));
-            }
+        if ($displayTitle === '') {
+            $displayTitle = trim((string) ($allTranslations->first(
+                static fn ($row): bool => trim((string) ($row->title ?? '')) !== ''
+            )?->title ?? ''));
         }
     }
 

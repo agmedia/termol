@@ -2,9 +2,7 @@
     $title = trim((string) ($translation?->title ?? '')) !== ''
         ? trim((string) $translation->title)
         : __('ui.front.desktop.material_craftsmanship.default_title');
-    $subtitle = trim((string) ($translation?->subtitle ?? '')) !== ''
-        ? trim((string) $translation->subtitle)
-        : __('ui.front.desktop.material_craftsmanship.default_subtitle');
+    $subtitle = trim((string) ($translation?->subtitle ?? ''));
     $expandLabel = __('ui.front.desktop.material_craftsmanship.expand');
 
     $materials = [
