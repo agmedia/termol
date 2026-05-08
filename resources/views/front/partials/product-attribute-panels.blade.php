@@ -89,16 +89,10 @@
                             <span class="shrink-0 text-slate-600" aria-hidden="true">
                                 @switch($panel['group_code'])
                                     @case('sastav')
-                                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7">
-                                            <path d="M7 16c0-5 3-8 10-9 0 7-3 10-8 10-1.5 0-3-.3-4-.8"></path>
-                                            <path d="M8 17c0-2.5 1.4-5.1 4.2-7.8"></path>
-                                        </svg>
+                                        <img src="{{ asset('assets/payments/MATERIJAL.svg') }}" alt="" class="h-5 w-5 object-contain" loading="lazy" decoding="async">
                                         @break
                                     @case('kvaliteta')
-                                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7">
-                                            <path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.8 7.2 18l.9-5.4L4.2 8.7l5.4-.8L12 3Z"></path>
-                                            <path d="m10.4 12.2 1.2 1.2 2.4-3"></path>
-                                        </svg>
+                                        <img src="{{ asset('assets/payments/KVALITETA.svg') }}" alt="" class="h-5 w-5 object-contain" loading="lazy" decoding="async">
                                         @break
                                     @default
                                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7">
