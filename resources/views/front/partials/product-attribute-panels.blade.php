@@ -89,10 +89,10 @@
                             <span class="shrink-0 text-slate-600" aria-hidden="true">
                                 @switch($panel['group_code'])
                                     @case('sastav')
-                                        <img src="{{ asset('assets/payments/MATERIJAL.svg') }}" alt="" class="h-5 w-5 object-contain" loading="lazy" decoding="async">
+                                        <img src="{{ asset('assets/payments/MATERIJAL.svg') }}" alt="" class="h-10 w-10 object-contain" loading="lazy" decoding="async">
                                         @break
                                     @case('kvaliteta')
-                                        <img src="{{ asset('assets/payments/KVALITETA.svg') }}" alt="" class="h-5 w-5 object-contain" loading="lazy" decoding="async">
+                                        <img src="{{ asset('assets/payments/KVALITETA.svg') }}" alt="" class="h-10 w-10 object-contain" loading="lazy" decoding="async">
                                         @break
                                     @default
                                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7">
