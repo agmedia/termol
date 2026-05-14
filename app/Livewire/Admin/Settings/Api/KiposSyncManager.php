@@ -85,6 +85,30 @@ class KiposSyncManager extends Component
         $queuedRun = null;
 
         try {
+            if ($this->runsImmediately($actionKey)) {
+                @set_time_limit(0);
+
+                $activeRun = $syncService->activeRun($actionKey);
+                if ($activeRun) {
+                    $this->lastRunId = $activeRun->id;
+
+                    if ($activeRun->status === 'queued') {
+                        $run = $syncService->executeQueuedRun($activeRun);
+                        $this->lastRunId = $run->id;
+                        $this->dispatch('notify', type: 'success', message: __('Kipos sync action finished. Review the exact stats below.'));
+                        return;
+                    }
+
+                    $this->dispatch('notify', type: 'info', message: __('This Kipos sync action is already queued or running. Watch the run log below.'));
+                    return;
+                }
+
+                $run = $syncService->run($actionKey, auth()->id());
+                $this->lastRunId = $run->id;
+                $this->dispatch('notify', type: 'success', message: __('Kipos sync action finished. Review the exact stats below.'));
+                return;
+            }
+
             $queuedRun = $syncService->queue($actionKey, auth()->id());
             $this->lastRunId = $queuedRun->id;
 
@@ -110,6 +134,11 @@ class KiposSyncManager extends Component
             $this->runningActionKey = '';
             $this->resetPage(pageName: self::RUNS_PAGE_NAME);
         }
+    }
+
+    private function runsImmediately(string $actionKey): bool
+    {
+        return in_array($actionKey, ['update_prices'], true);
     }
 
     public function render(KiposSyncService $syncService)

@@ -396,6 +396,9 @@ class KiposSyncService
         $updatedProducts = 0;
         $updatedVariants = 0;
         $unmatched = 0;
+        $now = now();
+        $productUpdates = [];
+        $variantUpdates = [];
 
         foreach ($groups as $groupCode => $rows) {
             $product = $products->get($groupCode);
@@ -407,15 +410,18 @@ class KiposSyncService
             $basePrice = $this->groupBasePrice($rows);
             $payload = (array) ($product->payload ?? []);
             $payload['kipos'] = array_merge((array) ($payload['kipos'] ?? []), [
-                'price_synced_at' => now()->toIso8601String(),
+                'price_synced_at' => $now->toIso8601String(),
                 'lowest_30_days_price' => $this->lowest30DaysPrice($rows),
             ]);
 
-            $product->forceFill([
+            $productUpdates[] = [
+                'id' => $product->id,
+                'code' => $product->code,
                 'base_price' => $basePrice,
-                'payload' => $payload,
+                'payload' => $this->encodeJsonColumn($payload),
                 'updated_by' => $this->currentUserId(),
-            ])->save();
+                'updated_at' => $now,
+            ];
 
             $updatedProducts++;
 
@@ -429,13 +435,34 @@ class KiposSyncService
                     continue;
                 }
 
-                $variant->forceFill([
-                    'price_override' => max(0.0, round($this->rowPrice($row) - $basePrice, 2)),
+                $variantUpdates[] = [
+                    'id' => $variant->id,
+                    'product_id' => $variant->product_id,
+                    'option_value_id' => $variant->option_value_id,
+                    'combination_hash' => $variant->combination_hash,
+                    'price_override' => max(0.0, $this->rowPrice($row)),
                     'updated_by' => $this->currentUserId(),
-                ])->save();
+                    'updated_at' => $now,
+                ];
 
                 $updatedVariants++;
             }
+        }
+
+        foreach (array_chunk($productUpdates, 500) as $chunk) {
+            DB::table('products')->upsert(
+                $chunk,
+                ['id'],
+                ['base_price', 'payload', 'updated_by', 'updated_at']
+            );
+        }
+
+        foreach (array_chunk($variantUpdates, 1000) as $chunk) {
+            DB::table('catalog_product_option_values')->upsert(
+                $chunk,
+                ['id'],
+                ['price_override', 'updated_by', 'updated_at']
+            );
         }
 
         return [
@@ -802,7 +829,6 @@ class KiposSyncService
             ]
         );
 
-        $groupBasePrice = $this->groupBasePrice($rows);
         $existingRows = ProductOptionValue::query()
             ->where('product_id', $product->id)
             ->get()
@@ -878,7 +904,7 @@ class KiposSyncService
             ];
 
             if ($applyPricing) {
-                $fill['price_override'] = max(0.0, round($this->rowPrice($row) - $groupBasePrice, 2));
+                $fill['price_override'] = max(0.0, $this->rowPrice($row));
             }
 
             if ($applyQuantities) {
@@ -1713,7 +1739,14 @@ class KiposSyncService
                 return (float) $value;
             }
 
-            $normalized = str_replace(',', '.', trim((string) $value));
+            $normalized = trim((string) $value);
+            $normalized = str_replace([' ', "\xc2\xa0"], '', $normalized);
+
+            if (str_contains($normalized, ',') && str_contains($normalized, '.')) {
+                $normalized = str_replace('.', '', $normalized);
+            }
+
+            $normalized = str_replace(',', '.', $normalized);
             if (is_numeric($normalized)) {
                 return (float) $normalized;
             }
@@ -1751,6 +1784,14 @@ class KiposSyncService
         $userId = $this->runInitiatedBy ?? auth()->id();
 
         return $userId ? (int) $userId : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $value
+     */
+    private function encodeJsonColumn(array $value): string
+    {
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     }
 
     /**
