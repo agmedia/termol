@@ -6,7 +6,7 @@
     <div class="relative {{ $flat ? 'overflow-hidden' : '-mt-5 overflow-hidden rounded-t-2xl' }}">
         <a href="{{ $productUrl }}" class="group block">
             @if ($imageUrl)
-                <div class="relative aspect-[2/3] overflow-hidden bg-slate-50 {{ $flat ? '' : 'rounded-xl' }}">
+                <div class="relative overflow-hidden bg-slate-50 {{ $flat ? '' : 'rounded-xl' }}" data-product-card-image-frame>
                     <img
                         src="{{ $imageUrl }}"
                         @if (!empty($imageSrcset)) srcset="{{ $imageSrcset }}" @endif
@@ -242,6 +242,11 @@
                 border-color: #ffffff;
                 background: #ffffff;
                 color: #0f172a;
+            }
+
+            [data-product-card-image-frame] {
+                aspect-ratio: 2 / 3;
+                width: 100%;
             }
         </style>
     @endpush
