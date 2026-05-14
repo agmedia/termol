@@ -666,6 +666,34 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertDontSee($linenName);
     }
 
+    public function test_product_cards_render_material_attribute_between_name_and_price(): void
+    {
+        $this->useEnglishStorefrontLocale();
+
+        [$category] = $this->seedCategory();
+        [$product, $productSlug] = $this->seedProduct($category->id);
+        $material = '95% Micromodal, 5% Elastane';
+
+        $this->attachProductAttribute($product, 'material', 'Material', $material, 1);
+
+        $response = $this->get('/shop')
+            ->assertOk()
+            ->assertSee($material);
+
+        $html = $response->getContent();
+        $this->assertIsString($html);
+
+        $namePosition = strpos($html, 'Product '.$productSlug);
+        $materialPosition = strpos($html, $material);
+        $pricePosition = strpos($html, '49.99 €');
+
+        $this->assertNotFalse($namePosition);
+        $this->assertNotFalse($materialPosition);
+        $this->assertNotFalse($pricePosition);
+        $this->assertLessThan($materialPosition, $namePosition);
+        $this->assertLessThan($pricePosition, $materialPosition);
+    }
+
     public function test_mobile_home_renders_instagram_curated_grid_assets_and_slider_init(): void
     {
         $block = ContentBlock::query()->create([

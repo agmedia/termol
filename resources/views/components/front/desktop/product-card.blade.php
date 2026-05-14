@@ -156,6 +156,9 @@
                     <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-[15px]">{{ $productName }}</h3>
                 </a>
             </div>
+            @if ($materialLabel !== '')
+                <p class="mt-1 pr-12 text-[11px] leading-tight text-slate-500 sm:text-[12px]">{{ $materialLabel }}</p>
+            @endif
             @if ($isPurchasable)
                 <button
                     type="button"
@@ -200,6 +203,9 @@
         <a href="{{ $productUrl }}" class="{{ (int) ($reviewSummary['count'] ?? 0) > 0 ? 'mt-2 block' : 'mt-4 block' }}">
             <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-[15px]">{{ $productName }}</h3>
         </a>
+        @if ($materialLabel !== '')
+            <p class="mt-1 text-[11px] leading-tight text-slate-500 sm:text-[12px]">{{ $materialLabel }}</p>
+        @endif
         <div class="mt-2 flex items-end justify-between">
             <div class="flex flex-col gap-1">
                 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">

@@ -13,6 +13,7 @@
             ?? $product->categories?->first()?->translations?->firstWhere('locale', $fallbackLocale ?? config('app.locale'));
     }
     $displayPrice = app(\App\Services\Pricing\TaxPricingService::class)->grossFromStored((float) $product->base_price, $product);
+    $materialLabel = \App\Support\ProductMaterialLabel::resolve($product, $locale ?? app()->getLocale(), $fallbackLocale ?? config('app.locale'));
 @endphp
 
 <div class="card card-style mb-2">
@@ -33,6 +34,9 @@
                     <h5 class="font-600 mb-1">{{ $translation?->name ?? $product->code }}</h5>
                     <p class="font-12 opacity-70 mb-2">{{ $translation?->excerpt ?: 'Catalog ready item.' }}</p>
                 </a>
+                @if ($materialLabel !== '')
+                    <p class="font-12 opacity-60 mb-2">{{ $materialLabel }}</p>
+                @endif
                 <h4 class="font-700 mb-0">{{ number_format($displayPrice, 2) }} €</h4>
                 <p class="font-11 opacity-50 mb-0">Stock {{ (int) $product->stock_qty }}</p>
             </div>

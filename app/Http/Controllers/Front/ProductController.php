@@ -13,6 +13,7 @@ use App\Models\User\UserProfile;
 use App\Services\Content\ContentBlockResolver;
 use App\Services\Front\WishlistService;
 use App\Services\Pricing\ProductPricePresentationService;
+use App\Support\ProductMaterialLabel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Http\Request;
@@ -110,7 +111,7 @@ class ProductController extends Controller
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'attributes' => fn ($q) => $q
                     ->where('catalog_attributes.is_active', true)
-                    ->whereIn('catalog_attributes.group_code', ['sastav', 'kvaliteta', 'garancija'])
+                    ->whereIn('catalog_attributes.group_code', ['material', 'materijal', 'sastav', 'kvaliteta', 'garancija'])
                     ->orderBy('catalog_attribute_product.sort_order')
                     ->orderBy('catalog_attributes.sort_order')
                     ->orderBy('catalog_attributes.id')
@@ -166,6 +167,7 @@ class ProductController extends Controller
                 'translations' => fn ($q) => $q
                     ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt'])
                     ->whereIn('locale', [$locale, $fallbackLocale]),
+                'attributes' => ProductMaterialLabel::eagerLoadAttributes($locale, $fallbackLocale),
                 'optionValues' => fn ($q) => $q
                     ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'stock_qty', 'is_active', 'sort_order'])
                     ->where('is_active', true)

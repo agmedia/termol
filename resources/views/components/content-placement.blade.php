@@ -34,6 +34,7 @@
                 ->whereIn('id', $productIds)
                 ->with([
                     'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                    'attributes' => \App\Support\ProductMaterialLabel::eagerLoadAttributes($locale, $fallbackLocale),
                     'media' => fn ($q) => $q->whereIn('collection_name', ['product_main', 'product_gallery']),
                 ])
                 ->get()

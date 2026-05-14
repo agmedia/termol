@@ -11,6 +11,7 @@ use App\Services\Content\ContentBlockResolver;
 use App\Services\Pricing\ProductPricePresentationService;
 use App\Services\Settings\SystemSettingsService;
 use App\Support\Media\MediaUrl;
+use App\Support\ProductMaterialLabel;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -116,6 +117,7 @@ class BlogController extends Controller
                     'optionValues.parentOptionValue.translations',
                     'manufacturer.translations',
                     'categories.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                    'attributes' => ProductMaterialLabel::eagerLoadAttributes($locale, $fallbackLocale),
                 ])
                 ->get()
                 ->sortBy(fn ($row) => array_search((int) $row->id, $relatedProductIds, true))

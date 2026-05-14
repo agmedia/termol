@@ -8,6 +8,7 @@ use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
 use App\Services\Settings\SystemSettingsService;
+use App\Support\ProductMaterialLabel;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -63,7 +64,10 @@ class ManufacturerController extends Controller
         $products = $manufacturer->products()
             ->withApprovedCommentSummary([$locale, $fallbackLocale])
             ->where('is_active', true)
-            ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+            ->with([
+                'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'attributes' => ProductMaterialLabel::eagerLoadAttributes($locale, $fallbackLocale),
+            ])
             ->orderByDesc('products.id')
             ->paginate($this->productPerPage($request))
             ->withQueryString();

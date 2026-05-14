@@ -7,6 +7,7 @@ use App\Services\Front\WishlistService;
 use App\Services\Pricing\ProductPricePresentationService;
 use App\Services\Settings\SystemSettingsService;
 use App\Support\Media\MediaUrl;
+use App\Support\ProductMaterialLabel;
 use Illuminate\View\Component;
 use Illuminate\View\View;
 
@@ -157,6 +158,7 @@ class ProductCard extends Component
             'productId' => (int) $this->product->id,
             'productUrl' => route('products.show', ['slug' => $translation?->slug ?? $this->product->id]),
             'productName' => $translation?->name ?? $this->product->code,
+            'materialLabel' => ProductMaterialLabel::resolve($this->product, $locale, $fallbackLocale),
             'productSku' => (string) ($this->product->sku ?: $this->product->id),
             'productPriceValue' => round((float) ($priceData['current_gross'] ?? 0), 2),
             'productBrand' => $manufacturerName,

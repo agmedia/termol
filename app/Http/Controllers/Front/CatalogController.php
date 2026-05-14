@@ -18,6 +18,7 @@ use App\Services\Front\WishlistService;
 use App\Services\Pricing\ProductPricePresentationService;
 use App\Services\Settings\SystemSettingsService;
 use App\Support\Media\MediaUrl;
+use App\Support\ProductMaterialLabel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\JsonResponse;
@@ -170,6 +171,7 @@ class CatalogController extends Controller
                     ->whereIn('locale', [$locale, $fallbackLocale]),
                 'categories.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'attributes' => ProductMaterialLabel::eagerLoadAttributes($locale, $fallbackLocale),
                 'media' => fn ($q) => $q
                     ->whereIn('collection_name', ['product_main', 'product_gallery'])
                     ->orderBy('order_column')
@@ -465,6 +467,7 @@ class CatalogController extends Controller
                         ->where('scope', Category::SCOPE_CATALOG)
                         ->whereIn('locale', [$locale, $fallbackLocale]),
                     'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                    'attributes' => ProductMaterialLabel::eagerLoadAttributes($locale, $fallbackLocale),
                     'media' => fn ($q) => $q
                         ->whereIn('collection_name', ['product_main', 'product_gallery'])
                         ->orderBy('order_column')

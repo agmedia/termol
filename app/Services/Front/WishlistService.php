@@ -4,6 +4,7 @@ namespace App\Services\Front;
 
 use App\Models\Catalog\Product\Product;
 use App\Models\User\WishlistItem;
+use App\Support\ProductMaterialLabel;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
@@ -169,6 +170,7 @@ class WishlistService
             ->with([
                 'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'attributes' => ProductMaterialLabel::eagerLoadAttributes($locale, $fallbackLocale),
                 'media' => fn ($q) => $q
                     ->whereIn('collection_name', ['product_main', 'product_gallery'])
                     ->orderBy('order_column')
