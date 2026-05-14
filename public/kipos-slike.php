@@ -353,6 +353,7 @@ function kipos_image_rows_for_screen(array $productGroups, array $imageGroups, s
     $seen = [];
 
     foreach ($productGroups as $groupCode => $productGroup) {
+        $groupCode = (string) $groupCode;
         $images = $imageGroups[$groupCode] ?? [];
         if ($onlyWithImages && $images === []) {
             continue;
@@ -373,6 +374,7 @@ function kipos_image_rows_for_screen(array $productGroups, array $imageGroups, s
     }
 
     foreach ($imageGroups as $groupCode => $images) {
+        $groupCode = (string) $groupCode;
         if (isset($seen[$groupCode])) {
             continue;
         }
