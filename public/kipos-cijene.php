@@ -8,9 +8,9 @@ use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 
 @set_time_limit(0);
 
-require __DIR__.'/vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
-$app = require __DIR__.'/bootstrap/app.php';
+$app = require __DIR__.'/../bootstrap/app.php';
 $app->make(ConsoleKernel::class)->bootstrap();
 
 /**
