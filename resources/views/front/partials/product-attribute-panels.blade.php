@@ -42,6 +42,45 @@
         })
         ->filter()
         ->values();
+
+    $materialFeatureIconSets = [
+        'giza_pamuk' => [
+            ['label' => 'Prozračan', 'icon' => 'PROZRACAN.svg'],
+            ['label' => 'Elastičan', 'icon' => 'ELASTICNOST.svg'],
+            ['label' => 'Upijajući', 'icon' => 'UPOJNOST.svg'],
+        ],
+        'modal_pamuk' => [
+            ['label' => 'Svilenkast', 'icon' => 'SVILENKASTI_DODIR.svg'],
+            ['label' => 'Elastičan', 'icon' => 'ELASTICNOST.svg'],
+            ['label' => 'Prozračan', 'icon' => 'PROZRACAN.svg'],
+        ],
+        'mikromodal' => [
+            ['label' => 'Svilenkast', 'icon' => 'SVILENKASTI_DODIR.svg'],
+            ['label' => 'Hipoalergen', 'icon' => 'HIPOALERGEN.svg'],
+            ['label' => 'Prozračan', 'icon' => 'PROZRACAN.svg'],
+        ],
+    ];
+
+    $materialFeatureIcons = [];
+    $materialPanel = $attributePanels->firstWhere('group_code', 'sastav');
+
+    if ($materialPanel) {
+        $materialText = collect($materialPanel['items'])->pluck('name')->implode(' ');
+        $materialText = strtolower(\Illuminate\Support\Str::ascii($materialText));
+        $materialText = preg_replace('/\s+/', ' ', $materialText) ?? $materialText;
+        $isMikromodal = str_contains($materialText, 'mikromodal')
+            || str_contains($materialText, 'mikro modal')
+            || str_contains($materialText, 'micromodal')
+            || str_contains($materialText, 'micro modal');
+
+        if ($isMikromodal) {
+            $materialFeatureIcons = $materialFeatureIconSets['mikromodal'];
+        } elseif (str_contains($materialText, 'giza') && str_contains($materialText, 'pamuk')) {
+            $materialFeatureIcons = $materialFeatureIconSets['giza_pamuk'];
+        } elseif (str_contains($materialText, 'modal') && str_contains($materialText, 'pamuk')) {
+            $materialFeatureIcons = $materialFeatureIconSets['modal_pamuk'];
+        }
+    }
 @endphp
 
 @if ($attributePanels->isNotEmpty())
@@ -123,6 +162,21 @@
                                     </li>
                                 @endforeach
                             </ul>
+                        @endif
+
+                        @if ($panel['group_code'] === 'sastav' && count($materialFeatureIcons) > 0)
+                            <div class="mt-4 flex flex-wrap items-center gap-3" aria-label="Karakteristike materijala">
+                                @foreach ($materialFeatureIcons as $featureIcon)
+                                    <img
+                                        src="{{ asset('assets/payments/'.$featureIcon['icon']) }}"
+                                        alt="{{ $featureIcon['label'] }}"
+                                        title="{{ $featureIcon['label'] }}"
+                                        class="h-10 w-10 object-contain"
+                                        loading="lazy"
+                                        decoding="async"
+                                    >
+                                @endforeach
+                            </div>
                         @endif
                     </div>
                 </details>
