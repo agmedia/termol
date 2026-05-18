@@ -14,9 +14,29 @@ class StoreSettingsFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_admin_can_open_store_settings_page(): void
+    {
+        $admin = $this->makeUserWithRole('admin');
+
+        $this->actingAs($admin)
+            ->get('/admin/settings/system/store-settings')
+            ->assertOk()
+            ->assertSee(__('Store Settings'))
+            ->assertSee(route('admin.settings.system.store-settings'));
+    }
+
+    public function test_editor_cannot_open_store_settings_page(): void
+    {
+        $editor = $this->makeUserWithRole('editor');
+
+        $this->actingAs($editor)
+            ->get('/admin/settings/system/store-settings')
+            ->assertForbidden();
+    }
+
     public function test_products_tab_can_save_even_when_newsletter_tab_is_invalid(): void
     {
-        $admin = $this->makeUserWithRole('superadmin');
+        $admin = $this->makeUserWithRole('admin');
 
         app(SystemSettingsService::class)->putMany([
             'store_newsletter_provider' => 'mailchimp',
