@@ -46,6 +46,9 @@ class StoreSettingsService
             'text' => (string) $this->settings->get('store_announcement_text', __('ui.front.desktop.promo_bar')),
             'url' => trim((string) $this->settings->get('store_announcement_url', '')),
             'new_tab' => (bool) $this->settings->get('store_announcement_new_tab', false),
+            'scroll_enabled' => (bool) $this->settings->get('store_announcement_scroll_enabled', false),
+            'background_color' => $this->hexColor($this->settings->get('store_announcement_background_color', '#000000'), '#000000'),
+            'text_color' => $this->hexColor($this->settings->get('store_announcement_text_color', '#ffffff'), '#ffffff'),
         ];
     }
 
@@ -537,5 +540,12 @@ class StoreSettingsService
         }
 
         return $result;
+    }
+
+    private function hexColor(mixed $value, string $fallback): string
+    {
+        $value = trim((string) $value);
+
+        return preg_match('/^#[0-9A-Fa-f]{6}$/', $value) === 1 ? strtolower($value) : $fallback;
     }
 }

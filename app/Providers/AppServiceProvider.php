@@ -140,6 +140,9 @@ class AppServiceProvider extends ServiceProvider
                             'text' => (string) __('ui.front.desktop.promo_bar'),
                             'url' => '',
                             'new_tab' => false,
+                            'scroll_enabled' => false,
+                            'background_color' => '#000000',
+                            'text_color' => '#ffffff',
                         ],
                         'images' => [
                             'use_webp' => false,

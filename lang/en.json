@@ -29,7 +29,10 @@
     "OG / Twitter": "OG / Twitter",
     "Schema Markup": "Schema Markup",
     "Announcement bar": "Announcement bar",
+    "Background color": "Background color",
     "Central place for storefront email, branding, newsletter, and announcement bar settings.": "Central place for storefront email, branding, newsletter, and announcement bar settings.",
     "Choose if stored catalog prices are entered with VAT included or VAT excluded.": "Choose if stored catalog prices are entered with VAT included or VAT excluded.",
-    "Product prices include VAT": "Product prices include VAT"
+    "Product prices include VAT": "Product prices include VAT",
+    "Scroll text from right to left": "Scroll text from right to left",
+    "Text color": "Text color"
 }

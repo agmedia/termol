@@ -69,6 +69,28 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertNotNull($page);
     }
 
+    public function test_desktop_announcement_bar_uses_saved_scroll_and_color_settings(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'store_announcement_enabled' => true,
+            'store_announcement_text' => 'Spring promo',
+            'store_announcement_scroll_enabled' => true,
+            'store_announcement_background_color' => '#123456',
+            'store_announcement_text_color' => '#abcdef',
+        ]);
+
+        $this
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            ])
+            ->get('/')
+            ->assertOk()
+            ->assertSee('Spring promo')
+            ->assertSee('store-announcement-bar is-scrolling', false)
+            ->assertSee('style="background-color: #123456; color: #abcdef;"', false)
+            ->assertSee('@keyframes store-announcement-marquee', false);
+    }
+
     public function test_contact_form_stores_message(): void
     {
         $this->post('/contact', [

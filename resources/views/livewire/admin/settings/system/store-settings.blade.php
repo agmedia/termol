@@ -676,6 +676,20 @@
                         <input type="checkbox" wire:model="form.store_announcement_new_tab" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
                         {{ __('Open link in new tab') }}
                     </label>
+                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 md:col-span-2">
+                        <input type="checkbox" wire:model="form.store_announcement_scroll_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                        {{ __('Scroll text from right to left') }}
+                    </label>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Background color') }}</label>
+                        <input type="color" wire:model="form.store_announcement_background_color" class="h-10 w-20 cursor-pointer rounded-xl border border-slate-300 bg-white p-1" />
+                        @error('form.store_announcement_background_color') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Text color') }}</label>
+                        <input type="color" wire:model="form.store_announcement_text_color" class="h-10 w-20 cursor-pointer rounded-xl border border-slate-300 bg-white p-1" />
+                        @error('form.store_announcement_text_color') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
                 </div>
             @endif
 

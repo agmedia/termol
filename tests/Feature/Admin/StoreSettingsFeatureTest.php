@@ -89,6 +89,31 @@ class StoreSettingsFeatureTest extends TestCase
             ]);
     }
 
+    public function test_announcement_tab_saves_scroll_and_color_settings(): void
+    {
+        $admin = $this->makeUserWithRole('admin');
+
+        Livewire::actingAs($admin)
+            ->test(StoreSettings::class)
+            ->set('tab', 'announcement')
+            ->set('form.store_announcement_enabled', true)
+            ->set('form.store_announcement_text', 'Promo')
+            ->set('form.store_announcement_url', 'https://example.com/promo')
+            ->set('form.store_announcement_new_tab', true)
+            ->set('form.store_announcement_scroll_enabled', true)
+            ->set('form.store_announcement_background_color', '#0ea5e9')
+            ->set('form.store_announcement_text_color', '#ffffff')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertDispatched('notify');
+
+        $settings = app(SystemSettingsService::class);
+
+        $this->assertTrue((bool) $settings->get('store_announcement_scroll_enabled'));
+        $this->assertSame('#0ea5e9', $settings->get('store_announcement_background_color'));
+        $this->assertSame('#ffffff', $settings->get('store_announcement_text_color'));
+    }
+
     private function makeUserWithRole(string $role): User
     {
         $user = User::factory()->create();
