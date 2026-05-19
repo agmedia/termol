@@ -101,6 +101,7 @@ class StoreSettingsFeatureTest extends TestCase
             ->set('form.store_announcement_url', 'https://example.com/promo')
             ->set('form.store_announcement_new_tab', true)
             ->set('form.store_announcement_scroll_enabled', true)
+            ->set('form.store_announcement_scroll_duration_seconds', 24)
             ->set('form.store_announcement_background_color', '#0ea5e9')
             ->set('form.store_announcement_text_color', '#ffffff')
             ->call('save')
@@ -110,6 +111,7 @@ class StoreSettingsFeatureTest extends TestCase
         $settings = app(SystemSettingsService::class);
 
         $this->assertTrue((bool) $settings->get('store_announcement_scroll_enabled'));
+        $this->assertSame(24, (int) $settings->get('store_announcement_scroll_duration_seconds'));
         $this->assertSame('#0ea5e9', $settings->get('store_announcement_background_color'));
         $this->assertSame('#ffffff', $settings->get('store_announcement_text_color'));
     }

@@ -141,6 +141,7 @@ class AppServiceProvider extends ServiceProvider
                             'url' => '',
                             'new_tab' => false,
                             'scroll_enabled' => false,
+                            'scroll_duration_seconds' => 18,
                             'background_color' => '#000000',
                             'text_color' => '#ffffff',
                         ],

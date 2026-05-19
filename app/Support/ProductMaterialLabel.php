@@ -50,7 +50,7 @@ class ProductMaterialLabel
             ]);
         }
 
-        return $product->attributes
+        $labels = $product->attributes
             ->filter(static fn (Attribute $attribute): bool => (bool) $attribute->is_active
                 && in_array((string) $attribute->group_code, self::groupCodes(), true))
             ->sortBy(static fn (Attribute $attribute): string => sprintf(
@@ -67,7 +67,92 @@ class ProductMaterialLabel
                 return trim((string) ($translation?->name ?? $attribute->code));
             })
             ->filter(static fn (string $value): bool => $value !== '')
-            ->unique()
-            ->implode(', ');
+            ->unique();
+
+        $label = $labels->implode(', ');
+
+        return self::dominantMaterialName($labels->implode(' / ')) ?? $label;
+    }
+
+    public static function dominantMaterialName(string $label): ?string
+    {
+        $label = trim($label);
+
+        if ($label === '') {
+            return null;
+        }
+
+        $components = self::percentageFirstComponents($label);
+
+        if ($components === []) {
+            $components = self::percentageLastComponents($label);
+        }
+
+        $dominant = null;
+        foreach ($components as $component) {
+            if ($component['name'] === '') {
+                continue;
+            }
+
+            if ($dominant === null || $component['percentage'] > $dominant['percentage']) {
+                $dominant = $component;
+            }
+        }
+
+        return $dominant['name'] ?? null;
+    }
+
+    /**
+     * @return array<int, array{percentage:float,name:string}>
+     */
+    private static function percentageFirstComponents(string $label): array
+    {
+        preg_match_all(
+            '/(\d+(?:[.,]\d+)?)\s*%\s*([^%\/,;|+]+?)(?=\s*(?:[\/,;|+]|\d+(?:[.,]\d+)?\s*%|$))/u',
+            $label,
+            $matches,
+            PREG_SET_ORDER
+        );
+
+        return self::normalizeComponents($matches, 1, 2);
+    }
+
+    /**
+     * @return array<int, array{percentage:float,name:string}>
+     */
+    private static function percentageLastComponents(string $label): array
+    {
+        preg_match_all(
+            '/(?:^|[\/,;|+])\s*([^%\/,;|+]+?)\s+(\d+(?:[.,]\d+)?)\s*%/u',
+            $label,
+            $matches,
+            PREG_SET_ORDER
+        );
+
+        return self::normalizeComponents($matches, 2, 1);
+    }
+
+    /**
+     * @param  array<int, array<int, string>>  $matches
+     * @return array<int, array{percentage:float,name:string}>
+     */
+    private static function normalizeComponents(array $matches, int $percentageIndex, int $nameIndex): array
+    {
+        return collect($matches)
+            ->map(static fn (array $match): array => [
+                'percentage' => (float) str_replace(',', '.', $match[$percentageIndex] ?? '0'),
+                'name' => self::cleanMaterialName((string) ($match[$nameIndex] ?? '')),
+            ])
+            ->filter(static fn (array $component): bool => $component['name'] !== '')
+            ->values()
+            ->all();
+    }
+
+    private static function cleanMaterialName(string $name): string
+    {
+        $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
+        $name = preg_replace('/\s+(?:i|and)\s*$/iu', '', $name) ?? $name;
+
+        return trim($name, " \t\n\r\0\x0B/,+;|.-");
     }
 }

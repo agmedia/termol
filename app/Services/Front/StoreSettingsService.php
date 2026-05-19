@@ -47,6 +47,7 @@ class StoreSettingsService
             'url' => trim((string) $this->settings->get('store_announcement_url', '')),
             'new_tab' => (bool) $this->settings->get('store_announcement_new_tab', false),
             'scroll_enabled' => (bool) $this->settings->get('store_announcement_scroll_enabled', false),
+            'scroll_duration_seconds' => $this->settings->getInt('store_announcement_scroll_duration_seconds', 18, 6, 60),
             'background_color' => $this->hexColor($this->settings->get('store_announcement_background_color', '#000000'), '#000000'),
             'text_color' => $this->hexColor($this->settings->get('store_announcement_text_color', '#ffffff'), '#ffffff'),
         ];

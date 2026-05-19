@@ -75,6 +75,7 @@ class StorefrontFrontFeatureTest extends TestCase
             'store_announcement_enabled' => true,
             'store_announcement_text' => 'Spring promo',
             'store_announcement_scroll_enabled' => true,
+            'store_announcement_scroll_duration_seconds' => 24,
             'store_announcement_background_color' => '#123456',
             'store_announcement_text_color' => '#abcdef',
         ]);
@@ -87,7 +88,8 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Spring promo')
             ->assertSee('store-announcement-bar is-scrolling', false)
-            ->assertSee('style="background-color: #123456; color: #abcdef;"', false)
+            ->assertSee('style="background-color: #123456; color: #abcdef; --store-announcement-duration: 24s;"', false)
+            ->assertSee('animation: store-announcement-marquee var(--store-announcement-duration, 18s) linear infinite;', false)
             ->assertSee('@keyframes store-announcement-marquee', false);
     }
 
