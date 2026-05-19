@@ -85,6 +85,7 @@
             ->values();
     }
     $hasProductStory = ! empty($translation?->description) || ! empty($translation?->excerpt);
+    $colorVariants = $colorVariants ?? collect();
 @endphp
 
 @section('title', $translation?->name ?? __('ui.product.sku'))
@@ -114,6 +115,29 @@
             height: 100%;
             object-fit: cover;
             object-position: top center;
+        }
+
+        .mobile-product-color-variant-link {
+            display: inline-flex;
+            width: 38px;
+            height: 38px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+        }
+
+        .mobile-product-color-variant-link[aria-current="true"] {
+            border-color: #0f172a;
+            box-shadow: 0 0 0 1px #0f172a;
+        }
+
+        .mobile-product-color-variant-swatch {
+            display: block;
+            width: 28px;
+            height: 28px;
+            border: 1px solid rgba(15, 23, 42, 0.16);
+            background-color: #f8fafc;
         }
     </style>
 
@@ -168,6 +192,33 @@
                 <p class="font-12 mb-3">
                     <a href="{{ route('manufacturers.show', ['slug' => $manufacturerTranslation->slug]) }}" class="color-highlight">{{ $manufacturerTranslation->name }}</a>
                 </p>
+            @endif
+
+            @if ($colorVariants->isNotEmpty())
+                <div class="divider mt-2 mb-3"></div>
+                <div class="mb-3" data-product-color-variants>
+                    <p class="font-600 mb-2">{{ __('ui.product.color_variants') }}</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach ($colorVariants as $variant)
+                            @php
+                                $swatchStyle = $variant['swatch_image_url']
+                                    ? 'background-image:url('.$variant['swatch_image_url'].');background-size:cover;background-position:center;background-repeat:no-repeat;background-color:transparent;'
+                                    : $variant['swatch_style'];
+                            @endphp
+                            <a
+                                href="{{ $variant['url'] }}"
+                                class="mobile-product-color-variant-link"
+                                title="{{ $variant['label'] }}"
+                                aria-label="{{ $variant['label'] }}"
+                                @if ($variant['is_current']) aria-current="true" @endif
+                                data-color-variant-link
+                                data-color-variant-label="{{ $variant['label'] }}"
+                            >
+                                <span class="mobile-product-color-variant-swatch" style="{{ $swatchStyle }}" data-color-variant-swatch aria-hidden="true"></span>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
             @endif
 
             <form

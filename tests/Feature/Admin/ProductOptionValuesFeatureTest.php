@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Livewire\Admin\Catalog\Product\Form as ProductForm;
 use App\Livewire\Admin\Catalog\Product\OptionValuesManager;
 use App\Models\Catalog\Option\Option;
 use App\Models\Catalog\Option\OptionValue;
@@ -150,6 +151,140 @@ class ProductOptionValuesFeatureTest extends TestCase
             ->assertSet('mode', 'single')
             ->assertCount('rows', 1)
             ->assertSet('rows.0.option_value_id', $small->id);
+    }
+
+    public function test_product_form_shows_filter_only_option_values(): void
+    {
+        app(SystemSettingsService::class)->put('catalog_use_options', true);
+
+        $user = $this->makeAdminUser();
+        $product = $this->createProduct($user);
+
+        $color = $this->createOption($user, 'color', 'Color', 'color');
+        $color->forceFill([
+            'payload' => [
+                Option::PAYLOAD_SHOW_ON_PRODUCT_PAGE => false,
+            ],
+        ])->save();
+
+        $skin = $this->createOptionValue($user, $color, 'skin', 'Skin', 'skin');
+        $product->options()->attach($color->id, [
+            'is_required' => false,
+            'sort_order' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        ProductOptionValue::query()->create([
+            'product_id' => $product->id,
+            'option_value_id' => $skin->id,
+            'parent_option_value_id' => null,
+            'mode' => 'single',
+            'sku' => null,
+            'stock_qty' => 0,
+            'price_override' => null,
+            'sort_order' => 0,
+            'is_active' => true,
+            'combination_hash' => hash('sha256', 's:'.$skin->id),
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'catalog')
+            ->assertSee('Filter-only values on this product')
+            ->assertSee('Color: Skin');
+    }
+
+    public function test_filter_only_option_values_can_be_edited_without_removing_size_rows(): void
+    {
+        app(SystemSettingsService::class)->put('catalog_use_options', true);
+
+        $user = $this->makeAdminUser();
+        $product = $this->createProduct($user);
+
+        $size = $this->createOption($user, 'size', 'Size', 'size');
+        $color = $this->createOption($user, 'color', 'Color', 'color');
+        $color->forceFill([
+            'payload' => [
+                Option::PAYLOAD_SHOW_ON_PRODUCT_PAGE => false,
+            ],
+        ])->save();
+
+        $small = $this->createOptionValue($user, $size, 's', 'S', 's');
+        $skin = $this->createOptionValue($user, $color, 'skin', 'Skin', 'skin');
+        $black = $this->createOptionValue($user, $color, 'black', 'Black', 'black');
+
+        $product->options()->sync([
+            $size->id => [
+                'is_required' => true,
+                'sort_order' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            $color->id => [
+                'is_required' => false,
+                'sort_order' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        ProductOptionValue::query()->create([
+            'product_id' => $product->id,
+            'option_value_id' => $small->id,
+            'parent_option_value_id' => null,
+            'mode' => 'single',
+            'sku' => 'P-OPT-1-S',
+            'stock_qty' => 6,
+            'price_override' => 0,
+            'sort_order' => 0,
+            'is_active' => true,
+            'combination_hash' => hash('sha256', 's:'.$small->id),
+        ]);
+
+        ProductOptionValue::query()->create([
+            'product_id' => $product->id,
+            'option_value_id' => $skin->id,
+            'parent_option_value_id' => null,
+            'mode' => 'filter',
+            'sku' => null,
+            'stock_qty' => 0,
+            'price_override' => null,
+            'sort_order' => 1,
+            'is_active' => true,
+            'combination_hash' => hash('sha256', 'filter:'.$color->id.':'.$skin->id),
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(OptionValuesManager::class, ['productId' => $product->id])
+            ->assertSee('Filter-only option values')
+            ->assertSet('filterOnlyOptions.0.selected_value_id', $skin->id)
+            ->assertCount('rows', 1)
+            ->assertSet('rows.0.option_value_id', $small->id)
+            ->set('filterOnlyOptions.0.selected_value_id', $black->id)
+            ->call('saveFilterOnlyOptions')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('catalog_product_option_values', [
+            'product_id' => $product->id,
+            'option_value_id' => $small->id,
+            'mode' => 'single',
+            'sku' => 'P-OPT-1-S',
+            'stock_qty' => 6,
+        ]);
+
+        $this->assertDatabaseMissing('catalog_product_option_values', [
+            'product_id' => $product->id,
+            'option_value_id' => $skin->id,
+        ]);
+
+        $this->assertDatabaseHas('catalog_product_option_values', [
+            'product_id' => $product->id,
+            'option_value_id' => $black->id,
+            'mode' => 'filter',
+            'sku' => null,
+            'stock_qty' => 0,
+        ]);
     }
 
     private function makeAdminUser(): User

@@ -204,6 +204,7 @@ return [
         'select_options' => 'Select options',
         'select_option' => 'Select option',
         'size_guide' => 'Size guide',
+        'color_variants' => 'Color variants',
         'size_guide_close' => 'Close',
         'check_store' => 'Check store availability',
         'related' => 'Related products',

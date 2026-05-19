@@ -12,15 +12,21 @@ use Livewire\Component;
 class OptionValuesManager extends Component
 {
     public int $productId;
+
     public string $locale = 'en';
 
     public string $productCode = '';
+
     public string $productSku = '';
+
     public string $productName = '';
 
     public string $mode = 'single';
+
     public ?int $singleOptionId = null;
+
     public ?int $primaryOptionId = null;
+
     public ?int $secondaryOptionId = null;
 
     /** @var array<int, array{id:int,label:string,values_count:int}> */
@@ -32,6 +38,9 @@ class OptionValuesManager extends Component
     /** @var array<int, array{id:int,label:string,values:array<int, array{id:int,label:string,code:string,is_active:bool}>}> */
     public array $assignedOptions = [];
 
+    /** @var array<int, array{id:int,label:string,selected_value_id:int|null,values:array<int, array{id:int,label:string,is_active:bool}>}> */
+    public array $filterOnlyOptions = [];
+
     /** @var array<int, array{id:int|null,option_value_id:int|null,parent_option_value_id:int|null,sku:string,stock_qty:int,price_override:string,is_active:bool}> */
     public array $rows = [];
 
@@ -42,6 +51,7 @@ class OptionValuesManager extends Component
 
         $this->loadProductContext();
         $this->loadExistingRows();
+        $this->loadFilterOnlyOptions();
     }
 
     public function updatedMode(): void
@@ -96,7 +106,7 @@ class OptionValuesManager extends Component
 
     public function removeRow(int $index): void
     {
-        if (!isset($this->rows[$index])) {
+        if (! isset($this->rows[$index])) {
             return;
         }
 
@@ -111,7 +121,7 @@ class OptionValuesManager extends Component
 
     public function addAllSingleValues(): void
     {
-        if ($this->mode !== 'single' || !$this->singleOptionId) {
+        if ($this->mode !== 'single' || ! $this->singleOptionId) {
             return;
         }
 
@@ -136,12 +146,13 @@ class OptionValuesManager extends Component
 
     public function generateLinkedMatrix(): void
     {
-        if ($this->mode !== 'linked' || !$this->primaryOptionId || !$this->secondaryOptionId) {
+        if ($this->mode !== 'linked' || ! $this->primaryOptionId || ! $this->secondaryOptionId) {
             return;
         }
 
         if ($this->primaryOptionId === $this->secondaryOptionId) {
             $this->dispatch('notify', type: 'warning', message: __('Choose different primary and secondary options.'));
+
             return;
         }
 
@@ -181,6 +192,7 @@ class OptionValuesManager extends Component
 
         if (empty($this->assignedOptions)) {
             $this->dispatch('notify', type: 'warning', message: __('Assign option groups first.'));
+
             return;
         }
 
@@ -190,29 +202,32 @@ class OptionValuesManager extends Component
         $hasRowErrors = false;
 
         if ($this->mode === 'single') {
-            if (!$this->singleOptionId || !isset($allowedOptionIds[$this->singleOptionId])) {
+            if (! $this->singleOptionId || ! isset($allowedOptionIds[$this->singleOptionId])) {
                 $this->addError('singleOptionId', __('Select one assigned option.'));
                 $this->dispatch('notify', type: 'danger', message: __('Select a valid option for single mode.'));
+
                 return;
             }
 
             $validValueIds = array_flip($this->valueIdsForOption($this->singleOptionId));
         } else {
             if (
-                !$this->primaryOptionId
-                || !$this->secondaryOptionId
-                || !isset($allowedOptionIds[$this->primaryOptionId])
-                || !isset($allowedOptionIds[$this->secondaryOptionId])
+                ! $this->primaryOptionId
+                || ! $this->secondaryOptionId
+                || ! isset($allowedOptionIds[$this->primaryOptionId])
+                || ! isset($allowedOptionIds[$this->secondaryOptionId])
             ) {
                 $this->addError('primaryOptionId', __('Select assigned options.'));
                 $this->addError('secondaryOptionId', __('Select assigned options.'));
                 $this->dispatch('notify', type: 'danger', message: __('Select valid primary and secondary options.'));
+
                 return;
             }
 
             if ($this->primaryOptionId === $this->secondaryOptionId) {
                 $this->addError('secondaryOptionId', __('Secondary option must differ from primary.'));
                 $this->dispatch('notify', type: 'danger', message: __('Primary and secondary options must be different.'));
+
                 return;
             }
 
@@ -229,19 +244,22 @@ class OptionValuesManager extends Component
             if ($valueId <= 0) {
                 $this->addError('rows.'.$index.'.option_value_id', __('Value is required.'));
                 $hasRowErrors = true;
+
                 continue;
             }
 
-            if (!isset($validValueIds[$valueId])) {
+            if (! isset($validValueIds[$valueId])) {
                 $this->addError('rows.'.$index.'.option_value_id', __('Invalid value for selected option.'));
                 $hasRowErrors = true;
+
                 continue;
             }
 
             if ($this->mode === 'linked') {
-                if (!$parentId || !isset($validParentIds[$parentId])) {
+                if (! $parentId || ! isset($validParentIds[$parentId])) {
                     $this->addError('rows.'.$index.'.parent_option_value_id', __('Invalid primary value.'));
                     $hasRowErrors = true;
+
                     continue;
                 }
             }
@@ -253,20 +271,23 @@ class OptionValuesManager extends Component
             if (isset($seenCombinations[$combinationKey])) {
                 $this->addError('rows.'.$index.'.option_value_id', __('Duplicate combination.'));
                 $hasRowErrors = true;
+
                 continue;
             }
             $seenCombinations[$combinationKey] = true;
 
             $stockRaw = $row['stock_qty'] ?? 0;
-            if (!is_numeric($stockRaw) || (int) $stockRaw < 0) {
+            if (! is_numeric($stockRaw) || (int) $stockRaw < 0) {
                 $this->addError('rows.'.$index.'.stock_qty', __('Stock must be a non-negative integer.'));
                 $hasRowErrors = true;
+
                 continue;
             }
 
             $price = $this->normalizePrice($row['price_override'] ?? '', 'rows.'.$index.'.price_override');
             if ($price === false) {
                 $hasRowErrors = true;
+
                 continue;
             }
 
@@ -288,15 +309,15 @@ class OptionValuesManager extends Component
 
         if ($hasRowErrors) {
             $this->dispatch('notify', type: 'danger', message: __('Fix validation errors before saving.'));
+
             return;
         }
 
         $userId = auth()->id();
+        $filterOnlyOptionIds = $this->filterOnlyOptionIds();
 
-        DB::transaction(function () use ($rowsToInsert, $userId): void {
-            ProductOptionValue::query()
-                ->where('product_id', $this->productId)
-                ->delete();
+        DB::transaction(function () use ($rowsToInsert, $userId, $filterOnlyOptionIds): void {
+            $this->deletePurchasableRows($filterOnlyOptionIds);
 
             foreach ($rowsToInsert as $row) {
                 ProductOptionValue::query()->create($row + [
@@ -314,6 +335,83 @@ class OptionValuesManager extends Component
 
         $this->dispatch('notify', type: $count > 0 ? 'success' : 'info', message: $message);
         $this->loadExistingRows();
+        $this->loadFilterOnlyOptions();
+    }
+
+    public function saveFilterOnlyOptions(): void
+    {
+        if (empty($this->filterOnlyOptions)) {
+            $this->dispatch('notify', type: 'warning', message: __('No filter-only option groups are assigned to this product.'));
+
+            return;
+        }
+
+        $rowsToInsert = [];
+        $hasErrors = false;
+
+        foreach ($this->filterOnlyOptions as $index => $option) {
+            $optionId = (int) ($option['id'] ?? 0);
+            $selectedValueId = (int) ($option['selected_value_id'] ?? 0);
+
+            if ($selectedValueId <= 0) {
+                continue;
+            }
+
+            $allowedValueIds = array_flip(array_map(
+                fn (array $value): int => (int) $value['id'],
+                $option['values'] ?? []
+            ));
+
+            if (! isset($allowedValueIds[$selectedValueId])) {
+                $this->addError('filterOnlyOptions.'.$index.'.selected_value_id', __('Invalid value for selected option.'));
+                $hasErrors = true;
+
+                continue;
+            }
+
+            $rowsToInsert[] = [
+                'product_id' => $this->productId,
+                'option_value_id' => $selectedValueId,
+                'parent_option_value_id' => null,
+                'mode' => 'filter',
+                'sku' => null,
+                'stock_qty' => 0,
+                'price_override' => null,
+                'sort_order' => $index,
+                'is_active' => true,
+                'combination_hash' => hash('sha256', 'filter:'.$optionId.':'.$selectedValueId),
+            ];
+        }
+
+        if ($hasErrors) {
+            $this->dispatch('notify', type: 'danger', message: __('Fix validation errors before saving.'));
+
+            return;
+        }
+
+        $userId = auth()->id();
+        $filterOnlyOptionIds = $this->filterOnlyOptionIds();
+
+        DB::transaction(function () use ($rowsToInsert, $userId, $filterOnlyOptionIds): void {
+            $this->deleteFilterOnlyRows($filterOnlyOptionIds);
+
+            foreach ($rowsToInsert as $row) {
+                ProductOptionValue::query()->create($row + [
+                    'payload' => null,
+                    'created_by' => $userId,
+                    'updated_by' => $userId,
+                ]);
+            }
+        });
+
+        $this->dispatch(
+            'notify',
+            type: 'success',
+            message: __('Filter-only option values saved.')
+        );
+
+        $this->loadExistingRows();
+        $this->loadFilterOnlyOptions();
     }
 
     public function saveOptionGroups(): void
@@ -355,6 +453,7 @@ class OptionValuesManager extends Component
 
         $this->loadProductContext();
         $this->loadExistingRows();
+        $this->loadFilterOnlyOptions();
 
         $this->dispatch(
             'notify',
@@ -410,13 +509,17 @@ class OptionValuesManager extends Component
     {
         $existing = ProductOptionValue::query()
             ->where('product_id', $this->productId)
+            ->with(['optionValue.option', 'parentOptionValue.option'])
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->filter(static fn (ProductOptionValue $row): bool => $row->showsOnProductPage())
+            ->values();
 
         if ($existing->isEmpty()) {
             $this->rows = [];
             $this->applyModeDefaults();
+
             return;
         }
 
@@ -425,7 +528,7 @@ class OptionValuesManager extends Component
 
         if ($this->mode === 'single') {
             $this->singleOptionId = $this->optionIdForValue((int) $existing->first()->option_value_id);
-            if (!$this->singleOptionId) {
+            if (! $this->singleOptionId) {
                 $this->singleOptionId = isset($this->assignedOptions[0]['id']) ? (int) $this->assignedOptions[0]['id'] : null;
             }
             $this->primaryOptionId = null;
@@ -462,6 +565,7 @@ class OptionValuesManager extends Component
             $this->singleOptionId = null;
             $this->primaryOptionId = null;
             $this->secondaryOptionId = null;
+
             return;
         }
 
@@ -469,6 +573,7 @@ class OptionValuesManager extends Component
             $this->singleOptionId ??= $this->assignedOptions[0]['id'];
             $this->primaryOptionId = null;
             $this->secondaryOptionId = null;
+
             return;
         }
 
@@ -509,6 +614,7 @@ class OptionValuesManager extends Component
     {
         if (empty($this->selectedOptionIds)) {
             $this->assignedOptions = [];
+
             return;
         }
 
@@ -529,7 +635,11 @@ class OptionValuesManager extends Component
         $assigned = [];
         foreach ($this->selectedOptionIds as $optionId) {
             $option = $options->get($optionId);
-            if (!$option) {
+            if (! $option) {
+                continue;
+            }
+
+            if (! $option->showsOnProductPage()) {
                 continue;
             }
 
@@ -540,7 +650,7 @@ class OptionValuesManager extends Component
                 ->map(function ($value): array {
                     $valueTranslation = $value->translations->first();
                     $label = $valueTranslation?->name ?? ($value->code ?: 'Value #'.$value->id);
-                    if (!$value->is_active) {
+                    if (! $value->is_active) {
                         $label .= ' (inactive)';
                     }
 
@@ -564,6 +674,86 @@ class OptionValuesManager extends Component
         $this->assignedOptions = $assigned;
     }
 
+    private function loadFilterOnlyOptions(): void
+    {
+        if (empty($this->selectedOptionIds)) {
+            $this->filterOnlyOptions = [];
+
+            return;
+        }
+
+        $options = Option::query()
+            ->whereIn('id', $this->selectedOptionIds)
+            ->with([
+                'translations' => fn ($q) => $q->where('locale', $this->locale),
+                'values' => fn ($vq) => $vq
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->with([
+                        'translations' => fn ($vtq) => $vtq->where('locale', $this->locale),
+                    ]),
+            ])
+            ->get()
+            ->filter(static fn (Option $option): bool => ! $option->showsOnProductPage())
+            ->keyBy('id');
+
+        if ($options->isEmpty()) {
+            $this->filterOnlyOptions = [];
+
+            return;
+        }
+
+        $currentRows = ProductOptionValue::query()
+            ->where('product_id', $this->productId)
+            ->where('is_active', true)
+            ->whereNull('parent_option_value_id')
+            ->whereHas('optionValue', fn ($query) => $query->whereIn('option_id', $options->keys()->all()))
+            ->with('optionValue')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->mapWithKeys(fn (ProductOptionValue $row): array => [
+                (int) $row->optionValue->option_id => (int) $row->option_value_id,
+            ]);
+
+        $filterOnlyOptions = [];
+        foreach ($this->selectedOptionIds as $optionId) {
+            $option = $options->get($optionId);
+            if (! $option) {
+                continue;
+            }
+
+            $optionTranslation = $option->translations->first();
+            $optionLabel = $optionTranslation?->name ?? ($option->code ?: 'Option #'.$option->id);
+
+            $values = $option->values
+                ->map(function ($value): array {
+                    $valueTranslation = $value->translations->first();
+                    $label = $valueTranslation?->name ?? ($value->code ?: 'Value #'.$value->id);
+                    if (! $value->is_active) {
+                        $label .= ' (inactive)';
+                    }
+
+                    return [
+                        'id' => (int) $value->id,
+                        'label' => $label,
+                        'is_active' => (bool) $value->is_active,
+                    ];
+                })
+                ->values()
+                ->all();
+
+            $filterOnlyOptions[] = [
+                'id' => (int) $option->id,
+                'label' => $optionLabel,
+                'selected_value_id' => $currentRows->get((int) $option->id),
+                'values' => $values,
+            ];
+        }
+
+        $this->filterOnlyOptions = $filterOnlyOptions;
+    }
+
     private function normalizeLinkedOptionSelection(): void
     {
         if ($this->primaryOptionId && $this->secondaryOptionId && $this->primaryOptionId !== $this->secondaryOptionId) {
@@ -573,10 +763,11 @@ class OptionValuesManager extends Component
         $ids = $this->optionIds();
         if (count($ids) < 2) {
             $this->secondaryOptionId = null;
+
             return;
         }
 
-        if (!$this->primaryOptionId || !in_array($this->primaryOptionId, $ids, true)) {
+        if (! $this->primaryOptionId || ! in_array($this->primaryOptionId, $ids, true)) {
             $this->primaryOptionId = $ids[0];
         }
 
@@ -599,7 +790,7 @@ class OptionValuesManager extends Component
             $validValueIds = array_flip($this->valueIdsForOption($this->singleOptionId));
             $this->rows = array_values(array_filter(array_map(function (array $row) use ($validValueIds): ?array {
                 $valueId = (int) ($row['option_value_id'] ?? 0);
-                if ($valueId <= 0 || !isset($validValueIds[$valueId])) {
+                if ($valueId <= 0 || ! isset($validValueIds[$valueId])) {
                     return null;
                 }
 
@@ -616,11 +807,11 @@ class OptionValuesManager extends Component
             $parentId = (int) ($row['parent_option_value_id'] ?? 0);
             $valueId = (int) ($row['option_value_id'] ?? 0);
 
-            if ($parentId <= 0 || !isset($validParentIds[$parentId])) {
+            if ($parentId <= 0 || ! isset($validParentIds[$parentId])) {
                 return null;
             }
 
-            if ($valueId <= 0 || !isset($validValueIds[$valueId])) {
+            if ($valueId <= 0 || ! isset($validValueIds[$valueId])) {
                 return null;
             }
 
@@ -670,14 +861,16 @@ class OptionValuesManager extends Component
         }
 
         $normalized = str_replace(',', '.', $raw);
-        if (!is_numeric($normalized)) {
+        if (! is_numeric($normalized)) {
             $this->addError($field, __('Price must be numeric.'));
+
             return false;
         }
 
         $price = (float) $normalized;
         if ($price < 0) {
             $this->addError($field, __('Price cannot be negative.'));
+
             return false;
         }
 
@@ -697,7 +890,7 @@ class OptionValuesManager extends Component
      */
     private function valuesForOption(?int $optionId): array
     {
-        if (!$optionId) {
+        if (! $optionId) {
             return [];
         }
 
@@ -755,6 +948,52 @@ class OptionValuesManager extends Component
     }
 
     /**
+     * @return array<int, int>
+     */
+    private function filterOnlyOptionIds(): array
+    {
+        return array_values(array_map(
+            fn (array $option): int => (int) $option['id'],
+            $this->filterOnlyOptions
+        ));
+    }
+
+    /**
+     * @param  array<int, int>  $filterOnlyOptionIds
+     */
+    private function deletePurchasableRows(array $filterOnlyOptionIds): void
+    {
+        $query = ProductOptionValue::query()
+            ->where('product_id', $this->productId);
+
+        if ($filterOnlyOptionIds !== []) {
+            $query->where(function ($query) use ($filterOnlyOptionIds): void {
+                $query
+                    ->whereDoesntHave('optionValue', fn ($optionValueQuery) => $optionValueQuery->whereIn('option_id', $filterOnlyOptionIds))
+                    ->orWhereNotNull('parent_option_value_id');
+            });
+        }
+
+        $query->delete();
+    }
+
+    /**
+     * @param  array<int, int>  $filterOnlyOptionIds
+     */
+    private function deleteFilterOnlyRows(array $filterOnlyOptionIds): void
+    {
+        if ($filterOnlyOptionIds === []) {
+            return;
+        }
+
+        ProductOptionValue::query()
+            ->where('product_id', $this->productId)
+            ->whereNull('parent_option_value_id')
+            ->whereHas('optionValue', fn ($query) => $query->whereIn('option_id', $filterOnlyOptionIds))
+            ->delete();
+    }
+
+    /**
      * @param  array<int, mixed>  $ids
      * @return array<int, int>
      */
@@ -763,7 +1002,7 @@ class OptionValuesManager extends Component
         $normalized = [];
         foreach ($ids as $id) {
             $intId = (int) $id;
-            if ($intId > 0 && !in_array($intId, $normalized, true)) {
+            if ($intId > 0 && ! in_array($intId, $normalized, true)) {
                 $normalized[] = $intId;
             }
         }

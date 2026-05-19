@@ -106,6 +106,7 @@
         : 4;
     $hasProductStory = ! empty($translation?->description) || ! empty($translation?->excerpt);
     $reviewSummary = $product->approvedCommentSummary([$locale, $fallbackLocale]);
+    $colorVariants = $colorVariants ?? collect();
 @endphp
 
 @section('title', $translation?->name ?? 'Product')
@@ -234,6 +235,37 @@
             border-color: #0f172a;
             background: #0f172a;
             color: #ffffff !important;
+        }
+
+        .product-color-variant-link {
+            display: inline-flex;
+            width: 2.25rem;
+            height: 2.25rem;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            transition: border-color 160ms ease, box-shadow 160ms ease;
+        }
+
+        .product-color-variant-link:hover,
+        .product-color-variant-link:focus-visible {
+            border-color: #0f172a;
+            box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.08);
+            outline: none;
+        }
+
+        .product-color-variant-link[aria-current="true"] {
+            border-color: #0f172a;
+            box-shadow: 0 0 0 1px #0f172a;
+        }
+
+        .product-color-variant-swatch {
+            display: block;
+            width: 1.625rem;
+            height: 1.625rem;
+            border: 1px solid rgba(15, 23, 42, 0.16);
+            background-color: #f8fafc;
         }
 
         [data-fit-finder-modal] [data-fit-step].hidden {
@@ -551,6 +583,32 @@
                     @endif
                 </div>
             </div>
+
+            @if ($colorVariants->isNotEmpty())
+                <div class="mt-5 border-y border-slate-200 py-4" data-product-color-variants>
+                    <p class="text-sm font-extrabold text-slate-900">{{ __('ui.product.color_variants') }}</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        @foreach ($colorVariants as $variant)
+                            @php
+                                $swatchStyle = $variant['swatch_image_url']
+                                    ? 'background-image:url('.$variant['swatch_image_url'].');background-size:cover;background-position:center;background-repeat:no-repeat;background-color:transparent;'
+                                    : $variant['swatch_style'];
+                            @endphp
+                            <a
+                                href="{{ $variant['url'] }}"
+                                class="product-color-variant-link"
+                                title="{{ $variant['label'] }}"
+                                aria-label="{{ $variant['label'] }}"
+                                @if ($variant['is_current']) aria-current="true" @endif
+                                data-color-variant-link
+                                data-color-variant-label="{{ $variant['label'] }}"
+                            >
+                                <span class="product-color-variant-swatch" style="{{ $swatchStyle }}" data-color-variant-swatch aria-hidden="true"></span>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
 
             <form
                 method="POST"

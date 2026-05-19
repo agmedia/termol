@@ -295,6 +295,24 @@
                             <span class="text-xs text-slate-500">{{ __('Save product first') }}</span>
                         @endif
                     </div>
+                    @if ($isEdit && $productId)
+                        @php $hiddenOptionValueRows = $this->hiddenOptionValueRows; @endphp
+                        <div class="mt-3 border-t border-slate-200 pt-3">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Filter-only values on this product') }}</p>
+                            @if ($hiddenOptionValueRows->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    @foreach ($hiddenOptionValueRows as $row)
+                                        <span class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                                            {{ $row['option_label'] }}: {{ $row['value_label'] }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @else
+                                <p class="mt-1 text-xs text-slate-500">{{ __('No hidden filter-only values are currently assigned.') }}</p>
+                            @endif
+                            <p class="mt-2 text-xs text-slate-500">{{ __('Color swatch images are managed on Options > Values; these values power category filters and product color variants.') }}</p>
+                        </div>
+                    @endif
                 </div>
             @endif
 

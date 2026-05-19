@@ -47,11 +47,50 @@
         </div>
     </div>
 
-    @if (empty($assignedOptions))
+    @if (empty($assignedOptions) && empty($filterOnlyOptions))
         <div class="admin-panel admin-form-panel p-6">
             <p class="text-sm text-amber-800">{{ __('No option groups assigned to this product yet.') }}</p>
         </div>
     @else
+        @if (! empty($filterOnlyOptions))
+            <form wire:submit="saveFilterOnlyOptions" class="admin-panel admin-form-panel p-6">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div class="w-full max-w-3xl">
+                        <p class="admin-section-title">{{ __('Filter-only option values') }}</p>
+                        <p class="mt-2 text-xs text-slate-500">
+                            {{ __('Use this for color/filter values on the product. These values power category filters and color variants, but do not create SKU, stock, or price rows.') }}
+                        </p>
+
+                        <div class="mt-4 grid gap-4 md:grid-cols-2">
+                            @foreach ($filterOnlyOptions as $optionIndex => $option)
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ $option['label'] }}</label>
+                                    <select wire:model.number="filterOnlyOptions.{{ $optionIndex }}.selected_value_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                        <option value="">{{ __('No value') }}</option>
+                                        @foreach ($option['values'] as $value)
+                                            <option value="{{ $value['id'] }}" @disabled(!$value['is_active'])>{{ $value['label'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('filterOnlyOptions.'.$optionIndex.'.selected_value_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">
+                            {{ __('Save filter-only values') }}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        @endif
+
+        @if (empty($assignedOptions))
+            <div class="admin-panel admin-form-panel p-6">
+                <p class="text-sm text-slate-600">{{ __('Only filter-only option groups are assigned to this product. Add a product-page option group, such as size, if this product needs SKU or stock rows.') }}</p>
+            </div>
+        @else
         <form wire:submit="save" class="space-y-6">
             <div class="admin-panel admin-form-panel p-6">
                 <p class="admin-section-title">{{ __('Mode') }}</p>
@@ -72,7 +111,7 @@
                     </button>
                 </div>
                 <p class="mt-3 text-xs text-slate-500">
-                    {{ __('Single mode is one value list. Linked mode is primary + secondary value combinations (for example color + size).') }}
+                    {{ __('Single mode is one value list. Linked mode is primary + secondary value combinations. Filter-only options are edited in the separate block above.') }}
                 </p>
             </div>
 
@@ -219,5 +258,6 @@
                 </div>
             </div>
         </form>
+        @endif
     @endif
 </div>

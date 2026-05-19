@@ -205,6 +205,7 @@ return [
         'select_options' => 'Odaberite opcije',
         'select_option' => 'Odaberite :option',
         'size_guide' => 'Vodič za veličine',
+        'color_variants' => 'Varijante u bojama',
         'size_guide_close' => 'Zatvori',
         'check_store' => 'Provjeri dostupnost u trgovinama',
         'related' => 'Slični proizvodi',

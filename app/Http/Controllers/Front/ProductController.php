@@ -11,12 +11,13 @@ use App\Models\Content\Page\InfoPage;
 use App\Models\Content\Support\Comment;
 use App\Models\User\UserProfile;
 use App\Services\Content\ContentBlockResolver;
+use App\Services\Front\ProductColorVariantService;
 use App\Services\Front\WishlistService;
 use App\Services\Pricing\ProductPricePresentationService;
 use App\Support\ProductMaterialLabel;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Response;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -27,9 +28,13 @@ class ProductController extends Controller
     use ResolvesGridColumns;
 
     private const FIT_FINDER_SESSION_KEY = 'front_fit_finder_profile';
+
     private const FIT_FINDER_COOKIE_KEY = 'front_fit_finder_profile';
+
     private const FIT_FINDER_COOKIE_MINUTES = 525600; // 365 days
+
     private const RECENTLY_VIEWED_SESSION_KEY = 'front_recently_viewed_products';
+
     private const RECENTLY_VIEWED_MAX = 24;
 
     public function storeComment(Request $request, string $slug)
@@ -127,7 +132,7 @@ class ProductController extends Controller
                     ->orderBy('id')
                     ->with([
                         'optionValue.option' => fn ($optionQuery) => $optionQuery
-                            ->select(['id', 'payload'])
+                            ->select(['id', 'code', 'payload'])
                             ->with([
                                 'translations' => fn ($oq) => $oq
                                     ->select(['id', 'option_id', 'locale', 'name'])
@@ -137,7 +142,7 @@ class ProductController extends Controller
                             ->select(['id', 'option_value_id', 'locale', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
                         'parentOptionValue.option' => fn ($optionQuery) => $optionQuery
-                            ->select(['id', 'payload'])
+                            ->select(['id', 'code', 'payload'])
                             ->with([
                                 'translations' => fn ($oq) => $oq
                                     ->select(['id', 'option_id', 'locale', 'name'])
@@ -175,7 +180,7 @@ class ProductController extends Controller
                     ->orderBy('id')
                     ->with([
                         'optionValue.option' => fn ($optionQuery) => $optionQuery
-                            ->select(['id', 'payload'])
+                            ->select(['id', 'code', 'payload'])
                             ->with([
                                 'translations' => fn ($oq) => $oq
                                     ->select(['id', 'option_id', 'locale', 'name'])
@@ -185,7 +190,7 @@ class ProductController extends Controller
                             ->select(['id', 'option_value_id', 'locale', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
                         'parentOptionValue.option' => fn ($optionQuery) => $optionQuery
-                            ->select(['id', 'payload'])
+                            ->select(['id', 'code', 'payload'])
                             ->with([
                                 'translations' => fn ($oq) => $oq
                                     ->select(['id', 'option_id', 'locale', 'name'])
@@ -345,6 +350,7 @@ class ProductController extends Controller
 
         $sizeGuide = $this->resolveSizeGuide($product, $locale, $fallbackLocale);
         $fitFinderSelection = $this->resolveFitFinderSelection($request, $product);
+        $colorVariants = app(ProductColorVariantService::class)->variantsFor($product, $locale, $fallbackLocale);
 
         $response = response()->view($this->frontendView($request, 'products.show'), [
             'product' => $product,
@@ -353,6 +359,7 @@ class ProductController extends Controller
             'comments' => $comments,
             'sizeGuide' => $sizeGuide,
             'fitFinderSelection' => $fitFinderSelection,
+            'colorVariants' => $colorVariants,
             'topBlocks' => $topBlocks,
             'bottomBlocks' => $bottomBlocks,
             'pricePresentation' => app(ProductPricePresentationService::class)->forProduct($product, auth()->user()),

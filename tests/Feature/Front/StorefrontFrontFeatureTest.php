@@ -4,9 +4,9 @@ namespace Tests\Feature\Front;
 
 use App\Http\Controllers\Front\CatalogController;
 use App\Models\Catalog\Action\CatalogAction;
+use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Category\CategoryTranslation;
-use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Manufacturer\ManufacturerTranslation;
 use App\Models\Catalog\Option\Option;
@@ -769,7 +769,7 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('data-instagram-grid-splide', false)
             ->assertSee("type: count > 1 ? 'loop' : 'slide'", false)
             ->assertSee("const mobilePaddingRight = count > 1 ? '18%' : '0';", false)
-            ->assertSee("perPage: 1,", false)
+            ->assertSee('perPage: 1,', false)
             ->assertSee("padding: { left: '0', right: mobilePaddingRight },", false);
     }
 
@@ -1106,6 +1106,39 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('data-filter-kind="color"', false)
             ->assertSee('data-filter-swatch=', false)
             ->assertSee('red-swatch.png', false);
+    }
+
+    public function test_product_detail_uses_filter_color_swatches_for_color_variant_links(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$blackProduct, $blackSlug] = $this->seedProduct($category->id);
+        [$redProduct, $redSlug] = $this->seedProduct($category->id);
+
+        $blackProduct->update(['payload' => ['source' => ['mpn' => 'BRZ-1']]]);
+        $redProduct->update(['payload' => ['source' => ['mpn' => 'BRZ-1']]]);
+        $this->attachProductSizeOptions($blackProduct, ['M']);
+        $this->attachProductSizeOptions($redProduct, ['M']);
+
+        $colorOption = $this->createProductOption('Color', false);
+        $this->attachOptionValueToProduct($blackProduct, $colorOption, 'Black', 1);
+        $redValue = $this->attachOptionValueToProduct($redProduct, $colorOption, 'Red', 2);
+        $redValue->update([
+            'payload' => [
+                'swatch_image_path' => 'catalog/option-values/swatch/red-swatch.png',
+            ],
+        ]);
+
+        $this->get('/product/'.$blackSlug)
+            ->assertOk()
+            ->assertSee('data-product-color-variants', false)
+            ->assertSee('Color variants')
+            ->assertSee('/product/'.$redSlug, false)
+            ->assertSee('data-color-variant-label="Black"', false)
+            ->assertSee('data-color-variant-label="Red"', false)
+            ->assertSee('red-swatch.png', false)
+            ->assertSee('aria-current="true"', false)
+            ->assertDontSee('data-size-label="Red"', false);
     }
 
     public function test_filter_only_option_does_not_require_selection_on_add_to_cart(): void

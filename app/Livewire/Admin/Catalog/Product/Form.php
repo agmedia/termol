@@ -6,6 +6,7 @@ use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Product\Product;
+use App\Models\Catalog\Product\ProductOptionValue;
 use App\Models\Catalog\Product\ProductTranslation;
 use App\Models\Settings\Local\TaxRate;
 use App\Services\Catalog\CatalogFeatureService;
@@ -18,10 +19,15 @@ use Livewire\Component;
 class Form extends Component
 {
     public ?int $productId = null;
+
     public string $activeTab = 'content';
+
     public string $categorySearch = '';
+
     public array $attributeSelections = [];
+
     public string $attributeGroupView = 'all';
+
     public bool $attributeShowAssignedOnly = false;
 
     public array $form = [
@@ -72,7 +78,7 @@ class Form extends Component
 
     public function setTab(string $tab): void
     {
-        if (!in_array($tab, ['content', 'seo', 'media', 'catalog'], true)) {
+        if (! in_array($tab, ['content', 'seo', 'media', 'catalog'], true)) {
             return;
         }
 
@@ -251,6 +257,52 @@ class Form extends Component
             });
     }
 
+    public function getHiddenOptionValueRowsProperty(): Collection
+    {
+        if (! $this->productId || ! $this->useOptions()) {
+            return collect();
+        }
+
+        $locale = (string) ($this->form['locale'] ?: config('app.locale', 'en'));
+        $fallbackLocale = (string) config('app.locale', 'en');
+        $rows = ProductOptionValue::query()
+            ->where('product_id', $this->productId)
+            ->where('is_active', true)
+            ->with([
+                'optionValue.option.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'optionValue.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'parentOptionValue.option.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                'parentOptionValue.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+            ])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        $seen = [];
+        $items = [];
+
+        foreach ($rows as $row) {
+            foreach ([$row->parentOptionValue, $row->optionValue] as $value) {
+                if (! $value || ! $value->option || $value->option->showsOnProductPage()) {
+                    continue;
+                }
+
+                $key = (int) $value->option->id.':'.(int) $value->id;
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+
+                $items[] = [
+                    'option_label' => $this->localizedOptionLabel($value->option),
+                    'value_label' => $this->localizedOptionValueLabel($value),
+                ];
+            }
+        }
+
+        return collect($items);
+    }
+
     /**
      * @return array<int, string>
      */
@@ -394,7 +446,7 @@ class Form extends Component
 
     private function loadProduct(): void
     {
-        if (!$this->productId) {
+        if (! $this->productId) {
             return;
         }
 
@@ -447,7 +499,7 @@ class Form extends Component
 
     public function getManufacturerOptionsProperty(): Collection
     {
-        if (!$this->useManufacturers()) {
+        if (! $this->useManufacturers()) {
             return collect();
         }
 
@@ -473,7 +525,7 @@ class Form extends Component
 
     public function getAttributeOptionsProperty(): Collection
     {
-        if (!$this->useAttributes()) {
+        if (! $this->useAttributes()) {
             return collect();
         }
 
@@ -481,7 +533,7 @@ class Form extends Component
             ->where(function ($q): void {
                 $q->where('is_active', true);
 
-                if (!empty($this->form['attribute_ids'])) {
+                if (! empty($this->form['attribute_ids'])) {
                     $q->orWhereIn('id', array_map('intval', $this->form['attribute_ids']));
                 }
             })
@@ -499,7 +551,7 @@ class Form extends Component
      */
     public function getAttributeGroupsProperty(): array
     {
-        if (!$this->useAttributes()) {
+        if (! $this->useAttributes()) {
             return [];
         }
 
@@ -509,7 +561,7 @@ class Form extends Component
             $tr = $attribute->translations->first();
             $groupCode = (string) $attribute->group_code;
 
-            if (!isset($groups[$groupCode])) {
+            if (! isset($groups[$groupCode])) {
                 $groups[$groupCode] = [
                     'group_code' => $groupCode,
                     'group_name' => (string) ($tr?->group_name ?? str($groupCode)->replace('_', ' ')->title()),
@@ -551,7 +603,7 @@ class Form extends Component
         $groups = $this->attributeGroups;
 
         $knownGroupCodes = array_map(fn (array $group): string => (string) $group['group_code'], $groups);
-        if ($this->attributeGroupView !== 'all' && !in_array($this->attributeGroupView, $knownGroupCodes, true)) {
+        if ($this->attributeGroupView !== 'all' && ! in_array($this->attributeGroupView, $knownGroupCodes, true)) {
             $this->attributeGroupView = 'all';
         }
 
@@ -574,8 +626,9 @@ class Form extends Component
 
     private function loadTranslationForLocale(): void
     {
-        if (!$this->productId) {
+        if (! $this->productId) {
             $this->clearTranslationFields();
+
             return;
         }
 
@@ -584,8 +637,9 @@ class Form extends Component
             ->where('locale', $this->form['locale'])
             ->first();
 
-        if (!$translation) {
+        if (! $translation) {
             $this->clearTranslationFields();
+
             return;
         }
 
@@ -611,6 +665,28 @@ class Form extends Component
         $this->form['translation_payload_text'] = '';
     }
 
+    private function localizedOptionLabel($option): string
+    {
+        $locale = (string) ($this->form['locale'] ?: config('app.locale', 'en'));
+        $fallbackLocale = (string) config('app.locale', 'en');
+        $translation = $option->translations?->firstWhere('locale', $locale)
+            ?? $option->translations?->firstWhere('locale', $fallbackLocale)
+            ?? $option->translations?->first();
+
+        return trim((string) ($translation?->name ?? $option->code));
+    }
+
+    private function localizedOptionValueLabel($value): string
+    {
+        $locale = (string) ($this->form['locale'] ?: config('app.locale', 'en'));
+        $fallbackLocale = (string) config('app.locale', 'en');
+        $translation = $value->translations?->firstWhere('locale', $locale)
+            ?? $value->translations?->firstWhere('locale', $fallbackLocale)
+            ?? $value->translations?->first();
+
+        return trim((string) ($translation?->name ?? $value->code));
+    }
+
     /**
      * @return array<mixed>|null|false
      */
@@ -626,12 +702,14 @@ class Form extends Component
         if (json_last_error() !== JSON_ERROR_NONE) {
             $this->addError($field, __('Invalid JSON payload.'));
             $this->dispatch('notify', type: 'danger', message: __('Invalid JSON payload.'));
+
             return false;
         }
 
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             $this->addError($field, __('JSON payload must decode to object/array.'));
             $this->dispatch('notify', type: 'danger', message: __('JSON payload must decode to object/array.'));
+
             return false;
         }
 
@@ -643,11 +721,11 @@ class Form extends Component
      */
     private function resolveAttributeIdsForSave(): array|false
     {
-        if (!$this->useAttributes()) {
+        if (! $this->useAttributes()) {
             return [];
         }
 
-        if (!empty($this->attributeSelections)) {
+        if (! empty($this->attributeSelections)) {
             return $this->resolveGroupedAttributeSelections();
         }
 
@@ -667,6 +745,7 @@ class Form extends Component
         if ($rows->count() !== count($ids)) {
             $this->addError('form.attribute_ids', __('Invalid attribute selection.'));
             $this->dispatch('notify', type: 'danger', message: __('Invalid attribute selection.'));
+
             return false;
         }
 
@@ -677,6 +756,7 @@ class Form extends Component
             if ($type === Attribute::TYPE_SELECT && $groupRows->count() > 1) {
                 $this->addError('form.attribute_ids', __('Only one value is allowed for group ":group".', ['group' => $groupCode]));
                 $this->dispatch('notify', type: 'danger', message: __('Only one value is allowed for select-type attribute groups.'));
+
                 return false;
             }
         }
@@ -717,7 +797,7 @@ class Form extends Component
                 }
             }
 
-            if (!empty($ids)) {
+            if (! empty($ids)) {
                 $normalizedByGroup[(string) $groupCode] = $ids;
                 foreach ($ids as $id) {
                     $allIds[] = $id;
@@ -737,6 +817,7 @@ class Form extends Component
         if ($rows->count() !== count($allIds)) {
             $this->addError('form.attribute_ids', __('Invalid attribute selection.'));
             $this->dispatch('notify', type: 'danger', message: __('Invalid attribute selection.'));
+
             return false;
         }
 
@@ -749,15 +830,17 @@ class Form extends Component
                 /** @var Attribute|null $row */
                 $row = $byId->get($id);
 
-                if (!$row) {
+                if (! $row) {
                     $this->addError('form.attribute_ids', __('Invalid attribute selection.'));
                     $this->dispatch('notify', type: 'danger', message: __('Invalid attribute selection.'));
+
                     return false;
                 }
 
                 if ((string) $row->group_code !== $groupCode) {
                     $this->addError('attributeSelections.'.$groupCode, __('Selected value does not belong to this group.'));
                     $this->dispatch('notify', type: 'danger', message: __('Attribute group/value mismatch detected.'));
+
                     return false;
                 }
 
@@ -767,6 +850,7 @@ class Form extends Component
             if (($groupType ?? Attribute::TYPE_SELECT) === Attribute::TYPE_SELECT && count($ids) > 1) {
                 $this->addError('attributeSelections.'.$groupCode, __('Only one value can be selected for this group.'));
                 $this->dispatch('notify', type: 'danger', message: __('Only one value is allowed for select-type attribute groups.'));
+
                 return false;
             }
         }
@@ -798,15 +882,16 @@ class Form extends Component
 
             if ((string) $attribute->type === Attribute::TYPE_MULTI) {
                 $existing = $this->attributeSelections[$groupCode] ?? [];
-                if (!is_array($existing)) {
+                if (! is_array($existing)) {
                     $existing = [];
                 }
                 $existing[] = $id;
                 $this->attributeSelections[$groupCode] = array_values(array_unique(array_map('intval', $existing)));
+
                 continue;
             }
 
-            if (!isset($this->attributeSelections[$groupCode]) || (int) $this->attributeSelections[$groupCode] <= 0) {
+            if (! isset($this->attributeSelections[$groupCode]) || (int) $this->attributeSelections[$groupCode] <= 0) {
                 $this->attributeSelections[$groupCode] = $id;
             }
         }
@@ -814,13 +899,13 @@ class Form extends Component
 
     private function hasSelectionForAttributeGroup(string $groupCode): bool
     {
-        if (!array_key_exists($groupCode, $this->attributeSelections)) {
+        if (! array_key_exists($groupCode, $this->attributeSelections)) {
             return false;
         }
 
         $value = $this->attributeSelections[$groupCode];
         if (is_array($value)) {
-            return !empty(array_filter(array_map('intval', $value), fn (int $id): bool => $id > 0));
+            return ! empty(array_filter(array_map('intval', $value), fn (int $id): bool => $id > 0));
         }
 
         return (int) $value > 0;
