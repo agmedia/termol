@@ -55,6 +55,33 @@ class StoreNotificationService
         }
     }
 
+    public function sendReturnRequestNotification(ContactMessage $message): void
+    {
+        $emailSettings = $this->storeSettings->email();
+        if (! (bool) ($emailSettings['enabled'] ?? false)) {
+            return;
+        }
+
+        $to = trim((string) ($emailSettings['orders_to'] ?? ''));
+        if (! filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        $subject = (string) ($message->subject ?: __('return_request.mail.subject_fallback'));
+        $body = (string) $message->message;
+
+        try {
+            Mail::raw($body, static function ($mail) use ($to, $subject, $message): void {
+                $mail->to($to)->subject($subject);
+                if (filter_var($message->email, FILTER_VALIDATE_EMAIL)) {
+                    $mail->replyTo($message->email);
+                }
+            });
+        } catch (\Throwable $e) {
+            Log::warning('Store return request notification failed: '.$e->getMessage());
+        }
+    }
+
     public function sendOrderNotification(Order $order): void
     {
         $emailSettings = $this->storeSettings->email();

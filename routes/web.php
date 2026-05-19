@@ -14,6 +14,7 @@ use App\Http\Controllers\Front\ManufacturerController;
 use App\Http\Controllers\Front\NewsletterController;
 use App\Http\Controllers\Front\PageController;
 use App\Http\Controllers\Front\ProductController;
+use App\Http\Controllers\Front\ReturnRequestController;
 use App\Http\Controllers\Front\StorefrontController;
 use App\Http\Controllers\Front\WishlistController;
 use App\Models\Catalog\Action\CatalogAction;
@@ -88,6 +89,8 @@ Route::middleware(['front.locale', 'front.device'])
 
         Route::get('contact', [ContactController::class, 'create'])->name('contact.create');
         Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
+        Route::get('forma-za-povrat-i-reklamacije', [ReturnRequestController::class, 'create'])->name('returns.create');
+        Route::post('forma-za-povrat-i-reklamacije', [ReturnRequestController::class, 'store'])->name('returns.store');
         Route::post('newsletter/subscribe', [NewsletterController::class, 'store'])->name('newsletter.subscribe');
 
         Route::get('cart', [CartController::class, 'index'])->name('cart.index');

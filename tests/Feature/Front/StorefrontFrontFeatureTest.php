@@ -31,6 +31,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -106,6 +107,121 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertDatabaseHas('contact_messages', [
             'email' => 'front@example.test',
             'subject' => 'Wholesale inquiry',
+            'status' => 'new',
+        ]);
+    }
+
+    public function test_return_request_form_is_available_at_seo_url(): void
+    {
+        $this->get('/forma-za-povrat-i-reklamacije')
+            ->assertOk()
+            ->assertSee((string) __('return_request.form.email'))
+            ->assertSee((string) __('return_request.form.order_number'))
+            ->assertSee((string) __('return_request.form.return_items'))
+            ->assertSee((string) __('return_request.form.note'));
+    }
+
+    public function test_return_request_form_stores_message_and_uses_orders_email(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'store_email_enabled' => true,
+            'store_email_orders_to' => 'orders@example.test',
+            'store_email_contact_to' => 'support@example.test',
+        ]);
+
+        Mail::shouldReceive('raw')
+            ->once()
+            ->with(
+                \Mockery::on(static fn (string $body): bool => str_contains($body, 'R-1001')
+                    && str_contains($body, 'T-shirt size M')),
+                \Mockery::on(static function (callable $callback): bool {
+                    $mail = new class {
+                        public array $calls = [];
+
+                        public function to(string $email): self
+                        {
+                            $this->calls['to'] = $email;
+
+                            return $this;
+                        }
+
+                        public function subject(string $subject): self
+                        {
+                            $this->calls['subject'] = $subject;
+
+                            return $this;
+                        }
+
+                        public function replyTo(string $email): self
+                        {
+                            $this->calls['reply_to'] = $email;
+
+                            return $this;
+                        }
+                    };
+
+                    $callback($mail);
+
+                    return ($mail->calls['to'] ?? '') === 'orders@example.test'
+                        && ($mail->calls['reply_to'] ?? '') === 'buyer@example.test'
+                        && str_contains((string) ($mail->calls['subject'] ?? ''), 'R-1001');
+                })
+            );
+
+        $this->post('/forma-za-povrat-i-reklamacije', [
+            'email' => 'buyer@example.test',
+            'order_number' => 'R-1001',
+            'return_items' => 'T-shirt size M',
+            'note' => 'Wrong size.',
+        ])
+            ->assertRedirect('/forma-za-povrat-i-reklamacije')
+            ->assertSessionHas('status', (string) __('return_request.sent_status'));
+
+        $this->assertDatabaseHas('contact_messages', [
+            'email' => 'buyer@example.test',
+            'subject' => __('return_request.mail.subject', ['order' => 'R-1001']),
+            'status' => 'new',
+        ]);
+    }
+
+    public function test_return_request_form_uses_enabled_recaptcha_settings(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'store_captcha_recaptcha_v3_enabled' => true,
+            'store_captcha_recaptcha_v3_site_key' => 'test-site-key',
+            'store_captcha_recaptcha_v3_secret_key' => 'test-secret-key',
+            'store_captcha_recaptcha_v3_min_score' => 0.7,
+        ]);
+
+        $this->get('/forma-za-povrat-i-reklamacije')
+            ->assertOk()
+            ->assertSee('data-recaptcha-site-key="test-site-key"', false)
+            ->assertSee('data-recaptcha-action="return_request_form"', false)
+            ->assertSee('https://www.google.com/recaptcha/api.js?render=test-site-key', false);
+
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response([
+                'success' => true,
+                'score' => 0.9,
+                'action' => 'return_request_form',
+            ]),
+        ]);
+
+        $this->post('/forma-za-povrat-i-reklamacije', [
+            'email' => 'captcha-buyer@example.test',
+            'order_number' => 'R-2002',
+            'return_items' => 'Socks size L',
+            'note' => '',
+            'recaptcha_token' => 'token-123',
+        ])->assertRedirect('/forma-za-povrat-i-reklamacije');
+
+        Http::assertSent(static fn ($request): bool => $request->url() === 'https://www.google.com/recaptcha/api/siteverify'
+            && $request['secret'] === 'test-secret-key'
+            && $request['response'] === 'token-123');
+
+        $this->assertDatabaseHas('contact_messages', [
+            'email' => 'captcha-buyer@example.test',
+            'subject' => __('return_request.mail.subject', ['order' => 'R-2002']),
             'status' => 'new',
         ]);
     }
