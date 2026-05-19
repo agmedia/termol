@@ -1224,6 +1224,22 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertDontSee('Croatia');
     }
 
+    public function test_product_detail_renders_material_feature_labels_under_icons(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product, $slug] = $this->seedProduct($category->id);
+
+        $this->attachProductAttribute($product, 'sastav', 'Composition Label', '95% Micromodal, 5% Elastane', 10);
+
+        $this->get('/product/'.$slug)
+            ->assertOk()
+            ->assertSee('assets/payments/SVILENKASTI_DODIR.svg', false)
+            ->assertSee('assets/payments/ELASTICNOST.svg', false)
+            ->assertSee('assets/payments/HIPOALERGEN.svg', false)
+            ->assertSeeInOrder(['95% Micromodal, 5% Elastane', 'Svilenkast', 'Elastičan', 'Hipoalergen']);
+    }
+
     public function test_mobile_product_detail_renders_attribute_panels_in_requested_order(): void
     {
         $this->useEnglishStorefrontLocale();
