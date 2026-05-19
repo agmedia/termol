@@ -46,8 +46,8 @@
     $materialFeatureIconSets = [
         'giza_pamuk' => [
             ['label' => 'Prozračan', 'icon' => 'PROZRACAN.svg'],
-            ['label' => 'Elastičan', 'icon' => 'ELASTICNOST.svg'],
             ['label' => 'Upijajući', 'icon' => 'UPOJNOST.svg'],
+            ['label' => 'Izdržljiv', 'icon' => 'DUGOTRAJAN.svg'],
         ],
         'modal_pamuk' => [
             ['label' => 'Svilenkast', 'icon' => 'SVILENKASTI_DODIR.svg'],
@@ -56,8 +56,8 @@
         ],
         'mikromodal' => [
             ['label' => 'Svilenkast', 'icon' => 'SVILENKASTI_DODIR.svg'],
+            ['label' => 'Elastičan', 'icon' => 'ELASTICNOST.svg'],
             ['label' => 'Hipoalergen', 'icon' => 'HIPOALERGEN.svg'],
-            ['label' => 'Prozračan', 'icon' => 'PROZRACAN.svg'],
         ],
     ];
 
@@ -108,6 +108,51 @@
 
             [data-product-attribute-panels] details[open] [data-attribute-chevron] {
                 transform: rotate(180deg);
+            }
+
+            [data-product-attribute-panels] [data-material-feature-grid] {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 1rem 1.5rem;
+                width: 100%;
+                max-width: 30rem;
+                margin-top: 1.25rem;
+            }
+
+            [data-product-attribute-panels] [data-material-feature] {
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            [data-product-attribute-panels] [data-material-feature-icon] {
+                display: block;
+                width: 34px;
+                height: 34px;
+                object-fit: contain;
+            }
+
+            [data-product-attribute-panels] [data-material-feature-label] {
+                margin-top: 0.375rem;
+                color: #0f172a;
+                font-size: 10px !important;
+                line-height: 1.2 !important;
+                font-weight: 600;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+            }
+
+            @media (min-width: 640px) {
+                [data-product-attribute-panels] [data-material-feature-grid] {
+                    column-gap: 3rem;
+                }
+
+                [data-product-attribute-panels] [data-material-feature-icon] {
+                    width: 36px;
+                    height: 36px;
+                }
             }
         </style>
     @endonce
@@ -165,16 +210,21 @@
                         @endif
 
                         @if ($panel['group_code'] === 'sastav' && count($materialFeatureIcons) > 0)
-                            <div class="mt-4 flex flex-wrap items-center gap-3" aria-label="Karakteristike materijala">
+                            <div data-material-feature-grid aria-label="Karakteristike materijala">
                                 @foreach ($materialFeatureIcons as $featureIcon)
-                                    <img
-                                        src="{{ asset('assets/payments/'.$featureIcon['icon']) }}"
-                                        alt="{{ $featureIcon['label'] }}"
-                                        title="{{ $featureIcon['label'] }}"
-                                        class="h-10 w-10 object-contain"
-                                        loading="lazy"
-                                        decoding="async"
-                                    >
+                                    <figure data-material-feature>
+                                        <img
+                                            src="{{ asset('assets/payments/'.$featureIcon['icon']) }}"
+                                            alt=""
+                                            data-material-feature-icon
+                                            loading="lazy"
+                                            decoding="async"
+                                            aria-hidden="true"
+                                        >
+                                        <figcaption data-material-feature-label>
+                                            {{ $featureIcon['label'] }}
+                                        </figcaption>
+                                    </figure>
                                 @endforeach
                             </div>
                         @endif
