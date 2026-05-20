@@ -34,6 +34,7 @@ return [
             'promotion_only' => 'Show only products on promotion',
             'promotion_only_hint' => 'Products with an active sale price',
             'sort' => 'Sort',
+            'default' => 'Default order',
             'newest' => 'Newest first',
             'oldest' => 'Oldest first',
             'price_low' => 'Price low to high',

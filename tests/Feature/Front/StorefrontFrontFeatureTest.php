@@ -1201,6 +1201,44 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertDontSee($blueSlug);
     }
 
+    public function test_category_default_sort_groups_products_by_color_order(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category, $categorySlug] = $this->seedCategory();
+        [$redProduct, $redSlug] = $this->seedProduct($category->id);
+        [$whiteProduct, $whiteSlug] = $this->seedProduct($category->id);
+        [$blackProduct, $blackSlug] = $this->seedProduct($category->id);
+
+        $colorOption = $this->createProductOption('Color', false);
+        $this->attachOptionValueToProduct($redProduct, $colorOption, 'Red', 1);
+        $this->attachOptionValueToProduct($whiteProduct, $colorOption, 'White', 2);
+        $this->attachOptionValueToProduct($blackProduct, $colorOption, 'Black', 3);
+
+        app(SystemSettingsService::class)->put('store_product_filter_option_ids', [$colorOption->id]);
+
+        $this->get('/category/'.$categorySlug)
+            ->assertOk()
+            ->assertSee('Default order')
+            ->assertSeeInOrder([
+                '/product/'.$whiteSlug,
+                '/product/'.$redSlug,
+                '/product/'.$blackSlug,
+            ], false)
+            ->assertSeeInOrder([
+                'White',
+                'Red',
+                'Black',
+            ]);
+
+        $this->get('/category/'.$categorySlug.'?sort=newest')
+            ->assertOk()
+            ->assertSeeInOrder([
+                '/product/'.$blackSlug,
+                '/product/'.$whiteSlug,
+                '/product/'.$redSlug,
+            ], false);
+    }
+
     public function test_category_color_filter_uses_uploaded_swatch_image_when_available(): void
     {
         $this->useEnglishStorefrontLocale();

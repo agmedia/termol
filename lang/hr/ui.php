@@ -34,6 +34,7 @@ return [
             'promotion_only' => 'Prikaži samo proizvode na promociji',
             'promotion_only_hint' => 'Koji imaju akcijsku cijenu',
             'sort' => 'Sortiranje',
+            'default' => 'Zadani redoslijed',
             'newest' => 'Najnovije prvo',
             'oldest' => 'Najstarije prvo',
             'price_low' => 'Cijena od niže prema višoj',

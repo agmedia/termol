@@ -326,7 +326,7 @@ class CatalogController extends Controller
         $search = trim((string) $request->query('q', ''));
         $categorySlug = $slug;
         $manufacturerSlug = trim((string) $request->query('manufacturer', ''));
-        $sort = (string) $request->query('sort', 'newest');
+        $sort = (string) $request->query('sort', 'default');
         $promoOnly = $this->normalizeBooleanFilterValue($request->query('promo_only'));
         [$priceMin, $priceMax] = $this->normalizedPriceRange(
             $request->query('price_min'),
@@ -492,11 +492,12 @@ class CatalogController extends Controller
                 ]);
 
             match ($sort) {
+                'newest' => $productsQuery->orderByDesc('products.id'),
                 'price_low' => $this->applyPriceSort($productsQuery, 'asc'),
                 'price_high' => $this->applyPriceSort($productsQuery, 'desc'),
                 'stock_high' => $productsQuery->orderByDesc('products.stock_qty')->orderByDesc('products.id'),
                 'oldest' => $productsQuery->orderBy('products.id'),
-                default => $productsQuery->orderByDesc('products.id'),
+                default => $this->applyCategoryDefaultProductSort($productsQuery, $categoryScopeIds, $locale, $fallbackLocale),
             };
 
             $products = $productsQuery
@@ -703,7 +704,7 @@ class CatalogController extends Controller
         $categoryKey = $categoryScopeIds !== null && $categoryScopeIds !== []
             ? sha1(implode(',', array_map(static fn ($id): int => (int) $id, $categoryScopeIds)))
             : 'all';
-        $cacheKey = sprintf('front:catalog:option-filters:v3:%s:%s:%s:%s', $locale, $fallbackLocale, sha1(implode(',', $optionIds)), $categoryKey);
+        $cacheKey = sprintf('front:catalog:option-filters:v4:%s:%s:%s:%s', $locale, $fallbackLocale, sha1(implode(',', $optionIds)), $categoryKey);
 
         $rows = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($locale, $fallbackLocale, $optionIds, $categoryScopeIds): array {
             $scopeIds = collect($categoryScopeIds ?? [])
@@ -756,6 +757,7 @@ class CatalogController extends Controller
                     $label = __('ui.shop.filters.size');
                 }
 
+                $kind = $this->catalogOptionFilterKind($option);
                 $values = $option->values
                     ->map(function (OptionValue $value) use ($locale, $fallbackLocale, $valueCounts): array {
                         $valueTranslation = $value->translations->firstWhere('locale', $locale)
@@ -767,8 +769,19 @@ class CatalogController extends Controller
                             'id' => (int) $value->id,
                             'label' => $valueLabel !== '' ? $valueLabel : (string) $value->code,
                             'count' => (int) ($valueCounts[(int) $value->id] ?? 0),
+                            'sort_rank' => $this->catalogColorSortRank((string) $value->code, $valueLabel),
                             'swatch_image_url' => $this->catalogOptionValueSwatchImageUrl($value),
                         ];
+                    })
+                    ->when($kind === 'color', fn ($values) => $values->sortBy([
+                        ['sort_rank', 'asc'],
+                        ['label', 'asc'],
+                        ['id', 'asc'],
+                    ]))
+                    ->map(function (array $value): array {
+                        unset($value['sort_rank']);
+
+                        return $value;
                     })
                     ->values()
                     ->all();
@@ -780,7 +793,7 @@ class CatalogController extends Controller
                 $filters[] = [
                     'label' => $label,
                     'query_key' => 'opt_'.$option->id,
-                    'kind' => $this->catalogOptionFilterKind($option),
+                    'kind' => $kind,
                     'values' => $values,
                 ];
             }
@@ -1238,6 +1251,137 @@ class CatalogController extends Controller
 
         $expression = $this->displayedPriceSqlExpression($query);
         $query->orderByRaw($expression.' '.($direction === 'desc' ? 'DESC' : 'ASC'));
+    }
+
+    /**
+     * @param  array<int, int>  $categoryScopeIds
+     */
+    private function applyCategoryDefaultProductSort(Builder $query, array $categoryScopeIds, string $locale, string $fallbackLocale): void
+    {
+        $scopeIds = collect($categoryScopeIds)
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($scopeIds !== []) {
+            $categorySortSubquery = DB::table('category_product')
+                ->selectRaw('product_id, MIN(sort_order) as category_sort_order')
+                ->whereIn('category_id', $scopeIds)
+                ->groupBy('product_id');
+
+            $query->leftJoinSub($categorySortSubquery, 'category_product_sort', function ($join): void {
+                $join->on('category_product_sort.product_id', '=', 'products.id');
+            });
+        }
+
+        $colorSortSubquery = DB::table('catalog_product_option_values as product_colors')
+            ->join('catalog_option_values as color_values', function ($join): void {
+                $join->on('color_values.id', '=', 'product_colors.option_value_id')
+                    ->orOn('color_values.id', '=', 'product_colors.parent_option_value_id');
+            })
+            ->join('catalog_options as color_options', 'color_options.id', '=', 'color_values.option_id')
+            ->leftJoin('catalog_option_translations as color_option_translations', function ($join) use ($locale, $fallbackLocale): void {
+                $join->on('color_option_translations.option_id', '=', 'color_options.id')
+                    ->whereIn('color_option_translations.locale', [$locale, $fallbackLocale]);
+            })
+            ->leftJoin('catalog_option_value_translations as color_value_translations', function ($join) use ($locale, $fallbackLocale): void {
+                $join->on('color_value_translations.option_value_id', '=', 'color_values.id')
+                    ->whereIn('color_value_translations.locale', [$locale, $fallbackLocale]);
+            })
+            ->where('product_colors.is_active', true)
+            ->where('color_values.is_active', true)
+            ->where('color_options.is_active', true)
+            ->where(function ($optionQuery): void {
+                $optionText = $this->catalogNormalizedTextSql('color_options.code', 'color_option_translations.name');
+
+                $optionQuery
+                    ->whereRaw($optionText." LIKE 'color%'")
+                    ->orWhereRaw($optionText." LIKE '% color%'")
+                    ->orWhereRaw($optionText." LIKE 'colour%'")
+                    ->orWhereRaw($optionText." LIKE '% colour%'")
+                    ->orWhereRaw($optionText." LIKE 'boja%'")
+                    ->orWhereRaw($optionText." LIKE '% boja%'");
+            })
+            ->selectRaw('product_colors.product_id, MIN('.$this->catalogColorSortCaseSql('color_values.code', 'color_value_translations.name').') as color_sort_order')
+            ->groupBy('product_colors.product_id');
+
+        $query
+            ->leftJoinSub($colorSortSubquery, 'product_color_sort', function ($join): void {
+                $join->on('product_color_sort.product_id', '=', 'products.id');
+            })
+            ->orderByRaw('COALESCE(product_color_sort.color_sort_order, 999) ASC');
+
+        if ($scopeIds !== []) {
+            $query->orderByRaw('COALESCE(category_product_sort.category_sort_order, 999999) ASC');
+        }
+
+        $query->orderByDesc('products.id');
+    }
+
+    private function catalogColorSortCaseSql(string $codeColumn, string $labelColumn): string
+    {
+        $text = $this->catalogNormalizedTextSql($codeColumn, $labelColumn);
+
+        return "CASE
+            WHEN {$text} LIKE '%karirano%' OR {$text} LIKE '%geometric%' OR {$text} LIKE '%squares%' OR {$text} LIKE '%web%' OR {$text} LIKE '%kokos%' OR {$text} LIKE '%flowers%' OR {$text} LIKE '%butterfly%' OR {$text} LIKE '%footprint%' OR {$text} LIKE '%roses%' OR {$text} LIKE '%stars%' OR {$text} LIKE '%uzor%' OR {$text} LIKE '%pattern%' THEN 70
+            WHEN {$text} LIKE '%bijel%' OR {$text} LIKE '%white%' THEN 10
+            WHEN {$text} LIKE '%boja-koze%' OR {$text} LIKE '%boja koze%' OR {$text} LIKE '%beige%' OR {$text} LIKE '%bez%' OR {$text} LIKE '%nude%' OR {$text} LIKE '%skin%' THEN 20
+            WHEN {$text} LIKE '%siv%' OR {$text} LIKE '%gray%' OR {$text} LIKE '%grey%' THEN 30
+            WHEN {$text} LIKE '%crven%' OR {$text} LIKE '%red%' THEN 40
+            WHEN {$text} LIKE '%plav%' OR {$text} LIKE '%blue%' OR {$text} LIKE '%navy%' THEN 50
+            WHEN {$text} LIKE '%crn%' OR {$text} LIKE '%black%' THEN 60
+            ELSE 70
+        END";
+    }
+
+    private function catalogNormalizedTextSql(string $codeColumn, string $labelColumn): string
+    {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return "LOWER(REPLACE(REPLACE(REPLACE(({$codeColumn} || ' ' || COALESCE({$labelColumn}, '')), '_', '-'), 'ž', 'z'), 'Ž', 'z'))";
+        }
+
+        return "LOWER(REPLACE(REPLACE(REPLACE(CONCAT_WS(' ', {$codeColumn}, COALESCE({$labelColumn}, '')), '_', '-'), 'ž', 'z'), 'Ž', 'z'))";
+    }
+
+    private function catalogColorSortRank(string $code, string $label = ''): int
+    {
+        $text = Str::of($code.' '.$label)
+            ->ascii()
+            ->lower()
+            ->replace('_', '-')
+            ->value();
+
+        if (Str::contains($text, ['karirano', 'geometric', 'squares', 'web', 'kokos', 'flowers', 'butterfly', 'footprint', 'roses', 'stars', 'uzor', 'pattern'])) {
+            return 70;
+        }
+
+        if (Str::contains($text, ['bijel', 'white'])) {
+            return 10;
+        }
+
+        if (Str::contains($text, ['boja-koze', 'boja koze', 'beige', 'bez', 'nude', 'skin'])) {
+            return 20;
+        }
+
+        if (Str::contains($text, ['siv', 'gray', 'grey'])) {
+            return 30;
+        }
+
+        if (Str::contains($text, ['crven', 'red'])) {
+            return 40;
+        }
+
+        if (Str::contains($text, ['plav', 'blue', 'navy'])) {
+            return 50;
+        }
+
+        if (Str::contains($text, ['crn', 'black'])) {
+            return 60;
+        }
+
+        return 70;
     }
 
     private function applyPromotionFilter(Builder $query, ?User $user): void

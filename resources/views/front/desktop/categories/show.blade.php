@@ -23,7 +23,7 @@
         || (bool) ($filters['promo_only'] ?? false)
         || collect(array_keys(request()->query()))
             ->contains(fn ($key): bool => str_starts_with((string) $key, 'opt_') || str_starts_with((string) $key, 'attr_'))
-        || (string) ($filters['sort'] ?? 'newest') !== 'newest';
+        || (string) ($filters['sort'] ?? 'default') !== 'default';
     $priceMinValue = trim((string) ($filters['price_min'] ?? ''));
     $priceMaxValue = trim((string) ($filters['price_max'] ?? ''));
     $promoOnlyEnabled = (bool) ($filters['promo_only'] ?? false);
@@ -1350,7 +1350,8 @@
                         </div>
                         <div class="catalog-mobile-filter-group">
                             <select id="shop-sort-mobile" name="sort" class="catalog-mobile-filter-select" aria-label="{{ __('ui.shop.filters.sort') }}" data-auto-submit-filter>
-                                <option value="newest" @selected(($filters['sort'] ?? 'newest') === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
+                                <option value="default" @selected(($filters['sort'] ?? 'default') === 'default')>{{ __('ui.shop.filters.default') }}</option>
+                                <option value="newest" @selected(($filters['sort'] ?? '') === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
                                 <option value="oldest" @selected(($filters['sort'] ?? '') === 'oldest')>{{ __('ui.shop.filters.oldest') }}</option>
                                 <option value="price_low" @selected(($filters['sort'] ?? '') === 'price_low')>{{ __('ui.shop.filters.price_low') }}</option>
                                 <option value="price_high" @selected(($filters['sort'] ?? '') === 'price_high')>{{ __('ui.shop.filters.price_high') }}</option>
@@ -1493,7 +1494,8 @@
             <div class="min-[1025px]:ml-auto flex items-center gap-2">
                 <div class="catalog-filter-sort-wrap w-[132px] xl:w-[144px]">
                     <select id="shop-sort" name="sort" class="catalog-filter-select catalog-filter-inline-select h-9 w-full rounded-none border-slate-300 text-sm" data-auto-submit-filter>
-                        <option value="newest" @selected(($filters['sort'] ?? 'newest') === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
+                        <option value="default" @selected(($filters['sort'] ?? 'default') === 'default')>{{ __('ui.shop.filters.default') }}</option>
+                        <option value="newest" @selected(($filters['sort'] ?? '') === 'newest')>{{ __('ui.shop.filters.newest') }}</option>
                         <option value="oldest" @selected(($filters['sort'] ?? '') === 'oldest')>{{ __('ui.shop.filters.oldest') }}</option>
                         <option value="price_low" @selected(($filters['sort'] ?? '') === 'price_low')>{{ __('ui.shop.filters.price_low') }}</option>
                         <option value="price_high" @selected(($filters['sort'] ?? '') === 'price_high')>{{ __('ui.shop.filters.price_high') }}</option>
@@ -1625,7 +1627,7 @@
                 }
 
                 if (field.name === 'sort') {
-                    return value !== 'newest';
+                    return value !== 'default';
                 }
 
                 return true;

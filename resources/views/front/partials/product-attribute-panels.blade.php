@@ -129,8 +129,8 @@
 
             [data-product-attribute-panels] [data-material-feature-icon] {
                 display: block;
-                width: 34px;
-                height: 34px;
+                width: 40px;
+                height: 40px;
                 object-fit: contain;
             }
 
@@ -150,8 +150,8 @@
                 }
 
                 [data-product-attribute-panels] [data-material-feature-icon] {
-                    width: 36px;
-                    height: 36px;
+                    width: 42px;
+                    height: 42px;
                 }
             }
         </style>
