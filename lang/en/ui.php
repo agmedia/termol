@@ -95,7 +95,7 @@ return [
             'open_navigation' => 'Open navigation',
             'close_navigation' => 'Close navigation',
             'newsletter' => [
-                'club' => 'AMDS Club',
+                'club' => 'BALI Club',
                 'title' => 'Newsletter signup for 10% off your first purchase',
                 'subtitle' => 'We occasionally send updates and special offers.',
                 'placeholder' => 'Enter your email address',
@@ -745,7 +745,7 @@ return [
     'blog' => [
         'page_title' => 'News & Updates',
         'title' => 'News & Updates',
-        'subtitle' => 'Featured stories, trends, and AMDS highlights.',
+        'subtitle' => 'Featured stories, trends, and BALI highlights.',
         'empty' => 'No blog posts published yet.',
         'excerpt_fallback' => 'Open the article for more details.',
     ],

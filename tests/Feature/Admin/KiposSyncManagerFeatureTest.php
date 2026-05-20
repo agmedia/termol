@@ -5,12 +5,15 @@ namespace Tests\Feature\Admin;
 use App\Jobs\RunKiposSyncActionJob;
 use App\Livewire\Admin\Settings\Api\KiposSyncManager;
 use App\Models\Catalog\Product\Product;
+use App\Models\Catalog\Product\ProductTranslation;
 use App\Models\Integrations\KiposSyncRun;
 use App\Models\User;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
@@ -27,11 +30,11 @@ class KiposSyncManagerFeatureTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(KiposSyncManager::class)
-            ->call('runAction', 'update_images')
+            ->call('runAction', 'import_images')
             ->assertHasNoErrors()
             ->assertDispatched('notify');
 
-        $run = KiposSyncRun::query()->where('action_key', 'update_images')->latest('id')->first();
+        $run = KiposSyncRun::query()->where('action_key', 'import_images')->latest('id')->first();
 
         $this->assertNotNull($run);
         $this->assertSame('queued', $run?->status);
@@ -60,6 +63,40 @@ class KiposSyncManagerFeatureTest extends TestCase
         $this->assertNotNull($run);
         $this->assertSame('success', $run?->status);
         $this->assertEqualsWithDelta(42.50, (float) $product->fresh()?->base_price, 0.001);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_admin_runs_kipos_image_update_immediately(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        config([
+            'media-library.disk_name' => 'public',
+            'media-library.queue_conversions_by_default' => false,
+            'media-library.temporary_directory_path' => sys_get_temp_dir(),
+        ]);
+
+        $admin = $this->makeUserWithRole('superadmin');
+        $product = $this->createKiposProduct($admin, 'M7031');
+        $this->createProductTranslation($product);
+
+        $this->enableKiposImageSync();
+        $this->fakeKiposImage('M7031');
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->call('runAction', 'update_images')
+            ->assertHasNoErrors()
+            ->assertDispatched('notify');
+
+        $run = KiposSyncRun::query()->where('action_key', 'update_images')->latest('id')->first();
+        $media = $product->fresh()?->getFirstMedia('product_main');
+
+        $this->assertNotNull($run);
+        $this->assertSame('success', $run?->status);
+        $this->assertSame(1, (int) (($run?->stats ?? [])['updated_products'] ?? 0));
+        $this->assertNotNull($media);
+        $this->assertSame('M7031.png', $media?->file_name);
         Queue::assertNothingPushed();
     }
 
@@ -95,13 +132,24 @@ class KiposSyncManagerFeatureTest extends TestCase
         Queue::assertNothingPushed();
     }
 
-    public function test_admin_cannot_queue_same_kipos_action_twice_while_it_is_active(): void
+    public function test_admin_executes_existing_queued_image_update_immediately(): void
     {
         Queue::fake();
+        Storage::fake('public');
+        config([
+            'media-library.disk_name' => 'public',
+            'media-library.queue_conversions_by_default' => false,
+            'media-library.temporary_directory_path' => sys_get_temp_dir(),
+        ]);
 
         $admin = $this->makeUserWithRole('superadmin');
+        $product = $this->createKiposProduct($admin, 'M7032');
+        $this->createProductTranslation($product);
 
-        KiposSyncRun::query()->create([
+        $this->enableKiposImageSync();
+        $this->fakeKiposImage('M7032');
+
+        $run = KiposSyncRun::query()->create([
             'action_key' => 'update_images',
             'action_label' => 'Update Images',
             'status' => 'queued',
@@ -115,7 +163,35 @@ class KiposSyncManagerFeatureTest extends TestCase
             ->assertHasNoErrors()
             ->assertDispatched('notify');
 
+        $run->refresh();
+
+        $this->assertSame('success', $run->status);
         $this->assertSame(1, KiposSyncRun::query()->where('action_key', 'update_images')->count());
+        $this->assertSame('M7032.png', $product->fresh()?->getFirstMedia('product_main')?->file_name);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_admin_cannot_queue_same_kipos_action_twice_while_it_is_active(): void
+    {
+        Queue::fake();
+
+        $admin = $this->makeUserWithRole('superadmin');
+
+        KiposSyncRun::query()->create([
+            'action_key' => 'import_images',
+            'action_label' => 'Import Images',
+            'status' => 'queued',
+            'summary' => 'Queued from admin. Waiting for background worker.',
+            'initiated_by' => $admin->id,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->call('runAction', 'import_images')
+            ->assertHasNoErrors()
+            ->assertDispatched('notify');
+
+        $this->assertSame(1, KiposSyncRun::query()->where('action_key', 'import_images')->count());
         Queue::assertNothingPushed();
     }
 
@@ -126,8 +202,8 @@ class KiposSyncManagerFeatureTest extends TestCase
         $admin = $this->makeUserWithRole('superadmin');
 
         $staleRun = KiposSyncRun::query()->create([
-            'action_key' => 'update_images',
-            'action_label' => 'Update Images',
+            'action_key' => 'import_images',
+            'action_label' => 'Import Images',
             'status' => 'started',
             'summary' => 'Execution started.',
             'started_at' => now()->subMinutes(46),
@@ -136,12 +212,12 @@ class KiposSyncManagerFeatureTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(KiposSyncManager::class)
-            ->call('runAction', 'update_images')
+            ->call('runAction', 'import_images')
             ->assertHasNoErrors()
             ->assertDispatched('notify');
 
         $staleRun->refresh();
-        $replacementRun = KiposSyncRun::query()->where('action_key', 'update_images')->latest('id')->first();
+        $replacementRun = KiposSyncRun::query()->where('action_key', 'import_images')->latest('id')->first();
 
         $this->assertSame('failed', $staleRun->status);
         $this->assertSame(
@@ -229,6 +305,21 @@ class KiposSyncManagerFeatureTest extends TestCase
         ]);
     }
 
+    private function createProductTranslation(Product $product): void
+    {
+        ProductTranslation::query()->create([
+            'product_id' => $product->id,
+            'locale' => 'hr',
+            'name' => 'Test '.$product->code,
+            'slug' => 'test-'.$product->code,
+            'excerpt' => null,
+            'description' => null,
+            'meta_title' => null,
+            'meta_description' => null,
+            'payload' => null,
+        ]);
+    }
+
     private function enableKiposPriceSync(): void
     {
         app(SystemSettingsService::class)->putMany([
@@ -242,6 +333,19 @@ class KiposSyncManagerFeatureTest extends TestCase
         ]);
     }
 
+    private function enableKiposImageSync(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'catalog_use_kipos_api' => true,
+            'kipos_api_enabled' => true,
+            'kipos_api_base_uri' => 'http://balidd.dyndns.org:8080/kipos.web.api/?route=',
+            'kipos_api_image_base_uri' => 'http://balidd.dyndns.org:8080/slike/',
+            'kipos_api_query_suffix' => 'webshop=1',
+            'kipos_api_timeout_seconds' => 30,
+            'kipos_api_verify_tls' => true,
+        ]);
+    }
+
     private function fakeKiposPrice(string $code, string $price): void
     {
         Http::fake([
@@ -249,6 +353,26 @@ class KiposSyncManagerFeatureTest extends TestCase
             '*getitems*' => Http::response([
                 ['IDROBA' => $code, 'IDODJEL' => $code, 'CIJENA_MPC' => $price],
             ], 200),
+        ]);
+    }
+
+    private function fakeKiposImage(string $code): void
+    {
+        $remoteImage = UploadedFile::fake()->image($code.'.png', 40, 40);
+
+        Http::fake([
+            '*getOdjelSlike*' => Http::response([
+                [
+                    'IDODJEL' => $code,
+                    'URL' => $code,
+                    'NAZIV' => $code,
+                    'GLAVNA' => 'D',
+                    'TIP' => 'SLIKA',
+                ],
+            ], 200),
+            '*slike/'.$code.'*' => Http::response(file_get_contents($remoteImage->getPathname()), 200, [
+                'Content-Type' => 'image/png',
+            ]),
         ]);
     }
 }

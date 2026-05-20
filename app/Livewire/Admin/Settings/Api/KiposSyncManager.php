@@ -138,7 +138,7 @@ class KiposSyncManager extends Component
 
     private function runsImmediately(string $actionKey): bool
     {
-        return in_array($actionKey, ['update_prices'], true);
+        return in_array($actionKey, ['update_prices', 'update_images'], true);
     }
 
     public function render(KiposSyncService $syncService)
