@@ -15,7 +15,7 @@ use App\Models\Integrations\KiposSyncRun;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Http\File as HttpFile;
-use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -24,14 +24,15 @@ class KiposSyncService
 {
     private const STALE_STARTED_RUN_AFTER_MINUTES = 45;
 
+    private const IMAGE_BATCH_CACHE_TTL_MINUTES = 360;
+
     private ?int $runInitiatedBy = null;
 
     public function __construct(
         private readonly KiposSdkService $kipos,
         private readonly SystemSettingsService $settings,
         private readonly CatalogFeatureService $catalogFeatures
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, string>
@@ -404,6 +405,7 @@ class KiposSyncService
             $product = $products->get($groupCode);
             if (! $product) {
                 $unmatched++;
+
                 continue;
             }
 
@@ -495,6 +497,7 @@ class KiposSyncService
             $product = $products->get($groupCode);
             if (! $product) {
                 $unmatched++;
+
                 continue;
             }
 
@@ -559,6 +562,7 @@ class KiposSyncService
             $product = $products->get($groupCode);
             if (! $product) {
                 $unmatched++;
+
                 continue;
             }
 
@@ -616,6 +620,7 @@ class KiposSyncService
                 );
 
                 $activated++;
+
                 continue;
             }
 
@@ -657,6 +662,212 @@ class KiposSyncService
         return $this->syncImages(replaceExisting: true);
     }
 
+    public function startImageBatchRun(string $actionKey, ?int $initiatedBy = null, int $batchSize = 10, ?KiposSyncRun $run = null): KiposSyncRun
+    {
+        $action = $this->resolveAction($actionKey);
+        if (! in_array($actionKey, ['update_images'], true)) {
+            throw new RuntimeException('This Kipos action cannot be processed in browser batches.');
+        }
+
+        if ($run === null) {
+            $run = $this->activeRun($actionKey);
+        }
+
+        if ($run instanceof KiposSyncRun && $run->status === 'started') {
+            return $run->fresh(['initiator']) ?? $run;
+        }
+
+        $this->kipos->assertEnabled();
+
+        $replaceExisting = $actionKey === 'update_images';
+        $locale = $this->defaultLocale();
+        $grouped = $this->remoteImageRowsByGroup();
+        $products = Product::query()
+            ->whereNotNull('code')
+            ->where('code', '!=', '')
+            ->orderBy('id')
+            ->get(['id', 'code']);
+
+        $productIds = $products
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->values()
+            ->all();
+        $productCodes = $products
+            ->map(fn (Product $product): string => strtoupper((string) $product->code))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $unmatchedProducts = count(array_diff(array_keys($grouped), $productCodes));
+        $totalProducts = count($productIds);
+
+        $run ??= KiposSyncRun::query()->create([
+            'action_key' => $actionKey,
+            'action_label' => $action['label'],
+            'status' => 'started',
+            'started_at' => now(),
+            'initiated_by' => $initiatedBy,
+        ]);
+
+        Cache::put($this->imageBatchCacheKey($run->id, 'product_ids'), $productIds, now()->addMinutes(self::IMAGE_BATCH_CACHE_TTL_MINUTES));
+        Cache::put($this->imageBatchCacheKey($run->id, 'grouped_rows'), $grouped, now()->addMinutes(self::IMAGE_BATCH_CACHE_TTL_MINUTES));
+
+        $stats = [
+            'summary' => sprintf('Images: 0 / %d products processed (0%%).', $totalProducts),
+            'browser_batch' => true,
+            'batch_size' => max(1, $batchSize),
+            'processed_products' => 0,
+            'total_products' => $totalProducts,
+            'progress_percent' => $totalProducts > 0 ? 0 : 100,
+            'next_offset' => 0,
+            'matched_products' => 0,
+            'updated_products' => 0,
+            'skipped_existing' => 0,
+            'skipped_without_remote' => 0,
+            'unmatched_products' => $unmatchedProducts,
+            'main_images_attached' => 0,
+            'gallery_images_attached' => 0,
+            'download_failures' => 0,
+            'download_failure_details' => [],
+            'replace_existing' => $replaceExisting,
+            'fallback_product_lookups' => 0,
+            'remote_groups' => count($grouped),
+            'locale' => $locale,
+        ];
+
+        $run->fill([
+            'status' => 'started',
+            'summary' => (string) $stats['summary'],
+            'stats' => $stats,
+            'started_at' => $run->started_at ?: now(),
+            'finished_at' => null,
+            'error_message' => null,
+            'initiated_by' => $run->initiated_by ?: $initiatedBy,
+        ])->save();
+
+        return $run->fresh(['initiator']) ?? $run;
+    }
+
+    public function processImageBatchRun(KiposSyncRun $run, int $batchSize = 10): KiposSyncRun
+    {
+        if ($run->status !== 'started' || ! (bool) data_get($run->stats, 'browser_batch')) {
+            return $run->fresh(['initiator']) ?? $run;
+        }
+
+        $lock = Cache::lock($this->imageBatchCacheKey($run->id, 'lock'), 300);
+        if (! $lock->get()) {
+            return $run->fresh(['initiator']) ?? $run;
+        }
+
+        $this->runInitiatedBy = $run->initiated_by;
+
+        try {
+            $this->kipos->assertEnabled();
+
+            $stats = (array) ($run->stats ?? []);
+            $productIds = $this->cachedImageBatchProductIds($run);
+            $grouped = $this->cachedImageBatchGroupedRows($run);
+            $locale = (string) ($stats['locale'] ?? $this->defaultLocale());
+            $replaceExisting = (bool) ($stats['replace_existing'] ?? true);
+            $totalProducts = max(count($productIds), (int) ($stats['total_products'] ?? 0));
+            $offset = max(0, (int) ($stats['next_offset'] ?? $stats['processed_products'] ?? 0));
+            $batchIds = array_slice($productIds, $offset, max(1, $batchSize));
+
+            if ($batchIds === []) {
+                return $this->finishImageBatchRun($run, $stats);
+            }
+
+            config([
+                'media-library.max_file_size' => max((int) config('media-library.max_file_size', 0), 25 * 1024 * 1024),
+            ]);
+
+            $order = array_flip($batchIds);
+            $products = Product::query()
+                ->with([
+                    'translations' => fn ($query) => $query->where('locale', $locale),
+                    'media',
+                    'optionValues',
+                ])
+                ->whereIn('id', $batchIds)
+                ->get()
+                ->sortBy(fn (Product $product): int => (int) ($order[$product->id] ?? PHP_INT_MAX))
+                ->values();
+
+            foreach ($products as $product) {
+                $groupCode = strtoupper((string) $product->code);
+                $imageRows = $grouped[$groupCode] ?? null;
+
+                if (is_array($imageRows)) {
+                    $stats['matched_products'] = (int) ($stats['matched_products'] ?? 0) + 1;
+                    $this->mergeImageBatchProductStats($stats, $this->syncImageRowsForProduct(
+                        product: $product,
+                        imageRows: $imageRows,
+                        replaceExisting: $replaceExisting,
+                        locale: $locale
+                    ));
+
+                    continue;
+                }
+
+                if (! $replaceExisting && $this->productHasLocalImages($product)) {
+                    $stats['skipped_existing'] = (int) ($stats['skipped_existing'] ?? 0) + 1;
+
+                    continue;
+                }
+
+                $stats['fallback_product_lookups'] = (int) ($stats['fallback_product_lookups'] ?? 0) + 1;
+                $imageRows = $this->remoteImageRowsForProduct($product, $grouped);
+                if ($imageRows === []) {
+                    $stats['skipped_without_remote'] = (int) ($stats['skipped_without_remote'] ?? 0) + 1;
+
+                    continue;
+                }
+
+                $stats['matched_products'] = (int) ($stats['matched_products'] ?? 0) + 1;
+                $this->mergeImageBatchProductStats($stats, $this->syncImageRowsForProduct(
+                    product: $product,
+                    imageRows: $imageRows,
+                    replaceExisting: $replaceExisting,
+                    locale: $locale
+                ));
+            }
+
+            $processedProducts = min($totalProducts, $offset + count($batchIds));
+            $stats['processed_products'] = $processedProducts;
+            $stats['total_products'] = $totalProducts;
+            $stats['progress_percent'] = $this->progressPercent($processedProducts, $totalProducts);
+            $stats['next_offset'] = $processedProducts;
+
+            if ($processedProducts >= $totalProducts) {
+                return $this->finishImageBatchRun($run, $stats);
+            }
+
+            $summary = $this->imageBatchProgressSummary($stats);
+            $stats['summary'] = $summary;
+
+            $run->fill([
+                'summary' => $summary,
+                'stats' => $stats,
+            ])->save();
+
+            return $run->fresh(['initiator']) ?? $run;
+        } catch (\Throwable $exception) {
+            $run->fill([
+                'status' => 'failed',
+                'summary' => 'Execution failed.',
+                'error_message' => $exception->getMessage(),
+                'finished_at' => now(),
+            ])->save();
+
+            throw $exception;
+        } finally {
+            $this->runInitiatedBy = null;
+            optional($lock)->release();
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -691,11 +902,13 @@ class KiposSyncService
 
             if ($existing && ! $updateExisting && $createMissing) {
                 $skipped++;
+
                 continue;
             }
 
             if (! $existing && ! $createMissing) {
                 $skipped++;
+
                 continue;
             }
 
@@ -967,6 +1180,7 @@ class KiposSyncService
             $product = $products->get($groupCode);
             if (! $product) {
                 $unmatchedProducts++;
+
                 continue;
             }
 
@@ -994,6 +1208,7 @@ class KiposSyncService
 
             if (! $replaceExisting && $this->productHasLocalImages($product)) {
                 $skippedExisting++;
+
                 continue;
             }
 
@@ -1001,6 +1216,7 @@ class KiposSyncService
             $imageRows = $this->remoteImageRowsForProduct($product, $grouped);
             if ($imageRows === []) {
                 $skippedWithoutRemote++;
+
                 continue;
             }
 
@@ -1033,6 +1249,160 @@ class KiposSyncService
             'replace_existing' => $replaceExisting,
             'fallback_product_lookups' => $fallbackLookups,
         ];
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function cachedImageBatchProductIds(KiposSyncRun $run): array
+    {
+        $key = $this->imageBatchCacheKey($run->id, 'product_ids');
+        $productIds = Cache::get($key);
+        if (is_array($productIds)) {
+            return collect($productIds)
+                ->map(fn ($id): int => (int) $id)
+                ->filter(fn (int $id): bool => $id > 0)
+                ->values()
+                ->all();
+        }
+
+        $productIds = Product::query()
+            ->whereNotNull('code')
+            ->where('code', '!=', '')
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->values()
+            ->all();
+
+        Cache::put($key, $productIds, now()->addMinutes(self::IMAGE_BATCH_CACHE_TTL_MINUTES));
+
+        return $productIds;
+    }
+
+    /**
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function cachedImageBatchGroupedRows(KiposSyncRun $run): array
+    {
+        $key = $this->imageBatchCacheKey($run->id, 'grouped_rows');
+        $grouped = Cache::get($key);
+        if (is_array($grouped)) {
+            return $grouped;
+        }
+
+        $grouped = $this->remoteImageRowsByGroup();
+        Cache::put($key, $grouped, now()->addMinutes(self::IMAGE_BATCH_CACHE_TTL_MINUTES));
+
+        return $grouped;
+    }
+
+    /**
+     * @param  array<string, mixed>  $stats
+     * @param  array<string, mixed>  $productStats
+     */
+    private function mergeImageBatchProductStats(array &$stats, array $productStats): void
+    {
+        foreach ([
+            'updated_products',
+            'skipped_existing',
+            'skipped_without_remote',
+            'main_images_attached',
+            'gallery_images_attached',
+            'download_failures',
+        ] as $key) {
+            $stats[$key] = (int) ($stats[$key] ?? 0) + (int) ($productStats[$key] ?? 0);
+        }
+
+        $details = $stats['download_failure_details'] ?? [];
+        if (! is_array($details) || count($details) >= 5) {
+            return;
+        }
+
+        $newDetails = $productStats['download_failure_details'] ?? [];
+        if (! is_array($newDetails)) {
+            return;
+        }
+
+        foreach ($newDetails as $detail) {
+            if (! is_array($detail)) {
+                continue;
+            }
+
+            $details[] = $detail;
+            if (count($details) >= 5) {
+                break;
+            }
+        }
+
+        $stats['download_failure_details'] = array_values($details);
+    }
+
+    /**
+     * @param  array<string, mixed>  $stats
+     */
+    private function finishImageBatchRun(KiposSyncRun $run, array $stats): KiposSyncRun
+    {
+        $summary = $this->imageSyncSummary($stats);
+        $stats['summary'] = $summary;
+        $stats['progress_percent'] = 100;
+        $stats['next_offset'] = (int) ($stats['total_products'] ?? $stats['processed_products'] ?? 0);
+
+        Cache::forget($this->imageBatchCacheKey($run->id, 'product_ids'));
+        Cache::forget($this->imageBatchCacheKey($run->id, 'grouped_rows'));
+
+        $run->fill([
+            'status' => 'success',
+            'summary' => $summary,
+            'stats' => $stats,
+            'error_message' => null,
+            'finished_at' => now(),
+        ])->save();
+
+        return $run->fresh(['initiator']) ?? $run;
+    }
+
+    /**
+     * @param  array<string, mixed>  $stats
+     */
+    private function imageBatchProgressSummary(array $stats): string
+    {
+        return sprintf(
+            'Images: %d / %d products processed (%d%%). %d products updated, %d download failures.',
+            (int) ($stats['processed_products'] ?? 0),
+            (int) ($stats['total_products'] ?? 0),
+            (int) ($stats['progress_percent'] ?? 0),
+            (int) ($stats['updated_products'] ?? 0),
+            (int) ($stats['download_failures'] ?? 0)
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $stats
+     */
+    private function imageSyncSummary(array $stats): string
+    {
+        return sprintf(
+            'Images: %d products updated, %d skipped with local images, %d skipped without remote images, %d unmatched.',
+            (int) ($stats['updated_products'] ?? 0),
+            (int) ($stats['skipped_existing'] ?? 0),
+            (int) ($stats['skipped_without_remote'] ?? 0),
+            (int) ($stats['unmatched_products'] ?? 0)
+        );
+    }
+
+    private function progressPercent(int $processed, int $total): int
+    {
+        if ($total <= 0) {
+            return 100;
+        }
+
+        return min(100, max(0, (int) floor(($processed / $total) * 100)));
+    }
+
+    private function imageBatchCacheKey(int $runId, string $name): string
+    {
+        return 'kipos-sync-run.'.$runId.'.image-batch.'.$name;
     }
 
     /**
@@ -1211,6 +1581,7 @@ class KiposSyncService
 
         if (! $replaceExisting && $existingMedia->isNotEmpty()) {
             $stats['skipped_existing']++;
+
             return $stats;
         }
 
@@ -1226,6 +1597,7 @@ class KiposSyncService
 
         if ($usableRows->isEmpty()) {
             $stats['skipped_without_remote']++;
+
             return $stats;
         }
 
@@ -1241,6 +1613,7 @@ class KiposSyncService
                 if (! (bool) ($downloaded['ok'] ?? false)) {
                     $stats['download_failures']++;
                     $this->rememberImageDownloadFailure($stats, $row, $downloaded);
+
                     continue;
                 }
 
@@ -1253,6 +1626,7 @@ class KiposSyncService
                         'reason' => 'missing_download_payload',
                         'message' => 'Downloaded image payload is incomplete.',
                     ]);
+
                     continue;
                 }
 
@@ -1270,6 +1644,7 @@ class KiposSyncService
                         'message' => $exception->getMessage(),
                         'file_name' => $fileName,
                     ]);
+
                     continue;
                 }
 
@@ -1860,6 +2235,7 @@ class KiposSyncService
         file_put_contents($tempPath, $response->body());
         if (! is_file($tempPath) || filesize($tempPath) <= 0) {
             @unlink($tempPath);
+
             return [
                 'ok' => false,
                 'url' => $url,
@@ -1872,6 +2248,7 @@ class KiposSyncService
         $mimeType = $this->detectImageMimeType($tempPath, (string) $response->header('Content-Type', ''));
         if ($mimeType === null || ! in_array($mimeType, $this->acceptedProductImageMimeTypes(), true)) {
             @unlink($tempPath);
+
             return [
                 'ok' => false,
                 'url' => $url,

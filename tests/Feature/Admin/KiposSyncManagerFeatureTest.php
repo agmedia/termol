@@ -171,6 +171,56 @@ class KiposSyncManagerFeatureTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_update_images_runs_in_batches_of_ten_and_shows_progress(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        config([
+            'media-library.disk_name' => 'public',
+            'media-library.queue_conversions_by_default' => false,
+            'media-library.temporary_directory_path' => sys_get_temp_dir(),
+        ]);
+
+        $admin = $this->makeUserWithRole('superadmin');
+        $codes = collect(range(1, 12))
+            ->map(fn (int $index): string => 'M80'.str_pad((string) $index, 2, '0', STR_PAD_LEFT))
+            ->all();
+
+        foreach ($codes as $code) {
+            $product = $this->createKiposProduct($admin, $code);
+            $this->createProductTranslation($product);
+        }
+
+        $this->enableKiposImageSync();
+        $this->fakeKiposImages($codes);
+
+        $component = Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->call('runAction', 'update_images')
+            ->assertHasNoErrors()
+            ->assertSee('10 / 12');
+
+        $run = KiposSyncRun::query()->where('action_key', 'update_images')->latest('id')->first();
+
+        $this->assertNotNull($run);
+        $this->assertSame('started', $run?->status);
+        $this->assertSame(10, (int) (($run?->stats ?? [])['processed_products'] ?? 0));
+        $this->assertSame(12, (int) (($run?->stats ?? [])['total_products'] ?? 0));
+        $this->assertSame(10, (int) (($run?->stats ?? [])['batch_size'] ?? 0));
+
+        $component
+            ->call('processActiveBrowserBatch')
+            ->assertHasNoErrors()
+            ->assertSee('12 / 12');
+
+        $run->refresh();
+
+        $this->assertSame('success', $run->status);
+        $this->assertSame(12, (int) (($run->stats ?? [])['processed_products'] ?? 0));
+        $this->assertSame(12, (int) (($run->stats ?? [])['updated_products'] ?? 0));
+        Queue::assertNothingPushed();
+    }
+
     public function test_admin_cannot_queue_same_kipos_action_twice_while_it_is_active(): void
     {
         Queue::fake();
@@ -237,7 +287,7 @@ class KiposSyncManagerFeatureTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(KiposSyncManager::class)
-            ->assertDontSeeHtml('wire:poll.5s');
+            ->assertDontSeeHtml('wire:poll.2s="processActiveBrowserBatch"');
 
         KiposSyncRun::query()->create([
             'action_key' => 'update_images',
@@ -249,7 +299,7 @@ class KiposSyncManagerFeatureTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(KiposSyncManager::class)
-            ->assertSeeHtml('wire:poll.5s');
+            ->assertSeeHtml('wire:poll.2s="processActiveBrowserBatch"');
     }
 
     public function test_component_marks_stale_started_runs_failed_and_stops_polling(): void
@@ -267,7 +317,7 @@ class KiposSyncManagerFeatureTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(KiposSyncManager::class)
-            ->assertDontSeeHtml('wire:poll.5s');
+            ->assertDontSeeHtml('wire:poll.2s="processActiveBrowserBatch"');
 
         $staleRun->refresh();
 
@@ -358,19 +408,28 @@ class KiposSyncManagerFeatureTest extends TestCase
 
     private function fakeKiposImage(string $code): void
     {
-        $remoteImage = UploadedFile::fake()->image($code.'.png', 40, 40);
+        $this->fakeKiposImages([$code]);
+    }
+
+    /**
+     * @param  array<int, string>  $codes
+     */
+    private function fakeKiposImages(array $codes): void
+    {
+        $remoteImage = UploadedFile::fake()->image('remote.png', 40, 40);
 
         Http::fake([
-            '*getOdjelSlike*' => Http::response([
-                [
+            '*getOdjelSlike*' => Http::response(collect($codes)
+                ->map(fn (string $code): array => [
                     'IDODJEL' => $code,
                     'URL' => $code,
                     'NAZIV' => $code,
                     'GLAVNA' => 'D',
                     'TIP' => 'SLIKA',
-                ],
-            ], 200),
-            '*slike/'.$code.'*' => Http::response(file_get_contents($remoteImage->getPathname()), 200, [
+                ])
+                ->values()
+                ->all(), 200),
+            '*slike/*' => Http::response(file_get_contents($remoteImage->getPathname()), 200, [
                 'Content-Type' => 'image/png',
             ]),
         ]);

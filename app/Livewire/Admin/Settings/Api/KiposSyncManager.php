@@ -15,6 +15,8 @@ class KiposSyncManager extends Component
 
     private const RUNS_PAGE_NAME = 'kiposSyncRunsPage';
 
+    private const IMAGE_BATCH_SIZE = 10;
+
     public string $tab = 'actions';
 
     /**
@@ -85,6 +87,30 @@ class KiposSyncManager extends Component
         $queuedRun = null;
 
         try {
+            if ($this->runsInBrowserBatches($actionKey)) {
+                @set_time_limit(0);
+
+                $activeRun = $syncService->activeRun($actionKey);
+                if ($activeRun && $activeRun->status === 'started' && ! (bool) data_get($activeRun->stats, 'browser_batch')) {
+                    $this->lastRunId = $activeRun->id;
+                    $this->dispatch('notify', type: 'info', message: __('This Kipos sync action is already running. Watch the run log below.'));
+
+                    return;
+                }
+
+                $run = $syncService->startImageBatchRun($actionKey, auth()->id(), self::IMAGE_BATCH_SIZE, $activeRun);
+                $run = $syncService->processImageBatchRun($run, self::IMAGE_BATCH_SIZE);
+                $this->lastRunId = $run->id;
+
+                if ($run->status === 'success') {
+                    $this->dispatch('notify', type: 'success', message: __('Kipos image sync finished. Review the exact stats below.'));
+                } else {
+                    $this->dispatch('notify', type: 'info', message: __('Kipos image sync started. Progress updates below while this admin page stays open.'));
+                }
+
+                return;
+            }
+
             if ($this->runsImmediately($actionKey)) {
                 @set_time_limit(0);
 
@@ -96,16 +122,19 @@ class KiposSyncManager extends Component
                         $run = $syncService->executeQueuedRun($activeRun);
                         $this->lastRunId = $run->id;
                         $this->dispatch('notify', type: 'success', message: __('Kipos sync action finished. Review the exact stats below.'));
+
                         return;
                     }
 
                     $this->dispatch('notify', type: 'info', message: __('This Kipos sync action is already queued or running. Watch the run log below.'));
+
                     return;
                 }
 
                 $run = $syncService->run($actionKey, auth()->id());
                 $this->lastRunId = $run->id;
                 $this->dispatch('notify', type: 'success', message: __('Kipos sync action finished. Review the exact stats below.'));
+
                 return;
             }
 
@@ -114,6 +143,7 @@ class KiposSyncManager extends Component
 
             if (! $queuedRun->wasRecentlyCreated) {
                 $this->dispatch('notify', type: 'info', message: __('This Kipos sync action is already queued or running. Watch the run log below.'));
+
                 return;
             }
 
@@ -136,13 +166,53 @@ class KiposSyncManager extends Component
         }
     }
 
+    public function processActiveBrowserBatch(KiposSyncService $syncService): void
+    {
+        $this->authorizeAccess();
+
+        $run = KiposSyncRun::query()
+            ->where('action_key', 'update_images')
+            ->where('status', 'started')
+            ->latest('id')
+            ->first();
+
+        if (! $run || ! (bool) data_get($run->stats, 'browser_batch')) {
+            return;
+        }
+
+        try {
+            @set_time_limit(0);
+
+            $run = $syncService->processImageBatchRun($run, self::IMAGE_BATCH_SIZE);
+            $this->lastRunId = $run->id;
+
+            if ($run->status === 'success') {
+                $this->dispatch('notify', type: 'success', message: __('Kipos image sync finished. Review the exact stats below.'));
+            }
+        } catch (\Throwable $exception) {
+            $this->lastRunId = $run->id;
+            $this->dispatch('notify', type: 'error', message: __('Kipos sync action failed: :error', ['error' => $exception->getMessage()]));
+        }
+    }
+
+    private function runsInBrowserBatches(string $actionKey): bool
+    {
+        return in_array($actionKey, ['update_images'], true);
+    }
+
     private function runsImmediately(string $actionKey): bool
     {
-        return in_array($actionKey, ['update_prices', 'update_images'], true);
+        return in_array($actionKey, ['update_prices'], true);
     }
 
     public function render(KiposSyncService $syncService)
     {
+        $shouldPoll = $syncService->hasActiveRuns();
+        $activeRuns = KiposSyncRun::query()
+            ->with('initiator:id,name,email')
+            ->whereIn('status', ['queued', 'started'])
+            ->latest('id')
+            ->get();
         $runs = KiposSyncRun::query()
             ->with('initiator:id,name,email')
             ->latest('id')
@@ -156,9 +226,10 @@ class KiposSyncManager extends Component
         return view('livewire.admin.settings.api.kipos-sync-manager', [
             'actionGroups' => $syncService->actionGroups(),
             'endpointMap' => $syncService->endpointMap(),
+            'activeRuns' => $activeRuns,
             'runs' => $runs,
             'lastRun' => $lastRun,
-            'shouldPoll' => $syncService->hasActiveRuns(),
+            'shouldPoll' => $shouldPoll,
         ]);
     }
 

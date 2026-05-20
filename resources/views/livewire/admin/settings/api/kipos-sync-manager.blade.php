@@ -1,10 +1,10 @@
-<div class="space-y-6" @if($shouldPoll) wire:poll.5s @endif>
+<div class="space-y-6" @if($shouldPoll) wire:poll.2s="processActiveBrowserBatch" @endif>
     <div class="admin-panel admin-search-panel p-6">
         <h2 class="text-xl font-semibold tracking-tight">{{ __('Kipos Sync Manager') }}</h2>
         <p class="mt-2 text-sm text-slate-600">{{ __('Granular Kipos console: import products once, then run only content, prices, quantities, actions, or images when needed.') }}</p>
         <p class="mt-2 text-xs text-slate-500">{{ __('Every action runs manually in admin and writes a persistent run log with exact stats / error details.') }}</p>
         <div class="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900">
-            {{ __('Update Prices and Update Images run immediately from this admin screen and write their run logs before the request finishes. Import Images and the longer catalog syncs still run in background on the dedicated `kipos` queue; keep a worker active for those actions, for example `php artisan queue:work --queue=kipos,default`.') }}
+            {{ __('Update Prices runs immediately. Update Images runs from this admin screen in batches of 10 products with visible progress. Import Images and the longer catalog syncs still run in background on the dedicated `kipos` queue; keep a worker active for those actions, for example `php artisan queue:work --queue=kipos,default`.') }}
         </div>
     </div>
 
@@ -23,6 +23,83 @@
     </div>
 
     @if ($tab === 'actions')
+        <div
+            wire:loading.flex
+            wire:target="runAction,processActiveBrowserBatch"
+            class="items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900"
+        >
+            <span class="h-4 w-4 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700"></span>
+            <div>
+                <p class="font-semibold">{{ __('Kipos sync request is running.') }}</p>
+                <p class="text-xs">{{ __('Update Images processes 10 products per request. Keep this admin page open to continue progress.') }}</p>
+            </div>
+        </div>
+
+        @if ($activeRuns->isNotEmpty())
+            <div class="admin-panel admin-items-panel p-5">
+                <p class="admin-section-title">{{ __('Active Sync Progress') }}</p>
+                <div class="mt-4 space-y-3">
+                    @foreach ($activeRuns as $activeRun)
+                        @php
+                            $stats = (array) ($activeRun->stats ?? []);
+                            $processed = (int) ($stats['processed_products'] ?? 0);
+                            $total = (int) ($stats['total_products'] ?? 0);
+                            $percent = (int) ($stats['progress_percent'] ?? ($total > 0 ? floor(($processed / max(1, $total)) * 100) : 0));
+                        @endphp
+                        <div class="rounded-xl border border-slate-200 bg-white p-4">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-900">{{ $activeRun->action_label }}</p>
+                                    <p class="mt-1 text-xs text-slate-500">{{ $activeRun->action_key }} · #{{ $activeRun->id }} · {{ strtoupper($activeRun->status) }}</p>
+                                </div>
+                                @if($total > 0)
+                                    <span class="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">{{ $processed }} / {{ $total }} · {{ $percent }}%</span>
+                                @endif
+                            </div>
+                            @if($total > 0)
+                                <div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                                    <div class="h-full rounded-full bg-blue-600" style="width: {{ min(100, max(0, $percent)) }}%"></div>
+                                </div>
+                            @endif
+                            <p class="mt-2 text-sm text-slate-700">{{ $activeRun->summary ?: '-' }}</p>
+                            @if(!empty($stats))
+                                <div class="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-4">
+                                    <div>{{ __('Updated') }}: <span class="font-semibold text-slate-900">{{ (int) ($stats['updated_products'] ?? 0) }}</span></div>
+                                    <div>{{ __('Skipped') }}: <span class="font-semibold text-slate-900">{{ (int) ($stats['skipped_without_remote'] ?? 0) }}</span></div>
+                                    <div>{{ __('Failures') }}: <span class="font-semibold text-slate-900">{{ (int) ($stats['download_failures'] ?? 0) }}</span></div>
+                                    <div>{{ __('Batch') }}: <span class="font-semibold text-slate-900">{{ (int) ($stats['batch_size'] ?? 10) }}</span></div>
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @elseif ($lastRun)
+            @php
+                $lastStats = (array) ($lastRun->stats ?? []);
+                $lastProcessed = (int) ($lastStats['processed_products'] ?? 0);
+                $lastTotal = (int) ($lastStats['total_products'] ?? 0);
+                $lastPercent = (int) ($lastStats['progress_percent'] ?? ($lastTotal > 0 ? floor(($lastProcessed / max(1, $lastTotal)) * 100) : 0));
+            @endphp
+            <div class="admin-panel admin-items-panel p-5">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <p class="admin-section-title">{{ __('Last Run Result') }}</p>
+                        <p class="mt-2 text-sm text-slate-700">{{ $lastRun->summary ?: '-' }}</p>
+                    </div>
+                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $lastRun->status === 'success' ? 'bg-emerald-100 text-emerald-700' : ($lastRun->status === 'failed' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700') }}">
+                        {{ strtoupper($lastRun->status) }}
+                    </span>
+                </div>
+                @if($lastTotal > 0)
+                    <div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div class="h-full rounded-full bg-emerald-600" style="width: {{ min(100, max(0, $lastPercent)) }}%"></div>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-500">{{ $lastProcessed }} / {{ $lastTotal }} · {{ $lastPercent }}%</p>
+                @endif
+            </div>
+        @endif
+
         <div class="grid gap-4 xl:grid-cols-2">
             @foreach ($actionGroups as $group)
                 <section class="admin-panel admin-items-panel p-5">
@@ -41,14 +118,13 @@
                                     <button
                                         type="button"
                                         wire:click="runAction('{{ $action['key'] }}')"
+                                        wire:loading.attr="disabled"
+                                        wire:target="runAction"
                                         class="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                                         @if($runningActionKey !== '') disabled @endif
                                     >
-                                        @if($runningActionKey === $action['key'])
-                                            {{ __('Running...') }}
-                                        @else
-                                            {{ __('Run') }}
-                                        @endif
+                                        <span wire:loading.remove wire:target="runAction">{{ __('Run') }}</span>
+                                        <span wire:loading wire:target="runAction">{{ __('Running...') }}</span>
                                     </button>
                                 </div>
                             </div>
