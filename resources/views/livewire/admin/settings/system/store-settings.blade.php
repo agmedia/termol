@@ -411,6 +411,20 @@
                         <p class="mt-1 text-xs text-slate-600">{{ __('admin.settings.store.products.search_autocomplete_help') }}</p>
                     </div>
                     <div class="md:col-span-2 rounded-xl border border-slate-200 p-4">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.settings.store.products.desktop_default_grid_label') }}</label>
+                        <p class="mb-3 text-xs text-slate-600">{{ __('admin.settings.store.products.desktop_default_grid_help') }}</p>
+                        <div class="inline-flex overflow-hidden rounded-xl border border-slate-300">
+                            <label class="inline-flex cursor-pointer items-center gap-2 border-r border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                                <input type="radio" wire:model="form.store_product_desktop_default_cols" value="4" class="border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                {{ __('admin.settings.store.products.desktop_grid_four') }}
+                            </label>
+                            <label class="inline-flex cursor-pointer items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700">
+                                <input type="radio" wire:model="form.store_product_desktop_default_cols" value="5" class="border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                {{ __('admin.settings.store.products.desktop_grid_five') }}
+                            </label>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 p-4">
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.settings.store.products.mobile_default_grid_label') }}</label>
                         <p class="mb-3 text-xs text-slate-600">{{ __('admin.settings.store.products.mobile_default_grid_help') }}</p>
                         <div class="inline-flex overflow-hidden rounded-xl border border-slate-300">

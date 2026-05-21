@@ -606,11 +606,20 @@ class StorefrontFrontFeatureTest extends TestCase
             'is_active' => true,
         ]);
 
+        app(SystemSettingsService::class)->put('store_product_desktop_default_cols', 5);
+
         $this->get('/')
             ->assertOk()
             ->assertSee('New arrivals')
             ->assertSee('data-products-carousel-splide', false)
+            ->assertSee('const preferredDesktopPerPage = 5;', false)
             ->assertDontSee('Fallback subtitle');
+
+        app(SystemSettingsService::class)->put('store_product_desktop_default_cols', 4);
+
+        $this->get('/?cols=5')
+            ->assertOk()
+            ->assertSee('const preferredDesktopPerPage = 5;', false);
     }
 
     public function test_home_renders_footer_newsletter_validation_hooks(): void

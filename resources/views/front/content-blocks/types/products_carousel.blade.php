@@ -56,9 +56,13 @@
     $mobileDefaultCols = in_array((int) ($storeSettings['product']['mobile_default_cols'] ?? 2), [1, 2], true)
         ? (int) ($storeSettings['product']['mobile_default_cols'] ?? 2)
         : 2;
-    $preferredGridCols = in_array((int) request()->cookie('front_grid_cols', 4), [1, 2, 3, 4, 5], true)
-        ? (int) request()->cookie('front_grid_cols', 4)
+    $desktopDefaultCols = in_array((int) ($storeSettings['product']['desktop_default_cols'] ?? 4), [4, 5], true)
+        ? (int) ($storeSettings['product']['desktop_default_cols'] ?? 4)
         : 4;
+    $requestedGridCols = request()->query('cols', request()->cookie('front_grid_cols', $desktopDefaultCols));
+    $preferredGridCols = in_array((int) $requestedGridCols, [1, 2, 3, 4, 5], true)
+        ? (int) $requestedGridCols
+        : $desktopDefaultCols;
 @endphp
 
 <section class="relative left-1/2 w-screen -translate-x-1/2 bg-white max-[540px]:py-5 py-8">

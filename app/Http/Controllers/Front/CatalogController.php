@@ -148,7 +148,7 @@ class CatalogController extends Controller
             $valueId = (int) $request->query((string) $filter['query_key'], 0);
             $selectedAttributeFilters[(string) $filter['query_key']] = $valueId > 0 ? $valueId : null;
         }
-        $gridCols = $this->resolveGridCols($request, 4);
+        $gridCols = $this->resolveGridCols($request, $this->defaultDesktopGridCols($request));
         $this->queueGridColsCookie($gridCols);
 
         $query = Product::query()
@@ -332,7 +332,7 @@ class CatalogController extends Controller
             $request->query('price_min'),
             $request->query('price_max')
         );
-        $gridCols = $this->resolveGridCols($request, 4);
+        $gridCols = $this->resolveGridCols($request, $this->defaultDesktopGridCols($request));
         $this->queueGridColsCookie($gridCols);
 
         $category = Category::query()
@@ -1613,7 +1613,7 @@ class CatalogController extends Controller
     private function catalogEtag(Request $request, string $scope, int $lastModifiedTs): string
     {
         $wishlistHash = sha1(implode(',', app(WishlistService::class)->ids()));
-        $gridCols = (string) $this->resolveGridCols($request, 4);
+        $gridCols = (string) $this->resolveGridCols($request, $this->defaultDesktopGridCols($request));
 
         return '"'.sha1(implode('|', [
             'desktop-catalog',

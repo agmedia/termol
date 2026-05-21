@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Front\Concerns;
 
+use App\Services\Settings\SystemSettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 
@@ -30,6 +31,15 @@ trait ResolvesGridColumns
         Cookie::queue(cookie(self::GRID_COLS_COOKIE, (string) $normalized, 60 * 24 * 365));
     }
 
+    protected function defaultDesktopGridCols(Request $request): int
+    {
+        if (method_exists($this, 'frontendVariant') && $this->frontendVariant($request) === 'mobile') {
+            return 4;
+        }
+
+        return app(SystemSettingsService::class)->getInt('store_product_desktop_default_cols', 4, 4, 5);
+    }
+
     private function normalizeGridCols(int $cols, int $default): int
     {
         if (! in_array($cols, [1, 2, 3, 4, 5], true)) {
@@ -39,4 +49,3 @@ trait ResolvesGridColumns
         return $cols;
     }
 }
-

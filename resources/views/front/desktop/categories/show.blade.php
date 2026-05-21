@@ -8,9 +8,12 @@
     $mobileDefaultCols = in_array((int) ($storeSettings['product']['mobile_default_cols'] ?? 2), [1, 2], true)
         ? (int) ($storeSettings['product']['mobile_default_cols'] ?? 2)
         : 2;
+    $desktopDefaultCols = in_array((int) ($storeSettings['product']['desktop_default_cols'] ?? 4), [4, 5], true)
+        ? (int) ($storeSettings['product']['desktop_default_cols'] ?? 4)
+        : 4;
     $showCategoryFilters = (bool) ($showCategoryFilters ?? true);
     $showCategoryProducts = (bool) ($showCategoryProducts ?? true);
-    $currentCols = (int) ($filters['cols'] ?? 4);
+    $currentCols = (int) ($filters['cols'] ?? $desktopDefaultCols);
     $mobileCols = in_array($currentCols, [1, 2], true) ? $currentCols : $mobileDefaultCols;
     $paginationMode = (string) ($storeSettings['product']['catalog_pagination_mode'] ?? 'pagination');
     $useAsyncPagination = in_array($paginationMode, ['load_more', 'infinite'], true);

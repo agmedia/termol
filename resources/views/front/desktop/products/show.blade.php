@@ -101,9 +101,13 @@
     $fitFinderEnabled = (bool) ($storeSettings['product']['fit_finder_enabled'] ?? false);
     $fitFinderSavedSize = trim((string) ($fitFinderSelection['size_label'] ?? ''));
     $fitFinderSavedSignature = trim((string) ($fitFinderSelection['size_signature'] ?? ''));
-    $preferredGridCols = in_array((int) request()->cookie('front_grid_cols', 4), [1, 2, 3, 4, 5], true)
-        ? (int) request()->cookie('front_grid_cols', 4)
+    $desktopDefaultCols = in_array((int) ($storeSettings['product']['desktop_default_cols'] ?? 4), [4, 5], true)
+        ? (int) ($storeSettings['product']['desktop_default_cols'] ?? 4)
         : 4;
+    $requestedGridCols = request()->query('cols', request()->cookie('front_grid_cols', $desktopDefaultCols));
+    $preferredGridCols = in_array((int) $requestedGridCols, [1, 2, 3, 4, 5], true)
+        ? (int) $requestedGridCols
+        : $desktopDefaultCols;
     $hasProductStory = ! empty($translation?->description) || ! empty($translation?->excerpt);
     $reviewSummary = $product->approvedCommentSummary([$locale, $fallbackLocale]);
     $colorVariants = $colorVariants ?? collect();

@@ -4,7 +4,21 @@
     $payload = array_merge($basePayload, $translationPayload);
 
     $sectionClass = (string) ($payload['section_class'] ?? 'rounded-3xl border border-slate-200 bg-white p-6');
-    $gridClass = (string) ($payload['grid_class'] ?? 'mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4');
+    $desktopDefaultCols = in_array((int) ($storeSettings['product']['desktop_default_cols'] ?? 4), [4, 5], true)
+        ? (int) ($storeSettings['product']['desktop_default_cols'] ?? 4)
+        : 4;
+    $requestedGridCols = request()->query('cols', request()->cookie('front_grid_cols', $desktopDefaultCols));
+    $preferredGridCols = in_array((int) $requestedGridCols, [1, 2, 3, 4, 5], true)
+        ? (int) $requestedGridCols
+        : $desktopDefaultCols;
+    $defaultGridClass = match ($preferredGridCols) {
+        1 => 'mt-6 grid gap-4 grid-cols-1',
+        2 => 'mt-6 grid gap-4 grid-cols-2',
+        3 => 'mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3',
+        5 => 'mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5',
+        default => 'mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4',
+    };
+    $gridClass = (string) ($payload['grid_class'] ?? $defaultGridClass);
     $cardClass = (string) ($payload['card_class'] ?? 'rounded-2xl border border-slate-200 bg-slate-50 p-4');
     $titleClass = (string) ($payload['title_class'] ?? 'text-[1.35rem] leading-[1.95rem] sm:text-[1.7rem] sm:leading-[2.5rem] uppercase font-semibold text-slate-900');
     $taxPricing = app(\App\Services\Pricing\TaxPricingService::class);

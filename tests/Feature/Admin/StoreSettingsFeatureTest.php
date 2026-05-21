@@ -44,6 +44,7 @@ class StoreSettingsFeatureTest extends TestCase
             'store_newsletter_mailchimp_list_id' => '',
             'store_product_fit_finder_enabled' => false,
             'store_search_autocomplete_enabled' => false,
+            'store_product_desktop_default_cols' => 4,
             'store_product_mobile_default_cols' => 1,
             'store_product_catalog_pagination_mode' => 'pagination',
             'store_product_filter_option_ids' => [],
@@ -55,6 +56,7 @@ class StoreSettingsFeatureTest extends TestCase
             ->set('tab', 'products')
             ->set('form.store_product_fit_finder_enabled', true)
             ->set('form.store_search_autocomplete_enabled', true)
+            ->set('form.store_product_desktop_default_cols', 5)
             ->set('form.store_product_mobile_default_cols', 2)
             ->set('form.store_product_catalog_pagination_mode', 'load_more')
             ->call('save')
@@ -65,6 +67,7 @@ class StoreSettingsFeatureTest extends TestCase
 
         $this->assertTrue((bool) $settings->get('store_product_fit_finder_enabled'));
         $this->assertTrue((bool) $settings->get('store_search_autocomplete_enabled'));
+        $this->assertSame(5, (int) $settings->get('store_product_desktop_default_cols'));
         $this->assertSame(2, (int) $settings->get('store_product_mobile_default_cols'));
         $this->assertSame('load_more', $settings->get('store_product_catalog_pagination_mode'));
         $this->assertSame('mailchimp', $settings->get('store_newsletter_provider'));

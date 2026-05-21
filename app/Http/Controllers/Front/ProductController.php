@@ -156,7 +156,7 @@ class ProductController extends Controller
             ->firstOrFail();
 
         $categoryIds = $product->categories->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $relatedLimit = max(4, $this->resolveGridCols($request, 4));
+        $relatedLimit = max(4, $this->resolveGridCols($request, $this->defaultDesktopGridCols($request)));
 
         $relatedBaseQuery = Product::query()
             ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
@@ -673,6 +673,7 @@ class ProductController extends Controller
     {
         $wishlistHash = sha1(implode(',', app(WishlistService::class)->ids()));
         $fitFinderHash = $this->fitFinderEtagFragment($request);
+        $gridCols = (string) $this->resolveGridCols($request, $this->defaultDesktopGridCols($request));
 
         return '"'.sha1(implode('|', [
             'desktop-product',
@@ -680,6 +681,7 @@ class ProductController extends Controller
             (string) $productId,
             app()->getLocale(),
             $request->getRequestUri(),
+            $gridCols,
             (string) $lastModifiedTs,
             $wishlistHash,
             $fitFinderHash,
