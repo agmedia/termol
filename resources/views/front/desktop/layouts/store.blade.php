@@ -17,9 +17,6 @@
     @if (!empty($storeSettings['branding']['favicons']['16_url'] ?? null))
         <link rel="icon" type="image/png" sizes="16x16" href="{{ $storeSettings['branding']['favicons']['16_url'] }}">
     @endif
-    @if (!empty($storeSettings['branding']['favicons']['180_url'] ?? null))
-        <link rel="apple-touch-icon" sizes="180x180" href="{{ $storeSettings['branding']['favicons']['180_url'] }}">
-    @endif
     @if (!empty($storeSettings['branding']['favicons']['192_url'] ?? null))
         <link rel="icon" type="image/png" sizes="192x192" href="{{ $storeSettings['branding']['favicons']['192_url'] }}">
     @endif
@@ -30,7 +27,6 @@
         <link rel="icon" href="{{ $storeSettings['branding']['favicon_url'] }}">
     @endif
     @include('front.partials.cookie-consent-head')
-    <link rel="manifest" href="{{ route('front.manifest') }}">
     @stack('head')
     @vite(['resources/css/app.css'])
 </head>

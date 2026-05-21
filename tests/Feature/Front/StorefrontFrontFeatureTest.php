@@ -836,6 +836,8 @@ class StorefrontFrontFeatureTest extends TestCase
 
     public function test_mobile_home_renders_instagram_curated_grid_assets_and_slider_init(): void
     {
+        app(SystemSettingsService::class)->put('catalog_use_mobile_view', true);
+
         $block = ContentBlock::query()->create([
             'code' => 'mobile-instagram-widget',
             'name' => 'Mobile Instagram Widget',

@@ -29,15 +29,15 @@ class DetectFrontendVariant
             $variant = $requestedVariant;
         }
 
-        $useMobilePwa = (bool) config('catalog_features.flags.catalog_use_mobile_pwa', true);
+        $useMobileView = (bool) config('catalog_features.flags.catalog_use_mobile_view', false);
 
         try {
-            $useMobilePwa = $this->catalogFeatureService->useMobilePwa();
+            $useMobileView = $this->catalogFeatureService->useMobileView();
         } catch (\Throwable) {
             // Fallback to config when settings storage isn't available yet (e.g. isolated tests).
         }
 
-        if (! $useMobilePwa) {
+        if (! $useMobileView) {
             $variant = 'desktop';
         }
 

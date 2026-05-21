@@ -6,14 +6,10 @@
     @include('front.partials.seo-meta')
     @include('front.partials.schema-markup')
     @include('front.partials.analytics')
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <link rel="stylesheet" href="{{ asset('front-theme/styles/bootstrap.css') }}">
     <link rel="stylesheet" href="{{ asset('front-theme/styles/style.css') }}">
     <link rel="stylesheet" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}">
-    <link rel="manifest" href="{{ route('front.manifest') }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('front-theme/app/icons/icon-192x192.png') }}">
     @stack('head')
 </head>
 <body class="theme-light" data-highlight="highlight-red">

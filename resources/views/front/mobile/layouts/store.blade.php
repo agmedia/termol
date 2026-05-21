@@ -6,8 +6,6 @@
     @include('front.partials.seo-meta')
     @include('front.partials.schema-markup')
     @include('front.partials.analytics')
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <link rel="preload" href="{{ asset('front-theme/styles/bootstrap.css') }}?v={{ filemtime(public_path('front-theme/styles/bootstrap.css')) }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="{{ asset('front-theme/styles/bootstrap.css') }}?v={{ filemtime(public_path('front-theme/styles/bootstrap.css')) }}"></noscript>
@@ -15,7 +13,6 @@
     <noscript><link rel="stylesheet" href="{{ asset('front-theme/styles/style.css') }}?v={{ filemtime(public_path('front-theme/styles/style.css')) }}"></noscript>
     <link rel="preload" href="{{ asset('front-theme/styles/rising-sun-font.css') }}?v={{ filemtime(public_path('front-theme/styles/rising-sun-font.css')) }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="{{ asset('front-theme/styles/rising-sun-font.css') }}?v={{ filemtime(public_path('front-theme/styles/rising-sun-font.css')) }}"></noscript>
-    <link rel="manifest" href="{{ route('front.manifest') }}">
     @if (!empty($storeSettings['branding']['favicons']['ico_url'] ?? null))
         <link rel="icon" href="{{ $storeSettings['branding']['favicons']['ico_url'] }}" sizes="any">
     @endif
@@ -24,13 +21,6 @@
     @endif
     @if (!empty($storeSettings['branding']['favicons']['16_url'] ?? null))
         <link rel="icon" type="image/png" sizes="16x16" href="{{ $storeSettings['branding']['favicons']['16_url'] }}">
-    @endif
-    @if (!empty($storeSettings['branding']['favicons']['180_url'] ?? null))
-        <link rel="apple-touch-icon" sizes="180x180" href="{{ $storeSettings['branding']['favicons']['180_url'] }}">
-    @elseif (!empty($storeSettings['branding']['favicons']['192_url'] ?? null))
-        <link rel="apple-touch-icon" sizes="192x192" href="{{ $storeSettings['branding']['favicons']['192_url'] }}">
-    @else
-        <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('front-theme/app/icons/icon-192x192.png') }}">
     @endif
     @if (!empty($storeSettings['branding']['favicons']['192_url'] ?? null))
         <link rel="icon" type="image/png" sizes="192x192" href="{{ $storeSettings['branding']['favicons']['192_url'] }}">

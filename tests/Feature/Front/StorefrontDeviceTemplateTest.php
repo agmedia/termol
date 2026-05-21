@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Front;
 
+use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -22,8 +23,23 @@ class StorefrontDeviceTemplateTest extends TestCase
         $response->assertDontSee('front-theme/styles/bootstrap.css', false);
     }
 
-    public function test_mobile_user_agent_gets_mobile_storefront_template(): void
+    public function test_mobile_user_agent_uses_desktop_storefront_by_default(): void
     {
+        $response = $this
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            ])
+            ->get('/');
+
+        $response->assertOk();
+        $response->assertSee('desktop-header-menu.js', false);
+        $response->assertDontSee('front-theme/styles/bootstrap.css', false);
+    }
+
+    public function test_mobile_user_agent_gets_mobile_storefront_template_when_mobile_view_is_enabled(): void
+    {
+        app(SystemSettingsService::class)->put('catalog_use_mobile_view', true);
+
         $response = $this
             ->withHeaders([
                 'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
@@ -44,9 +60,9 @@ class StorefrontDeviceTemplateTest extends TestCase
         $this->assertStringContainsStringIgnoringCase('User-Agent', (string) $response->headers->get('Vary'));
     }
 
-    public function test_mobile_user_agent_gets_desktop_template_when_mobile_pwa_feature_is_disabled(): void
+    public function test_mobile_user_agent_gets_desktop_template_when_mobile_view_feature_is_disabled(): void
     {
-        config(['catalog_features.flags.catalog_use_mobile_pwa' => false]);
+        app(SystemSettingsService::class)->put('catalog_use_mobile_view', false);
 
         $response = $this
             ->withHeaders([

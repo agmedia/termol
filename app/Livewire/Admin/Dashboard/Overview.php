@@ -473,7 +473,7 @@ class Overview extends Component
             __('Options') => (bool) ($catalogFeatures['catalog_use_options'] ?? false),
             __('Manufacturers') => (bool) ($catalogFeatures['catalog_use_manufacturers'] ?? false),
             __('Actions') => (bool) ($catalogFeatures['catalog_use_actions'] ?? false),
-            __('Mobile PWA View') => (bool) ($catalogFeatures['catalog_use_mobile_pwa'] ?? false),
+            __('Mobile View') => (bool) ($catalogFeatures['catalog_use_mobile_view'] ?? false),
         ];
 
         return view('livewire.admin.dashboard.overview', [

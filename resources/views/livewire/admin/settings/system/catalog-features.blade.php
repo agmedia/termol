@@ -41,9 +41,9 @@
                         'title' => __('Use Actions & Discounts'),
                         'description' => __('Promotions: percentages, fixed discounts, and advanced action rules.'),
                     ],
-                    'catalog_use_mobile_pwa' => [
-                        'title' => __('Use Mobile PWA View'),
-                        'description' => __('When disabled, mobile devices will use desktop responsive storefront instead of mobile/PWA templates.'),
+                    'catalog_use_mobile_view' => [
+                        'title' => __('Use Mobile View'),
+                        'description' => __('When disabled, mobile devices will use the desktop responsive storefront.'),
                     ],
                 ];
             @endphp

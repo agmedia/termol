@@ -82,8 +82,8 @@ class CatalogFeatureService
         return $this->enabled('catalog_use_actions');
     }
 
-    public function useMobilePwa(): bool
+    public function useMobileView(): bool
     {
-        return $this->enabled('catalog_use_mobile_pwa');
+        return $this->enabled('catalog_use_mobile_view');
     }
 }

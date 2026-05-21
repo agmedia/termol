@@ -3,6 +3,8 @@
         Options -MultiViews -Indexes
     </IfModule>
 
+    DirectoryIndex index.php
+
     RewriteEngine On
 
     # Redirect all traffic to HTTPS in production (skip localhost/dev).
@@ -51,6 +53,9 @@
     <FilesMatch "\.(css|js|jpg|jpeg|png|gif|svg|webp|avif|woff|woff2)$">
         Header set Cache-Control "public, max-age=31536000, immutable"
     </FilesMatch>
+    <Files "_service-worker.js">
+        Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    </Files>
 </IfModule>
 
 <IfModule mod_deflate.c>

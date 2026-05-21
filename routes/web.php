@@ -65,8 +65,6 @@ Route::middleware(['front.locale', 'front.device'])
             return redirect()->back();
         })->name('front.locale.switch');
 
-        Route::get('site.webmanifest', [StorefrontController::class, 'manifest'])->name('front.manifest');
-
         Route::get('/', [StorefrontController::class, 'home'])->name('home');
 
         Route::get('search/autocomplete', [CatalogController::class, 'autocomplete'])->name('search.autocomplete');
