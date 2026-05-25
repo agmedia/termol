@@ -567,6 +567,56 @@ class OrdersFeatureTest extends TestCase
         $this->assertNull(data_get($kiposPayload, 'last_error'));
     }
 
+    public function test_kipos_test_payload_includes_vat_in_product_lines(): void
+    {
+        $this->enableKiposOrderFlow();
+
+        $admin = $this->makeUserWithRole('admin');
+        $status = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        ShippingMethod::query()->create([
+            'code' => 'standard',
+            'name' => 'Admin Standard Shipping',
+            'price' => 5.00,
+            'free_over' => null,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $order = $this->createKiposOrder($status, $admin, 'AG-TEST-VAT-1', shippingTotal: 5.00, grandTotal: 14.99);
+        $order->forceFill([
+            'subtotal' => 7.99,
+            'tax_total' => 2.00,
+            'grand_total' => 14.99,
+        ])->save();
+        $order->items()->firstOrFail()->forceFill([
+            'sku' => 'W7035.L',
+            'code' => 'W7035',
+            'unit_price' => 7.99,
+            'discount_amount' => 0,
+            'tax_rate' => 25,
+            'tax_amount' => 2.00,
+            'line_total' => 7.99,
+        ])->save();
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $order->id])
+            ->call('generateKiposPreview')
+            ->assertHasNoErrors();
+
+        $fresh = $order->fresh();
+        $kiposPayload = is_array($fresh?->payload) ? (array) ($fresh->payload['kipos_order'] ?? []) : [];
+
+        $this->assertSame('US00000203', data_get($kiposPayload, 'last_preview.request.stavke.0.IDROBA'));
+        $this->assertSame('5.00', data_get($kiposPayload, 'last_preview.request.stavke.0.IZNOS'));
+        $this->assertSame('W7035.L', data_get($kiposPayload, 'last_preview.request.stavke.1.IDROBA'));
+        $this->assertSame('9.99', data_get($kiposPayload, 'last_preview.request.stavke.1.CIJENA'));
+        $this->assertSame('9.99', data_get($kiposPayload, 'last_preview.request.stavke.1.IZNOS'));
+        $this->assertSame('14.99', data_get($kiposPayload, 'last_preview.line_total'));
+        $this->assertSame('14.99', data_get($kiposPayload, 'last_preview.request.narudzba.IZNOS_UKUPNO'));
+        $this->assertSame([], data_get($kiposPayload, 'last_preview.warnings'));
+        $this->assertNull(data_get($kiposPayload, 'last_error'));
+    }
+
     public function test_admin_can_send_kipos_order_from_saved_test_payload(): void
     {
         $this->enableKiposOrderFlow();

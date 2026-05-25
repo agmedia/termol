@@ -194,19 +194,48 @@ class KiposOrderService
             return null;
         }
 
-        $lineBase = round((float) $item->unit_price * $quantity, 2);
+        $netUnitPrice = round((float) $item->unit_price, 2);
+        $lineBase = round($netUnitPrice * $quantity, 2);
         $discountAmount = round((float) $item->discount_amount, 2);
         $discountPercent = $lineBase > 0
             ? round(min(100.0, max(0.0, ($discountAmount / $lineBase) * 100)), 2)
             : 0.0;
+        $grossUnitPrice = $this->grossProductUnitPrice($item, $quantity);
+        $grossLineTotal = $this->grossProductLineTotal($item);
 
         return [
             'IDROBA' => $itemCode,
             'KOLICINA' => (string) $quantity,
-            'CIJENA' => $this->formatAmount((float) $item->unit_price),
+            'CIJENA' => $this->formatAmount($grossUnitPrice),
             'RABAT' => $this->formatAmount($discountPercent),
-            'IZNOS' => $this->formatAmount((float) $item->line_total),
+            'IZNOS' => $this->formatAmount($grossLineTotal),
         ];
+    }
+
+    private function grossProductUnitPrice(OrderItem $item, int $quantity): float
+    {
+        $netUnitPrice = round(max(0.0, (float) $item->unit_price), 2);
+        $taxRate = max(0.0, (float) $item->tax_rate);
+
+        if ($taxRate > 0.0) {
+            return round($netUnitPrice * (1 + ($taxRate / 100)), 2);
+        }
+
+        $taxAmount = round(max(0.0, (float) $item->tax_amount), 2);
+        $netLineTotal = round(max(0.0, (float) $item->line_total), 2);
+        if ($quantity > 0 && $taxAmount > 0.0 && $netLineTotal > 0.0) {
+            return round($netUnitPrice * (1 + ($taxAmount / $netLineTotal)), 2);
+        }
+
+        return $netUnitPrice;
+    }
+
+    private function grossProductLineTotal(OrderItem $item): float
+    {
+        return round(
+            max(0.0, (float) $item->line_total) + max(0.0, (float) $item->tax_amount),
+            2
+        );
     }
 
     /**
