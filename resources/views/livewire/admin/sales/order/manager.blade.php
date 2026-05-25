@@ -85,6 +85,7 @@
                             </button>
                         </th>
                         <th class="px-3 py-2 text-center font-semibold">{{ __('Status') }}</th>
+                        <th class="px-3 py-2 text-center font-semibold">{{ __('Kipos') }}</th>
                         <th class="px-3 py-2 text-center font-semibold">
                             <button type="button" wire:click="sort('placed_at')" class="inline-flex items-center gap-1">
                                 {{ __('Placed') }} <span class="text-xs">{{ $sortBy === 'placed_at' ? ($sortDir === 'asc' ? '^' : 'v') : '<>' }}</span>
@@ -99,6 +100,8 @@
                             $statusColor = strtolower((string) ($row->status?->color ?? 'slate'));
                             $statusClass = $statusClasses[$statusColor] ?? $statusClasses['slate'];
                             $placedAt = $row->placed_at ?: $row->created_at;
+                            $kiposLastSend = data_get($row->payload, 'kipos_order.last_send');
+                            $kiposSent = is_array($kiposLastSend);
                         @endphp
                         <tr>
                             <td class="px-3 py-2 text-center font-mono text-xs text-slate-700">{{ $row->id }}</td>
@@ -119,6 +122,15 @@
                                     {{ $row->status?->name ?? __('Unknown') }}
                                 </span>
                             </td>
+                            <td class="px-3 py-2 text-center">
+                                @if ($kiposSent)
+                                    <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                                        {{ __('Poslano') }}
+                                    </span>
+                                @else
+                                    <span class="text-xs font-semibold text-slate-300">-</span>
+                                @endif
+                            </td>
                             <td class="px-3 py-2 text-center text-slate-600">{{ optional($placedAt)->format('Y-m-d H:i') }}</td>
                             <td class="px-3 py-2 text-right">
                                 <div class="inline-flex items-center gap-1">
@@ -138,7 +150,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-3 py-8 text-center text-sm text-slate-500">{{ __('No orders yet.') }}</td>
+                            <td colspan="8" class="px-3 py-8 text-center text-sm text-slate-500">{{ __('No orders yet.') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

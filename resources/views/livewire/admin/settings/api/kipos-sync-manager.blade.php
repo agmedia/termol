@@ -250,6 +250,7 @@
                         <div>
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Shipping Item Code') }}</label>
                             <input type="text" wire:model="syncForm.kipos_order_shipping_item_code" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                            <p class="mt-1 text-xs text-slate-500">{{ __('Optional code override. Price comes from the matching Shipping Method; empty code uses Balidoo mapping: 10.00 = US00000001, otherwise US00000203.') }}</p>
                             @error('syncForm.kipos_order_shipping_item_code') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                         </div>
                         <div>

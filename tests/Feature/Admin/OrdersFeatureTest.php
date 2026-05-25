@@ -6,11 +6,12 @@ use App\Livewire\Admin\Sales\Order\Manager as OrderManager;
 use App\Livewire\Admin\Sales\Order\Show as OrderShow;
 use App\Models\Sales\Order\Order;
 use App\Models\Settings\Local\OrderStatus;
+use App\Models\Settings\Local\ShippingMethod;
 use App\Models\User;
 use App\Models\User\LoyaltyTransaction;
 use App\Services\Settings\SystemSettingsService;
-use Illuminate\Http\Client\Request;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -39,6 +40,43 @@ class OrdersFeatureTest extends TestCase
         $this->actingAs($admin)->get('/admin/orders/'.$order->id.'/invoice')
             ->assertOk()
             ->assertSee(__('Invoice'));
+    }
+
+    public function test_admin_orders_index_shows_kipos_sent_label_only_for_sent_orders(): void
+    {
+        $admin = $this->makeUserWithRole('admin');
+        $status = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+
+        $sent = $this->createOrder($status, $admin, 'AG-KIPOS-SENT');
+        $sent->forceFill([
+            'payload' => [
+                'kipos_order' => [
+                    'last_send' => [
+                        'sent_at' => now()->toIso8601String(),
+                        'response' => [
+                            'status' => 'ok',
+                        ],
+                    ],
+                ],
+            ],
+        ])->save();
+
+        $pending = $this->createOrder($status, $admin, 'AG-KIPOS-PENDING');
+
+        $response = $this->actingAs($admin)->get('/admin/orders')
+            ->assertOk()
+            ->assertSee('Kipos')
+            ->assertSee('Poslano')
+            ->assertSee($sent->order_number)
+            ->assertSee($pending->order_number);
+
+        $html = $response->getContent();
+
+        $this->assertMatchesRegularExpression('/<tr>.*AG-KIPOS-SENT.*Poslano.*<\/tr>/sU', $html);
+        $this->assertMatchesRegularExpression('/<tr>.*AG-KIPOS-PENDING.*<\/tr>/sU', $html);
+
+        preg_match('/<tr>.*AG-KIPOS-PENDING.*<\/tr>/sU', $html, $pendingRow);
+        $this->assertStringNotContainsString('Poslano', $pendingRow[0] ?? '');
     }
 
     public function test_admin_can_delete_order_from_index_manager(): void
@@ -495,6 +533,40 @@ class OrdersFeatureTest extends TestCase
         $this->assertNull(data_get($kiposPayload, 'last_error'));
     }
 
+    public function test_kipos_test_payload_includes_shipping_line_with_admin_price_and_balidoo_fallback_code(): void
+    {
+        $this->enableKiposOrderFlow();
+
+        $admin = $this->makeUserWithRole('admin');
+        $status = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        ShippingMethod::query()->create([
+            'code' => 'standard',
+            'name' => 'Admin Standard Shipping',
+            'price' => 7.00,
+            'free_over' => null,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        $order = $this->createKiposOrder($status, $admin, 'AG-TEST-SHIP-1', shippingTotal: 4.00, grandTotal: 106.90);
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $order->id])
+            ->call('generateKiposPreview')
+            ->assertHasNoErrors();
+
+        $fresh = $order->fresh();
+        $kiposPayload = is_array($fresh?->payload) ? (array) ($fresh->payload['kipos_order'] ?? []) : [];
+
+        $this->assertSame('US00000203', data_get($kiposPayload, 'last_preview.request.stavke.0.IDROBA'));
+        $this->assertSame('7.00', data_get($kiposPayload, 'last_preview.request.stavke.0.CIJENA'));
+        $this->assertSame('7.00', data_get($kiposPayload, 'last_preview.request.stavke.0.IZNOS'));
+        $this->assertSame('W5004', data_get($kiposPayload, 'last_preview.request.stavke.1.IDROBA'));
+        $this->assertSame('106.90', data_get($kiposPayload, 'last_preview.line_total'));
+        $this->assertSame('106.90', data_get($kiposPayload, 'last_preview.request.narudzba.IZNOS_UKUPNO'));
+        $this->assertSame([], data_get($kiposPayload, 'last_preview.warnings'));
+        $this->assertNull(data_get($kiposPayload, 'last_error'));
+    }
+
     public function test_admin_can_send_kipos_order_from_saved_test_payload(): void
     {
         $this->enableKiposOrderFlow();
@@ -616,8 +688,10 @@ class OrdersFeatureTest extends TestCase
         ]);
     }
 
-    private function createKiposOrder(OrderStatus $status, User $user, string $number): Order
+    private function createKiposOrder(OrderStatus $status, User $user, string $number, float $shippingTotal = 0.0, ?float $grandTotal = null): Order
     {
+        $grandTotal ??= round(99.90 + $shippingTotal, 2);
+
         $order = Order::query()->create([
             'order_number' => $number,
             'status_id' => $status->id,
@@ -647,11 +721,11 @@ class OrdersFeatureTest extends TestCase
             'shipping_method_name' => 'Standard Shipping',
             'item_qty' => 1,
             'subtotal' => 99.90,
-            'shipping_total' => 0,
+            'shipping_total' => $shippingTotal,
             'payment_fee_total' => 0,
             'discount_total' => 0,
             'tax_total' => 0,
-            'grand_total' => 99.90,
+            'grand_total' => $grandTotal,
             'customer_note' => 'Manual ERP test',
             'admin_note' => null,
             'payload' => null,

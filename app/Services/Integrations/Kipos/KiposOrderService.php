@@ -4,18 +4,22 @@ namespace App\Services\Integrations\Kipos;
 
 use App\Models\Sales\Order\Order;
 use App\Models\Sales\Order\OrderItem;
+use App\Models\Settings\Local\ShippingMethod;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Settings\SystemSettingsService;
 use RuntimeException;
 
 class KiposOrderService
 {
+    private const BALIDOO_SHIPPING_ITEM_CODE_FOR_TEN_EUR = 'US00000001';
+
+    private const BALIDOO_SHIPPING_ITEM_CODE_DEFAULT = 'US00000203';
+
     public function __construct(
         private readonly KiposSdkService $kipos,
         private readonly SystemSettingsService $settings,
         private readonly CatalogFeatureService $catalogFeatures
-    ) {
-    }
+    ) {}
 
     public function connectorEnabled(): bool
     {
@@ -37,20 +41,22 @@ class KiposOrderService
 
         $settings = $this->orderSettings();
         $warnings = [];
-        $items = [];
+        $productItems = [];
+        $extraItems = [];
 
         foreach ($order->items as $item) {
             $line = $this->buildProductLine($item, $warnings);
             if ($line !== null) {
-                $items[] = $line;
+                $productItems[] = $line;
             }
         }
 
         $shippingTotal = round((float) $order->shipping_total, 2);
-        if ($shippingTotal > 0) {
-            $shippingCode = trim((string) ($settings['kipos_order_shipping_item_code'] ?? ''));
+        $shippingLineAmount = $this->resolveShippingLineAmount($order, $shippingTotal);
+        if ($shippingLineAmount > 0) {
+            $shippingCode = $this->resolveShippingItemCode($shippingLineAmount, $settings);
             if ($shippingCode !== '') {
-                $items[] = $this->extraLine($shippingCode, $shippingTotal);
+                $extraItems[] = $this->extraLine($shippingCode, $shippingLineAmount);
             } else {
                 $warnings[] = 'Shipping total exists, but `Kipos shipping item code` is not configured.';
             }
@@ -60,11 +66,13 @@ class KiposOrderService
         if ($paymentFeeTotal > 0) {
             $paymentFeeCode = trim((string) ($settings['kipos_order_payment_fee_item_code'] ?? ''));
             if ($paymentFeeCode !== '') {
-                $items[] = $this->extraLine($paymentFeeCode, $paymentFeeTotal);
+                $extraItems[] = $this->extraLine($paymentFeeCode, $paymentFeeTotal);
             } else {
                 $warnings[] = 'Payment fee total exists, but `Kipos payment fee item code` is not configured.';
             }
         }
+
+        $items = array_merge($extraItems, $productItems);
 
         if ($items === []) {
             throw new RuntimeException('Order has no sendable Kipos line items.');
@@ -182,6 +190,7 @@ class KiposOrderService
 
         if ($itemCode === '') {
             $warnings[] = sprintf('Order item `%s` has no Kipos item code / SKU.', (string) $item->name);
+
             return null;
         }
 
@@ -212,6 +221,42 @@ class KiposOrderService
             'RABAT' => $this->formatAmount(0),
             'IZNOS' => $this->formatAmount($amount),
         ];
+    }
+
+    private function resolveShippingLineAmount(Order $order, float $fallbackAmount): float
+    {
+        $shippingMethodCode = trim((string) ($order->shipping_method_code ?? ''));
+        if ($shippingMethodCode === '') {
+            return $fallbackAmount;
+        }
+
+        $adminPrice = ShippingMethod::query()
+            ->where('code', $shippingMethodCode)
+            ->value('price');
+
+        if (! is_numeric($adminPrice)) {
+            return $fallbackAmount;
+        }
+
+        return round(max(0.0, (float) $adminPrice), 2);
+    }
+
+    /**
+     * Balidoo sends delivery as a Kipos service item. Keep the admin override,
+     * but fall back to the same legacy mapping when it is left empty.
+     *
+     * @param  array<string, mixed>  $settings
+     */
+    private function resolveShippingItemCode(float $shippingTotal, array $settings): string
+    {
+        $configuredCode = strtoupper(trim((string) ($settings['kipos_order_shipping_item_code'] ?? '')));
+        if ($configuredCode !== '') {
+            return $configuredCode;
+        }
+
+        return abs($shippingTotal - 10.0) < 0.01
+            ? self::BALIDOO_SHIPPING_ITEM_CODE_FOR_TEN_EUR
+            : self::BALIDOO_SHIPPING_ITEM_CODE_DEFAULT;
     }
 
     /**
