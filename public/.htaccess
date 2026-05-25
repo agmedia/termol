@@ -7,11 +7,15 @@
 
     RewriteEngine On
 
-    # Redirect all traffic to HTTPS in production (skip localhost/dev).
+    # Redirect all traffic to the canonical HTTPS host in production (skip localhost/dev).
+    RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:[0-9]+)?$ [NC]
+    RewriteCond %{HTTP_HOST} !^www\.bali\.hr$ [NC]
+    RewriteRule ^ https://www.bali.hr%{REQUEST_URI} [L,R=301]
+
     RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:[0-9]+)?$ [NC]
     RewriteCond %{HTTPS} !=on
     RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
-    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    RewriteRule ^ https://www.bali.hr%{REQUEST_URI} [L,R=301]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
