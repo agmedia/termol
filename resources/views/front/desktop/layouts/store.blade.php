@@ -561,7 +561,7 @@
                 name="q"
                 value="{{ (string) request()->query('q', '') }}"
                 placeholder="{{ __('ui.shop.filters.search_placeholder') }}"
-                class="h-[42px] w-full border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none ring-0 focus:border-slate-500 focus:ring-1 focus:ring-slate-300/60"
+                class="h-[42px] w-full border border-slate-300 bg-white px-3 text-base text-slate-900 outline-none ring-0 focus:border-slate-500 focus:ring-1 focus:ring-slate-300/60 sm:text-sm"
                 autocomplete="off"
                 autocapitalize="none"
                 autocorrect="off"
