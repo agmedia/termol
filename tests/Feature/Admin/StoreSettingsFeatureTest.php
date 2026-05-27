@@ -2,12 +2,17 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Jobs\GenerateWebpConversionsJob;
 use App\Livewire\Admin\Settings\System\StoreSettings;
+use App\Models\Catalog\Product\Product;
 use App\Models\User;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use Silber\Bouncer\BouncerFacade as Bouncer;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\TestCase;
 
 class StoreSettingsFeatureTest extends TestCase
@@ -119,6 +124,34 @@ class StoreSettingsFeatureTest extends TestCase
         $this->assertSame('#ffffff', $settings->get('store_announcement_text_color'));
     }
 
+    public function test_webp_generation_only_targets_active_product_media(): void
+    {
+        Queue::fake();
+
+        $admin = $this->makeUserWithRole('superadmin');
+        $activeProduct = $this->makeProduct($admin, 'WEBP-ACTIVE', true);
+        $inactiveProduct = $this->makeProduct($admin, 'WEBP-INACTIVE', false);
+        $activeMedia = $this->makeProductMedia($activeProduct);
+        $inactiveMedia = $this->makeProductMedia($inactiveProduct);
+
+        Cache::forget('settings.store.webp_generation.active_products.'.$admin->id);
+        Cache::forget('settings.store.webp_coverage.active_products');
+
+        Livewire::actingAs($admin)
+            ->test(StoreSettings::class)
+            ->set('tab', 'images')
+            ->call('startWebpGeneration')
+            ->assertSet('webpGeneration.total', 1)
+            ->assertSet('webpGeneration.processed', 0);
+
+        $state = Cache::get('settings.store.webp_generation.active_products.'.$admin->id);
+        $pendingIds = array_values(array_map('intval', (array) ($state['pending_ids'] ?? [])));
+
+        $this->assertSame([(int) $activeMedia->id], $pendingIds);
+        $this->assertNotContains((int) $inactiveMedia->id, $pendingIds);
+        Queue::assertPushed(GenerateWebpConversionsJob::class);
+    }
+
     private function makeUserWithRole(string $role): User
     {
         $user = User::factory()->create();
@@ -131,5 +164,41 @@ class StoreSettingsFeatureTest extends TestCase
         Bouncer::assign($role)->to($user);
 
         return $user;
+    }
+
+    private function makeProduct(User $user, string $code, bool $isActive): Product
+    {
+        return Product::query()->create([
+            'code' => $code,
+            'sku' => $code.'-SKU',
+            'is_active' => $isActive,
+            'manufacturer_id' => null,
+            'tax_rate_id' => null,
+            'base_price' => 10,
+            'stock_qty' => 5,
+            'payload' => null,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+    }
+
+    private function makeProductMedia(Product $product): Media
+    {
+        return Media::query()->create([
+            'model_type' => Product::class,
+            'model_id' => $product->id,
+            'collection_name' => 'product_main',
+            'name' => $product->code,
+            'file_name' => strtolower($product->code).'.jpg',
+            'mime_type' => 'image/jpeg',
+            'disk' => 'public',
+            'conversions_disk' => 'public',
+            'size' => 100,
+            'manipulations' => [],
+            'custom_properties' => [],
+            'generated_conversions' => [],
+            'responsive_images' => [],
+            'order_column' => 1,
+        ]);
     }
 }

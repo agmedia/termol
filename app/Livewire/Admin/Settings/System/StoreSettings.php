@@ -6,9 +6,11 @@ use App\Jobs\GenerateWebpConversionsJob;
 use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Option\Option;
+use App\Models\Catalog\Product\Product;
 use App\Models\Content\Page\InfoPage;
-use App\Support\Media\MediaProfileRegistry;
 use App\Services\Settings\SystemSettingsService;
+use App\Support\Media\MediaProfileRegistry;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -17,8 +19,8 @@ use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Silber\Bouncer\BouncerFacade as Bouncer;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class StoreSettings extends Component
 {
@@ -660,11 +662,9 @@ class StoreSettings extends Component
      */
     private function collectMissingWebpMediaIds(): array
     {
-        $modelTypes = MediaProfileRegistry::modelClasses();
         $ids = [];
 
-        Media::query()
-            ->whereIn('model_type', $modelTypes)
+        $this->activeProductWebpGenerationMediaQuery()
             ->orderBy('id')
             ->chunkById(250, function ($mediaItems) use (&$ids): void {
                 /** @var Media $media */
@@ -710,12 +710,12 @@ class StoreSettings extends Component
     {
         $userId = (int) (auth()->id() ?? 0);
 
-        return 'settings.store.webp_generation.'.$userId;
+        return 'settings.store.webp_generation.active_products.'.$userId;
     }
 
     private function webpCoverageCacheKey(): string
     {
-        return 'settings.store.webp_coverage';
+        return 'settings.store.webp_coverage.active_products';
     }
 
     private function refreshWebpGenerationStatus(): void
@@ -757,12 +757,10 @@ class StoreSettings extends Component
             ];
         }
 
-        $modelTypes = MediaProfileRegistry::modelClasses();
         $total = 0;
         $processed = 0;
 
-        Media::query()
-            ->whereIn('model_type', $modelTypes)
+        $this->activeProductWebpGenerationMediaQuery()
             ->orderBy('id')
             ->chunkById(250, function ($mediaItems) use (&$total, &$processed): void {
                 /** @var Media $media */
@@ -792,6 +790,18 @@ class StoreSettings extends Component
         }
 
         return $summary;
+    }
+
+    /**
+     * @return Builder<Media>
+     */
+    private function activeProductWebpGenerationMediaQuery(): Builder
+    {
+        return Media::query()
+            ->where('model_type', Product::class)
+            ->whereHasMorph('model', [Product::class], function (Builder $productQuery): void {
+                $productQuery->where('is_active', true);
+            });
     }
 
     /**

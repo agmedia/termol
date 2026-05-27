@@ -47,7 +47,7 @@ class GenerateWebpConversionsJob implements ShouldQueue
                 $state['last_ping_at'] = now()->toDateTimeString();
                 unset($state['pending_ids']);
                 Cache::put($cacheKey, $state, now()->addHours(6));
-                Cache::forget('settings.store.webp_coverage');
+                Cache::forget('settings.store.webp_coverage.active_products');
 
                 return;
             }
@@ -96,7 +96,7 @@ class GenerateWebpConversionsJob implements ShouldQueue
                 $state['finished'] = true;
                 $state['finished_at'] = now()->toDateTimeString();
                 unset($state['pending_ids']);
-                Cache::forget('settings.store.webp_coverage');
+                Cache::forget('settings.store.webp_coverage.active_products');
             }
 
             Cache::put($cacheKey, $state, now()->addHours(6));
@@ -111,7 +111,7 @@ class GenerateWebpConversionsJob implements ShouldQueue
 
     private function stateCacheKey(): string
     {
-        return 'settings.store.webp_generation.'.$this->userId;
+        return 'settings.store.webp_generation.active_products.'.$this->userId;
     }
 
     /**
@@ -137,4 +137,3 @@ class GenerateWebpConversionsJob implements ShouldQueue
         return array_map(static fn (string $name): string => $name.'_webp', $conversionNames);
     }
 }
-

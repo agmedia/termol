@@ -143,10 +143,10 @@ return [
             '-O3', // this produces the slowest but best results
         ],
         Spatie\ImageOptimizer\Optimizers\Cwebp::class => [
-            '-m 6', // for the slowest compression method in order to get the best compression.
-            '-pass 10', // for maximizing the amount of analysis pass.
+            '-m 4', // balanced compression; much faster than the exhaustive method 6.
+            '-pass 1', // avoid expensive multi-pass analysis during bulk backfills.
             '-mt', // multithreading for some speed improvements.
-            '-q 90', // quality factor that brings the least noticeable changes.
+            '-q 84', // keep quality aligned with the storefront conversion presets.
         ],
         Spatie\ImageOptimizer\Optimizers\Avifenc::class => [
             '-a cq-level=23', // constant quality level, lower values mean better quality and greater file size (0-63).
