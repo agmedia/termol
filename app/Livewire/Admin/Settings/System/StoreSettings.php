@@ -191,6 +191,10 @@ class StoreSettings extends Component
         'started_at' => null,
         'finished_at' => null,
         'last_id' => 0,
+        'current_id' => null,
+        'current_collection' => null,
+        'last_processed_id' => null,
+        'last_processed_collection' => null,
         'cursor' => 0,
     ];
 
@@ -596,6 +600,10 @@ class StoreSettings extends Component
             'started_at' => now()->toDateTimeString(),
             'finished_at' => $total === 0 ? now()->toDateTimeString() : null,
             'last_id' => 0,
+            'current_id' => null,
+            'current_collection' => null,
+            'last_processed_id' => null,
+            'last_processed_collection' => null,
             'cursor' => 0,
             'last_ping_at' => now()->toDateTimeString(),
             'pending_ids' => $missingIds,
@@ -623,6 +631,9 @@ class StoreSettings extends Component
             return;
         }
 
+        GenerateWebpConversionsJob::processInteractiveStep((int) (auth()->id() ?? 0));
+
+        $state = Cache::get($cacheKey, []);
         $lastPingAt = (string) ($state['last_ping_at'] ?? '');
         $lastPingTs = strtotime($lastPingAt) ?: 0;
         if ($lastPingTs <= 0 || (time() - $lastPingTs) > 30) {
@@ -799,6 +810,7 @@ class StoreSettings extends Component
     {
         return Media::query()
             ->where('model_type', Product::class)
+            ->whereIn('collection_name', ['product_main', 'product_gallery'])
             ->whereHasMorph('model', [Product::class], function (Builder $productQuery): void {
                 $productQuery->where('is_active', true);
             });

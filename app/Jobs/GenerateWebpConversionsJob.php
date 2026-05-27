@@ -13,6 +13,10 @@ class GenerateWebpConversionsJob implements ShouldQueue
 {
     use Queueable;
 
+    private const QUEUED_BATCH_SIZE = 20;
+
+    private const INTERACTIVE_BATCH_SIZE = 1;
+
     public int $tries = 1;
 
     public int $timeout = 120;
@@ -22,6 +26,16 @@ class GenerateWebpConversionsJob implements ShouldQueue
     }
 
     public function handle(): void
+    {
+        $this->processBatch(self::QUEUED_BATCH_SIZE, true);
+    }
+
+    public static function processInteractiveStep(int $userId): void
+    {
+        (new self($userId))->processBatch(self::INTERACTIVE_BATCH_SIZE, false);
+    }
+
+    private function processBatch(int $batchSize, bool $dispatchNextBatch): void
     {
         $cacheKey = $this->stateCacheKey();
         $lockKey = $cacheKey.'.lock';
@@ -38,7 +52,7 @@ class GenerateWebpConversionsJob implements ShouldQueue
 
             $pendingIds = array_values(array_map('intval', (array) ($state['pending_ids'] ?? [])));
             $cursor = max(0, (int) ($state['cursor'] ?? 0));
-            $batchIds = array_slice($pendingIds, $cursor, 20);
+            $batchIds = array_slice($pendingIds, $cursor, max(1, $batchSize));
 
             if ($batchIds === []) {
                 $state['running'] = false;
@@ -72,6 +86,10 @@ class GenerateWebpConversionsJob implements ShouldQueue
                     }
 
                     $conversionNames = $this->webpConversionNamesForModel((string) $media->model_type, (string) $media->collection_name);
+                    $state['current_id'] = (int) $media->id;
+                    $state['current_collection'] = (string) $media->collection_name;
+                    $state['last_ping_at'] = now()->toDateTimeString();
+                    Cache::put($cacheKey, $state, now()->addHours(6));
 
                     try {
                         if ($conversionNames !== []) {
@@ -83,6 +101,10 @@ class GenerateWebpConversionsJob implements ShouldQueue
 
                     $state['processed'] = (int) ($state['processed'] ?? 0) + 1;
                     $state['last_id'] = (int) $media->id;
+                    $state['last_processed_id'] = (int) $media->id;
+                    $state['last_processed_collection'] = (string) $media->collection_name;
+                    $state['current_id'] = null;
+                    $state['current_collection'] = null;
                     $state['cursor'] = (int) ($state['cursor'] ?? 0) + 1;
                 }
             } finally {
@@ -101,7 +123,7 @@ class GenerateWebpConversionsJob implements ShouldQueue
 
             Cache::put($cacheKey, $state, now()->addHours(6));
 
-            if ((bool) ($state['running'] ?? false)) {
+            if ($dispatchNextBatch && (bool) ($state['running'] ?? false)) {
                 self::dispatch($this->userId);
             }
         } finally {

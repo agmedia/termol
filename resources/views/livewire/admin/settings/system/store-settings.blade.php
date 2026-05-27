@@ -388,6 +388,16 @@
                                 {{ __('admin.settings.store.images.status_idle') }}
                             @endif
                         </p>
+
+                        @if (($webpGeneration['current_id'] ?? null) || ($webpGeneration['last_processed_id'] ?? null))
+                            <p class="mt-1 text-xs text-slate-500">
+                                @if (($webpGeneration['current_id'] ?? null))
+                                    Trenutno: media #{{ (int) $webpGeneration['current_id'] }} @if (($webpGeneration['current_collection'] ?? null)) ({{ $webpGeneration['current_collection'] }}) @endif
+                                @else
+                                    Zadnje obrađeno: media #{{ (int) $webpGeneration['last_processed_id'] }} @if (($webpGeneration['last_processed_collection'] ?? null)) ({{ $webpGeneration['last_processed_collection'] }}) @endif
+                                @endif
+                            </p>
+                        @endif
                     </div>
                 </div>
             @endif
