@@ -58,6 +58,14 @@
             }
         };
 
+        const dismissMobileKeyboard = function () {
+            if (!isMobileViewport() || document.activeElement !== input) {
+                return;
+            }
+
+            input.blur();
+        };
+
         const resetActiveLink = function () {
             resultLinks.forEach((link, index) => {
                 link.classList.toggle('is-active', index === activeIndex);
@@ -344,6 +352,12 @@
         form.addEventListener('submit', function () {
             closeSuggestions();
         });
+
+        if (autocompleteEnabled) {
+            suggestionsList.addEventListener('touchmove', dismissMobileKeyboard, { passive: true });
+            suggestionsList.addEventListener('scroll', dismissMobileKeyboard, { passive: true });
+            suggestionsList.addEventListener('wheel', dismissMobileKeyboard, { passive: true });
+        }
 
         document.addEventListener('click', function (event) {
             const target = event.target;
