@@ -859,7 +859,7 @@
             </div>
         </div>
 
-        <div class="flex flex-col gap-3 border-t border-slate-200 pt-5 text-xs text-slate-500 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex flex-col items-center gap-3 border-t border-slate-200 pt-5 text-center text-xs text-slate-500 lg:flex-row lg:justify-between lg:text-left">
             <div>
                 @php
                     $copyrightText = trim((string) ($storeSettings['footer']['bottom_copyright_text'] ?? ''));
@@ -881,7 +881,7 @@
                 @endphp
                 © {{ now()->year }} {{ $storeName }}. {{ $copyrightText }}
             </div>
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 lg:justify-end">
                 @foreach ($bottomLinks as $link)
                     <a href="{{ $link['url'] }}" class="transition hover:text-slate-900">{{ $link['label'] }}</a>
                 @endforeach
