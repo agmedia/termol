@@ -66,6 +66,30 @@ class KiposSyncManagerFeatureTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_admin_runs_kipos_quantity_update_immediately(): void
+    {
+        Queue::fake();
+
+        $admin = $this->makeUserWithRole('superadmin');
+        $product = $this->createKiposProduct($admin, 'W7030');
+
+        $this->enableKiposQuantitySync();
+        $this->fakeKiposQuantity('W7030', 8);
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->call('runAction', 'update_quantities')
+            ->assertHasNoErrors()
+            ->assertDispatched('notify');
+
+        $run = KiposSyncRun::query()->where('action_key', 'update_quantities')->latest('id')->first();
+
+        $this->assertNotNull($run);
+        $this->assertSame('success', $run?->status);
+        $this->assertSame(8, (int) $product->fresh()?->stock_qty);
+        Queue::assertNothingPushed();
+    }
+
     public function test_admin_runs_kipos_image_update_immediately(): void
     {
         Queue::fake();
@@ -396,12 +420,38 @@ class KiposSyncManagerFeatureTest extends TestCase
         ]);
     }
 
+    private function enableKiposQuantitySync(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'catalog_use_kipos_api' => true,
+            'kipos_api_enabled' => true,
+            'kipos_api_base_uri' => 'http://balidd.dyndns.org:8080/kipos.web.api/?route=',
+            'kipos_api_query_suffix' => 'webshop=2',
+            'kipos_api_timeout_seconds' => 30,
+            'kipos_api_verify_tls' => true,
+        ]);
+    }
+
     private function fakeKiposPrice(string $code, string $price): void
     {
         Http::fake([
             '*getitemsextended*' => Http::response([], 200),
             '*getitems*' => Http::response([
                 ['IDROBA' => $code, 'IDODJEL' => $code, 'CIJENA_MPC' => $price],
+            ], 200),
+        ]);
+    }
+
+    private function fakeKiposQuantity(string $code, int $quantity): void
+    {
+        Http::fake([
+            '*getZalihaK*' => Http::response([
+                [
+                    'IDROBA' => $code,
+                    'IDODJEL' => $code,
+                    'ZALIHAK' => $quantity,
+                    'IDSKL' => '100',
+                ],
             ], 200),
         ]);
     }

@@ -105,6 +105,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     galleryThumbs.forEach(function (thumb) {
         thumb.addEventListener('click', function () {
+            if (thumb.hasAttribute('data-gallery-open')) {
+                return;
+            }
+
             if (!isDesktopPreview()) {
                 return;
             }

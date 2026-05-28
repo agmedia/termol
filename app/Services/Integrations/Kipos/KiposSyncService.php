@@ -492,6 +492,10 @@ class KiposSyncService
         $updatedProducts = 0;
         $updatedVariants = 0;
         $unmatched = 0;
+        $now = now();
+        $userId = $this->currentUserId();
+        $productUpdates = [];
+        $variantUpdates = [];
 
         foreach ($groups as $groupCode => $rows) {
             $product = $products->get($groupCode);
@@ -501,10 +505,13 @@ class KiposSyncService
                 continue;
             }
 
-            $product->forceFill([
+            $productUpdates[] = [
+                'id' => $product->id,
+                'code' => $product->code,
                 'stock_qty' => $this->groupQuantity($rows),
-                'updated_by' => $this->currentUserId(),
-            ])->save();
+                'updated_by' => $userId,
+                'updated_at' => $now,
+            ];
             $updatedProducts++;
 
             $variantMap = $product->optionValues->keyBy(
@@ -517,13 +524,34 @@ class KiposSyncService
                     continue;
                 }
 
-                $variant->forceFill([
+                $variantUpdates[] = [
+                    'id' => $variant->id,
+                    'product_id' => $variant->product_id,
+                    'option_value_id' => $variant->option_value_id,
+                    'combination_hash' => $variant->combination_hash,
                     'stock_qty' => $this->rowQuantity($row),
-                    'updated_by' => $this->currentUserId(),
-                ])->save();
+                    'updated_by' => $userId,
+                    'updated_at' => $now,
+                ];
 
                 $updatedVariants++;
             }
+        }
+
+        foreach (array_chunk($productUpdates, 500) as $chunk) {
+            DB::table('products')->upsert(
+                $chunk,
+                ['id'],
+                ['stock_qty', 'updated_by', 'updated_at']
+            );
+        }
+
+        foreach (array_chunk($variantUpdates, 1000) as $chunk) {
+            DB::table('catalog_product_option_values')->upsert(
+                $chunk,
+                ['id'],
+                ['stock_qty', 'updated_by', 'updated_at']
+            );
         }
 
         return [
