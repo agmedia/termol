@@ -101,6 +101,24 @@
         }
     }
 
+    .store-footer-bottom {
+        text-align: center;
+    }
+
+    .store-footer-bottom-links {
+        justify-content: center;
+    }
+
+    @media (min-width: 1024px) {
+        .store-footer-bottom {
+            text-align: left;
+        }
+
+        .store-footer-bottom-links {
+            justify-content: flex-end;
+        }
+    }
+
     @media (min-width: 1024px) {
         .site-main-header-row {
             height: 80px;
@@ -859,7 +877,7 @@
             </div>
         </div>
 
-        <div class="flex flex-col items-center gap-3 border-t border-slate-200 pt-5 text-center text-xs text-slate-500 lg:flex-row lg:justify-between lg:text-left">
+        <div class="store-footer-bottom flex flex-col items-center gap-3 border-t border-slate-200 pt-5 text-xs text-slate-500 lg:flex-row lg:justify-between">
             <div>
                 @php
                     $copyrightText = trim((string) ($storeSettings['footer']['bottom_copyright_text'] ?? ''));
@@ -881,7 +899,7 @@
                 @endphp
                 © {{ now()->year }} {{ $storeName }}. {{ $copyrightText }}
             </div>
-            <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 lg:justify-end">
+            <div class="store-footer-bottom-links flex flex-wrap items-center gap-x-4 gap-y-1">
                 @foreach ($bottomLinks as $link)
                     <a href="{{ $link['url'] }}" class="transition hover:text-slate-900">{{ $link['label'] }}</a>
                 @endforeach
