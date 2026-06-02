@@ -519,11 +519,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const defaultPriceData = function (form) {
         return {
-            current: String(form.dataset.productPriceCurrent || '').trim(),
-            currentValue: String(form.dataset.productPriceCurrentValue || '').trim(),
-            old: String(form.dataset.productPriceOld || '').trim(),
-            discount: String(form.dataset.productPriceDiscount || '').trim(),
-            lowest: String(form.dataset.productPriceLowest || '').trim(),
+            current: String(form.dataset.productDefaultPriceCurrent || '').trim(),
+            currentValue: String(form.dataset.productDefaultPriceCurrentValue || '').trim(),
+            old: String(form.dataset.productDefaultPriceOld || '').trim(),
+            discount: String(form.dataset.productDefaultPriceDiscount || '').trim(),
+            lowest: String(form.dataset.productDefaultPriceLowest || '').trim(),
         };
     };
 
