@@ -1357,7 +1357,7 @@ class StorefrontFrontFeatureTest extends TestCase
 
         $this->get('/product/'.$slug)
             ->assertOk()
-            ->assertSee('data-product-price-current="49.99 €"', false)
+            ->assertSee('data-product-default-price-current="49.99 €"', false)
             ->assertSee('data-option-price-current="79.99 €"', false)
             ->assertSee('data-option-price-current-value="79.99"', false);
     }

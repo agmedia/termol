@@ -271,11 +271,11 @@
                 data-modal-quantity="{{ __('ui.cart.modal.quantity') }}"
                 data-option-error-required="{{ __('ui.cart.errors.select_size') }}"
                 data-option-error-unavailable="{{ __('ui.cart.status.unavailable') }}"
-                data-product-price-current="{{ $productPriceData['current'] }}"
-                data-product-price-current-value="{{ $productPriceData['current_value'] }}"
-                data-product-price-old="{{ $productPriceData['old'] }}"
-                data-product-price-discount="{{ $productPriceData['discount_percent'] }}"
-                data-product-price-lowest="{{ $productPriceData['lowest_30_days'] }}"
+                data-product-default-price-current="{{ $productPriceData['current'] }}"
+                data-product-default-price-current-value="{{ $productPriceData['current_value'] }}"
+                data-product-default-price-old="{{ $productPriceData['old'] }}"
+                data-product-default-price-discount="{{ $productPriceData['discount_percent'] }}"
+                data-product-default-price-lowest="{{ $productPriceData['lowest_30_days'] }}"
             >
                 @csrf
                 <input type="hidden" name="product_id" value="{{ $product->id }}">
