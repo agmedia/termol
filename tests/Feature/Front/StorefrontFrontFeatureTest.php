@@ -1395,8 +1395,8 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->get('/product/'.$slug)
             ->assertOk()
             ->assertSee('Unavailable')
-            ->assertDontSee('data-size-label="S"', false)
-            ->assertDontSee('data-size-label="M"', false);
+            ->assertSee('data-size-label="S"', false)
+            ->assertSee('data-size-label="M"', false);
     }
 
     public function test_add_to_cart_returns_unavailable_when_all_option_values_are_out_of_stock(): void

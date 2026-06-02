@@ -77,7 +77,9 @@
         })
         ->values();
 
-    $optionRows = $product->availableOptionRows();
+    $allOptionRows = $product->visibleOptionRows();
+    $availableOptionRows = $product->availableOptionRows();
+    $optionRows = $availableOptionRows->isNotEmpty() ? $availableOptionRows : $allOptionRows;
     $isPurchasable = $product->storefrontIsPurchasable();
     $hasLinkedOptions = $optionRows->contains(fn ($row) => (int) ($row->parent_option_value_id ?? 0) > 0);
     $primaryOptionLabel = __('ui.cart.modal.option');
