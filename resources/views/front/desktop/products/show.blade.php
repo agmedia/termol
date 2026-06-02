@@ -6,13 +6,40 @@
     $manufacturerTranslation = $product->manufacturer?->translations?->firstWhere('locale', $locale)
         ?? $product->manufacturer?->translations?->firstWhere('locale', $fallbackLocale);
     $manufacturerEnabled = app(\App\Services\Catalog\CatalogFeatureService::class)->useManufacturers();
-    $currentPrice = number_format((float) ($pricePresentation['current_gross'] ?? 0), 2).' €';
+    $formatGrossPrice = static fn ($value): string => number_format((float) $value, 2).' €';
+    $formatGrossDecimal = static fn ($value): string => number_format((float) $value, 2, '.', '');
+    $formatPriceData = static function (array $priceData) use ($formatGrossPrice, $formatGrossDecimal): array {
+        $oldGross = $priceData['old_gross'] ?? null;
+        $lowestGross = $priceData['lowest_30_days_gross'] ?? null;
+        $discountPercent = (int) ($priceData['discount_percent'] ?? 0);
+
+        return [
+            'current' => $formatGrossPrice((float) ($priceData['current_gross'] ?? 0)),
+            'current_value' => $formatGrossDecimal((float) ($priceData['current_gross'] ?? 0)),
+            'old' => $oldGross !== null ? $formatGrossPrice((float) $oldGross) : '',
+            'discount_percent' => $discountPercent > 0 ? (string) $discountPercent : '',
+            'lowest_30_days' => $lowestGross !== null
+                ? __('ui.product.lowest_price_30_days', ['price' => $formatGrossPrice((float) $lowestGross)])
+                : '',
+        ];
+    };
+    $pricePresenter = app(\App\Services\Pricing\ProductPricePresentationService::class);
+    $authUser = auth()->user();
+    $productPriceData = $formatPriceData($pricePresentation);
+    $optionPriceData = static function ($row) use ($pricePresenter, $product, $authUser, $formatPriceData): array {
+        $storedBase = $row->price_override !== null
+            ? (float) $row->price_override
+            : (float) $product->base_price;
+
+        return $formatPriceData($pricePresenter->forStoredBase($product, $storedBase, $authUser));
+    };
+    $currentPrice = $productPriceData['current'];
     $oldPrice = isset($pricePresentation['old_gross']) && $pricePresentation['old_gross'] !== null
-        ? number_format((float) $pricePresentation['old_gross'], 2).' €'
+        ? $formatGrossPrice((float) $pricePresentation['old_gross'])
         : null;
     $discountPercent = (int) ($pricePresentation['discount_percent'] ?? 0);
     $lowest30DaysPrice = isset($pricePresentation['lowest_30_days_gross']) && $pricePresentation['lowest_30_days_gross'] !== null
-        ? number_format((float) $pricePresentation['lowest_30_days_gross'], 2).' €'
+        ? $formatGrossPrice((float) $pricePresentation['lowest_30_days_gross'])
         : null;
     $isWishlisted = app(\App\Services\Front\WishlistService::class)->has((int) $product->id);
     $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
@@ -574,17 +601,15 @@
                 </div>
                 <div class="mt-3">
                     <div class="flex flex-wrap items-center gap-2">
-                        <p class="text-xl font-semibold text-slate-900">{{ $currentPrice }}</p>
-                        @if ($discountPercent > 0)
-                            <span class="inline-flex h-7 items-center border border-rose-600 bg-rose-600 px-2 text-xs font-bold text-white">-{{ $discountPercent }}%</span>
-                        @endif
+                        <p class="text-xl font-semibold text-slate-900" data-product-price-current>{{ $currentPrice }}</p>
+                        <span class="{{ $discountPercent > 0 ? 'inline-flex' : 'hidden' }} h-7 items-center border border-rose-600 bg-rose-600 px-2 text-xs font-bold text-white" data-product-price-discount>
+                            @if ($discountPercent > 0)
+                                -{{ $discountPercent }}%
+                            @endif
+                        </span>
                     </div>
-                    @if ($oldPrice)
-                        <p class="mt-1 text-sm text-slate-500 line-through">{{ $oldPrice }}</p>
-                    @endif
-                    @if ($lowest30DaysPrice)
-                        <p class="mt-1 text-xs text-slate-600">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
-                    @endif
+                    <p class="{{ $oldPrice ? '' : 'hidden' }} mt-1 text-sm text-slate-500 line-through" data-product-price-old>{{ $oldPrice ?: '' }}</p>
+                    <p class="{{ $lowest30DaysPrice ? '' : 'hidden' }} mt-1 text-xs text-slate-600" data-product-price-lowest>{{ $lowest30DaysPrice ? __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) : '' }}</p>
                 </div>
             </div>
 
@@ -622,7 +647,7 @@
                 data-ga4-add-to-cart-form
                 data-ga4-item-id="{{ (string) ($product->sku ?: $product->id) }}"
                 data-ga4-item-name="{{ $translation?->name ?? $product->code }}"
-                data-ga4-item-price="{{ number_format((float) ($pricePresentation['current_gross'] ?? 0), 2, '.', '') }}"
+                data-ga4-item-price="{{ $productPriceData['current_value'] }}"
                 data-ga4-item-brand="{{ (string) ($manufacturerTranslation?->name ?? '') }}"
                 data-ga4-item-category="{{ (string) ($firstCategoryTranslation?->name ?? '') }}"
                 data-ga4-currency="EUR"
@@ -637,6 +662,11 @@
                 data-modal-quantity="{{ __('ui.cart.modal.quantity') }}"
                 data-option-error-required="{{ __('ui.cart.errors.select_size') }}"
                 data-option-error-unavailable="{{ __('ui.cart.status.unavailable') }}"
+                data-product-price-current="{{ $productPriceData['current'] }}"
+                data-product-price-current-value="{{ $productPriceData['current_value'] }}"
+                data-product-price-old="{{ $productPriceData['old'] }}"
+                data-product-price-discount="{{ $productPriceData['discount_percent'] }}"
+                data-product-price-lowest="{{ $productPriceData['lowest_30_days'] }}"
             >
                 @csrf
                 <input type="hidden" name="product_id" value="{{ $product->id }}">
@@ -686,8 +716,18 @@
                                                     ?? $row->optionValue?->translations?->firstWhere('locale', $fallbackLocale)
                                                     ?? $row->optionValue?->translations?->first();
                                                 $secondaryLabel = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
+                                                $rowPriceData = $optionPriceData($row);
                                             @endphp
-                                            <option value="{{ $row->id }}" data-parent-id="{{ (int) ($row->parent_option_value_id ?? 0) }}" data-option-sku="{{ (string) ($row->sku ?: '') }}">{{ $secondaryLabel }}</option>
+                                            <option
+                                                value="{{ $row->id }}"
+                                                data-parent-id="{{ (int) ($row->parent_option_value_id ?? 0) }}"
+                                                data-option-sku="{{ (string) ($row->sku ?: '') }}"
+                                                data-option-price-current="{{ $rowPriceData['current'] }}"
+                                                data-option-price-current-value="{{ $rowPriceData['current_value'] }}"
+                                                data-option-price-old="{{ $rowPriceData['old'] }}"
+                                                data-option-price-discount="{{ $rowPriceData['discount_percent'] }}"
+                                                data-option-price-lowest="{{ $rowPriceData['lowest_30_days'] }}"
+                                            >{{ $secondaryLabel }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -701,9 +741,23 @@
                                             ?? $row->optionValue?->translations?->first();
                                         $label = trim((string) ($valueTranslation?->name ?? $row->optionValue?->code ?? ''));
                                         $inputId = 'product-detail-pov-'.$product->id.'-'.$row->id;
+                                        $rowPriceData = $optionPriceData($row);
                                     @endphp
                                     <span class="inline-flex">
-                                        <input id="{{ $inputId }}" type="radio" name="product_option_value_id" value="{{ $row->id }}" class="sr-only product-size-radio" data-size-label="{{ $label }}" data-option-sku="{{ (string) ($row->sku ?: '') }}">
+                                        <input
+                                            id="{{ $inputId }}"
+                                            type="radio"
+                                            name="product_option_value_id"
+                                            value="{{ $row->id }}"
+                                            class="sr-only product-size-radio"
+                                            data-size-label="{{ $label }}"
+                                            data-option-sku="{{ (string) ($row->sku ?: '') }}"
+                                            data-option-price-current="{{ $rowPriceData['current'] }}"
+                                            data-option-price-current-value="{{ $rowPriceData['current_value'] }}"
+                                            data-option-price-old="{{ $rowPriceData['old'] }}"
+                                            data-option-price-discount="{{ $rowPriceData['discount_percent'] }}"
+                                            data-option-price-lowest="{{ $rowPriceData['lowest_30_days'] }}"
+                                        >
                                         <label for="{{ $inputId }}" class="product-size-label inline-flex h-10 min-w-10 cursor-pointer items-center justify-center border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:bg-slate-100">
                                             <span>{{ $label }}</span>
                                         </label>

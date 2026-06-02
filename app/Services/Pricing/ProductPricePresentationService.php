@@ -28,7 +28,21 @@ class ProductPricePresentationService
      */
     public function forProduct(Product $product, ?User $user = null): array
     {
-        $storedBase = (float) $product->base_price;
+        return $this->forStoredBase($product, (float) $product->base_price, $user);
+    }
+
+    /**
+     * @return array{
+     *   current_gross: float,
+     *   base_gross: float,
+     *   old_gross: float|null,
+     *   has_discount: bool,
+     *   discount_percent: int|null,
+     *   lowest_30_days_gross: float|null
+     * }
+     */
+    public function forStoredBase(Product $product, float $storedBase, ?User $user = null): array
+    {
         $resolvedAction = $this->actionResolver->resolveProductAction($product, $user);
         $storedCurrent = $resolvedAction
             ? $this->actionResolver->applyToPrice($storedBase, $resolvedAction)

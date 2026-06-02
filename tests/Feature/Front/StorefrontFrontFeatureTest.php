@@ -1341,6 +1341,27 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('color: #ffffff !important;', false);
     }
 
+    public function test_product_detail_exposes_option_price_overrides_for_live_price_updates(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product, $slug] = $this->seedProduct($category->id);
+
+        $this->attachProductSizeOptions($product, ['S', 'XXL']);
+
+        ProductOptionValue::query()
+            ->where('product_id', $product->id)
+            ->whereHas('optionValue.translations', fn ($query) => $query->where('name', 'XXL'))
+            ->firstOrFail()
+            ->update(['price_override' => 79.99]);
+
+        $this->get('/product/'.$slug)
+            ->assertOk()
+            ->assertSee('data-product-price-current="49.99 €"', false)
+            ->assertSee('data-option-price-current="79.99 €"', false)
+            ->assertSee('data-option-price-current-value="79.99"', false);
+    }
+
     public function test_shop_card_hides_out_of_stock_option_values(): void
     {
         $this->useEnglishStorefrontLocale();

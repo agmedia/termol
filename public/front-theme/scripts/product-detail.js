@@ -517,6 +517,105 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
 
+    const defaultPriceData = function (form) {
+        return {
+            current: String(form.dataset.productPriceCurrent || '').trim(),
+            currentValue: String(form.dataset.productPriceCurrentValue || '').trim(),
+            old: String(form.dataset.productPriceOld || '').trim(),
+            discount: String(form.dataset.productPriceDiscount || '').trim(),
+            lowest: String(form.dataset.productPriceLowest || '').trim(),
+        };
+    };
+
+    const datasetValue = function (dataset, key, fallback) {
+        if (!dataset || !Object.prototype.hasOwnProperty.call(dataset, key)) {
+            return fallback;
+        }
+
+        return String(dataset[key] || '').trim();
+    };
+
+    const priceDataFromOptionNode = function (node, fallback) {
+        if (!node) {
+            return fallback;
+        }
+
+        return {
+            current: datasetValue(node.dataset, 'optionPriceCurrent', fallback.current),
+            currentValue: datasetValue(node.dataset, 'optionPriceCurrentValue', fallback.currentValue),
+            old: datasetValue(node.dataset, 'optionPriceOld', fallback.old),
+            discount: datasetValue(node.dataset, 'optionPriceDiscount', fallback.discount),
+            lowest: datasetValue(node.dataset, 'optionPriceLowest', fallback.lowest),
+        };
+    };
+
+    const selectedOptionPriceData = function (form) {
+        const fallback = defaultPriceData(form);
+        const radioChecked = form.querySelector('input[name="product_option_value_id"]:checked');
+        if (radioChecked) {
+            return priceDataFromOptionNode(radioChecked, fallback);
+        }
+
+        const select = form.querySelector('select[name="product_option_value_id"]');
+        if (!select || select.disabled || !select.value) {
+            return fallback;
+        }
+
+        return priceDataFromOptionNode(select.options[select.selectedIndex], fallback);
+    };
+
+    const setNodeVisibility = function (node, visible, displayClass) {
+        if (!node) {
+            return;
+        }
+
+        if (displayClass) {
+            node.classList.toggle(displayClass, visible);
+        }
+
+        node.classList.toggle('hidden', !visible);
+        node.classList.toggle('d-none', !visible);
+    };
+
+    const syncPriceDisplay = function (form) {
+        const priceData = selectedOptionPriceData(form);
+
+        if (priceData.current !== '') {
+            document.querySelectorAll('[data-product-price-current]').forEach(function (node) {
+                node.textContent = priceData.current;
+            });
+        }
+
+        document.querySelectorAll('[data-product-price-old]').forEach(function (node) {
+            const hasOldPrice = priceData.old !== '';
+            if (hasOldPrice) {
+                node.textContent = priceData.old;
+            }
+            setNodeVisibility(node, hasOldPrice);
+        });
+
+        document.querySelectorAll('[data-product-price-lowest]').forEach(function (node) {
+            const hasLowestPrice = priceData.lowest !== '';
+            if (hasLowestPrice) {
+                node.textContent = priceData.lowest;
+            }
+            setNodeVisibility(node, hasLowestPrice);
+        });
+
+        document.querySelectorAll('[data-product-price-discount]').forEach(function (node) {
+            const discount = priceData.discount.replace(/^-/, '').replace(/%$/, '');
+            const hasDiscount = discount !== '' && Number.parseFloat(discount) > 0;
+            if (hasDiscount) {
+                node.textContent = '-' + discount + '%';
+            }
+            setNodeVisibility(node, hasDiscount, 'inline-flex');
+        });
+
+        if (priceData.currentValue !== '') {
+            form.dataset.ga4ItemPrice = priceData.currentValue;
+        }
+    };
+
     const cartCountNodes = document.querySelectorAll('[data-cart-count]');
     let modal = null;
 
@@ -678,10 +777,12 @@ document.addEventListener('DOMContentLoaded', function () {
     forms.forEach(function (form) {
         initLinkedOptionSelectors(form);
         syncSkuDisplay(form);
+        syncPriceDisplay(form);
 
         form.querySelectorAll('input[name="product_option_value_id"], select[name="product_option_value_id"], [data-linked-option-primary]').forEach(function (field) {
             field.addEventListener('change', function () {
                 syncSkuDisplay(form);
+                syncPriceDisplay(form);
             });
         });
 

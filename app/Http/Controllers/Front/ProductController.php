@@ -126,7 +126,7 @@ class ProductController extends Controller
                             ->whereIn('locale', [$locale, $fallbackLocale]),
                     ]),
                 'optionValues' => fn ($q) => $q
-                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'stock_qty', 'is_active', 'sort_order'])
+                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'stock_qty', 'price_override', 'is_active', 'sort_order'])
                     ->where('is_active', true)
                     ->orderBy('sort_order')
                     ->orderBy('id')
@@ -174,7 +174,7 @@ class ProductController extends Controller
                     ->whereIn('locale', [$locale, $fallbackLocale]),
                 'attributes' => ProductMaterialLabel::eagerLoadAttributes($locale, $fallbackLocale),
                 'optionValues' => fn ($q) => $q
-                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'stock_qty', 'is_active', 'sort_order'])
+                    ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'stock_qty', 'price_override', 'is_active', 'sort_order'])
                     ->where('is_active', true)
                     ->orderBy('sort_order')
                     ->orderBy('id')
