@@ -29,7 +29,7 @@
                 <p class="mt-1 text-sm text-slate-600">{{ __('Operational dashboard for orders, users, and current feature availability.') }}</p>
                 <p class="mt-2 text-xs text-slate-500">{{ __('Window') }}: <span class="admin-chip">{{ $start->format('Y-m-d') }} - {{ $end->format('Y-m-d') }}</span></p>
             </div>
-            <div class="w-full sm:w-56">
+            <div class="w-full lg:w-56 lg:shrink-0">
                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Range') }}</label>
                 <select wire:model.live="rangeDays" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border px-3 py-2 text-sm">
                     @foreach ($rangeOptions as $value => $label)
@@ -40,14 +40,14 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+    <div class="admin-dashboard-kpi-grid">
         @foreach ($kpis as $kpi)
             @php
                 $delta = $kpi['delta'];
                 $direction = $delta['direction'];
                 $tone = $direction === 'up' ? 'text-emerald-700' : ($direction === 'down' ? 'text-rose-700' : 'text-slate-600');
             @endphp
-            <div class="admin-panel admin-panel-soft p-4">
+            <div class="admin-panel admin-panel-soft admin-dashboard-kpi-card">
                 <p class="min-h-8 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ $kpi['label'] }}</p>
                 <p class="mt-2 text-2xl font-semibold text-slate-900">
                     {{ $kpi['value'] }} @if (isset($kpi['suffix']))<span class="text-sm text-slate-600">{{ $kpi['suffix'] }}</span>@endif
@@ -62,7 +62,7 @@
         @endforeach
     </div>
 
-    <div class="admin-panel admin-panel-soft p-5">
+    <div class="admin-panel admin-panel-soft p-4 md:p-5">
             <div class="flex items-center justify-between gap-2">
                 <h2 class="admin-section-title">{{ __('Order Pipeline') }}</h2>
                 <a href="{{ route('admin.orders') }}" class="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Open Orders') }}</a>
@@ -87,7 +87,7 @@
             </div>
     </div>
 
-    <div class="grid gap-4 xl:grid-cols-3">
+    <div class="grid items-start gap-4 lg:grid-cols-3">
         <div class="admin-panel admin-panel-soft p-5">
             <h2 class="admin-section-title">{{ __('Revenue vs Orders') }}</h2>
             <div class="mt-4" style="height: 16rem;">
@@ -122,7 +122,7 @@
         </div>
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-2">
+    <div class="grid items-start gap-4">
         <div class="admin-panel admin-panel-soft p-5">
             <h2 class="admin-section-title">{{ __('Sales Trend (:days Days)', ['days' => min($days, 30)]) }}</h2>
             <div class="mt-4 space-y-2">
@@ -138,23 +138,9 @@
                 @endforeach
             </div>
         </div>
-
-        <div class="admin-panel admin-panel-soft p-5">
-            <h2 class="admin-section-title">{{ __('Feature Flags') }}</h2>
-            <div class="mt-4 grid gap-2 sm:grid-cols-2">
-                @foreach ($featureFlags as $flag => $enabled)
-                    <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
-                        <span class="min-w-0 break-words text-slate-700">{{ $flag }}</span>
-                        <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold {{ $enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700' }}">
-                            {{ $enabled ? __('On') : __('Off') }}
-                        </span>
-                    </div>
-                @endforeach
-            </div>
-        </div>
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-2">
+    <div class="grid items-start gap-4 xl:grid-cols-2">
         <div class="admin-panel admin-panel-soft p-5">
             <h2 class="admin-section-title">{{ __('Recent Orders') }}</h2>
             <div class="mt-3 overflow-x-auto">

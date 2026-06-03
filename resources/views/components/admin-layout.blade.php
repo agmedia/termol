@@ -456,10 +456,25 @@
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
+            .admin-dashboard-kpi-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 0.75rem;
+            }
+            .admin-dashboard-kpi-card {
+                padding: 1rem;
+            }
             @media (min-width: 768px) {
                 .admin-main {
                     margin-left: 18rem;
                     width: calc(100% - 18rem);
+                }
+                .admin-dashboard-kpi-grid {
+                    grid-template-columns: repeat(5, minmax(0, 1fr));
+                }
+                .admin-dashboard-kpi-card {
+                    min-height: 7rem;
+                    padding: 0.9rem 1rem;
                 }
                 .admin-sidebar {
                     width: 18rem;

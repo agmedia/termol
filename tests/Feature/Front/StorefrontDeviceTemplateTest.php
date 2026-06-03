@@ -4,6 +4,7 @@ namespace Tests\Feature\Front;
 
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class StorefrontDeviceTemplateTest extends TestCase
@@ -53,9 +54,11 @@ class StorefrontDeviceTemplateTest extends TestCase
 
     public function test_desktop_home_header_uses_admin_store_logo_when_configured(): void
     {
+        $logoPath = 'store-settings/front-logo.svg';
+
         app(SystemSettingsService::class)->putMany([
             'store_brand_name' => 'KZO',
-            'store_brand_logo_path' => 'store-settings/front-logo.svg',
+            'store_brand_logo_path' => $logoPath,
         ]);
 
         $response = $this
@@ -65,17 +68,19 @@ class StorefrontDeviceTemplateTest extends TestCase
             ->get('/');
 
         $response->assertOk();
-        $response->assertSee('src="http://localhost/storage/store-settings/front-logo.svg"', false);
+        $response->assertSee('src="'.Storage::disk('public')->url($logoPath).'"', false);
         $response->assertSee('alt="KZO"', false);
         $response->assertSee('data-store-brand-logo', false);
     }
 
     public function test_mobile_home_header_uses_admin_store_logo_when_configured(): void
     {
+        $logoPath = 'store-settings/mobile-front-logo.svg';
+
         app(SystemSettingsService::class)->putMany([
             'catalog_use_mobile_view' => true,
             'store_brand_name' => 'KZO',
-            'store_brand_logo_path' => 'store-settings/mobile-front-logo.svg',
+            'store_brand_logo_path' => $logoPath,
         ]);
 
         $response = $this
@@ -85,7 +90,7 @@ class StorefrontDeviceTemplateTest extends TestCase
             ->get('/');
 
         $response->assertOk();
-        $response->assertSee('src="http://localhost/storage/store-settings/mobile-front-logo.svg"', false);
+        $response->assertSee('src="'.Storage::disk('public')->url($logoPath).'"', false);
         $response->assertSee('alt="KZO"', false);
         $response->assertSee('class="store-header-logo"', false);
     }

@@ -463,19 +463,6 @@ class Overview extends Component
             ],
         ];
 
-        $featureFlags = [
-            __('User Tracking') => $trackingEnabled,
-            __('User Loyalty') => $loyaltyEnabled,
-            __('API') => (bool) ($catalogFeatures['catalog_use_api'] ?? false),
-            __('Luceed API') => (bool) ($catalogFeatures['catalog_use_luceed_api'] ?? false),
-            __('Blog') => (bool) ($catalogFeatures['catalog_use_blog'] ?? false),
-            __('Attributes') => (bool) ($catalogFeatures['catalog_use_attributes'] ?? false),
-            __('Options') => (bool) ($catalogFeatures['catalog_use_options'] ?? false),
-            __('Manufacturers') => (bool) ($catalogFeatures['catalog_use_manufacturers'] ?? false),
-            __('Actions') => (bool) ($catalogFeatures['catalog_use_actions'] ?? false),
-            __('Mobile View') => (bool) ($catalogFeatures['catalog_use_mobile_view'] ?? false),
-        ];
-
         return view('livewire.admin.dashboard.overview', [
             'start' => $start,
             'end' => $end,
@@ -490,7 +477,6 @@ class Overview extends Component
             'loyaltyEnabled' => $loyaltyEnabled,
             'trendRows' => $trendRows,
             'catalogSnapshot' => $catalogSnapshot,
-            'featureFlags' => $featureFlags,
             'dashboardCharts' => $dashboardCharts,
             'storeCurrencyCode' => $storeCurrencyCode,
         ]);
