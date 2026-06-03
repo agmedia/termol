@@ -358,15 +358,190 @@
             }
             .admin-main {
                 min-height: 100vh;
+                min-width: 0;
+                overflow-x: hidden;
             }
             .admin-sidebar-rail {
                 height: 100dvh;
                 min-height: 100vh;
             }
+            .admin-sidebar {
+                width: min(18rem, calc(100vw - 2rem));
+                max-width: calc(100vw - 2rem);
+                transform: translateX(-100%);
+                visibility: hidden;
+                transition: transform 180ms ease, visibility 180ms ease;
+                box-shadow: 18px 0 36px -28px rgba(15, 23, 42, 0.72);
+            }
+            .admin-sidebar.is-open {
+                transform: translateX(0);
+                visibility: visible;
+            }
+            .admin-sidebar-backdrop {
+                position: fixed;
+                inset: 0;
+                z-index: 20;
+                border: 0;
+                background: rgba(15, 23, 42, 0.42);
+                opacity: 0;
+                transition: opacity 160ms ease;
+            }
+            .admin-sidebar-backdrop.is-open {
+                opacity: 1;
+            }
+            body.admin-sidebar-open {
+                overflow: hidden;
+            }
+            .admin-mobile-menu-button,
+            .admin-mobile-close-button {
+                display: inline-flex;
+                height: 2.25rem;
+                width: 2.25rem;
+                flex-shrink: 0;
+                align-items: center;
+                justify-content: center;
+                border-radius: 0.75rem;
+                border: 1px solid #dbe4ee;
+                background: #ffffff;
+                color: #334155;
+                transition: border-color 120ms ease, background-color 120ms ease;
+            }
+            .admin-mobile-menu-button:hover,
+            .admin-mobile-close-button:hover {
+                border-color: #cbd5e1;
+                background: #f8fafc;
+            }
+            .admin-mobile-menu-icon,
+            .admin-mobile-close-icon {
+                position: relative;
+                display: block;
+                height: 1rem;
+                width: 1rem;
+            }
+            .admin-mobile-menu-icon::before,
+            .admin-mobile-menu-icon::after,
+            .admin-mobile-menu-icon span,
+            .admin-mobile-close-icon::before,
+            .admin-mobile-close-icon::after {
+                content: "";
+                position: absolute;
+                left: 0.1rem;
+                right: 0.1rem;
+                height: 2px;
+                border-radius: 9999px;
+                background: currentColor;
+            }
+            .admin-mobile-menu-icon::before {
+                top: 0.2rem;
+            }
+            .admin-mobile-menu-icon span {
+                top: 0.48rem;
+            }
+            .admin-mobile-menu-icon::after {
+                top: 0.76rem;
+            }
+            .admin-mobile-close-icon::before,
+            .admin-mobile-close-icon::after {
+                top: 0.5rem;
+            }
+            .admin-mobile-close-icon::before {
+                transform: rotate(45deg);
+            }
+            .admin-mobile-close-icon::after {
+                transform: rotate(-45deg);
+            }
+            .admin-header-title {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
             @media (min-width: 768px) {
                 .admin-main {
                     margin-left: 18rem;
                     width: calc(100% - 18rem);
+                }
+                .admin-sidebar {
+                    width: 18rem;
+                    max-width: 18rem;
+                    transform: none;
+                    visibility: visible;
+                    box-shadow: none;
+                }
+                .admin-sidebar-backdrop {
+                    display: none !important;
+                }
+                .admin-mobile-menu-button,
+                .admin-mobile-close-button {
+                    display: none;
+                }
+                body.admin-sidebar-open {
+                    overflow: auto;
+                }
+            }
+            @media (max-width: 767px) {
+                .admin-main main,
+                .admin-main main * {
+                    min-width: 0;
+                }
+                .admin-main main {
+                    padding: 1rem 0.75rem;
+                }
+                .admin-main main :is(.admin-panel, .admin-search-panel, .admin-form-panel) {
+                    max-width: 100%;
+                    border-radius: 0.9rem;
+                }
+                .admin-panel.p-6,
+                .admin-search-panel.p-6,
+                .admin-form-panel.p-6 {
+                    padding: 1rem !important;
+                }
+                .admin-search-panel > .flex,
+                .admin-search-panel form > .flex,
+                .admin-panel > .flex.items-end,
+                .admin-panel > .flex.justify-between {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                .admin-search-panel [class*="w-["],
+                .admin-search-panel [class*="max-w-["],
+                .admin-panel [class*="w-["],
+                .admin-panel [class*="max-w-["] {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                }
+                .admin-main main .grid[style*="grid-template-columns"] {
+                    grid-template-columns: minmax(0, 1fr) !important;
+                }
+                .admin-main main .grid[style*="grid-template-columns"] > [style*="grid-column"] {
+                    grid-column: auto !important;
+                }
+                .admin-main main :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea, .ts-wrapper, .ts-control) {
+                    max-width: 100%;
+                }
+                .admin-main main .overflow-x-auto {
+                    max-width: 100%;
+                    -webkit-overflow-scrolling: touch;
+                }
+                .admin-main main .admin-items-table {
+                    width: max-content;
+                    min-width: 100%;
+                }
+                .admin-main main :is(th, td) {
+                    white-space: nowrap;
+                }
+                .admin-main main :is(td, th) :is(p, div, span, a) {
+                    max-width: 18rem;
+                }
+                .admin-main main :is(pre, code) {
+                    white-space: pre-wrap;
+                    overflow-wrap: anywhere;
+                }
+                .admin-form-actions {
+                    flex-wrap: wrap;
+                }
+                .admin-form-actions > * {
+                    flex: 1 1 auto;
                 }
             }
             .admin-toast-root {
@@ -474,25 +649,6 @@
             .admin-help-button:hover {
                 background: #f8fafc;
                 border-color: #cbd5e1;
-            }
-            .admin-ai-button {
-                display: inline-flex;
-                align-items: center;
-                gap: 0.35rem;
-                border-radius: 9999px;
-                border: 1px solid #cbd5e1;
-                background: #f8fafc;
-                color: #334155;
-                font-size: 0.72rem;
-                font-weight: 700;
-                letter-spacing: 0.04em;
-                text-transform: uppercase;
-                padding: 0.35rem 0.6rem;
-                transition: border-color 120ms ease, background-color 120ms ease;
-            }
-            .admin-ai-button:hover {
-                border-color: #94a3b8;
-                background: #f1f5f9;
             }
             .admin-help-overlay {
                 position: fixed;
@@ -610,57 +766,6 @@
                 background: #f8fafc;
                 border-radius: 0.7rem;
                 padding: 0.48rem 0.6rem;
-            }
-            .admin-ai-overlay {
-                position: fixed;
-                inset: 0;
-                z-index: 81;
-                display: none;
-                align-items: center;
-                justify-content: center;
-                padding: 1rem;
-                background: rgba(15, 23, 42, 0.42);
-            }
-            .admin-ai-overlay.is-open {
-                display: flex;
-            }
-            .admin-ai-modal {
-                width: min(52rem, 100%);
-                border-radius: 1rem;
-                border: 1px solid #dbe4ee;
-                background: #ffffff;
-                box-shadow: 0 22px 42px -30px rgba(15, 23, 42, 0.75);
-                overflow: hidden;
-            }
-            .admin-ai-modal-header {
-                padding: 0.85rem 1rem;
-                border-bottom: 1px solid #e2e8f0;
-                background: linear-gradient(90deg, #f8fafc 0%, #eef7ff 100%);
-            }
-            .admin-ai-modal-body {
-                padding: 1rem;
-            }
-            .admin-ai-input {
-                width: 100%;
-                min-height: 8.5rem;
-                border-radius: 0.85rem;
-                border: 1px solid #cbd5e1;
-                padding: 0.75rem 0.85rem;
-                font-size: 0.9rem;
-                line-height: 1.45;
-                resize: vertical;
-                background: #ffffff;
-                color: #0f172a;
-            }
-            .admin-ai-input:focus {
-                border-color: #0891b2;
-                box-shadow: 0 0 0 2px rgba(8, 145, 178, 0.14);
-                outline: none;
-            }
-            .admin-ai-hint {
-                margin-top: 0.65rem;
-                font-size: 0.76rem;
-                color: #64748b;
             }
             .cb-preview {
                 position: relative;
@@ -1004,11 +1109,19 @@
     </head>
     <body class="min-h-screen bg-slate-100 text-slate-900 antialiased" style="font-family: 'Manrope', 'Noto Sans', 'Segoe UI', Roboto, Arial, sans-serif;">
         <div class="min-h-screen">
-            <aside class="admin-sidebar admin-sidebar-rail fixed inset-y-0 left-0 z-30 hidden w-72 overflow-y-auto border-r border-slate-200 bg-white md:block">
-                <div class="flex h-16 items-center border-b border-slate-200 px-6">
+            <aside id="admin-sidebar" class="admin-sidebar admin-sidebar-rail fixed inset-y-0 left-0 z-30 w-72 overflow-y-auto border-r border-slate-200 bg-white" aria-label="{{ __('Admin navigation') }}" tabindex="-1">
+                <div class="flex h-16 items-center justify-between border-b border-slate-200 px-5 md:px-6">
                     <a href="{{ route('admin.dashboard') }}" class="text-lg font-semibold tracking-tight">
                         {{ config('app.name') }} Admin
                     </a>
+                    <button
+                        type="button"
+                        class="admin-mobile-close-button md:hidden"
+                        data-admin-sidebar-close
+                        aria-label="{{ __('Close admin navigation') }}"
+                    >
+                        <span class="admin-mobile-close-icon" aria-hidden="true"></span>
+                    </button>
                 </div>
 
                 @php
@@ -1204,68 +1317,6 @@
 
                     $helpEntry = $normalizeHelpEntry(is_array($helpEntry) ? $helpEntry : []);
 
-                    $aiConfig = config('admin_ai', []);
-                    $aiHelpEntry = is_array($aiConfig['help'] ?? null) ? $aiConfig['help'] : [];
-
-                    $aiDomains = is_array($aiConfig['domains'] ?? null) ? $aiConfig['domains'] : [];
-                    $aiTools = is_array($aiConfig['tools'] ?? null) ? $aiConfig['tools'] : [];
-                    $aiFunctions = is_array($aiConfig['functions'] ?? null) ? $aiConfig['functions'] : [];
-
-                    $enabledFunctionNames = array_values(array_filter(array_keys($aiTools), static fn ($toolName): bool => (bool) ($aiTools[$toolName] ?? false)));
-                    $enabledFunctionSections = [];
-                    foreach ($enabledFunctionNames as $toolName) {
-                        $functionMeta = is_array($aiFunctions[$toolName] ?? null) ? $aiFunctions[$toolName] : [];
-                        $enabledFunctionSections[] = [
-                            'title' => trim((string) ($functionMeta['title'] ?? $toolName)),
-                            'subtitle' => 'Domain function currently enabled for preview/execute plans.',
-                            'explanation' => [
-                                trim((string) ($functionMeta['description'] ?? 'No function description configured.')),
-                            ],
-                            'params' => is_array($functionMeta['params'] ?? null) ? $functionMeta['params'] : [],
-                        ];
-                    }
-
-                    $domainLines = [];
-                    foreach ($aiDomains as $domainKey => $domainMeta) {
-                        if (! is_array($domainMeta)) {
-                            continue;
-                        }
-                        $domainTitle = trim((string) ($domainMeta['title'] ?? $domainKey));
-                        $domainSummary = trim((string) ($domainMeta['summary'] ?? ''));
-                        $line = $domainTitle;
-                        if ($domainSummary !== '') {
-                            $line .= ': '.$domainSummary;
-                        }
-                        $domainLines[] = $line;
-                    }
-
-                    $fallbackNotice = trim((string) ($aiConfig['fallback']['notice'] ?? ''));
-                    $fallbackContact = trim((string) ($aiConfig['fallback']['contact'] ?? ''));
-                    if ($fallbackNotice !== '') {
-                        $fallbackLine = $fallbackNotice;
-                        if ($fallbackContact !== '') {
-                            $fallbackLine .= ' Contact: '.$fallbackContact;
-                        }
-                        $domainLines[] = $fallbackLine;
-                    }
-
-                    if ($domainLines !== []) {
-                        $aiHelpSections = is_array($aiHelpEntry['sections'] ?? null) ? $aiHelpEntry['sections'] : [];
-                        $aiHelpSections[] = [
-                            'title' => 'Configured Domains',
-                            'subtitle' => 'Runtime domain registry loaded from admin_ai config.',
-                            'explanation' => $domainLines,
-                            'params' => [],
-                        ];
-                        $aiHelpEntry['sections'] = $aiHelpSections;
-                    }
-
-                    if ($enabledFunctionSections !== []) {
-                        $aiHelpSections = is_array($aiHelpEntry['sections'] ?? null) ? $aiHelpEntry['sections'] : [];
-                        $aiHelpEntry['sections'] = array_merge($aiHelpSections, $enabledFunctionSections);
-                    }
-
-                    $aiHelpEntry = $normalizeHelpEntry($aiHelpEntry);
                 @endphp
 
                 <nav class="space-y-1 p-4">
@@ -1695,14 +1746,34 @@
                     @endif
                 </nav>
             </aside>
+            <button
+                type="button"
+                id="admin-sidebar-backdrop"
+                class="admin-sidebar-backdrop md:hidden"
+                data-admin-sidebar-close
+                aria-label="{{ __('Close admin navigation') }}"
+                hidden
+            ></button>
 
             <div class="admin-main flex min-w-0 flex-1 flex-col">
-                <header class="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6">
-                    <div class="text-sm font-semibold text-slate-800 md:text-base">
-                        {{ $title ?? __('admin.layout.admin') }}
+                <header class="sticky top-0 z-10 flex h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 sm:px-4 md:px-6">
+                    <div class="flex min-w-0 items-center gap-2">
+                        <button
+                            type="button"
+                            id="admin-sidebar-open"
+                            class="admin-mobile-menu-button md:hidden"
+                            aria-controls="admin-sidebar"
+                            aria-expanded="false"
+                            aria-label="{{ __('Open admin navigation') }}"
+                        >
+                            <span class="admin-mobile-menu-icon" aria-hidden="true"><span></span></span>
+                        </button>
+                        <div class="admin-header-title text-sm font-semibold text-slate-800 md:text-base">
+                            {{ $title ?? __('admin.layout.admin') }}
+                        </div>
                     </div>
 
-                    <div class="flex items-center gap-3">
+                    <div class="flex shrink-0 items-center gap-2 sm:gap-3">
                         @php
                             $activeAdminLocale = strtolower((string) app()->getLocale());
                             $adminLocaleOptions = ['hr', 'en'];
@@ -1717,15 +1788,6 @@
                                 </a>
                             @endforeach
                         </div>
-                        <button
-                            type="button"
-                            id="admin-ai-open"
-                            class="admin-ai-button"
-                            aria-label="{{ __('admin.layout.assistant.open_ai') }}"
-                            title="{{ __('admin.layout.assistant.open_ai') }}"
-                        >
-                            <span>AI</span>
-                        </button>
                         <button
                             type="button"
                             id="admin-help-open"
@@ -1750,7 +1812,7 @@
                                     <path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
                             </summary>
-                            <div class="absolute right-0 z-20 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+                            <div class="absolute right-0 z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg sm:w-80">
                                 <div class="border-b border-slate-200 bg-slate-50 px-4 py-3">
                                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.layout.quick_actions') }}</p>
                                     <p class="mt-1 text-sm font-medium text-slate-800">{{ auth()->user()->name }}</p>
@@ -1852,64 +1914,6 @@
                     <div id="admin-help-sections" class="admin-help-sections"></div>
                     <ul id="admin-help-list" class="admin-help-list"></ul>
                     <a id="admin-help-manual-link" href="#" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 hover:bg-cyan-100">
-                        Open Manual
-                    </a>
-                </div>
-            </div>
-        </div>
-        <div id="admin-ai-overlay" class="admin-ai-overlay" aria-hidden="true">
-            <div class="admin-ai-modal" role="dialog" aria-modal="true" aria-labelledby="admin-ai-title">
-                <div class="admin-ai-modal-header flex items-start justify-between gap-3">
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Admin Agent</p>
-                        <h2 id="admin-ai-title" class="mt-1 text-base font-semibold tracking-tight text-slate-900">Describe what you want to do</h2>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" id="admin-ai-help-open" class="rounded-md border border-cyan-300 bg-cyan-50 px-2 py-1 text-xs font-semibold text-cyan-800 hover:bg-cyan-100">Domain Functions</button>
-                        <button type="button" id="admin-ai-close" class="rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100">Close</button>
-                    </div>
-                </div>
-                <form id="admin-ai-form" class="admin-ai-modal-body">
-                    <textarea
-                        id="admin-ai-input"
-                        class="admin-ai-input"
-                        placeholder="Napravi mi kategoriju Ugljikohidrati unutar Prehrane, dodaj opis i dodaj danas dodane artikle u kategoriju."
-                    ></textarea>
-                    <p class="admin-ai-hint">Shortcut: press <strong>Space</strong> twice anywhere outside form inputs.</p>
-                    <div id="admin-ai-preview" class="mt-4 hidden rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p id="admin-ai-summary" class="text-sm font-medium text-slate-800"></p>
-                        <p id="admin-ai-domain" class="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700"></p>
-                        <ul id="admin-ai-functions" class="mt-2 list-disc space-y-1 pl-5 text-xs text-cyan-900"></ul>
-                        <ul id="admin-ai-actions" class="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-700"></ul>
-                        <ul id="admin-ai-warnings" class="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-700"></ul>
-                    </div>
-                    <div class="mt-4 flex items-center justify-end gap-2">
-                        <button type="button" id="admin-ai-cancel" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Cancel</button>
-                        <button type="submit" id="admin-ai-preview-submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">Preview</button>
-                        <button type="button" id="admin-ai-confirm-submit" class="hidden rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Confirm & Execute</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        <div
-            id="admin-ai-help-overlay"
-            class="admin-help-overlay admin-help-overlay--ai"
-            aria-hidden="true"
-            data-help='@json($aiHelpEntry)'
-        >
-            <div class="admin-help-modal" role="dialog" aria-modal="true" aria-labelledby="admin-ai-help-title">
-                <div class="admin-help-modal-header flex items-start justify-between gap-3">
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">AI Manual</p>
-                        <h2 id="admin-ai-help-title" class="mt-1 text-base font-semibold tracking-tight text-slate-900"></h2>
-                    </div>
-                    <button type="button" id="admin-ai-help-close" class="rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100">Close</button>
-                </div>
-                <div class="admin-help-modal-body">
-                    <p id="admin-ai-help-summary" class="text-sm text-slate-700"></p>
-                    <div id="admin-ai-help-sections" class="admin-help-sections"></div>
-                    <ul id="admin-ai-help-list" class="admin-help-list"></ul>
-                    <a id="admin-ai-help-manual-link" href="#" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 hover:bg-cyan-100">
                         Open Manual
                     </a>
                 </div>
@@ -2182,270 +2186,6 @@
                     fallbackSummary: 'Use this panel to manage the current section.',
                 });
 
-                setupHelpModal({
-                    overlayId: 'admin-ai-help-overlay',
-                    openButtonId: 'admin-ai-help-open',
-                    closeButtonId: 'admin-ai-help-close',
-                    titleId: 'admin-ai-help-title',
-                    summaryId: 'admin-ai-help-summary',
-                    sectionsId: 'admin-ai-help-sections',
-                    listId: 'admin-ai-help-list',
-                    manualLinkId: 'admin-ai-help-manual-link',
-                    fallbackTitle: 'AI Domain Functions',
-                    fallbackSummary: 'Use this panel to understand what the agent can do and how to prompt it.',
-                });
-            })();
-
-            (() => {
-                const overlay = document.getElementById('admin-ai-overlay');
-                const openButton = document.getElementById('admin-ai-open');
-                const closeButton = document.getElementById('admin-ai-close');
-                const cancelButton = document.getElementById('admin-ai-cancel');
-                const form = document.getElementById('admin-ai-form');
-                const input = document.getElementById('admin-ai-input');
-                const previewSubmitButton = document.getElementById('admin-ai-preview-submit');
-                const confirmSubmitButton = document.getElementById('admin-ai-confirm-submit');
-                const previewBox = document.getElementById('admin-ai-preview');
-                const summaryEl = document.getElementById('admin-ai-summary');
-                const domainEl = document.getElementById('admin-ai-domain');
-                const functionsEl = document.getElementById('admin-ai-functions');
-                const actionsEl = document.getElementById('admin-ai-actions');
-                const warningsEl = document.getElementById('admin-ai-warnings');
-                const helpOverlay = document.getElementById('admin-help-overlay');
-                const aiHelpOverlay = document.getElementById('admin-ai-help-overlay');
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-                const previewUrl = @json(route('admin.ai.preview'));
-                const executeUrl = @json(route('admin.ai.execute'));
-
-                if (!overlay || !openButton || !closeButton || !cancelButton || !form || !input || !previewSubmitButton || !confirmSubmitButton || !previewBox || !summaryEl || !domainEl || !functionsEl || !actionsEl || !warningsEl) return;
-
-                let lastSpaceAt = 0;
-                let currentPlanId = null;
-                let busy = false;
-
-                const isEditableTarget = (target) => {
-                    if (!target || !(target instanceof HTMLElement)) return false;
-                    if (target.isContentEditable) return true;
-                    const tag = target.tagName.toLowerCase();
-                    return tag === 'input' || tag === 'textarea' || tag === 'select';
-                };
-
-                const notify = (type, message) => {
-                    window.dispatchEvent(new CustomEvent('admin:notify', {
-                        detail: { type, message },
-                    }));
-                };
-
-                const setBusy = (value) => {
-                    busy = value;
-                    previewSubmitButton.disabled = value;
-                    confirmSubmitButton.disabled = value;
-                    cancelButton.disabled = value;
-                    closeButton.disabled = value;
-                };
-
-                const resetPreview = () => {
-                    currentPlanId = null;
-                    previewBox.classList.add('hidden');
-                    summaryEl.textContent = '';
-                    domainEl.textContent = '';
-                    functionsEl.innerHTML = '';
-                    actionsEl.innerHTML = '';
-                    warningsEl.innerHTML = '';
-                    confirmSubmitButton.classList.add('hidden');
-                    previewSubmitButton.textContent = 'Preview';
-                };
-
-                resetPreview();
-
-                const renderPreview = (payload) => {
-                    summaryEl.textContent = String(payload.summary || '');
-                    const domainLabel = String(payload.domain_title || payload.domain_key || '').trim();
-                    domainEl.textContent = domainLabel ? `Domain: ${domainLabel}` : '';
-
-                    functionsEl.innerHTML = '';
-                    (Array.isArray(payload.function_steps) ? payload.function_steps : []).forEach((fn) => {
-                        if (!fn || typeof fn !== 'object') return;
-                        const title = String(fn.title || fn.name || '').trim();
-                        const description = String(fn.description || '').trim();
-                        if (title === '' && description === '') return;
-
-                        const li = document.createElement('li');
-                        li.textContent = description ? `${title}: ${description}` : title;
-                        functionsEl.appendChild(li);
-                    });
-
-                    actionsEl.innerHTML = '';
-                    (Array.isArray(payload.actions) ? payload.actions : []).forEach((action) => {
-                        const li = document.createElement('li');
-                        li.textContent = String(action);
-                        actionsEl.appendChild(li);
-                    });
-
-                    warningsEl.innerHTML = '';
-                    (Array.isArray(payload.warnings) ? payload.warnings : []).forEach((warning) => {
-                        const li = document.createElement('li');
-                        li.textContent = String(warning);
-                        warningsEl.appendChild(li);
-                    });
-
-                    previewBox.classList.remove('hidden');
-                    confirmSubmitButton.classList.remove('hidden');
-                };
-
-                const requestJson = async (url, payload) => {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                        },
-                        body: JSON.stringify(payload),
-                    });
-
-                    let data = null;
-                    try {
-                        data = await response.json();
-                    } catch (error) {
-                        data = null;
-                    }
-
-                    if (!response.ok) {
-                        const message =
-                            data?.message ||
-                            (typeof data?.errors === 'object' ? Object.values(data.errors)[0]?.[0] : null) ||
-                            'Request failed.';
-                        const error = new Error(String(message));
-                        error.payload = data || {};
-                        throw error;
-                    }
-
-                    return data || {};
-                };
-
-                const open = () => {
-                    overlay.classList.add('is-open');
-                    overlay.setAttribute('aria-hidden', 'false');
-                    setTimeout(() => input.focus(), 0);
-                };
-
-                const close = () => {
-                    overlay.classList.remove('is-open');
-                    overlay.setAttribute('aria-hidden', 'true');
-                    resetPreview();
-                };
-
-                openButton.addEventListener('click', open);
-                closeButton.addEventListener('click', close);
-                cancelButton.addEventListener('click', close);
-
-                overlay.addEventListener('click', (event) => {
-                    if (event.target === overlay) {
-                        close();
-                    }
-                });
-
-                form.addEventListener('submit', (event) => {
-                    event.preventDefault();
-
-                    if (busy) return;
-
-                    const prompt = String(input.value || '').trim();
-                    if (!prompt) {
-                        notify('warning', 'Enter your AI request first.');
-                        input.focus();
-                        return;
-                    }
-
-                    setBusy(true);
-                    previewSubmitButton.textContent = 'Previewing...';
-
-                    requestJson(previewUrl, { prompt })
-                        .then((payload) => {
-                            currentPlanId = String(payload.plan_id || '');
-                            renderPreview(payload);
-                            previewSubmitButton.textContent = 'Re-Preview';
-                            notify('info', 'AI plan ready. Review summary and confirm to execute.');
-                        })
-                        .catch((error) => {
-                            notify('danger', error.message || 'Failed to build AI preview.');
-                            if (error?.payload?.developer_notice) {
-                                notify('warning', String(error.payload.developer_notice));
-                            }
-                            resetPreview();
-                        })
-                        .finally(() => {
-                            setBusy(false);
-                        });
-                });
-
-                confirmSubmitButton.addEventListener('click', () => {
-                    if (busy || !currentPlanId) return;
-
-                    setBusy(true);
-                    confirmSubmitButton.textContent = 'Executing...';
-
-                    requestJson(executeUrl, { plan_id: currentPlanId })
-                        .then((payload) => {
-                            notify('success', `AI action completed for "${payload.category_name ?? 'category'}".`);
-                            const redirectUrl = String(payload.redirect_url || '');
-                            close();
-                            if (redirectUrl) {
-                                window.location.href = redirectUrl;
-                            }
-                        })
-                        .catch((error) => {
-                            notify('danger', error.message || 'Failed to execute AI action.');
-                            if (error?.payload?.developer_notice) {
-                                notify('warning', String(error.payload.developer_notice));
-                            }
-                        })
-                        .finally(() => {
-                            confirmSubmitButton.textContent = 'Confirm & Execute';
-                            setBusy(false);
-                        });
-                });
-
-                window.addEventListener('keydown', (event) => {
-                    if (aiHelpOverlay && aiHelpOverlay.classList.contains('is-open')) {
-                        return;
-                    }
-
-                    if (event.key === 'Escape' && overlay.classList.contains('is-open')) {
-                        close();
-                        return;
-                    }
-
-                    if (event.key !== ' ' || event.repeat || event.ctrlKey || event.metaKey || event.altKey) {
-                        return;
-                    }
-
-                    if (overlay.classList.contains('is-open')) {
-                        return;
-                    }
-
-                    if (helpOverlay && helpOverlay.classList.contains('is-open')) {
-                        return;
-                    }
-                    if (aiHelpOverlay && aiHelpOverlay.classList.contains('is-open')) {
-                        return;
-                    }
-
-                    if (isEditableTarget(event.target)) {
-                        return;
-                    }
-
-                    const now = Date.now();
-                    if ((now - lastSpaceAt) <= 420) {
-                        event.preventDefault();
-                        open();
-                        lastSpaceAt = 0;
-                        return;
-                    }
-
-                    lastSpaceAt = now;
-                });
             })();
         </script>
     </body>

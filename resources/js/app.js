@@ -43,6 +43,63 @@ const loadAce = async () => {
     return aceLoaderPromise;
 };
 
+const initAdminSidebar = () => {
+    const sidebar = document.getElementById('admin-sidebar');
+    const openButton = document.getElementById('admin-sidebar-open');
+    const backdrop = document.getElementById('admin-sidebar-backdrop');
+
+    if (!(sidebar instanceof HTMLElement) || !(openButton instanceof HTMLButtonElement) || !(backdrop instanceof HTMLButtonElement)) {
+        return;
+    }
+
+    if (sidebar.dataset.adminSidebarReady === '1') {
+        return;
+    }
+    sidebar.dataset.adminSidebarReady = '1';
+
+    const desktopQuery = window.matchMedia('(min-width: 768px)');
+
+    const setOpen = (open) => {
+        const nextOpen = Boolean(open) && !desktopQuery.matches;
+
+        sidebar.classList.toggle('is-open', nextOpen);
+        backdrop.classList.toggle('is-open', nextOpen);
+        backdrop.hidden = !nextOpen;
+        document.body.classList.toggle('admin-sidebar-open', nextOpen);
+        openButton.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+
+        if (nextOpen) {
+            sidebar.focus({ preventScroll: true });
+        }
+    };
+
+    openButton.addEventListener('click', () => {
+        setOpen(!sidebar.classList.contains('is-open'));
+    });
+
+    backdrop.addEventListener('click', () => setOpen(false));
+
+    document.querySelectorAll('[data-admin-sidebar-close]').forEach((button) => {
+        button.addEventListener('click', () => setOpen(false));
+    });
+
+    sidebar.querySelectorAll('a[href]').forEach((link) => {
+        link.addEventListener('click', () => setOpen(false));
+    });
+
+    window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && sidebar.classList.contains('is-open')) {
+            setOpen(false);
+        }
+    });
+
+    desktopQuery.addEventListener('change', () => {
+        if (desktopQuery.matches) {
+            setOpen(false);
+        }
+    });
+};
+
 const initAceLauncher = () => {
     const overlay = document.getElementById('admin-ace-overlay');
     const editorRoot = document.getElementById('admin-ace-editor');
@@ -1459,6 +1516,7 @@ const initDashboardCharts = () => {
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
+        initAdminSidebar();
         initLivewireEditorMorphGuard();
         initAceLauncher();
         initAceInline();
@@ -1468,6 +1526,7 @@ if (document.readyState === 'loading') {
         initDashboardCharts();
     }, { once: true });
 } else {
+    initAdminSidebar();
     initLivewireEditorMorphGuard();
     initAceLauncher();
     initAceInline();
@@ -1478,5 +1537,6 @@ if (document.readyState === 'loading') {
 }
 
 document.addEventListener('livewire:navigated', () => {
+    initAdminSidebar();
     initTomSelect();
 });

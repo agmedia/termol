@@ -23,13 +23,13 @@
 
 <div class="space-y-6">
     <div class="admin-panel admin-search-panel p-6">
-        <div class="flex items-end justify-between gap-4">
-            <div>
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div class="min-w-0">
                 <h1 class="text-xl font-semibold tracking-tight">{{ __('Performance Overview') }}</h1>
                 <p class="mt-1 text-sm text-slate-600">{{ __('Operational dashboard for orders, users, and current feature availability.') }}</p>
                 <p class="mt-2 text-xs text-slate-500">{{ __('Window') }}: <span class="admin-chip">{{ $start->format('Y-m-d') }} - {{ $end->format('Y-m-d') }}</span></p>
             </div>
-            <div class="w-56">
+            <div class="w-full sm:w-56">
                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Range') }}</label>
                 <select wire:model.live="rangeDays" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border px-3 py-2 text-sm">
                     @foreach ($rangeOptions as $value => $label)
@@ -40,15 +40,15 @@
         </div>
     </div>
 
-    <div class="grid gap-4" style="grid-template-columns: repeat(20, minmax(0, 1fr));">
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         @foreach ($kpis as $kpi)
             @php
                 $delta = $kpi['delta'];
                 $direction = $delta['direction'];
                 $tone = $direction === 'up' ? 'text-emerald-700' : ($direction === 'down' ? 'text-rose-700' : 'text-slate-600');
             @endphp
-            <div class="admin-panel admin-panel-soft p-4" style="grid-column: span 4;">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ $kpi['label'] }}</p>
+            <div class="admin-panel admin-panel-soft p-4">
+                <p class="min-h-8 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ $kpi['label'] }}</p>
                 <p class="mt-2 text-2xl font-semibold text-slate-900">
                     {{ $kpi['value'] }} @if (isset($kpi['suffix']))<span class="text-sm text-slate-600">{{ $kpi['suffix'] }}</span>@endif
                 </p>
@@ -68,13 +68,13 @@
                 <a href="{{ route('admin.orders') }}" class="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Open Orders') }}</a>
             </div>
 
-            <div class="mt-4 grid gap-2" style="grid-template-columns: repeat(12, minmax(0, 1fr));">
+            <div class="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
                 @forelse ($pipeline as $status)
                     @php
                         $colorKey = strtolower((string) ($status['color'] ?? 'slate'));
                         $statusClass = $statusColorClasses[$colorKey] ?? $statusColorClasses['slate'];
                     @endphp
-                    <a href="{{ $status['url'] }}" class="rounded-xl border border-slate-200 bg-white p-3 hover:bg-slate-50" style="grid-column: span 3;">
+                    <a href="{{ $status['url'] }}" class="rounded-xl border border-slate-200 bg-white p-3 hover:bg-slate-50">
                         <div class="flex items-center justify-between gap-2">
                             <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $statusClass }}">{{ $status['name'] }}</span>
                             <span class="text-lg font-semibold text-slate-900">{{ $status['count'] }}</span>
@@ -87,8 +87,8 @@
             </div>
     </div>
 
-    <div class="grid gap-4" style="grid-template-columns: repeat(12, minmax(0, 1fr));">
-        <div class="admin-panel admin-panel-soft p-5" style="grid-column: span 4;">
+    <div class="grid gap-4 xl:grid-cols-3">
+        <div class="admin-panel admin-panel-soft p-5">
             <h2 class="admin-section-title">{{ __('Revenue vs Orders') }}</h2>
             <div class="mt-4" style="height: 16rem;">
                 <canvas
@@ -99,7 +99,7 @@
             </div>
         </div>
 
-        <div class="admin-panel admin-panel-soft p-5" style="grid-column: span 4;">
+        <div class="admin-panel admin-panel-soft p-5">
             <h2 class="admin-section-title">{{ __('New Users Trend') }}</h2>
             <div class="mt-4" style="height: 16rem;">
                 <canvas
@@ -110,7 +110,7 @@
             </div>
         </div>
 
-        <div class="admin-panel admin-panel-soft p-5" style="grid-column: span 4;">
+        <div class="admin-panel admin-panel-soft p-5">
             <h2 class="admin-section-title">{{ __('Pipeline Share') }}</h2>
             <div class="mt-4" style="height: 16rem;">
                 <canvas
@@ -122,18 +122,18 @@
         </div>
     </div>
 
-    <div class="grid gap-6" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+    <div class="grid gap-6 xl:grid-cols-2">
         <div class="admin-panel admin-panel-soft p-5">
             <h2 class="admin-section-title">{{ __('Sales Trend (:days Days)', ['days' => min($days, 30)]) }}</h2>
             <div class="mt-4 space-y-2">
                 @foreach ($trendRows as $row)
-                    <div class="grid items-center gap-3" style="grid-template-columns: 7rem minmax(0, 1fr) 9rem 5rem;">
+                    <div class="grid items-center gap-2 rounded-lg bg-white/70 px-2 py-2 sm:grid-cols-[7rem_minmax(0,1fr)_9rem_5rem] sm:gap-3 sm:bg-transparent sm:px-0 sm:py-0">
                         <span class="text-xs text-slate-600">{{ \Illuminate\Support\Carbon::parse($row['date'])->format('M d') }}</span>
                         <div class="h-2 rounded-full bg-slate-200">
                             <div class="h-2 rounded-full bg-cyan-600" style="width: {{ max(2, (int) $row['bar_width']) }}%;"></div>
                         </div>
-                        <span class="text-xs text-slate-700 text-right">{{ \App\Support\Currency::format((float) $row['revenue'], $storeCurrencyCode ?? null) }}</span>
-                        <span class="text-xs text-slate-500 text-right">{{ $row['orders'] }} {{ __('ord') }}</span>
+                        <span class="text-xs text-slate-700 sm:text-right">{{ \App\Support\Currency::format((float) $row['revenue'], $storeCurrencyCode ?? null) }}</span>
+                        <span class="text-xs text-slate-500 sm:text-right">{{ $row['orders'] }} {{ __('ord') }}</span>
                     </div>
                 @endforeach
             </div>
@@ -141,11 +141,11 @@
 
         <div class="admin-panel admin-panel-soft p-5">
             <h2 class="admin-section-title">{{ __('Feature Flags') }}</h2>
-            <div class="mt-4 grid gap-2" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+            <div class="mt-4 grid gap-2 sm:grid-cols-2">
                 @foreach ($featureFlags as $flag => $enabled)
-                    <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
-                        <span class="text-slate-700">{{ $flag }}</span>
-                        <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700' }}">
+                    <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                        <span class="min-w-0 break-words text-slate-700">{{ $flag }}</span>
+                        <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold {{ $enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700' }}">
                             {{ $enabled ? __('On') : __('Off') }}
                         </span>
                     </div>
@@ -154,7 +154,7 @@
         </div>
     </div>
 
-    <div class="grid gap-6" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+    <div class="grid gap-6 xl:grid-cols-2">
         <div class="admin-panel admin-panel-soft p-5">
             <h2 class="admin-section-title">{{ __('Recent Orders') }}</h2>
             <div class="mt-3 overflow-x-auto">
@@ -240,9 +240,9 @@
 
     <div class="admin-panel admin-panel-soft p-5">
         <h2 class="admin-section-title">{{ __('Catalog & Content Snapshot') }}</h2>
-        <div class="mt-4 grid gap-2" style="grid-template-columns: repeat(12, minmax(0, 1fr));">
+        <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             @foreach ($catalogSnapshot as $item)
-                <a href="{{ $item['url'] }}" class="rounded-xl border border-slate-200 bg-white p-3 hover:bg-slate-50" style="grid-column: span 2;">
+                <a href="{{ $item['url'] }}" class="rounded-xl border border-slate-200 bg-white p-3 hover:bg-slate-50">
                     <p class="text-xs uppercase tracking-[0.12em] text-slate-500">{{ $item['label'] }}</p>
                     <p class="mt-2 text-lg font-semibold text-slate-900">{{ number_format((int) $item['value']) }}</p>
                 </a>
