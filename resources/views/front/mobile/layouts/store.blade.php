@@ -32,11 +32,40 @@
         <link rel="icon" href="{{ $storeSettings['branding']['favicon_url'] }}">
     @endif
     @include('front.partials.cookie-consent-head')
+    <style>
+        .header .store-header-logo-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .header .store-header-logo {
+            display: block;
+            width: auto;
+            height: auto;
+            max-width: 150px;
+            max-height: 34px;
+            object-fit: contain;
+        }
+    </style>
 </head>
 <body class="theme-light font-risingsun" data-highlight="highlight-red">
+@php
+    $mobileBrandName = trim((string) (($storeSettings['branding']['store_name'] ?? null) ?: config('app.name', 'AG Shop')));
+    $mobileBrandLogoUrl = trim((string) ($storeSettings['branding']['logo_url'] ?? ''));
+@endphp
 <div id="page">
     <div class="header header-fixed header-logo-center header-auto-show">
-        <a href="{{ route('home') }}" class="header-title">@yield('header_title', (string) ($storeSettings['branding']['store_name'] ?? 'Store'))</a>
+        <a href="{{ route('home') }}" class="header-title {{ $mobileBrandLogoUrl !== '' && ! View::hasSection('header_title') ? 'store-header-logo-link' : '' }}">
+            @hasSection('header_title')
+                @yield('header_title')
+            @elseif ($mobileBrandLogoUrl !== '')
+                <img src="{{ $mobileBrandLogoUrl }}" alt="{{ $mobileBrandName }}" class="store-header-logo" data-store-brand-logo>
+            @else
+                {{ $mobileBrandName }}
+            @endif
+        </a>
         <a href="#" data-back-button class="header-icon header-icon-1" aria-label="Back">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
         </a>

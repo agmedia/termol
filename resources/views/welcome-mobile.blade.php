@@ -10,6 +10,41 @@
     <link rel="stylesheet" href="{{ asset('front-theme/styles/bootstrap.css') }}">
     <link rel="stylesheet" href="{{ asset('front-theme/styles/style.css') }}">
     <link rel="stylesheet" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}">
+    <style>
+        .header .store-header-logo-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .header .store-header-logo {
+            display: block;
+            width: auto;
+            height: auto;
+            max-width: 150px;
+            max-height: 34px;
+            object-fit: contain;
+        }
+
+        .page-title h1.store-page-title-logo {
+            display: flex;
+            align-items: center;
+            min-height: 40px;
+            padding-top: 0;
+            padding-bottom: 0;
+            line-height: 1;
+        }
+
+        .store-page-title-logo img {
+            display: block;
+            width: auto;
+            height: auto;
+            max-width: min(52vw, 220px);
+            max-height: 40px;
+            object-fit: contain;
+        }
+    </style>
     @stack('head')
 </head>
 <body class="theme-light" data-highlight="highlight-red">
@@ -18,6 +53,7 @@
     if ($mobileStoreName === '') {
         $mobileStoreName = (string) config('app.name', 'AG Shop');
     }
+    $mobileStoreLogoUrl = trim((string) ($storeSettings['branding']['logo_url'] ?? ''));
 
     $mobileHeroBlocks = app(\App\Services\Content\ContentBlockResolver::class)->forPlacement(
         'home.hero',
@@ -76,7 +112,13 @@
 
 <div id="page">
     <div class="header header-fixed header-logo-center header-auto-show">
-        <a href="/" class="header-title">{{ $mobileStoreName }}</a>
+        <a href="/" class="header-title {{ $mobileStoreLogoUrl !== '' ? 'store-header-logo-link' : '' }}">
+            @if ($mobileStoreLogoUrl !== '')
+                <img src="{{ $mobileStoreLogoUrl }}" alt="{{ $mobileStoreName }}" class="store-header-logo" data-store-brand-logo>
+            @else
+                {{ $mobileStoreName }}
+            @endif
+        </a>
         <a href="/" class="header-icon header-icon-1" aria-label="Home">
             <i class="fas fa-chevron-left"></i>
         </a>
@@ -100,7 +142,13 @@
     </div>
 
     <div class="page-title page-title-fixed">
-        <h1>{{ $mobileStoreName }}</h1>
+        <h1 class="{{ $mobileStoreLogoUrl !== '' ? 'store-page-title-logo' : '' }}">
+            @if ($mobileStoreLogoUrl !== '')
+                <img src="{{ $mobileStoreLogoUrl }}" alt="{{ $mobileStoreName }}" data-store-brand-logo>
+            @else
+                {{ $mobileStoreName }}
+            @endif
+        </h1>
         <a href="#" class="page-title-icon shadow-xl bg-theme color-theme" data-menu="menu-share" aria-label="Share">
             <i class="fa fa-share-alt"></i>
         </a>

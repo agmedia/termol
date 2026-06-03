@@ -16,6 +16,7 @@
     }
 
     $storeName = trim((string) (($storeSettings['branding']['store_name'] ?? null) ?: config('app.name', 'AG Shop')));
+    $storeLogoUrl = trim((string) ($storeSettings['branding']['logo_url'] ?? ''));
 
     $primaryUrls = collect($mainNavigation ?? [])
         ->map(fn ($item) => trim((string) ($item['url'] ?? '')))
@@ -118,6 +119,19 @@
         font-weight: 800;
         line-height: 1.05;
         text-transform: uppercase;
+    }
+    #menu-main .mobile-menu-brand.has-logo {
+        display: inline-flex;
+        align-items: center;
+        text-transform: none;
+    }
+    #menu-main .mobile-menu-brand img {
+        display: block;
+        width: auto;
+        height: auto;
+        max-width: min(58vw, 13rem);
+        max-height: 3rem;
+        object-fit: contain;
     }
     #menu-main .mobile-menu-close {
         flex: 0 0 4.25rem;
@@ -229,7 +243,13 @@
 
 <div class="mobile-menu-shell">
     <div class="mobile-menu-header">
-        <a href="{{ route('home') }}" class="mobile-menu-brand">{{ $storeName }}</a>
+        <a href="{{ route('home') }}" class="mobile-menu-brand {{ $storeLogoUrl !== '' ? 'has-logo' : '' }}">
+            @if ($storeLogoUrl !== '')
+                <img src="{{ $storeLogoUrl }}" alt="{{ $storeName }}" data-store-brand-logo>
+            @else
+                {{ $storeName }}
+            @endif
+        </a>
         <button type="button" class="mobile-menu-close close-menu" aria-label="Zatvori izbornik">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M6 6l12 12"></path>

@@ -34,6 +34,8 @@
     $cartSummary = app(\App\Services\Front\CartService::class)->summary();
     $wishlistCount = (int) ($wishlistSummary['item_count'] ?? 0);
     $mainNavigation = app(\App\Services\Front\NavigationMenuService::class)->forLocale((string) app()->getLocale());
+    $storeBrandName = trim((string) (($storeSettings['branding']['store_name'] ?? null) ?: config('app.name', 'AG Shop')));
+    $storeBrandLogoUrl = trim((string) ($storeSettings['branding']['logo_url'] ?? ''));
 @endphp
 <body class="font-risingsun min-h-screen overflow-x-hidden bg-white text-slate-900 antialiased">
 @if ((bool) ($storeSettings['announcement']['enabled'] ?? true))
@@ -423,10 +425,10 @@
     <div class="border-b border-slate-200 bg-white">
         <div class="site-main-header-row flex h-[60px] w-full items-stretch justify-between pl-2 pr-0 sm:pl-4 sm:pr-0 lg:pl-5 lg:pr-0 xl:pl-5 xl:pr-0">
             <a href="{{ route('home') }}" class="inline-flex h-full items-center text-2xl font-black tracking-tight text-slate-900 sm:text-4xl">
-                @if (!empty($storeSettings['branding']['logo_url'] ?? null))
-                    <img src="{{ $storeSettings['branding']['logo_url'] }}" alt="{{ $storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop') }}" class="site-main-logo h-10 w-auto object-contain" width="176" height="44">
+                @if ($storeBrandLogoUrl !== '')
+                    <img src="{{ $storeBrandLogoUrl }}" alt="{{ $storeBrandName }}" class="site-main-logo h-10 w-auto object-contain" width="176" height="44" data-store-brand-logo>
                 @else
-                    {{ (string) ($storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop')) }}
+                    {{ $storeBrandName }}
                 @endif
             </a>
 
@@ -606,7 +608,11 @@
     <button type="button" class="absolute inset-0 bg-black/45 opacity-0 transition-opacity duration-300" aria-label="{{ __('ui.front.desktop.close_navigation') }}" data-mobile-menu-close></button>
     <aside class="absolute inset-y-0 left-0 flex w-full max-w-none -translate-x-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-out" data-mobile-menu-panel>
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-4">
-            <span class="text-xl font-black tracking-tight text-slate-900">{{ (string) ($storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop')) }}</span>
+            @if ($storeBrandLogoUrl !== '')
+                <img src="{{ $storeBrandLogoUrl }}" alt="{{ $storeBrandName }}" class="block h-10 w-auto max-w-[12rem] object-contain" data-store-brand-logo>
+            @else
+                <span class="text-xl font-black tracking-tight text-slate-900">{{ $storeBrandName }}</span>
+            @endif
             <button type="button" class="inline-flex h-10 w-10 items-center justify-center border border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.close_navigation') }}" data-mobile-menu-close>
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M6 6l12 12M18 6L6 18"></path>

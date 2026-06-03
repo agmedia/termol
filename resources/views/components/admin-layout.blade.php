@@ -1108,11 +1108,28 @@
         @stack('page-styles')
     </head>
     <body class="min-h-screen bg-slate-100 text-slate-900 antialiased" style="font-family: 'Manrope', 'Noto Sans', 'Segoe UI', Roboto, Arial, sans-serif;">
+        @php
+            try {
+                $adminBranding = app(\App\Services\Front\StoreSettingsService::class)->branding();
+            } catch (\Throwable) {
+                $adminBranding = [
+                    'store_name' => (string) config('app.name', 'AG Shop'),
+                    'logo_url' => null,
+                ];
+            }
+
+            $adminBrandName = trim((string) (($adminBranding['store_name'] ?? null) ?: config('app.name', 'AG Shop')));
+            $adminBrandLogoUrl = trim((string) ($adminBranding['logo_url'] ?? ''));
+        @endphp
         <div class="min-h-screen">
             <aside id="admin-sidebar" class="admin-sidebar admin-sidebar-rail fixed inset-y-0 left-0 z-30 w-72 overflow-y-auto border-r border-slate-200 bg-white" aria-label="{{ __('Admin navigation') }}" tabindex="-1">
                 <div class="flex h-16 items-center justify-between border-b border-slate-200 px-5 md:px-6">
-                    <a href="{{ route('admin.dashboard') }}" class="text-lg font-semibold tracking-tight">
-                        {{ config('app.name') }} Admin
+                    <a href="{{ route('admin.dashboard') }}" class="inline-flex min-w-0 items-center gap-2 text-lg font-semibold tracking-tight">
+                        @if ($adminBrandLogoUrl !== '')
+                            <img src="{{ $adminBrandLogoUrl }}" alt="{{ $adminBrandName }}" class="block h-10 w-auto max-w-[12rem] object-contain" data-store-brand-logo>
+                        @else
+                            <span class="truncate">{{ $adminBrandName }} Admin</span>
+                        @endif
                     </a>
                     <button
                         type="button"
