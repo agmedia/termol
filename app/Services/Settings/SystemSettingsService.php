@@ -10,11 +10,20 @@ class SystemSettingsService
     private const CACHE_KEY = 'settings.system.map';
 
     /**
+     * @var array<string, mixed>|null
+     */
+    private ?array $settingsCache = null;
+
+    /**
      * @return array<string, mixed>
      */
     public function all(): array
     {
-        return Cache::remember(self::CACHE_KEY, now()->addHours(4), function (): array {
+        if ($this->settingsCache !== null) {
+            return $this->settingsCache;
+        }
+
+        return $this->settingsCache = Cache::remember(self::CACHE_KEY, now()->addHours(4), function (): array {
             $rows = SystemSetting::query()->get(['key', 'value']);
             $map = [];
 
@@ -67,6 +76,8 @@ class SystemSettingsService
 
     public function flush(): void
     {
+        $this->settingsCache = null;
+
         Cache::forget(self::CACHE_KEY);
     }
 
