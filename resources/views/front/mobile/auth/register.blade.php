@@ -5,14 +5,25 @@
 @section('page_title', __('ui.auth.register.heading'))
 
 @section('content')
+    @php
+        $captchaSiteKey = trim((string) ($storeSettings['captcha']['recaptcha_v3_site_key'] ?? ''));
+        $captchaEnabled = (bool) ($storeSettings['captcha']['recaptcha_v3_enabled'] ?? false) && $captchaSiteKey !== '';
+    @endphp
+
     <div class="card card-style rounded-0">
         <div class="content">
             <h3 class="mb-1">{{ __('ui.auth.register.form_title') }}</h3>
             <p class="opacity-60 mb-3">{{ __('ui.auth.register.subheading') }}</p>
 
-            <form method="POST" action="{{ route('front.auth.register.store') }}" novalidate>
+            <form
+                method="POST"
+                action="{{ route('front.auth.register.store') }}"
+                novalidate
+                @if($captchaEnabled) data-recaptcha-form data-recaptcha-site-key="{{ $captchaSiteKey }}" data-recaptcha-action="register_form" @endif
+            >
                 @csrf
                 <input type="hidden" name="intended" value="{{ old('intended', (string) request('intended', route('account.dashboard'))) }}">
+                <input type="hidden" name="recaptcha_token" value="" data-recaptcha-token>
 
                 <div class="mb-3">
                     <label class="mb-1 d-block font-600 font-12">{{ __('ui.auth.fields.first_name') }}</label>
@@ -52,6 +63,9 @@
                 </div>
 
                 <button type="submit" class="btn btn-full rounded-0 font-600 bg-highlight">{{ __('ui.auth.register.submit') }}</button>
+                @error('recaptcha_token')
+                    <p class="mb-0 mt-2 font-600 font-12" style="color:#e11d48;">{{ $message }}</p>
+                @enderror
             </form>
         </div>
     </div>
@@ -64,4 +78,8 @@
             <a href="{{ route('front.auth.login', ['intended' => (string) request('intended', route('account.dashboard'))]) }}" class="btn btn-full btn-border border-dark color-dark rounded-0 font-600">{{ __('ui.auth.register.go_to_login') }}</a>
         </div>
     </div>
+
+    @if ($captchaEnabled)
+        @include('front.partials.recaptcha-v3', ['siteKey' => $captchaSiteKey])
+    @endif
 @endsection

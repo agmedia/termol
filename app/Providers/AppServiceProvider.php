@@ -119,6 +119,11 @@ class AppServiceProvider extends ServiceProvider
             if ($shared !== null) {
                 $view->with('wishlistProductMap', $shared['wishlistProductMap']);
                 $view->with('wishlistSummary', $shared['wishlistSummary']);
+                try {
+                    $view->with('storeSettings', app(StoreSettingsService::class)->all());
+                } catch (\Throwable) {
+                    $view->with('storeSettings', $shared['storeSettings']);
+                }
 
                 return;
             }

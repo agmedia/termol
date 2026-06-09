@@ -33,6 +33,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
 
 class StorefrontFrontFeatureTest extends TestCase
@@ -223,6 +224,116 @@ class StorefrontFrontFeatureTest extends TestCase
             'email' => 'captcha-buyer@example.test',
             'subject' => __('return_request.mail.subject', ['order' => 'R-2002']),
             'status' => 'new',
+        ]);
+    }
+
+    public function test_front_auth_forms_use_enabled_recaptcha_settings(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'store_captcha_recaptcha_v3_enabled' => true,
+            'store_captcha_recaptcha_v3_site_key' => 'test-site-key',
+            'store_captcha_recaptcha_v3_secret_key' => 'test-secret-key',
+            'store_captcha_recaptcha_v3_min_score' => 0.7,
+        ]);
+
+        $this->get('/auth/login')
+            ->assertOk()
+            ->assertSee('data-recaptcha-site-key="test-site-key"', false)
+            ->assertSee('data-recaptcha-action="login_form"', false)
+            ->assertSee('https://www.google.com/recaptcha/api.js?render=test-site-key', false);
+
+        $this->get('/auth/register')
+            ->assertOk()
+            ->assertSee('data-recaptcha-site-key="test-site-key"', false)
+            ->assertSee('data-recaptcha-action="register_form"', false)
+            ->assertSee('https://www.google.com/recaptcha/api.js?render=test-site-key', false);
+
+        $mobileHeaders = [
+            'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        ];
+
+        $this
+            ->withHeaders($mobileHeaders)
+            ->get('/auth/login')
+            ->assertOk()
+            ->assertSee('data-recaptcha-action="login_form"', false);
+
+        $this
+            ->withHeaders($mobileHeaders)
+            ->get('/auth/register')
+            ->assertOk()
+            ->assertSee('data-recaptcha-action="register_form"', false);
+    }
+
+    public function test_front_login_validates_enabled_recaptcha(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'store_captcha_recaptcha_v3_enabled' => true,
+            'store_captcha_recaptcha_v3_site_key' => 'test-site-key',
+            'store_captcha_recaptcha_v3_secret_key' => 'test-secret-key',
+            'store_captcha_recaptcha_v3_min_score' => 0.7,
+        ]);
+
+        $user = User::factory()->create();
+
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response([
+                'success' => true,
+                'score' => 0.9,
+                'action' => 'login_form',
+            ]),
+        ]);
+
+        $this->post('/auth/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'recaptcha_token' => 'login-token',
+        ])->assertRedirect(route('account.dashboard', absolute: false));
+
+        $this->assertAuthenticatedAs($user);
+
+        Http::assertSent(static fn ($request): bool => $request->url() === 'https://www.google.com/recaptcha/api/siteverify'
+            && $request['secret'] === 'test-secret-key'
+            && $request['response'] === 'login-token');
+    }
+
+    public function test_front_register_validates_enabled_recaptcha(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'store_captcha_recaptcha_v3_enabled' => true,
+            'store_captcha_recaptcha_v3_site_key' => 'test-site-key',
+            'store_captcha_recaptcha_v3_secret_key' => 'test-secret-key',
+            'store_captcha_recaptcha_v3_min_score' => 0.7,
+        ]);
+
+        Bouncer::role()->firstOrCreate(['name' => 'customer'], ['title' => 'Customer']);
+
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response([
+                'success' => true,
+                'score' => 0.9,
+                'action' => 'register_form',
+            ]),
+        ]);
+
+        $this->post('/auth/register', [
+            'first_name' => 'Captcha',
+            'last_name' => 'Buyer',
+            'email' => 'captcha-buyer@example.test',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'recaptcha_token' => 'register-token',
+        ])->assertRedirect(route('account.dashboard', absolute: false));
+
+        $this->assertAuthenticated();
+
+        Http::assertSent(static fn ($request): bool => $request->url() === 'https://www.google.com/recaptcha/api/siteverify'
+            && $request['secret'] === 'test-secret-key'
+            && $request['response'] === 'register-token');
+
+        $this->assertDatabaseHas('users', [
+            'name' => 'Captcha Buyer',
+            'email' => 'captcha-buyer@example.test',
         ]);
     }
 

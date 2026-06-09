@@ -3,6 +3,11 @@
 @section('title', __('ui.auth.register.page_title'))
 
 @section('content')
+    @php
+        $captchaSiteKey = trim((string) ($storeSettings['captcha']['recaptcha_v3_site_key'] ?? ''));
+        $captchaEnabled = (bool) ($storeSettings['captcha']['recaptcha_v3_enabled'] ?? false) && $captchaSiteKey !== '';
+    @endphp
+
     <section class="mb-8">
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.auth.register.heading') }}</h1>
         <p class="mt-2 text-slate-600">{{ __('ui.auth.register.subheading') }}</p>
@@ -12,9 +17,16 @@
         <div class="border border-slate-200 bg-white p-6">
             <h2 class="text-xl font-bold text-slate-900">{{ __('ui.auth.register.form_title') }}</h2>
 
-            <form method="POST" action="{{ route('front.auth.register.store') }}" class="mt-5 grid gap-4 md:grid-cols-2" novalidate>
+            <form
+                method="POST"
+                action="{{ route('front.auth.register.store') }}"
+                class="mt-5 grid gap-4 md:grid-cols-2"
+                novalidate
+                @if($captchaEnabled) data-recaptcha-form data-recaptcha-site-key="{{ $captchaSiteKey }}" data-recaptcha-action="register_form" @endif
+            >
                 @csrf
                 <input type="hidden" name="intended" value="{{ old('intended', (string) request('intended', route('account.dashboard'))) }}">
+                <input type="hidden" name="recaptcha_token" value="" data-recaptcha-token>
 
                 <div>
                     <label for="auth-register-first-name" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.auth.fields.first_name') }}</label>
@@ -57,6 +69,9 @@
                     <button type="submit" class="inline-flex h-11 w-full items-center justify-center border border-slate-900 bg-slate-900 px-6 text-sm font-semibold text-white hover:bg-slate-700">
                         {{ __('ui.auth.register.submit') }}
                     </button>
+                    @error('recaptcha_token')
+                        <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                    @enderror
                 </div>
             </form>
         </div>
@@ -71,4 +86,8 @@
             </a>
         </aside>
     </section>
+
+    @if ($captchaEnabled)
+        @include('front.partials.recaptcha-v3', ['siteKey' => $captchaSiteKey])
+    @endif
 @endsection

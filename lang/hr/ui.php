@@ -508,6 +508,7 @@ return [
         ],
     ],
     'auth' => [
+        'captcha_failed' => 'Potvrda sigurnosti nije uspjela. Pokušajte ponovno.',
         'fields' => [
             'first_name' => 'Ime',
             'last_name' => 'Prezime',
@@ -546,6 +547,7 @@ return [
             'email_unique' => 'Korisnik s ovom email adresom već postoji.',
             'password_required' => 'Lozinka je obavezna.',
             'password_confirmed' => 'Lozinke se ne podudaraju.',
+            'security_check' => 'sigurnosna provjera',
         ],
     ],
     'account' => [

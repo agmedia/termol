@@ -507,6 +507,7 @@ return [
         ],
     ],
     'auth' => [
+        'captcha_failed' => 'Security verification failed. Please try again.',
         'fields' => [
             'first_name' => 'First name',
             'last_name' => 'Last name',
@@ -545,6 +546,7 @@ return [
             'email_unique' => 'A user with this email already exists.',
             'password_required' => 'Password is required.',
             'password_confirmed' => 'Passwords do not match.',
+            'security_check' => 'security check',
         ],
     ],
     'account' => [
