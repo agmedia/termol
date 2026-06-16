@@ -567,6 +567,38 @@ class OrdersFeatureTest extends TestCase
         $this->assertNull(data_get($kiposPayload, 'last_error'));
     }
 
+    public function test_kipos_test_payload_skips_shipping_line_when_order_shipping_is_free(): void
+    {
+        $this->enableKiposOrderFlow();
+
+        $admin = $this->makeUserWithRole('admin');
+        $status = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        ShippingMethod::query()->create([
+            'code' => 'standard',
+            'name' => 'Admin Standard Shipping',
+            'price' => 5.00,
+            'free_over' => 49.99,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        $order = $this->createKiposOrder($status, $admin, 'AG-TEST-FREE-SHIP');
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $order->id])
+            ->call('generateKiposPreview')
+            ->assertHasNoErrors();
+
+        $fresh = $order->fresh();
+        $kiposPayload = is_array($fresh?->payload) ? (array) ($fresh->payload['kipos_order'] ?? []) : [];
+
+        $this->assertSame('W5004', data_get($kiposPayload, 'last_preview.request.stavke.0.IDROBA'));
+        $this->assertSame('99.90', data_get($kiposPayload, 'last_preview.line_total'));
+        $this->assertSame('99.90', data_get($kiposPayload, 'last_preview.request.narudzba.IZNOS_UKUPNO'));
+        $this->assertSame([], data_get($kiposPayload, 'last_preview.warnings'));
+        $this->assertNull(data_get($kiposPayload, 'last_preview.request.stavke.1'));
+        $this->assertNull(data_get($kiposPayload, 'last_error'));
+    }
+
     public function test_kipos_test_payload_includes_vat_in_product_lines(): void
     {
         $this->enableKiposOrderFlow();

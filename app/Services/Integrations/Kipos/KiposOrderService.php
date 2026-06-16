@@ -52,7 +52,9 @@ class KiposOrderService
         }
 
         $shippingTotal = round((float) $order->shipping_total, 2);
-        $shippingLineAmount = $this->resolveShippingLineAmount($order, $shippingTotal);
+        $shippingLineAmount = $shippingTotal > 0
+            ? $this->resolveShippingLineAmount($order, $shippingTotal)
+            : 0.0;
         if ($shippingLineAmount > 0) {
             $shippingCode = $this->resolveShippingItemCode($shippingLineAmount, $settings);
             if ($shippingCode !== '') {
