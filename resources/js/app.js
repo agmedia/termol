@@ -321,6 +321,7 @@ const initTomSelect = () => {
             sortField: [{ field: 'text', direction: 'asc' }],
             placeholder,
             onChange() {
+                element.dispatchEvent(new Event('input', { bubbles: true }));
                 element.dispatchEvent(new Event('change', { bubbles: true }));
             },
         };

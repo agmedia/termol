@@ -64,7 +64,7 @@ class CartService
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    public function lines(?string $locale = null): Collection
+    public function lines(?string $locale = null, ?string $couponCode = null): Collection
     {
         $items = $this->raw();
 
@@ -74,7 +74,7 @@ class CartService
 
         $locale = $locale ?: app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
-        $couponCode = $this->couponCode();
+        $couponCode = $couponCode === null ? $this->couponCode() : strtoupper(trim($couponCode));
         $user = auth()->user();
 
         $productIds = array_values(array_unique(array_map(
@@ -92,6 +92,7 @@ class CartService
             ->with([
                 'media',
                 'taxRate',
+                'categories:id',
                 'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
             ])
@@ -196,13 +197,18 @@ class CartService
      *  coupon_code:string
      * }
      */
-    public function summary(?string $locale = null): array
+    public function summary(?string $locale = null, ?string $couponCode = null): array
     {
-        $lines = $this->lines($locale);
+        $couponCode = $couponCode === null ? $this->couponCode() : strtoupper(trim($couponCode));
+        $lines = $this->lines($locale, $couponCode);
         $subtotal = round((float) $lines->sum(static fn (array $line): float => (float) ($line['base_unit_price'] ?? 0) * (int) ($line['quantity'] ?? 0)), 2);
-        $discountTotal = round((float) $lines->sum('line_discount_total'), 2);
+        $lineDiscountTotal = round((float) $lines->sum('line_discount_total'), 2);
+        $subtotalAfterLineDiscount = round(max(0.0, $subtotal - $lineDiscountTotal), 2);
+        $cartDiscount = $this->resolveCartDiscount($lines, $subtotalAfterLineDiscount, $couponCode);
+        $cartDiscountTotal = round((float) $cartDiscount['amount'], 2);
+        $discountTotal = round($lineDiscountTotal + $cartDiscountTotal, 2);
         $subtotalAfterDiscount = round(max(0.0, $subtotal - $discountTotal), 2);
-        $taxTotal = round((float) $lines->sum('line_tax_total'), 2);
+        $taxTotal = round(max(0.0, (float) $lines->sum('line_tax_total') - (float) $cartDiscount['tax_discount']), 2);
         $taxRates = $lines->pluck('tax_rate')
             ->map(static fn ($rate): float => round((float) $rate, 4))
             ->unique()
@@ -215,12 +221,15 @@ class CartService
             'item_qty' => (int) $lines->sum('quantity'),
             'subtotal' => $subtotal,
             'discount_total' => $discountTotal,
+            'line_discount_total' => $lineDiscountTotal,
+            'cart_discount_total' => $cartDiscountTotal,
+            'cart_discount_action_code' => $cartDiscount['action']?->code,
             'subtotal_after_discount' => $subtotalAfterDiscount,
             'tax_rate' => $taxRateValue,
             'tax_rate_type' => 'percent',
             'tax_total' => $taxTotal,
             'grand_total' => $grandTotal,
-            'coupon_code' => $this->couponCode(),
+            'coupon_code' => $couponCode,
         ];
     }
 
@@ -330,13 +339,10 @@ class CartService
             return false;
         }
 
-        $hasCoupon = CatalogAction::query()
-            ->active()
-            ->where('scope', CatalogAction::SCOPE_PRODUCT)
-            ->where('coupon_code', $couponCode)
-            ->exists();
+        $baseDiscount = (float) ($this->summary(null, '')['discount_total'] ?? 0);
+        $candidateDiscount = (float) ($this->summary(null, $couponCode)['discount_total'] ?? 0);
 
-        if (! $hasCoupon) {
+        if ($candidateDiscount <= ($baseDiscount + 0.0001)) {
             return false;
         }
 
@@ -417,6 +423,132 @@ class CartService
     private function requiresOptionSelection(Product $product): bool
     {
         return $product->hasVisibleOptionRows();
+    }
+
+    /**
+     * @param Collection<int, array<string, mixed>> $lines
+     * @return array{action:CatalogAction|null, amount:float, tax_discount:float}
+     */
+    private function resolveCartDiscount(Collection $lines, float $subtotalAfterLineDiscount, string $couponCode): array
+    {
+        if ($couponCode === '' || $lines->isEmpty() || $subtotalAfterLineDiscount <= 0.0) {
+            return ['action' => null, 'amount' => 0.0, 'tax_discount' => 0.0];
+        }
+
+        $actions = CatalogAction::query()
+            ->active()
+            ->where('scope', CatalogAction::SCOPE_CART)
+            ->whereIn('type', [CatalogAction::TYPE_PERCENTAGE, CatalogAction::TYPE_FIXED])
+            ->whereRaw('UPPER(coupon_code) = ?', [$couponCode])
+            ->availableForAudience(auth()->user())
+            ->where(function ($query): void {
+                $query->whereNull('usage_limit')
+                    ->orWhereColumn('used_count', '<', 'usage_limit');
+            })
+            ->where(function ($query) use ($subtotalAfterLineDiscount): void {
+                $query->whereNull('min_subtotal')
+                    ->orWhere('min_subtotal', '<=', $subtotalAfterLineDiscount);
+            })
+            ->with('targets')
+            ->orderByDesc('is_exclusive')
+            ->orderByDesc('priority')
+            ->orderByDesc('id')
+            ->get();
+
+        $bestAction = null;
+        $bestAmount = 0.0;
+        $bestTaxDiscount = 0.0;
+
+        foreach ($actions as $action) {
+            $eligibleLines = $this->eligibleCartDiscountLines($action, $lines);
+            $eligibleSubtotal = round((float) $eligibleLines->sum('line_total'), 2);
+
+            if ($eligibleSubtotal <= 0.0) {
+                continue;
+            }
+
+            $amount = $this->cartDiscountAmount($eligibleSubtotal, $action);
+            if ($amount <= $bestAmount) {
+                continue;
+            }
+
+            $eligibleTax = round((float) $eligibleLines->sum('line_tax_total'), 2);
+            $taxDiscount = $eligibleSubtotal > 0.0
+                ? round(min($eligibleTax, $eligibleTax * ($amount / $eligibleSubtotal)), 2)
+                : 0.0;
+
+            $bestAction = $action;
+            $bestAmount = $amount;
+            $bestTaxDiscount = $taxDiscount;
+        }
+
+        return [
+            'action' => $bestAction,
+            'amount' => round($bestAmount, 2),
+            'tax_discount' => round($bestTaxDiscount, 2),
+        ];
+    }
+
+    /**
+     * @param Collection<int, array<string, mixed>> $lines
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function eligibleCartDiscountLines(CatalogAction $action, Collection $lines): Collection
+    {
+        if ($action->target_type === CatalogAction::TARGET_ALL) {
+            return $lines;
+        }
+
+        $targetIds = $action->targets
+            ->where('target_type', $action->target_type)
+            ->pluck('target_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        if ($targetIds === []) {
+            return collect();
+        }
+
+        return $lines->filter(function (array $line) use ($action, $targetIds): bool {
+            $product = $line['product'] ?? null;
+            if (! $product instanceof Product) {
+                return false;
+            }
+
+            if ($action->target_type === CatalogAction::TARGET_PRODUCT) {
+                return in_array((int) $product->id, $targetIds, true);
+            }
+
+            if ($action->target_type === CatalogAction::TARGET_MANUFACTURER) {
+                return $product->manufacturer_id !== null
+                    && in_array((int) $product->manufacturer_id, $targetIds, true);
+            }
+
+            if ($action->target_type === CatalogAction::TARGET_CATEGORY) {
+                $categoryIds = $product->relationLoaded('categories')
+                    ? $product->categories->pluck('id')->map(static fn ($id): int => (int) $id)->all()
+                    : $product->categories()->pluck('categories.id')->map(static fn ($id): int => (int) $id)->all();
+
+                return array_intersect($categoryIds, $targetIds) !== [];
+            }
+
+            return false;
+        })->values();
+    }
+
+    private function cartDiscountAmount(float $eligibleSubtotal, CatalogAction $action): float
+    {
+        $value = max(0.0, (float) ($action->discount_value ?? 0));
+
+        if ($action->type === CatalogAction::TYPE_PERCENTAGE) {
+            return round(min($eligibleSubtotal, ($eligibleSubtotal * min(100.0, $value)) / 100), 2);
+        }
+
+        if ($action->type === CatalogAction::TYPE_FIXED) {
+            return round(min($eligibleSubtotal, $value), 2);
+        }
+
+        return 0.0;
     }
 
     /**

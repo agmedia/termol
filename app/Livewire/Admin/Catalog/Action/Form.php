@@ -117,7 +117,7 @@ class Form extends Component
                 'customer_group_id' => $data['audience_type'] === CatalogAction::AUDIENCE_USER_GROUP ? (int) $data['customer_group_id'] : null,
                 'role_id' => null,
                 'user_id' => $data['audience_type'] === CatalogAction::AUDIENCE_USER ? (int) $data['user_id'] : null,
-                'coupon_code' => $this->nullableString($data['coupon_code'] ?? null),
+                'coupon_code' => $this->nullableCouponCode($data['coupon_code'] ?? null),
                 'min_subtotal' => $this->nullableDecimal($data['min_subtotal'] ?? null),
                 'buy_qty' => $this->nullableInt($data['buy_qty'] ?? null),
                 'get_qty' => $this->nullableInt($data['get_qty'] ?? null),
@@ -508,6 +508,12 @@ class Form extends Component
     {
         $value = trim((string) $value);
         return $value === '' ? null : $value;
+    }
+
+    private function nullableCouponCode(mixed $value): ?string
+    {
+        $value = $this->nullableString($value);
+        return $value === null ? null : strtoupper($value);
     }
 
     private function nullableDecimal(mixed $value): ?float

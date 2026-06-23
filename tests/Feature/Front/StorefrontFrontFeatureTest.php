@@ -71,6 +71,51 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertNotNull($page);
     }
 
+    public function test_cart_coupon_applies_cart_discount_to_items_only(): void
+    {
+        $this->useEnglishStorefrontLocale();
+
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $product->update([
+            'base_price' => 100.00,
+            'stock_qty' => 10,
+        ]);
+
+        CatalogAction::query()->create([
+            'code' => 'cart-bali-10',
+            'scope' => CatalogAction::SCOPE_CART,
+            'type' => CatalogAction::TYPE_PERCENTAGE,
+            'discount_value' => 10,
+            'target_type' => CatalogAction::TARGET_ALL,
+            'audience_type' => CatalogAction::AUDIENCE_ALL,
+            'coupon_code' => 'BALI10',
+            'min_subtotal' => 0.01,
+            'is_active' => true,
+            'starts_at' => now()->subHour(),
+            'ends_at' => now()->addHour(),
+        ]);
+
+        $this->post('/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 2,
+        ])->assertRedirect();
+
+        $this->post('/cart/coupon', [
+            'coupon_code' => 'bali10',
+        ])
+            ->assertRedirect(route('cart.index'))
+            ->assertSessionHas('status', __('ui.cart.status.coupon_applied'));
+
+        $summary = app(\App\Services\Front\CartService::class)->summary();
+
+        $this->assertSame(200.0, (float) $summary['subtotal']);
+        $this->assertSame(20.0, (float) $summary['cart_discount_total']);
+        $this->assertSame(20.0, (float) $summary['discount_total']);
+        $this->assertSame(180.0, (float) $summary['grand_total']);
+    }
+
     public function test_desktop_announcement_bar_uses_saved_scroll_and_color_settings(): void
     {
         app(SystemSettingsService::class)->putMany([

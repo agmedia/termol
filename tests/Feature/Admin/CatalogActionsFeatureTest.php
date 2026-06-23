@@ -73,6 +73,36 @@ class CatalogActionsFeatureTest extends TestCase
         );
     }
 
+    public function test_admin_can_create_cart_discount_coupon_action(): void
+    {
+        app(SystemSettingsService::class)->put('catalog_use_actions', true);
+
+        $user = $this->makeAdminUser();
+
+        Livewire::actingAs($user)
+            ->test(ActionForm::class)
+            ->set('form.code', 'cart-bali-10')
+            ->set('form.locale', 'en')
+            ->set('form.is_active', true)
+            ->set('form.scope', CatalogAction::SCOPE_CART)
+            ->set('form.type', CatalogAction::TYPE_PERCENTAGE)
+            ->set('form.discount_value', '10')
+            ->set('form.min_subtotal', '0.01')
+            ->set('form.target_type', CatalogAction::TARGET_ALL)
+            ->set('form.audience_type', CatalogAction::AUDIENCE_ALL)
+            ->set('form.coupon_code', 'bali10')
+            ->set('form.title', 'Cart BALI10')
+            ->call('save')
+            ->assertRedirect(route('admin.actions', ['locale' => 'en']));
+
+        $this->assertDatabaseHas('catalog_actions', [
+            'code' => 'cart-bali-10',
+            'scope' => CatalogAction::SCOPE_CART,
+            'type' => CatalogAction::TYPE_PERCENTAGE,
+            'coupon_code' => 'BALI10',
+        ]);
+    }
+
     public function test_admin_can_delete_action_from_manager(): void
     {
         app(SystemSettingsService::class)->put('catalog_use_actions', true);

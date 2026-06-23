@@ -57,7 +57,7 @@ class ActionResolverService
             ->where(function (Builder $q) use ($couponCode): void {
                 $q->whereNull('coupon_code')
                     ->orWhere('coupon_code', '')
-                    ->orWhere('coupon_code', $couponCode);
+                    ->orWhereRaw('UPPER(coupon_code) = ?', [$couponCode]);
             })
             ->orderByDesc('is_exclusive')
             ->orderByDesc('priority')
@@ -93,4 +93,3 @@ class ActionResolverService
         return $basePrice;
     }
 }
-
