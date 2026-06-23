@@ -34,7 +34,7 @@
                 </div>
                 <div style="grid-column: span 3;">
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Scope') }}</label>
-                    <select wire:model.live="form.scope" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                    <select wire:model.live="form.scope" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
                         @foreach ($scopeOptions as $key => $label)
                             <option value="{{ $key }}">{{ $label }}</option>
                         @endforeach

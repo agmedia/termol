@@ -1,6 +1,16 @@
 <?php
 
 return [
+    'newsletter_coupon' => [
+        'subject' => 'Vaš 10% popust: :code',
+        'title' => 'Newsletter kupon',
+        'eyebrow' => 'KOZO Club',
+        'heading' => 'Hvala na prijavi na newsletter',
+        'intro' => 'Kao zahvalu šaljemo vam 10% popusta na prvu kupnju.',
+        'note' => 'Kod unesite u košarici prije završetka narudžbe.',
+        'cta' => 'Kreni u kupnju',
+        'footer' => 'Ovaj email ste primili jer ste se prijavili na newsletter trgovine :store.',
+    ],
     'orders' => [
         'subject_admin' => '[Narudžba] :order',
         'subject_customer' => 'Potvrda narudžbe: :order',

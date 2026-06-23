@@ -1,6 +1,16 @@
 <?php
 
 return [
+    'newsletter_coupon' => [
+        'subject' => 'Your 10% discount: :code',
+        'title' => 'Newsletter coupon',
+        'eyebrow' => 'KOZO Club',
+        'heading' => 'Thank you for joining our newsletter',
+        'intro' => 'Here is your 10% discount for your first purchase.',
+        'note' => 'Enter this code in the cart before completing your order.',
+        'cta' => 'Start shopping',
+        'footer' => 'You received this email because you subscribed to the :store newsletter.',
+    ],
     'orders' => [
         'subject_admin' => '[Order] :order',
         'subject_customer' => 'Order confirmation: :order',

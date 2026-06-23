@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Front;
 
+use App\Mail\NewsletterCouponMail;
 use App\Http\Controllers\Front\CatalogController;
 use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Attribute\Attribute;
@@ -823,6 +824,34 @@ class StorefrontFrontFeatureTest extends TestCase
             'sync_status' => 'synced',
             'consent_accepted' => 1,
         ]);
+    }
+
+    public function test_newsletter_form_sends_bali10_coupon_email_when_email_is_enabled(): void
+    {
+        $this->createNewsletterSignupsTable();
+
+        Mail::fake();
+
+        app(SystemSettingsService::class)->putMany([
+            'store_newsletter_provider' => 'database',
+            'store_email_enabled' => true,
+            'store_brand_name' => 'KOZO',
+        ]);
+
+        $this->from('/')
+            ->post('/newsletter/subscribe', [
+                'newsletter_email' => 'newsletter@example.test',
+                'newsletter_accept_terms' => '1',
+            ])
+            ->assertRedirect('/')
+            ->assertSessionHas('status', (string) __('ui.front.desktop.newsletter.status.subscribed'));
+
+        Mail::assertSent(NewsletterCouponMail::class, function (NewsletterCouponMail $mail): bool {
+            return $mail->hasTo('newsletter@example.test')
+                && $mail->couponCode === 'BALI10'
+                && $mail->storeName === 'KOZO'
+                && str_contains($mail->render(), 'BALI10');
+        });
     }
 
     public function test_newsletter_form_syncs_mailchimp_without_local_database_storage(): void

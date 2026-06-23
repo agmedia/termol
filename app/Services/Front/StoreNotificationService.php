@@ -2,6 +2,7 @@
 
 namespace App\Services\Front;
 
+use App\Mail\NewsletterCouponMail;
 use App\Models\Content\Support\ContactMessage;
 use App\Models\Sales\Order\Order;
 use App\Models\Sales\Order\OrderItem;
@@ -79,6 +80,38 @@ class StoreNotificationService
             });
         } catch (\Throwable $e) {
             Log::warning('Store return request notification failed: '.$e->getMessage());
+        }
+    }
+
+    public function sendNewsletterCoupon(string $email, string $locale = '', string $couponCode = 'BALI10'): void
+    {
+        $email = trim($email);
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        $emailSettings = $this->storeSettings->email();
+        if (! (bool) ($emailSettings['enabled'] ?? false)) {
+            return;
+        }
+
+        $mailLocale = trim($locale) ?: (string) app()->getLocale();
+        $settings = $this->storeSettings->all();
+        $brand = $settings['branding'] ?? [];
+        $storeName = trim((string) ($brand['store_name'] ?? config('app.name', 'Store'))) ?: (string) config('app.name', 'Store');
+        $logoUrl = $this->absoluteUrl((string) ($brand['logo_url'] ?? ''));
+
+        try {
+            $this->withLocale($mailLocale, function () use ($email, $couponCode, $storeName, $logoUrl): void {
+                Mail::to($email)->send(new NewsletterCouponMail(
+                    couponCode: $couponCode,
+                    storeName: $storeName,
+                    shopUrl: url('/'),
+                    logoUrl: $logoUrl,
+                ));
+            });
+        } catch (\Throwable $e) {
+            Log::warning('Store newsletter coupon email failed: '.$e->getMessage());
         }
     }
 

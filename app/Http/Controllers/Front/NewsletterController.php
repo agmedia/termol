@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
 use App\Services\Front\NewsletterSignupService;
+use App\Services\Front\StoreNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -13,7 +14,8 @@ use Throwable;
 class NewsletterController extends Controller
 {
     public function __construct(
-        private readonly NewsletterSignupService $newsletterSignups
+        private readonly NewsletterSignupService $newsletterSignups,
+        private readonly StoreNotificationService $notifications,
     ) {
     }
 
@@ -78,6 +80,14 @@ class NewsletterController extends Controller
         $message = $result['synced']
             ? __('ui.front.desktop.newsletter.status.subscribed')
             : __('ui.front.desktop.newsletter.status.saved_with_sync_issue');
+
+        if ($result['synced']) {
+            $this->notifications->sendNewsletterCoupon(
+                (string) $validator->validated()['newsletter_email'],
+                (string) app()->getLocale(),
+                'BALI10'
+            );
+        }
 
         if ($request->expectsJson() || $request->ajax()) {
             return new JsonResponse([
