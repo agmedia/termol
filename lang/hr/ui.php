@@ -111,6 +111,8 @@ return [
                     'email_required' => 'Upišite email adresu.',
                     'email_invalid' => 'Upišite ispravnu email adresu.',
                     'accept_terms' => 'Morate prihvatiti GDPR privolu.',
+                    'security_check' => 'Sigurnosna provjera',
+                    'captcha_failed' => 'Sigurnosna provjera nije uspjela. Pokušajte ponovno.',
                 ],
             ],
             'benefits' => [

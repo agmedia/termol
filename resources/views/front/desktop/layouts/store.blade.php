@@ -640,6 +640,8 @@
     <div class="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         @php
             $newsletterErrors = $errors->getBag('newsletter');
+            $newsletterCaptchaSiteKey = trim((string) ($storeSettings['captcha']['recaptcha_v3_site_key'] ?? ''));
+            $newsletterCaptchaEnabled = (bool) ($storeSettings['captcha']['recaptcha_v3_enabled'] ?? false) && $newsletterCaptchaSiteKey !== '';
         @endphp
 
         <section class="px-0 py-5">
@@ -658,8 +660,12 @@
                     data-email-required-message="{{ __('ui.front.desktop.newsletter.validation.email_required') }}"
                     data-email-invalid-message="{{ __('ui.front.desktop.newsletter.validation.email_invalid') }}"
                     data-accept-terms-message="{{ __('ui.front.desktop.newsletter.validation.accept_terms') }}"
+                    @if($newsletterCaptchaEnabled) data-recaptcha-site-key="{{ $newsletterCaptchaSiteKey }}" data-recaptcha-action="newsletter_footer" @endif
                 >
                     @csrf
+                    @if($newsletterCaptchaEnabled)
+                        <input type="hidden" name="recaptcha_token" value="" data-recaptcha-token>
+                    @endif
                     <div class="space-y-1.5">
                         <input
                             type="email"
@@ -696,6 +702,7 @@
                             {{ __('ui.front.desktop.newsletter.consent') }}
                         </label>
                         <p class="mt-2 text-xs font-semibold text-rose-600 {{ $newsletterErrors->has('newsletter_accept_terms') ? '' : 'hidden' }}" data-newsletter-accept-error aria-live="polite">{{ $newsletterErrors->first('newsletter_accept_terms') }}</p>
+                        <p class="mt-2 text-xs font-semibold text-rose-600 {{ $newsletterErrors->has('recaptcha_token') ? '' : 'hidden' }}" data-newsletter-recaptcha-error aria-live="polite">{{ $newsletterErrors->first('recaptcha_token') }}</p>
                     </div>
                 </form>
             </div>
@@ -979,12 +986,28 @@
             }
         }
 
+        @if (!empty($newsletterCaptchaEnabled))
+            let newsletterCaptchaReady = Promise.resolve();
+            const newsletterCaptchaScript = document.createElement('script');
+            newsletterCaptchaScript.src = 'https://www.google.com/recaptcha/api.js?render={{ $newsletterCaptchaSiteKey }}';
+            newsletterCaptchaScript.async = true;
+            newsletterCaptchaScript.defer = true;
+            newsletterCaptchaReady = new Promise(function (resolve) {
+                newsletterCaptchaScript.onload = resolve;
+                newsletterCaptchaScript.onerror = resolve;
+            });
+            document.head.appendChild(newsletterCaptchaScript);
+        @else
+            const newsletterCaptchaReady = Promise.resolve();
+        @endif
+
         const newsletterForm = document.querySelector('[data-newsletter-form]');
         if (newsletterForm) {
             const emailInput = newsletterForm.querySelector('[data-newsletter-email]');
             const errorMessage = newsletterForm.querySelector('[data-newsletter-error]');
             const acceptTermsInput = newsletterForm.querySelector('[data-newsletter-accept-terms]');
             const acceptTermsError = newsletterForm.querySelector('[data-newsletter-accept-error]');
+            const recaptchaError = newsletterForm.querySelector('[data-newsletter-recaptcha-error]');
             const statusMessage = newsletterForm.querySelector('[data-newsletter-status]');
             const requiredMessage = newsletterForm.dataset.emailRequiredMessage || 'Upišite email adresu.';
             const invalidMessage = newsletterForm.dataset.emailInvalidMessage || 'Upišite ispravnu email adresu.';
@@ -1057,9 +1080,31 @@
                 acceptTermsError.classList.remove('hidden');
             };
 
+            const clearRecaptchaError = function () {
+                if (!recaptchaError) {
+                    return;
+                }
+
+                recaptchaError.textContent = '';
+                recaptchaError.classList.add('hidden');
+                recaptchaError.style.display = 'none';
+            };
+
+            const showRecaptchaError = function (message) {
+                if (!recaptchaError) {
+                    return;
+                }
+
+                recaptchaError.classList.add('hidden');
+                recaptchaError.style.display = 'block';
+                recaptchaError.textContent = message;
+                recaptchaError.classList.remove('hidden');
+            };
+
             const validateNewsletterForm = function () {
                 clearEmailError();
                 clearAcceptTermsError();
+                clearRecaptchaError();
                 clearStatusMessage();
 
                 let isValid = true;
@@ -1085,6 +1130,37 @@
                 return isValid;
             };
 
+            const refreshNewsletterRecaptcha = function () {
+                const tokenInput = newsletterForm.querySelector('[data-recaptcha-token]');
+                const siteKey = newsletterForm.dataset.recaptchaSiteKey || '';
+                const action = newsletterForm.dataset.recaptchaAction || 'newsletter_footer';
+
+                if (!tokenInput || !siteKey) {
+                    return Promise.resolve();
+                }
+
+                return newsletterCaptchaReady.then(function () {
+                    if (!window.grecaptcha || typeof window.grecaptcha.ready !== 'function') {
+                        tokenInput.value = '';
+                        return;
+                    }
+
+                    return new Promise(function (resolve) {
+                        window.grecaptcha.ready(function () {
+                            window.grecaptcha.execute(siteKey, { action: action })
+                                .then(function (token) {
+                                    tokenInput.value = token || '';
+                                    resolve();
+                                })
+                                .catch(function () {
+                                    tokenInput.value = '';
+                                    resolve();
+                                });
+                        });
+                    });
+                });
+            };
+
             newsletterForm.addEventListener('submit', async function (event) {
                 if (!validateNewsletterForm()) {
                     event.preventDefault();
@@ -1095,7 +1171,6 @@
 
                 const submitButton = newsletterForm.querySelector('button[type="submit"]');
                 const originalButtonText = submitButton ? submitButton.textContent : '';
-                const formData = new FormData(newsletterForm);
 
                 if (submitButton) {
                     submitButton.disabled = true;
@@ -1103,6 +1178,10 @@
                 }
 
                 try {
+                    await refreshNewsletterRecaptcha();
+
+                    const formData = new FormData(newsletterForm);
+
                     const response = await fetch(newsletterForm.action, {
                         method: 'POST',
                         body: formData,
@@ -1121,6 +1200,7 @@
                         const errors = payload && typeof payload === 'object' ? (payload.errors || {}) : {};
                         const emailErrors = Array.isArray(errors.newsletter_email) ? errors.newsletter_email : [];
                         const consentErrors = Array.isArray(errors.newsletter_accept_terms) ? errors.newsletter_accept_terms : [];
+                        const recaptchaErrors = Array.isArray(errors.recaptcha_token) ? errors.recaptcha_token : [];
 
                         if (emailErrors.length > 0) {
                             showEmailError(emailErrors[0]);
@@ -1132,7 +1212,11 @@
                             showAcceptTermsError(consentErrors[0]);
                         }
 
-                        if (payload.message && emailErrors.length === 0 && consentErrors.length === 0) {
+                        if (recaptchaErrors.length > 0) {
+                            showRecaptchaError(recaptchaErrors[0]);
+                        }
+
+                        if (payload.message && emailErrors.length === 0 && consentErrors.length === 0 && recaptchaErrors.length === 0) {
                             showStatusMessage(payload.message, 'error');
                         }
 

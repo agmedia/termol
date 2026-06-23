@@ -3,11 +3,13 @@
 namespace Tests\Feature\Admin;
 
 use App\Livewire\Admin\User\Form as UserForm;
+use App\Livewire\Admin\User\NewsletterSignupManager;
 use App\Models\Sales\Order\Order;
 use App\Models\Settings\Local\OrderStatus;
 use App\Models\User;
 use App\Models\User\CustomerGroup;
 use App\Models\User\LoyaltyTransaction;
+use App\Models\User\NewsletterSignup;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -63,6 +65,32 @@ class AdminUsersFeatureTest extends TestCase
         $this->actingAs($editor)->get('/admin/users/activity')->assertForbidden();
         $this->actingAs($editor)->get('/admin/users/newsletter')->assertForbidden();
         $this->actingAs($editor)->get('/admin/users/'.$target->id.'/show')->assertForbidden();
+    }
+
+    public function test_admin_can_delete_newsletter_signup_from_manager(): void
+    {
+        $this->createNewsletterSignupsTable();
+
+        $admin = $this->makeUserWithRole('admin');
+        $signup = NewsletterSignup::query()->create([
+            'email' => 'delete-newsletter@example.test',
+            'source' => 'footer',
+            'locale' => 'hr',
+            'provider' => 'database',
+            'sync_status' => 'synced',
+            'consent_accepted' => true,
+            'subscribed_at' => now(),
+            'synced_at' => now(),
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(NewsletterSignupManager::class)
+            ->call('delete', $signup->id)
+            ->assertDispatched('notify');
+
+        $this->assertDatabaseMissing('newsletter_signups', [
+            'id' => $signup->id,
+        ]);
     }
 
     public function test_admin_can_edit_user_and_change_role(): void

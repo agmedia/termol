@@ -41,6 +41,20 @@ class NewsletterSignupManager extends Component
         $this->resetPage(pageName: self::PAGE_NAME);
     }
 
+    public function delete(int $signupId): void
+    {
+        $this->authorizeAccess();
+
+        if (! Schema::hasTable('newsletter_signups')) {
+            return;
+        }
+
+        NewsletterSignup::query()->whereKey($signupId)->delete();
+
+        $this->resetPage(pageName: self::PAGE_NAME);
+        $this->dispatch('notify', type: 'success', message: __('Newsletter signup deleted.'));
+    }
+
     public function render()
     {
         $settings = app(SystemSettingsService::class);

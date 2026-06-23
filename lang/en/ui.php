@@ -111,6 +111,8 @@ return [
                     'email_required' => 'Enter your email address.',
                     'email_invalid' => 'Enter a valid email address.',
                     'accept_terms' => 'You must accept the GDPR consent.',
+                    'security_check' => 'Security check',
+                    'captcha_failed' => 'Security check failed. Please try again.',
                 ],
             ],
             'benefits' => [

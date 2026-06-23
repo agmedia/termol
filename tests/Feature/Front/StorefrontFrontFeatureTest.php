@@ -826,6 +826,61 @@ class StorefrontFrontFeatureTest extends TestCase
         ]);
     }
 
+    public function test_footer_newsletter_uses_enabled_recaptcha_settings(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'store_captcha_recaptcha_v3_enabled' => true,
+            'store_captcha_recaptcha_v3_site_key' => 'test-site-key',
+            'store_captcha_recaptcha_v3_secret_key' => 'test-secret-key',
+            'store_captcha_recaptcha_v3_min_score' => 0.7,
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('data-recaptcha-site-key="test-site-key"', false)
+            ->assertSee('data-recaptcha-action="newsletter_footer"', false)
+            ->assertSee('https://www.google.com/recaptcha/api.js?render=test-site-key', false);
+    }
+
+    public function test_newsletter_form_validates_enabled_recaptcha(): void
+    {
+        $this->createNewsletterSignupsTable();
+
+        app(SystemSettingsService::class)->putMany([
+            'store_newsletter_provider' => 'database',
+            'store_captcha_recaptcha_v3_enabled' => true,
+            'store_captcha_recaptcha_v3_site_key' => 'test-site-key',
+            'store_captcha_recaptcha_v3_secret_key' => 'test-secret-key',
+            'store_captcha_recaptcha_v3_min_score' => 0.7,
+        ]);
+
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response([
+                'success' => true,
+                'score' => 0.9,
+                'action' => 'newsletter_footer',
+            ]),
+        ]);
+
+        $this->postJson('/newsletter/subscribe', [
+            'newsletter_email' => 'captcha-newsletter@example.test',
+            'newsletter_accept_terms' => '1',
+            'recaptcha_token' => 'newsletter-token',
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])->assertOk();
+
+        Http::assertSent(static fn ($request): bool => $request->url() === 'https://www.google.com/recaptcha/api/siteverify'
+            && $request['secret'] === 'test-secret-key'
+            && $request['response'] === 'newsletter-token');
+
+        $this->assertDatabaseHas('newsletter_signups', [
+            'email' => 'captcha-newsletter@example.test',
+            'provider' => 'database',
+            'sync_status' => 'synced',
+        ]);
+    }
+
     public function test_newsletter_form_sends_bali10_coupon_email_when_email_is_enabled(): void
     {
         $this->createNewsletterSignupsTable();

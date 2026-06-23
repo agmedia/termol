@@ -63,6 +63,7 @@
                         <th class="px-3 py-2 text-center font-semibold">{{ __('Sync') }}</th>
                         <th class="px-3 py-2 text-center font-semibold">{{ __('Consent') }}</th>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Details') }}</th>
+                        <th class="px-3 py-2 text-right font-semibold">{{ __('admin.common.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -115,10 +116,20 @@
                                     <div class="mt-1 max-w-[28rem] text-rose-600">{{ $row->provider_error }}</div>
                                 @endif
                             </td>
+                            <td class="px-3 py-2 text-right">
+                                <button
+                                    type="button"
+                                    wire:click="delete({{ $row->id }})"
+                                    wire:confirm="{{ __('Delete newsletter signup :email?', ['email' => $row->email]) }}"
+                                    class="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                                >
+                                    {{ __('Delete') }}
+                                </button>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-3 py-8 text-center text-sm text-slate-500">{{ __('No newsletter signups found.') }}</td>
+                            <td colspan="8" class="px-3 py-8 text-center text-sm text-slate-500">{{ __('No newsletter signups found.') }}</td>
                         </tr>
                     @endforelse
                 </tbody>
