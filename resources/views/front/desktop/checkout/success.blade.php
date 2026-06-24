@@ -67,9 +67,12 @@
 
     @php
         $analytics = $storeSettings['analytics'] ?? [];
-        $shouldTrackPurchase = (bool) ($analytics['enabled'] ?? false)
+        $ga4PurchaseEnabled = (bool) ($analytics['enabled'] ?? false)
             && (bool) ($analytics['purchase_event_enabled'] ?? true)
             && trim((string) ($analytics['ga4_measurement_id'] ?? '')) !== '';
+        $metaPixelId = '2376960792811713';
+        $metaPurchaseEnabled = $metaPixelId !== '';
+        $shouldTrackPurchase = $ga4PurchaseEnabled || $metaPurchaseEnabled;
         $eventName = trim((string) ($analytics['purchase_event_name'] ?? 'purchase')) ?: 'purchase';
         $eventItems = $order->items->map(static function ($item): array {
             return [
@@ -79,22 +82,40 @@
                 'price' => (float) $item->unit_price,
             ];
         })->values()->all();
+        $purchasePayload = [
+            'transaction_id' => (string) $order->order_number,
+            'currency' => (string) ($order->currency_code ?: 'EUR'),
+            'value' => (float) $order->grand_total,
+            'tax' => (float) $order->tax_total,
+            'shipping' => (float) $order->shipping_total,
+            'coupon' => (string) ($order->payload['coupon_code'] ?? ''),
+            'items' => $eventItems,
+        ];
+        $purchaseOnceKey = 'purchase:'.(string) $order->order_number;
     @endphp
 
     @if ($shouldTrackPurchase)
         @push('scripts')
             <script>
-                if (typeof gtag === 'function') {
-                    gtag('{{ $eventName }}', {
-                        transaction_id: @json((string) $order->order_number),
-                        currency: @json((string) ($order->currency_code ?: 'EUR')),
-                        value: {{ (float) $order->grand_total }},
-                        tax: {{ (float) $order->tax_total }},
-                        shipping: {{ (float) $order->shipping_total }},
-                        coupon: @json((string) ($order->payload['coupon_code'] ?? '')),
-                        items: @json($eventItems)
-                    });
-                }
+                (function () {
+                    var trackPurchase = function () {
+                        if (!window.ShopAnalytics) {
+                            return;
+                        }
+
+                        @if ($ga4PurchaseEnabled)
+                            window.ShopAnalytics.trackOnce(@js($purchaseOnceKey), @js($eventName), @js($purchasePayload));
+                        @elseif ($metaPurchaseEnabled)
+                            window.ShopAnalytics.trackMetaOnce(@js($purchaseOnceKey), 'purchase', @js($purchasePayload));
+                        @endif
+                    };
+
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', trackPurchase, { once: true });
+                    } else {
+                        trackPurchase();
+                    }
+                })();
             </script>
         @endpush
     @endif

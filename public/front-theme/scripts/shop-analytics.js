@@ -17,12 +17,50 @@
         return typeof window.gtag === 'function';
     };
 
-    var track = function (eventName, payload) {
-        if (!hasGtag() || !eventName) {
-            return;
+    var canTrackGa4 = function () {
+        return typeof window.canTrackAnalytics !== 'function' || window.canTrackAnalytics() === true;
+    };
+
+    var trackGa4 = function (eventName, payload) {
+        if (!hasGtag() || !canTrackGa4() || !eventName) {
+            return false;
         }
 
         window.gtag('event', eventName, payload || {});
+
+        return true;
+    };
+
+    var trackMeta = function (eventName, payload) {
+        if (!window.ShopMetaPixel || typeof window.ShopMetaPixel.trackFromGa4 !== 'function') {
+            return false;
+        }
+
+        return window.ShopMetaPixel.trackFromGa4(eventName, payload || {});
+    };
+
+    var track = function (eventName, payload) {
+        if (!eventName) {
+            return false;
+        }
+
+        var ga4Tracked = trackGa4(eventName, payload);
+        var metaTracked = trackMeta(eventName, payload);
+
+        return ga4Tracked || metaTracked;
+    };
+
+    var trackWithStorage = function (storageKey, eventName, payload, tracker) {
+        if (window.sessionStorage.getItem(storageKey) === '1') {
+            return false;
+        }
+
+        if (tracker(eventName, payload)) {
+            window.sessionStorage.setItem(storageKey, '1');
+            return true;
+        }
+
+        return false;
     };
 
     var trackOnce = function (key, eventName, payload) {
@@ -32,15 +70,23 @@
         }
 
         try {
-            var storageKey = storagePrefix + key;
-            if (window.sessionStorage.getItem(storageKey) === '1') {
-                return;
-            }
-
-            track(eventName, payload);
-            window.sessionStorage.setItem(storageKey, '1');
+            trackWithStorage(storagePrefix + 'ga4:' + key, eventName, payload, trackGa4);
+            trackWithStorage(storagePrefix + 'meta:' + key, eventName, payload, trackMeta);
         } catch (error) {
             track(eventName, payload);
+        }
+    };
+
+    var trackMetaOnce = function (key, eventName, payload) {
+        if (!key) {
+            trackMeta(eventName, payload);
+            return;
+        }
+
+        try {
+            trackWithStorage(storagePrefix + 'meta:' + key, eventName, payload, trackMeta);
+        } catch (error) {
+            trackMeta(eventName, payload);
         }
     };
 
@@ -241,6 +287,7 @@
     window.ShopAnalytics = {
         track: track,
         trackOnce: trackOnce,
+        trackMetaOnce: trackMetaOnce,
         trackAddToCartFromForm: trackAddToCartFromForm,
     };
 

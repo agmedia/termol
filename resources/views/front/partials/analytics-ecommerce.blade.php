@@ -2,9 +2,12 @@
     $analytics = $storeSettings['analytics'] ?? [];
     $analyticsEnabled = (bool) ($analytics['enabled'] ?? false);
     $ga4Id = trim((string) ($analytics['ga4_measurement_id'] ?? ''));
+    $metaPixelId = '2376960792811713';
+    $hasGa4 = $analyticsEnabled && $ga4Id !== '';
+    $hasMetaPixel = $metaPixelId !== '';
 @endphp
 
-@if ($analyticsEnabled && $ga4Id !== '')
+@if ($hasGa4 || $hasMetaPixel)
     @php
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
@@ -38,7 +41,7 @@
         @endphp
         <script>
             document.addEventListener('DOMContentLoaded', function () {
-                if (!window.ShopAnalytics || (typeof window.canTrackAnalytics === 'function' && !window.canTrackAnalytics())) {
+                if (!window.ShopAnalytics) {
                     return;
                 }
 
@@ -68,7 +71,7 @@
         @if ($cartItems !== [])
             <script>
                 document.addEventListener('DOMContentLoaded', function () {
-                    if (!window.ShopAnalytics || (typeof window.canTrackAnalytics === 'function' && !window.canTrackAnalytics())) {
+                    if (!window.ShopAnalytics) {
                         return;
                     }
 
@@ -110,7 +113,7 @@
         @if ($viewListItems !== [])
             <script>
                 document.addEventListener('DOMContentLoaded', function () {
-                    if (!window.ShopAnalytics || (typeof window.canTrackAnalytics === 'function' && !window.canTrackAnalytics())) {
+                    if (!window.ShopAnalytics) {
                         return;
                     }
 
