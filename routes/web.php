@@ -1,7 +1,8 @@
 <?php
 
-use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Admin\AdminAiController;
+use App\Http\Controllers\Admin\SystemToolsController;
+use App\Http\Controllers\Cron\KiposCronController;
 use App\Http\Controllers\Front\AccountController;
 use App\Http\Controllers\Front\AuthController;
 use App\Http\Controllers\Front\BlogController;
@@ -29,6 +30,7 @@ use App\Models\Content\ContentBlockSlot;
 use App\Models\Content\Page\InfoPage;
 use App\Models\Content\Support\Faq;
 use App\Models\Sales\Order\Order as SalesOrder;
+use App\Models\Settings\Local\Language;
 use App\Models\User;
 use App\Models\User\LoyaltyTransaction;
 use App\Models\User\UserTrackingEvent;
@@ -37,7 +39,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Spatie\Activitylog\Models\Activity;
-use App\Models\Settings\Local\Language;
+
+Route::get('cron/kipos/update-quantities', [KiposCronController::class, 'updateQuantities'])
+    ->name('cron.kipos.update-quantities');
 
 Route::middleware(['front.locale', 'front.device'])
     ->group(function (): void {
