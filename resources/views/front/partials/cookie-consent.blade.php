@@ -46,6 +46,10 @@
             if (typeof window.updateGoogleConsentFromCookie === 'function') {
                 window.updateGoogleConsentFromCookie(analyticsGranted, marketingGranted);
             }
+
+            if (typeof window.updateMetaPixelConsentFromCookie === 'function') {
+                window.updateMetaPixelConsentFromCookie(marketingGranted);
+            }
         };
 
         const cookieConsentConfig = {
@@ -205,6 +209,7 @@
 
         const scheduleCookieConsentBoot = () => {
             if (hasStoredCookieConsent()) {
+                bootCookieConsent();
                 return;
             }
 

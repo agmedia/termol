@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="{{ asset('front-theme/styles/bootstrap.css') }}">
     <link rel="stylesheet" href="{{ asset('front-theme/styles/style.css') }}">
     <link rel="stylesheet" href="{{ asset('front-theme/fonts/css/fontawesome-all.min.css') }}">
+    @include('front.partials.cookie-consent-head')
     <style>
         .header .store-header-logo-link {
             display: flex;
@@ -485,6 +486,7 @@
 </div>
 
 <script defer src="{{ asset('front-theme/scripts/bootstrap.min.js') }}"></script>
+@include('front.partials.cookie-consent')
 @stack('scripts')
 <script defer src="{{ asset('front-theme/scripts/custom.js') }}"></script>
 </body>
