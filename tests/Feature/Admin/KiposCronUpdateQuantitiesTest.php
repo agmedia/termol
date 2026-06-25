@@ -55,18 +55,12 @@ class KiposCronUpdateQuantitiesTest extends TestCase
         ]);
 
         Http::fake([
-            '*getitemsextended*' => Http::response([
+            '*getZalihaK*' => Http::response([
                 [
                     'IDROBA' => 'W7030',
                     'IDODJEL' => 'W7030',
                     'ZALIHAK' => 8,
-                ],
-            ], 200),
-            '*getitems*' => Http::response([
-                [
-                    'IDROBA' => 'W7030',
-                    'IDODJEL' => 'W7030',
-                    'ZALIHAK' => 0,
+                    'IDSKL' => '200',
                 ],
             ], 200),
         ]);

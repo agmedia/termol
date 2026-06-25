@@ -35,7 +35,7 @@ INSERT INTO `system_settings` (`key`, `value`, `created_at`, `updated_at`) VALUE
   ('kipos_sync_size_option_id', 'null', NOW(), NOW()),
   ('kipos_sync_price_field', '\"CIJENA_MPC\"', NOW(), NOW()),
   ('kipos_sync_action_price_field', '\"AKCIJSKA_CIJENA\"', NOW(), NOW()),
-  ('kipos_sync_stock_warehouse_ids', '\"\"', NOW(), NOW()),
+  ('kipos_sync_stock_warehouse_ids', '\"200\"', NOW(), NOW()),
   ('kipos_sync_quantity_overrides', '\"\"', NOW(), NOW()),
   ('kipos_order_prefix', '\"KHR\"', NOW(), NOW()),
   ('kipos_order_valuta', '\"978\"', NOW(), NOW()),

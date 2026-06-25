@@ -28,7 +28,7 @@ class KiposSyncManager extends Component
         'kipos_sync_size_option_id' => null,
         'kipos_sync_price_field' => 'CIJENA_MPC',
         'kipos_sync_action_price_field' => 'AKCIJSKA_CIJENA',
-        'kipos_sync_stock_warehouse_ids' => '',
+        'kipos_sync_stock_warehouse_ids' => '200',
         'kipos_sync_quantity_overrides' => '',
         'kipos_order_prefix' => 'KHR',
         'kipos_order_valuta' => '978',

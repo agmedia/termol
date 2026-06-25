@@ -108,7 +108,9 @@ class KiposSyncQuantitiesFeatureTest extends TestCase
 
         $this->createProductOptionRow($admin, $product, $fourXl, 'W7037.4XL', 0, 0);
 
-        $this->enableKiposSync();
+        $this->enableKiposSync([
+            'kipos_sync_stock_warehouse_ids' => '',
+        ]);
 
         Http::fake([
             '*getitemsextended*' => Http::response([
