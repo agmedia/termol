@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Integrations\Kipos\KiposSyncService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -44,6 +45,8 @@ class KiposSyncQuantitiesFeatureTest extends TestCase
         $this->enableKiposSync([
             'kipos_sync_stock_warehouse_ids' => '100',
         ]);
+        Cache::put('front:catalog:last-modified-ts', 123, now()->addMinutes(2));
+        Cache::put('front:product:last-modified:'.$product->id, 123, now()->addMinutes(2));
 
         Http::fake([
             '*getZalihaK*' => Http::response([
@@ -80,6 +83,8 @@ class KiposSyncQuantitiesFeatureTest extends TestCase
         $this->assertSame(0, (int) $rows->get('W7030.L')?->stock_qty);
         $this->assertSame(1, (int) (($run->stats ?? [])['updated_products'] ?? 0));
         $this->assertSame(3, (int) (($run->stats ?? [])['updated_variants'] ?? 0));
+        $this->assertFalse(Cache::has('front:catalog:last-modified-ts'));
+        $this->assertFalse(Cache::has('front:product:last-modified:'.$product->id));
         Http::assertSent(fn ($request): bool => str_contains((string) $request->url(), 'getZalihaK')
             && str_contains((string) $request->url(), 'idskl=100'));
     }

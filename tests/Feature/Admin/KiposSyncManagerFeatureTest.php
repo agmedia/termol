@@ -305,6 +305,42 @@ class KiposSyncManagerFeatureTest extends TestCase
         Queue::assertPushed(RunKiposSyncActionJob::class, 1);
     }
 
+    public function test_stale_started_quantity_update_is_failed_before_retry_runs(): void
+    {
+        Queue::fake();
+
+        $admin = $this->makeUserWithRole('superadmin');
+        $product = $this->createKiposProduct($admin, 'W7030');
+
+        $this->enableKiposQuantitySync();
+        $this->fakeKiposQuantity('W7030', 8);
+
+        $staleRun = KiposSyncRun::query()->create([
+            'action_key' => 'update_quantities',
+            'action_label' => 'Update Quantities',
+            'status' => 'started',
+            'summary' => 'Execution started.',
+            'started_at' => now()->subMinutes(6),
+            'initiated_by' => $admin->id,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->call('runAction', 'update_quantities')
+            ->assertHasNoErrors()
+            ->assertDispatched('notify');
+
+        $staleRun->refresh();
+        $replacementRun = KiposSyncRun::query()->where('action_key', 'update_quantities')->latest('id')->first();
+
+        $this->assertSame('failed', $staleRun->status);
+        $this->assertNotNull($replacementRun);
+        $this->assertNotSame($staleRun->id, $replacementRun?->id);
+        $this->assertSame('success', $replacementRun?->status);
+        $this->assertSame(8, (int) $product->fresh()?->stock_qty);
+        Queue::assertNothingPushed();
+    }
+
     public function test_component_polls_only_while_kipos_run_is_active(): void
     {
         $admin = $this->makeUserWithRole('superadmin');

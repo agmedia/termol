@@ -31,7 +31,15 @@
             <span class="h-4 w-4 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700"></span>
             <div>
                 <p class="font-semibold">{{ __('Kipos sync request is running.') }}</p>
-                <p class="text-xs">{{ __('Update Images processes 10 products per request. Keep this admin page open to continue progress.') }}</p>
+                <p class="text-xs">
+                    @if($runningActionKey === 'update_images')
+                        {{ __('Update Images processes 10 products per request. Keep this admin page open to continue progress.') }}
+                    @elseif($runningActionKey !== '')
+                        {{ __('Please wait while this Kipos action finishes.') }}
+                    @else
+                        {{ __('Refreshing active Kipos progress.') }}
+                    @endif
+                </p>
             </div>
         </div>
 

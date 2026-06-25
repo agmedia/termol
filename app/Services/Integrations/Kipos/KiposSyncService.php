@@ -24,6 +24,8 @@ class KiposSyncService
 {
     private const STALE_STARTED_RUN_AFTER_MINUTES = 45;
 
+    private const IMMEDIATE_ACTION_STALE_STARTED_RUN_AFTER_MINUTES = 5;
+
     private const IMAGE_BATCH_CACHE_TTL_MINUTES = 360;
 
     private ?int $runInitiatedBy = null;
@@ -341,22 +343,25 @@ class KiposSyncService
 
     private function markStaleStartedRunsAsFailed(?string $actionKey = null): void
     {
-        $threshold = now()->subMinutes(self::STALE_STARTED_RUN_AFTER_MINUTES);
+        $now = now();
 
         KiposSyncRun::query()
             ->when($actionKey !== null, fn ($query) => $query->where('action_key', $actionKey))
             ->where('status', 'started')
-            ->where(function ($query) use ($threshold): void {
-                $query
-                    ->where('started_at', '<=', $threshold)
-                    ->orWhere(function ($nested) use ($threshold): void {
-                        $nested
-                            ->whereNull('started_at')
-                            ->where('updated_at', '<=', $threshold);
-                    });
-            })
             ->get()
-            ->each(function (KiposSyncRun $run): void {
+            ->each(function (KiposSyncRun $run) use ($now): void {
+                $threshold = $now->copy()->subMinutes($this->staleStartedRunAfterMinutes($run->action_key));
+                $startedAt = $run->started_at;
+                $updatedAt = $run->updated_at;
+
+                if ($startedAt && $startedAt->gt($threshold)) {
+                    return;
+                }
+
+                if (! $startedAt && $updatedAt && $updatedAt->gt($threshold)) {
+                    return;
+                }
+
                 $run->fill([
                     'status' => 'failed',
                     'summary' => 'Execution marked as failed because the previous run became stale.',
@@ -364,6 +369,13 @@ class KiposSyncService
                     'finished_at' => now(),
                 ])->save();
             });
+    }
+
+    private function staleStartedRunAfterMinutes(string $actionKey): int
+    {
+        return in_array($actionKey, ['update_prices', 'update_quantities'], true)
+            ? self::IMMEDIATE_ACTION_STALE_STARTED_RUN_AFTER_MINUTES
+            : self::STALE_STARTED_RUN_AFTER_MINUTES;
     }
 
     /**
@@ -554,6 +566,8 @@ class KiposSyncService
             );
         }
 
+        $this->forgetFrontendProductCache(array_column($productUpdates, 'id'));
+
         return [
             'summary' => sprintf('Quantities: %d products updated, %d variant rows updated, %d unmatched.', $updatedProducts, $updatedVariants, $unmatched),
             'updated_products' => $updatedProducts,
@@ -562,6 +576,20 @@ class KiposSyncService
             'source_groups' => count($groups),
             'warehouse_filter' => $this->warehouseFilter(),
         ];
+    }
+
+    /**
+     * @param  array<int, int|string>  $productIds
+     */
+    private function forgetFrontendProductCache(array $productIds): void
+    {
+        Cache::forget('front:catalog:last-modified-ts');
+
+        foreach (array_unique(array_map('intval', $productIds)) as $productId) {
+            if ($productId > 0) {
+                Cache::forget('front:product:last-modified:'.$productId);
+            }
+        }
     }
 
     /**
