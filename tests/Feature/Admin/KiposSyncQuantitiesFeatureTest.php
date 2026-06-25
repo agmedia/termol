@@ -41,7 +41,9 @@ class KiposSyncQuantitiesFeatureTest extends TestCase
         $this->createProductOptionRow($admin, $product, $medium, 'W7030.M', 99, 1);
         $this->createProductOptionRow($admin, $product, $large, 'W7030.L', 99, 2);
 
-        $this->enableKiposSync();
+        $this->enableKiposSync([
+            'kipos_sync_stock_warehouse_ids' => '100',
+        ]);
 
         Http::fake([
             '*getZalihaK*' => Http::response([
@@ -78,6 +80,64 @@ class KiposSyncQuantitiesFeatureTest extends TestCase
         $this->assertSame(0, (int) $rows->get('W7030.L')?->stock_qty);
         $this->assertSame(1, (int) (($run->stats ?? [])['updated_products'] ?? 0));
         $this->assertSame(3, (int) (($run->stats ?? [])['updated_variants'] ?? 0));
+        Http::assertSent(fn ($request): bool => str_contains((string) $request->url(), 'getZalihaK')
+            && str_contains((string) $request->url(), 'idskl=100'));
+    }
+
+    public function test_kipos_quantity_update_uses_extended_stock_when_no_warehouse_filter_is_set(): void
+    {
+        $admin = User::factory()->create();
+        $product = $this->createProduct($admin, 'W7037');
+
+        $size = $this->createOption($admin, 'size', 'Size', 'size');
+        $fourXl = $this->createOptionValue($admin, $size, '4xl', '4XL', '4xl', 1);
+
+        $product->options()->sync([
+            $size->id => [
+                'is_required' => true,
+                'sort_order' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $this->createProductOptionRow($admin, $product, $fourXl, 'W7037.4XL', 0, 0);
+
+        $this->enableKiposSync();
+
+        Http::fake([
+            '*getitemsextended*' => Http::response([
+                [
+                    'IDROBA' => 'W7037.4XL',
+                    'IDODJEL' => 'W7037',
+                    'ZALIHAK' => 20,
+                    'IDVELICINA' => '4XL',
+                ],
+            ], 200),
+            '*getitems*' => Http::response([
+                [
+                    'IDROBA' => 'W7037.4XL',
+                    'IDODJEL' => 'W7037',
+                    'ZALIHAK' => 0,
+                    'IDVELICINA' => '4XL',
+                ],
+            ], 200),
+            '*getZalihaK*' => Http::response([
+                [
+                    'IDROBA' => 'W7037.4XL',
+                    'ZALIHAK' => 0,
+                    'IDSKL' => '100',
+                ],
+            ], 200),
+        ]);
+
+        $run = app(KiposSyncService::class)->run('update_quantities', $admin->id);
+
+        $fresh = $product->fresh()->load('optionValues');
+
+        $this->assertSame('success', $run->status);
+        $this->assertSame(20, (int) $fresh->stock_qty);
+        $this->assertSame(20, (int) $fresh->optionValues->firstWhere('sku', 'W7037.4XL')?->stock_qty);
     }
 
     private function createProduct(User $admin, string $code): Product
@@ -172,15 +232,18 @@ class KiposSyncQuantitiesFeatureTest extends TestCase
         ]);
     }
 
-    private function enableKiposSync(): void
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function enableKiposSync(array $overrides = []): void
     {
-        app(SystemSettingsService::class)->putMany([
+        app(SystemSettingsService::class)->putMany(array_merge([
             'catalog_use_kipos_api' => true,
             'kipos_api_enabled' => true,
             'kipos_api_base_uri' => 'http://balidd.dyndns.org:8080/kipos.web.api/?route=',
             'kipos_api_query_suffix' => 'webshop=2',
             'kipos_api_timeout_seconds' => 30,
             'kipos_api_verify_tls' => true,
-        ]);
+        ], $overrides));
     }
 }

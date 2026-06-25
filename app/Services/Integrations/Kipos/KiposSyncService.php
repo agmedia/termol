@@ -1740,12 +1740,19 @@ class KiposSyncService
      */
     private function normalizedStockRows(): array
     {
-        $rows = $this->kipos->getRows('sif_roba/getZalihaK');
-        if ($rows === []) {
+        $warehouses = $this->warehouseFilter();
+        if ($warehouses === []) {
             return $this->mergedProductRows();
         }
 
-        $warehouses = $this->warehouseFilter();
+        $rows = [];
+        foreach ($warehouses as $warehouse) {
+            $rows = array_merge(
+                $rows,
+                $this->kipos->getRows('sif_roba/getZalihaK', ['idskl' => $warehouse])
+            );
+        }
+
         $grouped = [];
 
         foreach ($rows as $row) {
