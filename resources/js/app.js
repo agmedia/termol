@@ -189,8 +189,18 @@ const initAceLauncher = () => {
         close();
     };
 
+    const closeIfNoLaunchButtons = () => {
+        if (!document.querySelector('[data-ace-open][data-ace-target]')) {
+            close();
+        }
+    };
+
     const bindLaunchButtons = () => {
         const buttons = document.querySelectorAll('[data-ace-open][data-ace-target]');
+        if (buttons.length === 0) {
+            closeIfNoLaunchButtons();
+        }
+
         buttons.forEach((button) => {
             if (button.dataset.aceBound === '1') {
                 return;
@@ -247,6 +257,8 @@ const initAceLauncher = () => {
         childList: true,
         subtree: true,
     });
+
+    document.addEventListener('livewire:navigated', closeIfNoLaunchButtons);
 };
 
 const initTomSelect = () => {
