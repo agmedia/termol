@@ -544,7 +544,7 @@ class CatalogController extends Controller
             $subTreeIds = Category::query()
                 ->descendantsAndSelf($subCategory->id)
                 ->where('scope', Category::SCOPE_CATALOG)
-                ->currentlyVisible()
+                ->filter(fn (Category $category): bool => $category->isCurrentlyVisible())
                 ->pluck('id');
 
             if ($subTreeIds->isEmpty()) {
