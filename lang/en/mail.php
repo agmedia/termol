@@ -4,7 +4,7 @@ return [
     'newsletter_coupon' => [
         'subject' => 'Your 10% discount: :code',
         'title' => 'Newsletter coupon',
-        'eyebrow' => 'KOZO Club',
+        'eyebrow' => 'BALI LOYALTY',
         'heading' => 'Thank you for joining our newsletter',
         'intro' => 'Here is your 10% discount for your first purchase.',
         'note' => 'Enter this code in the cart before completing your order.',

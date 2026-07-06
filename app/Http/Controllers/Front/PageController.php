@@ -22,7 +22,7 @@ class PageController extends Controller
 
         $category = Category::query()
             ->where('scope', Category::SCOPE_PAGE)
-            ->where('is_active', true)
+            ->currentlyVisible()
             ->whereHas('translations', function ($q) use ($locale, $fallbackLocale, $slug): void {
                 $q->where('scope', Category::SCOPE_PAGE)
                     ->whereIn('locale', [$locale, $fallbackLocale])

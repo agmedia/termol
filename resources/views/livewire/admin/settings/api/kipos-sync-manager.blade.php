@@ -4,7 +4,7 @@
         <p class="mt-2 text-sm text-slate-600">{{ __('Granular Kipos console: import products once, then run only content, prices, quantities, actions, or images when needed.') }}</p>
         <p class="mt-2 text-xs text-slate-500">{{ __('Every action runs manually in admin and writes a persistent run log with exact stats / error details.') }}</p>
         <div class="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900">
-            {{ __('Update Prices runs immediately. Update Images runs from this admin screen in batches of 10 products with visible progress. Import Images and the longer catalog syncs still run in background on the dedicated `kipos` queue; keep a worker active for those actions, for example `php artisan queue:work --queue=kipos,default`.') }}
+            {{ __('Update Prices, Update Quantities, and Update Order Statuses run immediately. Update Images runs from this admin screen in batches of 10 products with visible progress. Import Images and the longer catalog syncs still run in background on the dedicated `kipos` queue; keep a worker active for those actions, for example `php artisan queue:work --queue=kipos,default`.') }}
         </div>
     </div>
 
@@ -282,6 +282,38 @@
                     </div>
                 </div>
 
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('ERP Order Status Sync Settings') }}</p>
+
+                    <div class="mt-3 grid gap-3 md:grid-cols-2">
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Status Endpoint') }}</label>
+                            <input type="text" wire:model="syncForm.kipos_order_status_endpoint" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                            <p class="mt-1 text-xs text-slate-500">{{ __('Supports placeholders like `{from}`, `{from_dmy}`, `{status_codes}`, and `{status_codes_bracketed}`.') }}</p>
+                            @error('syncForm.kipos_order_status_endpoint') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Lookback Days') }}</label>
+                            <input type="number" min="1" max="365" wire:model="syncForm.kipos_order_status_lookback_days" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                            @error('syncForm.kipos_order_status_lookback_days') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Remote Status Codes') }}</label>
+                        <input type="text" wire:model="syncForm.kipos_order_status_codes" placeholder="10,20,30" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                        <p class="mt-1 text-xs text-slate-500">{{ __('Optional CSV list. When filled, it is sent as `statusi` unless the endpoint already contains a status placeholder.') }}</p>
+                        @error('syncForm.kipos_order_status_codes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Status Map') }}</label>
+                        <textarea rows="6" wire:model="syncForm.kipos_order_status_map" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder='{"placeno":"paid","poslano":"sent","otkazano":"cancelled"}'></textarea>
+                        <p class="mt-1 text-xs text-slate-500">{{ __('Map Kipos status code/name to local order status code. JSON or line format `remote: local` is supported.') }}</p>
+                        @error('syncForm.kipos_order_status_map') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
                 <div class="admin-form-actions">
                     <button type="submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">{{ __('Save Sync Settings') }}</button>
                 </div>
@@ -349,6 +381,7 @@
                 <p class="mt-1 text-sm text-slate-700"><strong>{{ __('Update Prices') }}:</strong> {{ __('base price + variant price override only.') }}</p>
                 <p class="mt-1 text-sm text-slate-700"><strong>{{ __('Update Quantities') }}:</strong> {{ __('stock only, with optional warehouse filter and quantity overrides.') }}</p>
                 <p class="mt-1 text-sm text-slate-700"><strong>{{ __('Update Actions') }}:</strong> {{ __('local catalog actions from Kipos action price field.') }}</p>
+                <p class="mt-1 text-sm text-slate-700"><strong>{{ __('Update Order Statuses') }}:</strong> {{ __('pulls Kipos order status rows, matches local webshop orders by CMS/order number, and writes status history.') }}</p>
                 <p class="mt-1 text-sm text-slate-700"><strong>{{ __('Import / Update Images') }}:</strong> {{ __('separate media workflow so image refreshes do not force product data sync.') }}</p>
             </section>
 

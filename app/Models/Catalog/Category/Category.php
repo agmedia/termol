@@ -3,6 +3,7 @@
 namespace App\Models\Catalog\Category;
 
 use App\Models\Concerns\HasConfiguredMedia;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -40,6 +41,8 @@ class Category extends Model implements HasMedia
         'is_active',
         'show_in_menu',
         'sort_order',
+        'starts_at',
+        'ends_at',
         'payload',
         'created_by',
         'updated_by',
@@ -49,8 +52,45 @@ class Category extends Model implements HasMedia
     protected $casts = [
         'is_active' => 'bool',
         'show_in_menu' => 'bool',
+        'starts_at' => 'datetime',
+        'ends_at' => 'datetime',
         'payload' => 'array',
     ];
+
+    public function scopeCurrentlyVisible(Builder $query): Builder
+    {
+        return $query
+            ->where('is_active', true)
+            ->where(function (Builder $scheduleQuery): void {
+                $scheduleQuery
+                    ->whereNull('starts_at')
+                    ->orWhere('starts_at', '<=', now());
+            })
+            ->where(function (Builder $scheduleQuery): void {
+                $scheduleQuery
+                    ->whereNull('ends_at')
+                    ->orWhere('ends_at', '>=', now());
+            });
+    }
+
+    public function isCurrentlyVisible(): bool
+    {
+        if (! $this->is_active) {
+            return false;
+        }
+
+        $now = now();
+
+        if ($this->starts_at && $this->starts_at->gt($now)) {
+            return false;
+        }
+
+        if ($this->ends_at && $this->ends_at->lt($now)) {
+            return false;
+        }
+
+        return true;
+    }
 
     public function catalogPageShowsProducts(): bool
     {

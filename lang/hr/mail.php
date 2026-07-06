@@ -4,7 +4,7 @@ return [
     'newsletter_coupon' => [
         'subject' => 'Vaš 10% popust: :code',
         'title' => 'Newsletter kupon',
-        'eyebrow' => 'KOZO Club',
+        'eyebrow' => 'BALI LOYALTY',
         'heading' => 'Hvala na prijavi na newsletter',
         'intro' => 'Kao zahvalu šaljemo vam 10% popusta na prvu kupnju.',
         'note' => 'Kod unesite u košarici prije završetka narudžbe.',

@@ -219,7 +219,14 @@ class Show extends Component
                 'Kipos ERP order sent from admin order view.'
             );
 
-            $this->dispatch('notify', type: 'success', message: __('Order payload sent to Kipos ERP.'));
+            $statusResult = $this->markOrderAsSentAfterKiposSend();
+            $message = match ($statusResult) {
+                'changed' => __('Order payload sent to Kipos ERP and status set to sent.'),
+                'already' => __('Order payload sent to Kipos ERP. Order status was already sent.'),
+                default => __('Order payload sent to Kipos ERP. Sent order status was not found.'),
+            };
+
+            $this->dispatch('notify', type: $statusResult === 'missing' ? 'warning' : 'success', message: $message);
         } catch (\Throwable $exception) {
             $this->persistKiposOrderError($order, 'send', $exception->getMessage());
             $this->dispatch('notify', type: 'error', message: __('Kipos ERP send failed: :error', ['error' => $exception->getMessage()]));
@@ -382,6 +389,31 @@ class Show extends Component
         $this->loadOrderDefaults();
 
         return $saved;
+    }
+
+    private function markOrderAsSentAfterKiposSend(): string
+    {
+        $sentStatus = OrderStatus::query()
+            ->where('is_active', true)
+            ->where('code', 'sent')
+            ->first();
+
+        if (! $sentStatus) {
+            return 'missing';
+        }
+
+        $order = Order::query()->findOrFail($this->orderId);
+        if ((int) $order->status_id === (int) $sentStatus->id) {
+            return 'already';
+        }
+
+        $updated = $this->applyStatusUpdate(
+            (int) $sentStatus->id,
+            'Kipos ERP order sent; order status auto-updated to sent.',
+            'kipos_send'
+        );
+
+        return $updated ? 'changed' : 'already';
     }
 
     /**

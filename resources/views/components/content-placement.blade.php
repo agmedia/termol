@@ -8,6 +8,7 @@
         $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
         $wrapperClasses = trim((string) ($translationPayload['custom_classes'] ?? ''));
         $wrapperStyle = trim((string) ($translationPayload['bg_css'] ?? ''));
+        $hideOutOfStockProducts = app(\App\Services\Catalog\CatalogFeatureService::class)->hideOutOfStockProducts();
 
         $overridePrefix = (string) config('content_blocks.view_overrides.prefix', 'front.content-blocks.instances.');
         $codeOverride = $overridePrefix.$block->code;
@@ -31,6 +32,7 @@
         $products = collect();
         if ($productIds !== []) {
             $products = \App\Models\Catalog\Product\Product::query()
+                ->visibleOnStorefront($hideOutOfStockProducts)
                 ->whereIn('id', $productIds)
                 ->with([
                     'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
@@ -54,6 +56,7 @@
         $categories = collect();
         if ($categoryIds !== []) {
             $categories = \App\Models\Catalog\Category\Category::query()
+                ->currentlyVisible()
                 ->whereIn('id', $categoryIds)
                 ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
                 ->get()

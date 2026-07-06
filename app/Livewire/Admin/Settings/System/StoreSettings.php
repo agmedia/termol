@@ -85,6 +85,11 @@ class StoreSettings extends Component
         'store_newsletter_mailchimp_list_id' => '',
         'store_newsletter_klaviyo_api_key' => '',
         'store_newsletter_klaviyo_list_id' => '',
+        'store_newsletter_club_label' => '',
+        'store_newsletter_title' => '',
+        'store_newsletter_subtitle' => '',
+        'store_newsletter_button_label' => '',
+        'store_newsletter_consent_label' => '',
 
         'store_captcha_recaptcha_v3_enabled' => false,
         'store_captcha_recaptcha_v3_site_key' => '',
@@ -325,6 +330,11 @@ class StoreSettings extends Component
                 'string',
                 'max:255',
             ],
+            'form.store_newsletter_club_label' => ['nullable', 'string', 'max:120'],
+            'form.store_newsletter_title' => ['nullable', 'string', 'max:191'],
+            'form.store_newsletter_subtitle' => ['nullable', 'string', 'max:255'],
+            'form.store_newsletter_button_label' => ['nullable', 'string', 'max:80'],
+            'form.store_newsletter_consent_label' => ['nullable', 'string', 'max:255'],
 
             'form.store_captcha_recaptcha_v3_enabled' => ['required', 'boolean'],
             'form.store_captcha_recaptcha_v3_site_key' => ['nullable', 'string', 'max:255'],

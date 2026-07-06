@@ -19,6 +19,7 @@ class CatalogFeatures extends Component
         'catalog_use_manufacturers' => false,
         'catalog_use_actions' => false,
         'catalog_use_mobile_view' => false,
+        'catalog_hide_out_of_stock_products' => false,
     ];
 
     public function mount(): void

@@ -10,6 +10,7 @@ use App\Models\Catalog\Product\Product;
 use App\Models\Content\Page\InfoPage;
 use App\Models\Content\Support\Comment;
 use App\Models\User\UserProfile;
+use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
 use App\Services\Front\ProductColorVariantService;
 use App\Services\Front\WishlistService;
@@ -36,6 +37,8 @@ class ProductController extends Controller
     private const RECENTLY_VIEWED_SESSION_KEY = 'front_recently_viewed_products';
 
     private const RECENTLY_VIEWED_MAX = 24;
+
+    private ?bool $hideOutOfStockProductsCache = null;
 
     public function storeComment(Request $request, string $slug)
     {
@@ -161,7 +164,7 @@ class ProductController extends Controller
         $relatedBaseQuery = Product::query()
             ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
             ->withApprovedCommentSummary([$locale, $fallbackLocale])
-            ->where('is_active', true)
+            ->visibleOnStorefront($this->hideOutOfStockProducts())
             ->where('id', '!=', $product->id)
             ->with([
                 'taxRate:id,rate,rate_type,is_active',
@@ -209,6 +212,8 @@ class ProductController extends Controller
         if ($categoryIds !== []) {
             $productCategories = Category::query()
                 ->select(['id', 'parent_id', '_lft', '_rgt'])
+                ->where('scope', Category::SCOPE_CATALOG)
+                ->currentlyVisible()
                 ->whereIn('id', $categoryIds)
                 ->withDepth()
                 ->get();
@@ -235,6 +240,8 @@ class ProductController extends Controller
             if ($related->count() < $relatedLimit) {
                 $rootCategories = Category::query()
                     ->select(['id', '_lft', '_rgt'])
+                    ->where('scope', Category::SCOPE_CATALOG)
+                    ->currentlyVisible()
                     ->whereNull('parent_id')
                     ->orderBy('_lft')
                     ->get();
@@ -414,6 +421,15 @@ class ProductController extends Controller
                 json_encode($selection, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 self::FIT_FINDER_COOKIE_MINUTES
             );
+    }
+
+    private function hideOutOfStockProducts(): bool
+    {
+        if ($this->hideOutOfStockProductsCache === null) {
+            $this->hideOutOfStockProductsCache = app(CatalogFeatureService::class)->hideOutOfStockProducts();
+        }
+
+        return $this->hideOutOfStockProductsCache;
     }
 
     private function withDesktopCacheHeaders(Request $request, Response $response, int $productId, string $slug): Response
@@ -682,6 +698,7 @@ class ProductController extends Controller
             app()->getLocale(),
             $request->getRequestUri(),
             $gridCols,
+            $this->hideOutOfStockProducts() ? 'hide-oos' : 'all-stock',
             (string) $lastModifiedTs,
             $wishlistHash,
             $fitFinderHash,

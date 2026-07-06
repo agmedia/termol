@@ -45,6 +45,10 @@
                         'title' => __('Use Mobile View'),
                         'description' => __('When disabled, mobile devices will use the desktop responsive storefront.'),
                     ],
+                    'catalog_hide_out_of_stock_products' => [
+                        'title' => __('Hide Out-of-stock Products'),
+                        'description' => __('When enabled, products with zero stock are hidden from shop listings, categories, search, filters, and content product blocks while remaining available in admin.'),
+                    ],
                 ];
             @endphp
 

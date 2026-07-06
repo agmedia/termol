@@ -182,6 +182,11 @@ class StoreSettingsService
             'mailchimp_list_id' => (string) $this->settings->get('store_newsletter_mailchimp_list_id', ''),
             'klaviyo_api_key' => (string) $this->settings->get('store_newsletter_klaviyo_api_key', ''),
             'klaviyo_list_id' => (string) $this->settings->get('store_newsletter_klaviyo_list_id', ''),
+            'club_label' => trim((string) $this->settings->get('store_newsletter_club_label', '')),
+            'title' => trim((string) $this->settings->get('store_newsletter_title', '')),
+            'subtitle' => trim((string) $this->settings->get('store_newsletter_subtitle', '')),
+            'button_label' => trim((string) $this->settings->get('store_newsletter_button_label', '')),
+            'consent_label' => trim((string) $this->settings->get('store_newsletter_consent_label', '')),
         ];
     }
 
@@ -326,7 +331,7 @@ class StoreSettingsService
         $categoryMap = Category::query()
             ->whereIn('id', $categoryIds)
             ->where('scope', Category::SCOPE_CATALOG)
-            ->where('is_active', true)
+            ->currentlyVisible()
             ->with(['translations' => fn ($q) => $q
                 ->where('scope', Category::SCOPE_CATALOG)
                 ->whereIn('locale', [$locale, $fallbackLocale])])

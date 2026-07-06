@@ -177,6 +177,7 @@ return [
             'settings.local.manage',
             'settings.system.runtime.manage',
             'settings.system.admin_appearance.manage',
+            'settings.system.catalog_features.manage',
             'settings.system.store.manage',
             'settings.api.manage',
             'settings.user.manage',

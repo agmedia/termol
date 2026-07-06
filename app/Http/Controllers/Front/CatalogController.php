@@ -13,6 +13,7 @@ use App\Models\Catalog\Option\Option;
 use App\Models\Catalog\Option\OptionValue;
 use App\Models\Catalog\Product\Product;
 use App\Models\User;
+use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
 use App\Services\Front\WishlistService;
 use App\Services\Pricing\ProductPricePresentationService;
@@ -37,6 +38,8 @@ class CatalogController extends Controller
     use ResolvesFrontendView;
     use ResolvesGridColumns;
 
+    private ?bool $hideOutOfStockProductsCache = null;
+
     public function autocomplete(Request $request): JsonResponse
     {
         abort_unless(
@@ -58,7 +61,7 @@ class CatalogController extends Controller
         }
 
         $query = Product::query()
-            ->where('products.is_active', true)
+            ->visibleOnStorefront($this->hideOutOfStockProducts())
             ->with([
                 'taxRate:id,rate,rate_type,is_active',
                 'translations' => fn ($translationQuery) => $translationQuery
@@ -163,7 +166,7 @@ class CatalogController extends Controller
                 'products.is_active',
             ])
             ->withApprovedCommentSummary([$locale, $fallbackLocale])
-            ->where('products.is_active', true)
+            ->visibleOnStorefront($this->hideOutOfStockProducts())
             ->with([
                 'taxRate:id,rate,rate_type,is_active',
                 'translations' => fn ($q) => $q
@@ -201,7 +204,7 @@ class CatalogController extends Controller
             $query->whereHas('categories', function ($categoryQuery) use ($locale, $fallbackLocale, $categorySlug): void {
                 $categoryQuery
                     ->where('scope', Category::SCOPE_CATALOG)
-                    ->where('is_active', true)
+                    ->currentlyVisible()
                     ->whereHas('translations', function ($translationQuery) use ($locale, $fallbackLocale, $categorySlug): void {
                         $translationQuery
                             ->where('scope', Category::SCOPE_CATALOG)
@@ -292,11 +295,11 @@ class CatalogController extends Controller
 
         $categoriesQuery = Category::query()
             ->where('scope', Category::SCOPE_CATALOG)
-            ->where('is_active', true)
+            ->currentlyVisible()
             ->with(['translations' => fn ($q) => $q
                 ->where('scope', Category::SCOPE_CATALOG)
                 ->whereIn('locale', [$locale, $fallbackLocale])])
-            ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
+            ->withCount(['products' => fn ($q) => $q->visibleOnStorefront($this->hideOutOfStockProducts())])
             ->orderBy('sort_order')
             ->orderBy('id');
 
@@ -337,7 +340,7 @@ class CatalogController extends Controller
 
         $category = Category::query()
             ->where('scope', Category::SCOPE_CATALOG)
-            ->where('is_active', true)
+            ->currentlyVisible()
             ->whereHas('translations', function ($q) use ($locale, $fallbackLocale, $categorySlug): void {
                 $q->where('scope', Category::SCOPE_CATALOG)
                     ->whereIn('locale', [$locale, $fallbackLocale])
@@ -353,7 +356,7 @@ class CatalogController extends Controller
 
         $categoryTreeIds = $category->descendants()
             ->where('scope', Category::SCOPE_CATALOG)
-            ->where('is_active', true)
+            ->currentlyVisible()
             ->pluck('id');
         $categoryTreeIds->prepend($category->id);
         $categoryScopeIds = $categoryTreeIds
@@ -393,11 +396,11 @@ class CatalogController extends Controller
 
         if ($showCategoryProducts) {
             $productsQuery = Product::query()
-                ->where('products.is_active', true)
+                ->visibleOnStorefront($this->hideOutOfStockProducts())
                 ->whereHas('categories', function ($categoryQuery) use ($categoryTreeIds): void {
                     $categoryQuery
                         ->where('scope', Category::SCOPE_CATALOG)
-                        ->where('is_active', true)
+                        ->currentlyVisible()
                         ->whereIn('categories.id', $categoryTreeIds);
                 });
 
@@ -528,11 +531,11 @@ class CatalogController extends Controller
         $subcategories = $showCategoryFilters
             ? $category->children()
                 ->where('scope', Category::SCOPE_CATALOG)
-                ->where('is_active', true)
+                ->currentlyVisible()
                 ->with(['translations' => fn ($q) => $q
                     ->where('scope', Category::SCOPE_CATALOG)
                     ->whereIn('locale', [$locale, $fallbackLocale])])
-                ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
+                ->withCount(['products' => fn ($q) => $q->visibleOnStorefront($this->hideOutOfStockProducts())])
                 ->orderBy('sort_order')
                 ->orderBy('id')
                 ->get()
@@ -541,7 +544,7 @@ class CatalogController extends Controller
             $subTreeIds = Category::query()
                 ->descendantsAndSelf($subCategory->id)
                 ->where('scope', Category::SCOPE_CATALOG)
-                ->where('is_active', true)
+                ->currentlyVisible()
                 ->pluck('id');
 
             if ($subTreeIds->isEmpty()) {
@@ -551,11 +554,11 @@ class CatalogController extends Controller
             }
 
             $recursiveCount = Product::query()
-                ->where('is_active', true)
+                ->visibleOnStorefront($this->hideOutOfStockProducts())
                 ->whereHas('categories', function ($categoryQuery) use ($subTreeIds): void {
                     $categoryQuery
                         ->where('scope', Category::SCOPE_CATALOG)
-                        ->where('is_active', true)
+                        ->currentlyVisible()
                         ->whereIn('categories.id', $subTreeIds);
                 })
                 ->distinct('products.id')
@@ -568,7 +571,7 @@ class CatalogController extends Controller
 
         $breadcrumbCategories = $category->ancestors()
             ->where('scope', Category::SCOPE_CATALOG)
-            ->where('is_active', true)
+            ->currentlyVisible()
             ->with(['translations' => fn ($q) => $q
                 ->where('scope', Category::SCOPE_CATALOG)
                 ->whereIn('locale', [$locale, $fallbackLocale])])
@@ -625,18 +628,19 @@ class CatalogController extends Controller
 
     private function cachedCatalogCategories(string $locale, string $fallbackLocale)
     {
-        $cacheKey = sprintf('front:catalog:categories:%s:%s', $locale, $fallbackLocale);
+        $hideOutOfStock = $this->hideOutOfStockProducts();
+        $cacheKey = sprintf('front:catalog:categories:%s:%s:%s', $locale, $fallbackLocale, $hideOutOfStock ? 'hide-oos' : 'all-stock');
 
-        return Cache::remember($cacheKey, now()->addMinutes(10), static function () use ($locale, $fallbackLocale) {
+        return Cache::remember($cacheKey, now()->addMinutes(10), static function () use ($locale, $fallbackLocale, $hideOutOfStock) {
             return Category::query()
                 ->select(['id', 'code', 'sort_order'])
                 ->where('scope', Category::SCOPE_CATALOG)
-                ->where('is_active', true)
+                ->currentlyVisible()
                 ->with(['translations' => fn ($q) => $q
                     ->select(['id', 'category_id', 'scope', 'locale', 'name', 'slug'])
                     ->where('scope', Category::SCOPE_CATALOG)
                     ->whereIn('locale', [$locale, $fallbackLocale])])
-                ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
+                ->withCount(['products' => fn ($q) => $q->visibleOnStorefront($hideOutOfStock)])
                 ->orderBy('sort_order')
                 ->orderBy('id')
                 ->get();
@@ -645,20 +649,65 @@ class CatalogController extends Controller
 
     private function cachedCatalogManufacturers(string $locale, string $fallbackLocale)
     {
-        $cacheKey = sprintf('front:catalog:manufacturers:%s:%s', $locale, $fallbackLocale);
+        $hideOutOfStock = $this->hideOutOfStockProducts();
+        $cacheKey = sprintf('front:catalog:manufacturers:%s:%s:%s', $locale, $fallbackLocale, $hideOutOfStock ? 'hide-oos' : 'all-stock');
 
-        return Cache::remember($cacheKey, now()->addMinutes(10), static function () use ($locale, $fallbackLocale) {
+        return Cache::remember($cacheKey, now()->addMinutes(10), static function () use ($locale, $fallbackLocale, $hideOutOfStock) {
             return Manufacturer::query()
                 ->select(['id', 'code', 'sort_order'])
                 ->where('is_active', true)
                 ->with(['translations' => fn ($q) => $q
                     ->select(['id', 'manufacturer_id', 'locale', 'name', 'slug'])
                     ->whereIn('locale', [$locale, $fallbackLocale])])
-                ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
+                ->withCount(['products' => fn ($q) => $q->visibleOnStorefront($hideOutOfStock)])
                 ->orderBy('sort_order')
                 ->orderBy('id')
                 ->get();
         });
+    }
+
+    private function hideOutOfStockProducts(): bool
+    {
+        if ($this->hideOutOfStockProductsCache === null) {
+            $this->hideOutOfStockProductsCache = app(CatalogFeatureService::class)->hideOutOfStockProducts();
+        }
+
+        return $this->hideOutOfStockProductsCache;
+    }
+
+    private function applyProductStockVisibilityToBaseQuery(QueryBuilder $query, string $productTable = 'products'): void
+    {
+        if (! $this->hideOutOfStockProducts()) {
+            return;
+        }
+
+        $query->where(function (QueryBuilder $stockQuery) use ($productTable): void {
+            $stockQuery
+                ->where($productTable.'.stock_qty', '>', 0)
+                ->orWhereExists(function (QueryBuilder $existsQuery) use ($productTable): void {
+                    $existsQuery
+                        ->selectRaw('1')
+                        ->from('catalog_product_option_values as storefront_stock_options')
+                        ->whereColumn('storefront_stock_options.product_id', $productTable.'.id')
+                        ->where('storefront_stock_options.is_active', true)
+                        ->where('storefront_stock_options.stock_qty', '>', 0);
+                });
+        });
+    }
+
+    private function applyCategoryScheduleToBaseQuery(QueryBuilder $query, string $categoryTable = 'categories'): void
+    {
+        $query
+            ->where(function (QueryBuilder $scheduleQuery) use ($categoryTable): void {
+                $scheduleQuery
+                    ->whereNull($categoryTable.'.starts_at')
+                    ->orWhere($categoryTable.'.starts_at', '<=', now());
+            })
+            ->where(function (QueryBuilder $scheduleQuery) use ($categoryTable): void {
+                $scheduleQuery
+                    ->whereNull($categoryTable.'.ends_at')
+                    ->orWhere($categoryTable.'.ends_at', '>=', now());
+            });
     }
 
     /**
@@ -704,9 +753,10 @@ class CatalogController extends Controller
         $categoryKey = $categoryScopeIds !== null && $categoryScopeIds !== []
             ? sha1(implode(',', array_map(static fn ($id): int => (int) $id, $categoryScopeIds)))
             : 'all';
-        $cacheKey = sprintf('front:catalog:option-filters:v4:%s:%s:%s:%s', $locale, $fallbackLocale, sha1(implode(',', $optionIds)), $categoryKey);
+        $hideOutOfStock = $this->hideOutOfStockProducts();
+        $cacheKey = sprintf('front:catalog:option-filters:v5:%s:%s:%s:%s:%s', $locale, $fallbackLocale, sha1(implode(',', $optionIds)), $categoryKey, $hideOutOfStock ? 'hide-oos' : 'all-stock');
 
-        $rows = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($locale, $fallbackLocale, $optionIds, $categoryScopeIds): array {
+        $rows = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($locale, $fallbackLocale, $optionIds, $categoryScopeIds, $hideOutOfStock): array {
             $scopeIds = collect($categoryScopeIds ?? [])
                 ->map(fn ($id): int => (int) $id)
                 ->filter(fn (int $id): bool => $id > 0)
@@ -721,16 +771,16 @@ class CatalogController extends Controller
                     'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                     'values' => fn ($valueQuery) => $valueQuery
                         ->where('is_active', true)
-                        ->whereHas('productOptionValues', function ($productOptionQuery) use ($scopeIds): void {
+                        ->whereHas('productOptionValues', function ($productOptionQuery) use ($scopeIds, $hideOutOfStock): void {
                             $productOptionQuery
                                 ->where('is_active', true)
-                                ->whereHas('product', function ($productQuery) use ($scopeIds): void {
-                                    $productQuery->where('is_active', true);
+                                ->whereHas('product', function ($productQuery) use ($scopeIds, $hideOutOfStock): void {
+                                    $productQuery->visibleOnStorefront($hideOutOfStock);
                                     if ($scopeIds !== []) {
                                         $productQuery->whereHas('categories', function ($categoryQuery) use ($scopeIds): void {
                                             $categoryQuery
                                                 ->where('scope', Category::SCOPE_CATALOG)
-                                                ->where('is_active', true)
+                                                ->currentlyVisible()
                                                 ->whereIn('categories.id', $scopeIds);
                                         });
                                     }
@@ -817,9 +867,10 @@ class CatalogController extends Controller
         $categoryKey = $categoryScopeIds !== null && $categoryScopeIds !== []
             ? sha1(implode(',', array_map(static fn ($id): int => (int) $id, $categoryScopeIds)))
             : 'all';
-        $cacheKey = sprintf('front:catalog:attribute-filters:%s:%s:%s:%s', $locale, $fallbackLocale, sha1(implode(',', $groupCodes)), $categoryKey);
+        $hideOutOfStock = $this->hideOutOfStockProducts();
+        $cacheKey = sprintf('front:catalog:attribute-filters:v2:%s:%s:%s:%s:%s', $locale, $fallbackLocale, sha1(implode(',', $groupCodes)), $categoryKey, $hideOutOfStock ? 'hide-oos' : 'all-stock');
 
-        $rows = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($locale, $fallbackLocale, $groupCodes, $categoryScopeIds): array {
+        $rows = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($locale, $fallbackLocale, $groupCodes, $categoryScopeIds, $hideOutOfStock): array {
             $scopeIds = collect($categoryScopeIds ?? [])
                 ->map(fn ($id): int => (int) $id)
                 ->filter(fn (int $id): bool => $id > 0)
@@ -829,13 +880,13 @@ class CatalogController extends Controller
             $attributes = Attribute::query()
                 ->whereIn('group_code', $groupCodes)
                 ->where('is_active', true)
-                ->whereHas('products', function ($productQuery) use ($scopeIds): void {
-                    $productQuery->where('products.is_active', true);
+                ->whereHas('products', function ($productQuery) use ($scopeIds, $hideOutOfStock): void {
+                    $productQuery->visibleOnStorefront($hideOutOfStock);
                     if ($scopeIds !== []) {
                         $productQuery->whereHas('categories', function ($categoryQuery) use ($scopeIds): void {
                             $categoryQuery
                                 ->where('scope', Category::SCOPE_CATALOG)
-                                ->where('is_active', true)
+                                ->currentlyVisible()
                                 ->whereIn('categories.id', $scopeIds);
                         });
                     }
@@ -992,6 +1043,8 @@ class CatalogController extends Controller
             ->whereIn('option_values.option_id', $optionIds)
             ->where('option_values.is_active', true);
 
+        $this->applyProductStockVisibilityToBaseQuery($query);
+
         if ($scopeIds !== []) {
             $query
                 ->join('category_product', 'category_product.product_id', '=', 'products.id')
@@ -999,6 +1052,7 @@ class CatalogController extends Controller
                 ->where('categories.scope', Category::SCOPE_CATALOG)
                 ->where('categories.is_active', true)
                 ->whereIn('categories.id', $scopeIds);
+            $this->applyCategoryScheduleToBaseQuery($query);
         }
 
         return $query
@@ -1038,9 +1092,10 @@ class CatalogController extends Controller
         $categoryKey = $categoryScopeIds !== null && $categoryScopeIds !== []
             ? sha1(implode(',', array_map(static fn ($id): int => (int) $id, $categoryScopeIds)))
             : 'all';
-        $cacheKey = sprintf('front:catalog:sizes:%s:%s:%s', $locale, $fallbackLocale, $categoryKey);
+        $hideOutOfStock = $this->hideOutOfStockProducts();
+        $cacheKey = sprintf('front:catalog:sizes:v2:%s:%s:%s:%s', $locale, $fallbackLocale, $categoryKey, $hideOutOfStock ? 'hide-oos' : 'all-stock');
 
-        return Cache::remember($cacheKey, now()->addMinutes(10), static function () use ($locale, $fallbackLocale, $categoryScopeIds) {
+        return Cache::remember($cacheKey, now()->addMinutes(10), static function () use ($locale, $fallbackLocale, $categoryScopeIds, $hideOutOfStock) {
             $scopeIds = collect($categoryScopeIds ?? [])
                 ->map(fn ($id): int => (int) $id)
                 ->filter(fn (int $id): bool => $id > 0)
@@ -1050,15 +1105,15 @@ class CatalogController extends Controller
             return OptionValue::query()
                 ->select(['id', 'code', 'sort_order'])
                 ->where('is_active', true)
-                ->whereHas('productOptionValues', function ($q) use ($scopeIds): void {
+                ->whereHas('productOptionValues', function ($q) use ($scopeIds, $hideOutOfStock): void {
                     $q->where('is_active', true)
-                        ->whereHas('product', function ($productQuery) use ($scopeIds): void {
-                            $productQuery->where('is_active', true);
+                        ->whereHas('product', function ($productQuery) use ($scopeIds, $hideOutOfStock): void {
+                            $productQuery->visibleOnStorefront($hideOutOfStock);
                             if ($scopeIds !== []) {
                                 $productQuery->whereHas('categories', function ($categoryQuery) use ($scopeIds): void {
                                     $categoryQuery
                                         ->where('scope', Category::SCOPE_CATALOG)
-                                        ->where('is_active', true)
+                                        ->currentlyVisible()
                                         ->whereIn('categories.id', $scopeIds);
                                 });
                             }
@@ -1596,6 +1651,9 @@ class CatalogController extends Controller
                 DB::table('catalog_option_values')->max('updated_at'),
                 DB::table('catalog_option_value_translations')->max('updated_at'),
                 DB::table('media')->where('model_type', $modelType)->max('updated_at'),
+                DB::table('system_settings')
+                    ->whereIn('key', ['catalog_hide_out_of_stock_products'])
+                    ->max('updated_at'),
             ];
 
             $max = 0;
@@ -1621,6 +1679,7 @@ class CatalogController extends Controller
             app()->getLocale(),
             $request->getRequestUri(),
             $gridCols,
+            $this->hideOutOfStockProducts() ? 'hide-oos' : 'all-stock',
             (string) $lastModifiedTs,
             $wishlistHash,
         ])).'"';

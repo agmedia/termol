@@ -7,6 +7,8 @@ use App\Livewire\Admin\Settings\Api\KiposSyncManager;
 use App\Models\Catalog\Product\Product;
 use App\Models\Catalog\Product\ProductTranslation;
 use App\Models\Integrations\KiposSyncRun;
+use App\Models\Sales\Order\Order;
+use App\Models\Settings\Local\OrderStatus;
 use App\Models\User;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;

@@ -655,6 +655,7 @@ class OrdersFeatureTest extends TestCase
 
         $admin = $this->makeUserWithRole('admin');
         $status = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        $sentStatus = $this->createStatus(code: 'sent', name: 'Sent');
         $order = $this->createKiposOrder($status, $admin, 'AG-TEST-0013');
 
         Livewire::actingAs($admin)
@@ -687,6 +688,13 @@ class OrdersFeatureTest extends TestCase
         $this->assertSame('ERP-123', data_get($kiposPayload, 'last_send.response.erp_order_id'));
         $this->assertSame('ok', data_get($kiposPayload, 'last_send.response.status'));
         $this->assertNull(data_get($kiposPayload, 'last_error'));
+        $this->assertSame($sentStatus->id, $fresh?->status_id);
+        $this->assertDatabaseHas('order_history', [
+            'order_id' => $order->id,
+            'from_status_id' => $status->id,
+            'to_status_id' => $sentStatus->id,
+            'comment' => 'Kipos ERP order sent; order status auto-updated to sent.',
+        ]);
     }
 
     private function makeUserWithRole(string $role): User

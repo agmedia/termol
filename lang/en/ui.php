@@ -96,7 +96,7 @@ return [
             'open_navigation' => 'Open navigation',
             'close_navigation' => 'Close navigation',
             'newsletter' => [
-                'club' => 'BALI Club',
+                'club' => 'BALI LOYALTY',
                 'title' => 'Newsletter signup for 10% off your first purchase',
                 'subtitle' => 'We occasionally send updates and special offers.',
                 'placeholder' => 'Enter your email address',

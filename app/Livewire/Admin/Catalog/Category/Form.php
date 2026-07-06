@@ -25,6 +25,8 @@ class Form extends Component
         'catalog_show_filters' => true,
         'catalog_show_products' => true,
         'sort_order' => 0,
+        'starts_at' => '',
+        'ends_at' => '',
         'payload_text' => '',
         'locale' => 'en',
         'name' => '',
@@ -130,6 +132,8 @@ class Form extends Component
                 'is_active' => (bool) $validated['form']['is_active'],
                 'show_in_menu' => (bool) $validated['form']['show_in_menu'],
                 'sort_order' => (int) $validated['form']['sort_order'],
+                'starts_at' => $validated['form']['starts_at'] ?: null,
+                'ends_at' => $validated['form']['ends_at'] ?: null,
                 'payload' => $payload === [] ? null : $payload,
                 'updated_by' => $userId,
             ];
@@ -313,6 +317,8 @@ class Form extends Component
             'form.catalog_show_filters' => ['boolean'],
             'form.catalog_show_products' => ['boolean'],
             'form.sort_order' => ['nullable', 'integer', 'min:0'],
+            'form.starts_at' => ['nullable', 'date'],
+            'form.ends_at' => ['nullable', 'date', 'after_or_equal:form.starts_at'],
             'form.payload_text' => ['nullable', 'string'],
 
             'form.locale' => ['required', Rule::in($this->localeOptions)],
@@ -356,6 +362,8 @@ class Form extends Component
         $this->form['is_active'] = (bool) $category->is_active;
         $this->form['show_in_menu'] = (bool) $category->show_in_menu;
         $this->form['sort_order'] = (int) $category->sort_order;
+        $this->form['starts_at'] = $category->starts_at?->format('Y-m-d\TH:i') ?? '';
+        $this->form['ends_at'] = $category->ends_at?->format('Y-m-d\TH:i') ?? '';
         $payload = is_array($category->payload) ? $category->payload : [];
         $this->form['catalog_show_filters'] = (bool) ($payload[Category::PAYLOAD_SHOW_FILTERS] ?? true);
         $this->form['catalog_show_products'] = (bool) ($payload[Category::PAYLOAD_SHOW_PRODUCTS] ?? true);

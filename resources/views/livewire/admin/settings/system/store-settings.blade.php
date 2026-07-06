@@ -245,6 +245,37 @@
 
             @if ($tab === 'newsletter')
                 <div class="grid gap-4 md:grid-cols-2">
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Footer Newsletter Copy') }}</p>
+                        <div class="mt-3 grid gap-3 md:grid-cols-2">
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Eyebrow') }}</label>
+                                <input type="text" wire:model="form.store_newsletter_club_label" placeholder="{{ __('ui.front.desktop.newsletter.club') }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                                @error('form.store_newsletter_club_label') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Button Label') }}</label>
+                                <input type="text" wire:model="form.store_newsletter_button_label" placeholder="{{ __('ui.front.desktop.newsletter.button') }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                                @error('form.store_newsletter_button_label') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Title') }}</label>
+                                <input type="text" wire:model="form.store_newsletter_title" placeholder="{{ __('ui.front.desktop.newsletter.title') }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                                @error('form.store_newsletter_title') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Subtitle') }}</label>
+                                <input type="text" wire:model="form.store_newsletter_subtitle" placeholder="{{ __('ui.front.desktop.newsletter.subtitle') }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                                @error('form.store_newsletter_subtitle') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Consent Label') }}</label>
+                                <input type="text" wire:model="form.store_newsletter_consent_label" placeholder="{{ __('ui.front.desktop.newsletter.consent') }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                                @error('form.store_newsletter_consent_label') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="md:col-span-2">
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Provider') }}</label>
                         <select wire:model="form.store_newsletter_provider" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm md:w-72">

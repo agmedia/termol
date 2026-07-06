@@ -5,6 +5,7 @@ namespace App\Services\Front;
 use App\Models\Catalog\Option\Option;
 use App\Models\Catalog\Option\OptionValue;
 use App\Models\Catalog\Product\Product;
+use App\Services\Catalog\CatalogFeatureService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -89,9 +90,11 @@ class ProductColorVariantService
      */
     private function variantProducts(array $group, string $locale, string $fallbackLocale): Collection
     {
+        $hideOutOfStock = app(CatalogFeatureService::class)->hideOutOfStockProducts();
+
         $query = Product::query()
             ->select(['id', 'code', 'sku', 'is_active', 'payload'])
-            ->where('is_active', true)
+            ->visibleOnStorefront($hideOutOfStock)
             ->with([
                 'translations' => fn ($q) => $q
                     ->select(['id', 'product_id', 'locale', 'slug', 'name'])

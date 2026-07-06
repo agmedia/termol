@@ -86,4 +86,9 @@ class CatalogFeatureService
     {
         return $this->enabled('catalog_use_mobile_view');
     }
+
+    public function hideOutOfStockProducts(): bool
+    {
+        return $this->enabled('catalog_hide_out_of_stock_products');
+    }
 }

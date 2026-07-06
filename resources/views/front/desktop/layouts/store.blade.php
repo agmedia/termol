@@ -642,14 +642,20 @@
             $newsletterErrors = $errors->getBag('newsletter');
             $newsletterCaptchaSiteKey = trim((string) ($storeSettings['captcha']['recaptcha_v3_site_key'] ?? ''));
             $newsletterCaptchaEnabled = (bool) ($storeSettings['captcha']['recaptcha_v3_enabled'] ?? false) && $newsletterCaptchaSiteKey !== '';
+            $newsletterSettings = is_array($storeSettings['newsletter'] ?? null) ? $storeSettings['newsletter'] : [];
+            $newsletterClubLabel = trim((string) ($newsletterSettings['club_label'] ?? '')) ?: __('ui.front.desktop.newsletter.club');
+            $newsletterTitle = trim((string) ($newsletterSettings['title'] ?? '')) ?: __('ui.front.desktop.newsletter.title');
+            $newsletterSubtitle = trim((string) ($newsletterSettings['subtitle'] ?? '')) ?: __('ui.front.desktop.newsletter.subtitle');
+            $newsletterButtonLabel = trim((string) ($newsletterSettings['button_label'] ?? '')) ?: __('ui.front.desktop.newsletter.button');
+            $newsletterConsentLabel = trim((string) ($newsletterSettings['consent_label'] ?? '')) ?: __('ui.front.desktop.newsletter.consent');
         @endphp
 
         <section class="px-0 py-5">
             <div class="grid gap-4 lg:grid-cols-[1.2fr_1fr] lg:items-center">
                 <div>
-                    <p class="text-[11px] uppercase tracking-[0.2em] text-slate-500">{{ __('ui.front.desktop.newsletter.club') }}</p>
-                    <h3 class="mt-1 text-xl font-bold leading-tight text-slate-900">{{ __('ui.front.desktop.newsletter.title') }}</h3>
-                    <p class="mt-1 text-sm text-slate-600">{{ __('ui.front.desktop.newsletter.subtitle') }}</p>
+                    <p class="text-[11px] uppercase tracking-[0.2em] text-slate-500">{{ $newsletterClubLabel }}</p>
+                    <h3 class="mt-1 text-xl font-bold leading-tight text-slate-900">{{ $newsletterTitle }}</h3>
+                    <p class="mt-1 text-sm text-slate-600">{{ $newsletterSubtitle }}</p>
                 </div>
                 <form
                     action="{{ route('newsletter.subscribe') }}"
@@ -687,7 +693,7 @@
                         <p class="mt-2 hidden text-xs font-semibold" data-newsletter-status aria-live="polite"></p>
                     </div>
                     <button type="submit" class="h-11 border border-slate-300 bg-slate-100 px-5 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-200">
-                        {{ __('ui.front.desktop.newsletter.button') }}
+                        {{ $newsletterButtonLabel }}
                     </button>
                     <div class="sm:col-span-2">
                         <label class="flex items-start gap-2 text-[11px] text-slate-500">
@@ -699,7 +705,7 @@
                                 @checked((bool) old('newsletter_accept_terms'))
                                 data-newsletter-accept-terms
                             >
-                            {{ __('ui.front.desktop.newsletter.consent') }}
+                            {{ $newsletterConsentLabel }}
                         </label>
                         <p class="mt-2 text-xs font-semibold text-rose-600 {{ $newsletterErrors->has('newsletter_accept_terms') ? '' : 'hidden' }}" data-newsletter-accept-error aria-live="polite">{{ $newsletterErrors->first('newsletter_accept_terms') }}</p>
                         <p class="mt-2 text-xs font-semibold text-rose-600 {{ $newsletterErrors->has('recaptcha_token') ? '' : 'hidden' }}" data-newsletter-recaptcha-error aria-live="polite">{{ $newsletterErrors->first('recaptcha_token') }}</p>

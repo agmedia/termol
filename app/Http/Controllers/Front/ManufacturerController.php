@@ -31,7 +31,7 @@ class ManufacturerController extends Controller
         $manufacturers = Manufacturer::query()
             ->where('is_active', true)
             ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
-            ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
+            ->withCount(['products' => fn ($q) => $q->visibleOnStorefront($this->catalogFeatures->hideOutOfStockProducts())])
             ->orderByDesc('is_featured')
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -63,7 +63,7 @@ class ManufacturerController extends Controller
 
         $products = $manufacturer->products()
             ->withApprovedCommentSummary([$locale, $fallbackLocale])
-            ->where('is_active', true)
+            ->visibleOnStorefront($this->catalogFeatures->hideOutOfStockProducts())
             ->with([
                 'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'attributes' => ProductMaterialLabel::eagerLoadAttributes($locale, $fallbackLocale),

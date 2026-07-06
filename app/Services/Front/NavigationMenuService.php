@@ -62,7 +62,7 @@ class NavigationMenuService
 
         $categories = Category::query()
             ->where('scope', Category::SCOPE_CATALOG)
-            ->where('is_active', true)
+            ->currentlyVisible()
             ->with([
                 'translations' => fn ($q) => $q
                     ->where('scope', Category::SCOPE_CATALOG)

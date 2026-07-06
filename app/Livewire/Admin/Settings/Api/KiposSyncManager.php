@@ -37,6 +37,10 @@ class KiposSyncManager extends Component
         'kipos_order_payment_fee_item_code' => '',
         'kipos_order_private_at_company_id' => 2,
         'kipos_order_private_de_company_id' => 3,
+        'kipos_order_status_endpoint' => 'narudzba/statusi',
+        'kipos_order_status_lookback_days' => 30,
+        'kipos_order_status_codes' => '',
+        'kipos_order_status_map' => '',
     ];
 
     public string $runningActionKey = '';
@@ -202,7 +206,7 @@ class KiposSyncManager extends Component
 
     private function runsImmediately(string $actionKey): bool
     {
-        return in_array($actionKey, ['update_prices', 'update_quantities'], true);
+        return in_array($actionKey, ['update_prices', 'update_quantities', 'update_order_statuses'], true);
     }
 
     public function render(KiposSyncService $syncService)
@@ -253,6 +257,10 @@ class KiposSyncManager extends Component
             'syncForm.kipos_order_payment_fee_item_code' => ['nullable', 'string', 'max:120'],
             'syncForm.kipos_order_private_at_company_id' => ['nullable', 'integer', 'min:1'],
             'syncForm.kipos_order_private_de_company_id' => ['nullable', 'integer', 'min:1'],
+            'syncForm.kipos_order_status_endpoint' => ['required', 'string', 'max:255'],
+            'syncForm.kipos_order_status_lookback_days' => ['required', 'integer', 'min:1', 'max:365'],
+            'syncForm.kipos_order_status_codes' => ['nullable', 'string', 'max:500'],
+            'syncForm.kipos_order_status_map' => ['nullable', 'string', 'max:6000'],
         ];
     }
 
@@ -277,6 +285,10 @@ class KiposSyncManager extends Component
             'kipos_order_payment_fee_item_code' => strtoupper(trim((string) ($raw['kipos_order_payment_fee_item_code'] ?? ''))),
             'kipos_order_private_at_company_id' => $this->nullablePositiveInt($raw['kipos_order_private_at_company_id'] ?? null),
             'kipos_order_private_de_company_id' => $this->nullablePositiveInt($raw['kipos_order_private_de_company_id'] ?? null),
+            'kipos_order_status_endpoint' => trim((string) ($raw['kipos_order_status_endpoint'] ?? 'narudzba/statusi')),
+            'kipos_order_status_lookback_days' => max(1, min(365, (int) ($raw['kipos_order_status_lookback_days'] ?? 30))),
+            'kipos_order_status_codes' => trim((string) ($raw['kipos_order_status_codes'] ?? '')),
+            'kipos_order_status_map' => trim((string) ($raw['kipos_order_status_map'] ?? '')),
         ];
     }
 

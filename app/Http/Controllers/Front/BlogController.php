@@ -108,7 +108,7 @@ class BlogController extends Controller
         $relatedProducts = collect();
         if ($relatedProductIds !== []) {
             $relatedProducts = Product::query()
-                ->where('is_active', true)
+                ->visibleOnStorefront($this->catalogFeatures->hideOutOfStockProducts())
                 ->whereIn('id', $relatedProductIds)
                 ->with([
                     'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
@@ -144,7 +144,7 @@ class BlogController extends Controller
             $viewer = auth()->user();
 
             $hotspotProducts = Product::query()
-                ->where('is_active', true)
+                ->visibleOnStorefront($this->catalogFeatures->hideOutOfStockProducts())
                 ->whereIn('id', $hotspotProductIds)
                 ->with([
                     'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),

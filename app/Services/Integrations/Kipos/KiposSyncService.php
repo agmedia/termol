@@ -12,7 +12,9 @@ use App\Models\Catalog\Product\Product;
 use App\Models\Catalog\Product\ProductOptionValue;
 use App\Models\Catalog\Product\ProductTranslation;
 use App\Models\Integrations\KiposSyncRun;
+use App\Models\Sales\Order\OrderHistory;
 use App\Services\Catalog\CatalogFeatureService;
+use App\Services\Integrations\Kipos\Concerns\SyncsKiposOrderStatuses;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Http\File as HttpFile;
 use Illuminate\Support\Facades\Cache;
@@ -22,6 +24,8 @@ use RuntimeException;
 
 class KiposSyncService
 {
+    use SyncsKiposOrderStatuses;
+
     private const STALE_STARTED_RUN_AFTER_MINUTES = 45;
 
     private const IMMEDIATE_ACTION_STALE_STARTED_RUN_AFTER_MINUTES = 5;
@@ -54,6 +58,7 @@ class KiposSyncService
             'images_single' => 'sif_roba/getSlike/[IDROBA]',
             'translations' => 'sif_roba/getPrijevod',
             'order_create' => 'narudzba/create',
+            'order_statuses' => 'narudzba/statusi',
         ];
     }
 
@@ -82,6 +87,13 @@ class KiposSyncService
                     ['key' => 'update_images', 'label' => 'Update Images', 'description' => 'Replace local product images when matching remote Kipos images exist.'],
                 ],
             ],
+            'orders' => [
+                'title' => 'Order Sync',
+                'description' => 'Keep local admin order statuses aligned with Kipos ERP order state.',
+                'actions' => [
+                    ['key' => 'update_order_statuses', 'label' => 'Update Order Statuses', 'description' => 'Fetch Kipos order status rows, match local webshop orders, and update admin order status/history.'],
+                ],
+            ],
         ];
     }
 
@@ -105,6 +117,10 @@ class KiposSyncService
             'kipos_order_payment_fee_item_code' => '',
             'kipos_order_private_at_company_id' => 2,
             'kipos_order_private_de_company_id' => 3,
+            'kipos_order_status_endpoint' => 'narudzba/statusi',
+            'kipos_order_status_lookback_days' => 30,
+            'kipos_order_status_codes' => '',
+            'kipos_order_status_map' => '{"paid":"paid","placeno":"paid","plaćeno":"paid","poslano":"sent","sent":"sent","isporuceno":"sent","isporučeno":"sent","cancelled":"cancelled","canceled":"cancelled","otkazano":"cancelled","storno":"cancelled","stornirano":"cancelled"}',
         ];
     }
 
@@ -270,6 +286,7 @@ class KiposSyncService
             'update_actions' => 'handleUpdateActions',
             'import_images' => 'handleImportImages',
             'update_images' => 'handleUpdateImages',
+            'update_order_statuses' => 'handleUpdateOrderStatuses',
         ];
     }
 
@@ -373,7 +390,7 @@ class KiposSyncService
 
     private function staleStartedRunAfterMinutes(string $actionKey): int
     {
-        return in_array($actionKey, ['update_prices', 'update_quantities'], true)
+        return in_array($actionKey, ['update_prices', 'update_quantities', 'update_order_statuses'], true)
             ? self::IMMEDIATE_ACTION_STALE_STARTED_RUN_AFTER_MINUTES
             : self::STALE_STARTED_RUN_AFTER_MINUTES;
     }

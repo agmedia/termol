@@ -42,6 +42,8 @@ use Spatie\Activitylog\Models\Activity;
 
 Route::get('cron/kipos/update-quantities', [KiposCronController::class, 'updateQuantities'])
     ->name('cron.kipos.update-quantities');
+Route::get('cron/kipos/update-order-statuses', [KiposCronController::class, 'updateOrderStatuses'])
+    ->name('cron.kipos.update-order-statuses');
 
 Route::middleware(['front.locale', 'front.device'])
     ->group(function (): void {

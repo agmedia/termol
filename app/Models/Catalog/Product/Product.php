@@ -153,6 +153,25 @@ class Product extends Model implements HasMedia
             ], 'rating');
     }
 
+    public function scopeVisibleOnStorefront(Builder $query, bool $hideOutOfStock = false): Builder
+    {
+        $query->where('products.is_active', true);
+
+        if (! $hideOutOfStock) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $stockQuery): void {
+            $stockQuery
+                ->where('products.stock_qty', '>', 0)
+                ->orWhereHas('optionValues', function (Builder $optionQuery): void {
+                    $optionQuery
+                        ->where('is_active', true)
+                        ->where('stock_qty', '>', 0);
+                });
+        });
+    }
+
     /**
      * @param  array<int, string>  $locales
      * @return array{count:int,avg:float}
