@@ -207,6 +207,33 @@ class KiposSyncManager extends Component
         }
     }
 
+    public function cancelRun(int $runId): void
+    {
+        $this->authorizeAccess();
+
+        $run = KiposSyncRun::query()
+            ->whereKey($runId)
+            ->whereIn('status', ['queued', 'started'])
+            ->first();
+
+        if (! $run) {
+            $this->dispatch('notify', type: 'info', message: __('This Kipos sync run is no longer active.'));
+
+            return;
+        }
+
+        $run->fill([
+            'status' => 'failed',
+            'summary' => 'Execution stopped from admin.',
+            'error_message' => 'This Kipos sync run was manually stopped from the admin screen.',
+            'finished_at' => now(),
+        ])->save();
+
+        $this->lastRunId = $run->id;
+        $this->resetPage(pageName: self::RUNS_PAGE_NAME);
+        $this->dispatch('notify', type: 'success', message: __('Kipos sync run stopped.'));
+    }
+
     private function runsInBrowserBatches(string $actionKey): bool
     {
         return in_array($actionKey, ['update_images'], true);
@@ -240,6 +267,11 @@ class KiposSyncManager extends Component
 
             $this->dispatch('notify', type: 'success', message: __('Kipos product import finished. Review the exact stats below.'));
         } catch (\Throwable $exception) {
+            $this->lastRunId = KiposSyncRun::query()
+                ->where('action_key', 'import_products')
+                ->latest('id')
+                ->value('id');
+
             $this->dispatch('notify', type: 'error', message: __('Kipos sync action failed: :error', ['error' => $exception->getMessage()]));
         } finally {
             $this->runningActionKey = '';

@@ -433,13 +433,25 @@ class KiposSyncService
             throw new RuntimeException('Enter at least one Kipos product code before importing products.');
         }
 
-        return $this->syncProducts(
+        $sourceRows = $this->importProductRowsForCodes($codes);
+        if ($sourceRows === []) {
+            throw new RuntimeException('Kipos product code was not found: '.implode(', ', $codes));
+        }
+
+        $result = $this->syncProducts(
             createMissing: true,
             updateExisting: false,
             applyPricing: true,
             applyQuantities: true,
-            productCodeFilter: $codes
+            productCodeFilter: $codes,
+            sourceRows: $sourceRows
         );
+
+        if (($result['unmatched_requested_codes'] ?? []) !== []) {
+            $result['summary'] .= ' Not found in Kipos: '.implode(', ', $result['unmatched_requested_codes']).'.';
+        }
+
+        return $result;
     }
 
     /**
@@ -988,9 +1000,10 @@ class KiposSyncService
         bool $updateExisting,
         bool $applyPricing,
         bool $applyQuantities,
-        ?array $productCodeFilter = null
+        ?array $productCodeFilter = null,
+        ?array $sourceRows = null
     ): array {
-        $sourceRows = $this->mergedProductRows();
+        $sourceRows ??= $this->mergedProductRows();
         $productCodeFilter = $productCodeFilter !== null
             ? $this->normalizeProductCodeFilter($productCodeFilter)
             : null;
@@ -1833,6 +1846,18 @@ class KiposSyncService
         }
 
         return array_values($merged);
+    }
+
+    /**
+     * @param  array<int, string>  $codes
+     * @return list<array<string, mixed>>
+     */
+    private function importProductRowsForCodes(array $codes): array
+    {
+        return $this->filterRowsByProductCodes(
+            $this->kipos->getRows('sif_roba/getitems'),
+            $codes
+        );
     }
 
     /**

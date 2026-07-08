@@ -141,6 +141,33 @@ class KiposSyncManagerFeatureTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_product_import_fails_when_entered_code_is_not_found_in_kipos(): void
+    {
+        Queue::fake();
+
+        $admin = $this->makeUserWithRole('superadmin');
+
+        $this->enableKiposImportSync();
+        $this->fakeKiposProducts([
+            ['IDROBA' => 'W5030', 'IDODJEL' => 'W5030', 'NAZIV' => 'Product W5030', 'CIJENA_MPC' => '18,00', 'ZALIHAK' => 3],
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->set('importProductCodes', 'W5003')
+            ->call('runAction', 'import_products')
+            ->assertHasNoErrors()
+            ->assertDispatched('notify');
+
+        $run = KiposSyncRun::query()->where('action_key', 'import_products')->latest('id')->first();
+
+        $this->assertNotNull($run);
+        $this->assertSame('failed', $run?->status);
+        $this->assertSame('Kipos product code was not found: W5003', $run?->error_message);
+        $this->assertDatabaseMissing('products', ['code' => 'W5003']);
+        Queue::assertNothingPushed();
+    }
+
     public function test_admin_runs_kipos_order_status_update_immediately(): void
     {
         Queue::fake();
@@ -386,6 +413,36 @@ class KiposSyncManagerFeatureTest extends TestCase
             ->assertDispatched('notify');
 
         $this->assertSame(1, KiposSyncRun::query()->where('action_key', 'import_images')->count());
+        Queue::assertNothingPushed();
+    }
+
+    public function test_admin_can_stop_active_kipos_sync_run(): void
+    {
+        Queue::fake();
+
+        $admin = $this->makeUserWithRole('superadmin');
+
+        $run = KiposSyncRun::query()->create([
+            'action_key' => 'import_products',
+            'action_label' => 'Import Products',
+            'status' => 'started',
+            'summary' => 'Execution started.',
+            'started_at' => now(),
+            'initiated_by' => $admin->id,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->call('cancelRun', $run->id)
+            ->assertHasNoErrors()
+            ->assertDispatched('notify');
+
+        $run->refresh();
+
+        $this->assertSame('failed', $run->status);
+        $this->assertSame('Execution stopped from admin.', $run->summary);
+        $this->assertSame('This Kipos sync run was manually stopped from the admin screen.', $run->error_message);
+        $this->assertNotNull($run->finished_at);
         Queue::assertNothingPushed();
     }
 

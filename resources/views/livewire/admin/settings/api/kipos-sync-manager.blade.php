@@ -60,9 +60,20 @@
                                     <p class="text-sm font-semibold text-slate-900">{{ $activeRun->action_label }}</p>
                                     <p class="mt-1 text-xs text-slate-500">{{ $activeRun->action_key }} · #{{ $activeRun->id }} · {{ strtoupper($activeRun->status) }}</p>
                                 </div>
-                                @if($total > 0)
-                                    <span class="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">{{ $processed }} / {{ $total }} · {{ $percent }}%</span>
-                                @endif
+                                <div class="flex flex-wrap items-center gap-2">
+                                    @if($total > 0)
+                                        <span class="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">{{ $processed }} / {{ $total }} · {{ $percent }}%</span>
+                                    @endif
+                                    <button
+                                        type="button"
+                                        wire:click="cancelRun({{ $activeRun->id }})"
+                                        wire:loading.attr="disabled"
+                                        wire:target="cancelRun"
+                                        class="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {{ __('Stop') }}
+                                    </button>
+                                </div>
                             </div>
                             @if($total > 0)
                                 <div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
