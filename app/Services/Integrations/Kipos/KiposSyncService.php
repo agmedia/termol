@@ -72,7 +72,7 @@ class KiposSyncService
                 'title' => 'Catalog Sync',
                 'description' => 'Granular Kipos product sync so you can update only the fields you want.',
                 'actions' => [
-                    ['key' => 'import_products', 'label' => 'Import Products', 'description' => 'Create missing products, attach size option rows, and seed usable base price / quantity snapshots.'],
+                    ['key' => 'import_products', 'label' => 'Import Products', 'description' => 'Create missing products only for entered Kipos product codes.'],
                     ['key' => 'update_content', 'label' => 'Update Content', 'description' => 'Update names, descriptions, active state, and structural variant mapping without touching prices or quantities.'],
                     ['key' => 'update_prices', 'label' => 'Update Prices', 'description' => 'Refresh product base price and size price overrides from selected Kipos price field.'],
                     ['key' => 'update_quantities', 'label' => 'Update Quantities', 'description' => 'Refresh stock only, with warehouse filtering and quantity override rules.'],
@@ -254,6 +254,29 @@ class KiposSyncService
         return $this->performRun($run);
     }
 
+    /**
+     * @param  array<int, string>  $codes
+     */
+    public function runProductImport(array $codes, ?int $initiatedBy = null): KiposSyncRun
+    {
+        $codes = $this->normalizeProductCodeFilter($codes);
+        if ($codes === []) {
+            throw new RuntimeException('Enter at least one Kipos product code before importing products.');
+        }
+
+        $action = $this->resolveAction('import_products');
+
+        $run = KiposSyncRun::query()->create([
+            'action_key' => 'import_products',
+            'action_label' => $action['label'],
+            'status' => 'started',
+            'started_at' => now(),
+            'initiated_by' => $initiatedBy,
+        ]);
+
+        return $this->performRun($run, ['product_codes' => $codes]);
+    }
+
     public function executeQueuedRun(KiposSyncRun $run): KiposSyncRun
     {
         $this->resolveAction($run->action_key);
@@ -320,7 +343,10 @@ class KiposSyncService
         return $catalog[$actionKey];
     }
 
-    private function performRun(KiposSyncRun $run): KiposSyncRun
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function performRun(KiposSyncRun $run, array $context = []): KiposSyncRun
     {
         $this->runInitiatedBy = $run->initiated_by;
 
@@ -333,7 +359,9 @@ class KiposSyncService
             }
 
             /** @var array<string, mixed> $result */
-            $result = $this->{$handler}();
+            $result = $run->action_key === 'import_products'
+                ? $this->{$handler}($context)
+                : $this->{$handler}();
 
             $run->fill([
                 'status' => 'success',
@@ -390,7 +418,7 @@ class KiposSyncService
 
     private function staleStartedRunAfterMinutes(string $actionKey): int
     {
-        return in_array($actionKey, ['update_prices', 'update_quantities', 'update_order_statuses'], true)
+        return in_array($actionKey, ['import_products', 'update_prices', 'update_quantities', 'update_order_statuses'], true)
             ? self::IMMEDIATE_ACTION_STALE_STARTED_RUN_AFTER_MINUTES
             : self::STALE_STARTED_RUN_AFTER_MINUTES;
     }
@@ -398,9 +426,20 @@ class KiposSyncService
     /**
      * @return array<string, mixed>
      */
-    private function handleImportProducts(): array
+    private function handleImportProducts(array $context = []): array
     {
-        return $this->syncProducts(createMissing: true, updateExisting: false, applyPricing: true, applyQuantities: true);
+        $codes = $this->normalizeProductCodeFilter($context['product_codes'] ?? []);
+        if ($codes === []) {
+            throw new RuntimeException('Enter at least one Kipos product code before importing products.');
+        }
+
+        return $this->syncProducts(
+            createMissing: true,
+            updateExisting: false,
+            applyPricing: true,
+            applyQuantities: true,
+            productCodeFilter: $codes
+        );
     }
 
     /**
@@ -948,9 +987,20 @@ class KiposSyncService
         bool $createMissing,
         bool $updateExisting,
         bool $applyPricing,
-        bool $applyQuantities
+        bool $applyQuantities,
+        ?array $productCodeFilter = null
     ): array {
-        $groups = $this->groupRowsByDepartment($this->mergedProductRows());
+        $sourceRows = $this->mergedProductRows();
+        $productCodeFilter = $productCodeFilter !== null
+            ? $this->normalizeProductCodeFilter($productCodeFilter)
+            : null;
+        $matchedRequestedCodes = $productCodeFilter !== null
+            ? $this->matchedProductCodeFilter($sourceRows, $productCodeFilter)
+            : [];
+        $rows = $productCodeFilter !== null
+            ? $this->filterRowsByProductCodes($sourceRows, $productCodeFilter)
+            : $sourceRows;
+        $groups = $this->groupRowsByDepartment($rows);
         $sizeOption = $this->resolveSizeOption();
         $requiresOptions = collect($groups)->contains(fn (array $rows): bool => $this->groupUsesSizeOptions($rows));
 
@@ -1073,6 +1123,11 @@ class KiposSyncService
             'skipped' => $skipped,
             'option_rows_synced' => $variantRowsSynced,
             'source_groups' => count($groups),
+            'requested_codes' => $productCodeFilter ?? [],
+            'matched_requested_codes' => count($matchedRequestedCodes),
+            'unmatched_requested_codes' => $productCodeFilter !== null
+                ? array_values(array_diff($productCodeFilter, $matchedRequestedCodes))
+                : [],
             'price_field' => $this->priceField(),
             'category_id' => $categoryId,
             'size_option_id' => $sizeOption?->id,
@@ -1843,6 +1898,72 @@ class KiposSyncService
         }
 
         return $grouped;
+    }
+
+    /**
+     * @param  mixed  $codes
+     * @return array<int, string>
+     */
+    private function normalizeProductCodeFilter(mixed $codes): array
+    {
+        if (is_string($codes)) {
+            $codes = preg_split('/[\s,;]+/', $codes) ?: [];
+        }
+
+        if (! is_array($codes)) {
+            return [];
+        }
+
+        return collect($codes)
+            ->flatMap(fn ($code): array => is_string($code) ? (preg_split('/[\s,;]+/', $code) ?: []) : [$code])
+            ->map(fn ($code): string => strtoupper(trim((string) $code)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array<int, string>  $codes
+     * @return list<array<string, mixed>>
+     */
+    private function filterRowsByProductCodes(array $rows, array $codes): array
+    {
+        if ($codes === []) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $rows,
+            fn (array $row): bool => in_array($this->itemCode($row), $codes, true)
+                || in_array($this->departmentCode($row), $codes, true)
+        ));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array<int, string>  $codes
+     * @return array<int, string>
+     */
+    private function matchedProductCodeFilter(array $rows, array $codes): array
+    {
+        $matched = [];
+
+        foreach ($rows as $row) {
+            $itemCode = $this->itemCode($row);
+            $departmentCode = $this->departmentCode($row);
+
+            if (in_array($itemCode, $codes, true)) {
+                $matched[] = $itemCode;
+            }
+
+            if (in_array($departmentCode, $codes, true)) {
+                $matched[] = $departmentCode;
+            }
+        }
+
+        return collect($matched)->unique()->values()->all();
     }
 
     /**

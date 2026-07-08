@@ -19,6 +19,8 @@ class KiposSyncManager extends Component
 
     public string $tab = 'actions';
 
+    public string $importProductCodes = '';
+
     /**
      * @var array<string, mixed>
      */
@@ -86,6 +88,12 @@ class KiposSyncManager extends Component
     public function runAction(string $actionKey, KiposSyncService $syncService): void
     {
         $this->authorizeAccess();
+
+        if ($actionKey === 'import_products') {
+            $this->runProductImport($syncService);
+
+            return;
+        }
 
         $this->runningActionKey = $actionKey;
         $queuedRun = null;
@@ -207,6 +215,54 @@ class KiposSyncManager extends Component
     private function runsImmediately(string $actionKey): bool
     {
         return in_array($actionKey, ['update_prices', 'update_quantities', 'update_order_statuses'], true);
+    }
+
+    private function runProductImport(KiposSyncService $syncService): void
+    {
+        $this->resetErrorBag('importProductCodes');
+
+        $codes = $this->normalizedImportProductCodes();
+        if ($codes === []) {
+            $this->addError('importProductCodes', __('Enter at least one Kipos product code.'));
+            $this->dispatch('notify', type: 'error', message: __('Enter at least one Kipos product code before importing products.'));
+
+            return;
+        }
+
+        $this->runningActionKey = 'import_products';
+
+        try {
+            @set_time_limit(0);
+
+            $run = $syncService->runProductImport($codes, auth()->id());
+            $this->lastRunId = $run->id;
+            $this->importProductCodes = implode(', ', $codes);
+
+            $this->dispatch('notify', type: 'success', message: __('Kipos product import finished. Review the exact stats below.'));
+        } catch (\Throwable $exception) {
+            $this->dispatch('notify', type: 'error', message: __('Kipos sync action failed: :error', ['error' => $exception->getMessage()]));
+        } finally {
+            $this->runningActionKey = '';
+            $this->resetPage(pageName: self::RUNS_PAGE_NAME);
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function normalizedImportProductCodes(): array
+    {
+        $raw = trim($this->importProductCodes);
+        if ($raw === '' || strlen($raw) > 1000) {
+            return [];
+        }
+
+        return collect(preg_split('/[\s,;]+/', $raw) ?: [])
+            ->map(fn ($code): string => strtoupper(trim((string) $code)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function render(KiposSyncService $syncService)

@@ -92,6 +92,124 @@ class KiposSyncManagerFeatureTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_admin_imports_kipos_products_only_for_entered_codes(): void
+    {
+        Queue::fake();
+
+        $admin = $this->makeUserWithRole('superadmin');
+
+        $this->enableKiposImportSync();
+        $this->fakeKiposProducts([
+            ['IDROBA' => 'W5003', 'IDODJEL' => 'W5003', 'NAZIV' => 'Product W5003', 'CIJENA_MPC' => '12,30', 'ZALIHAK' => 2],
+            ['IDROBA' => 'W5030', 'IDODJEL' => 'W5030', 'NAZIV' => 'Product W5030', 'CIJENA_MPC' => '18,00', 'ZALIHAK' => 3],
+            ['IDROBA' => 'W9999', 'IDODJEL' => 'W9999', 'NAZIV' => 'Product W9999', 'CIJENA_MPC' => '99,00', 'ZALIHAK' => 9],
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->set('importProductCodes', 'w5003, W5030')
+            ->call('runAction', 'import_products')
+            ->assertHasNoErrors()
+            ->assertDispatched('notify');
+
+        $run = KiposSyncRun::query()->where('action_key', 'import_products')->latest('id')->first();
+
+        $this->assertNotNull($run);
+        $this->assertSame('success', $run?->status, (string) $run?->error_message);
+        $this->assertSame(['W5003', 'W5030'], data_get($run?->stats, 'requested_codes', []));
+        $this->assertSame(2, (int) (($run?->stats ?? [])['created'] ?? 0));
+        $this->assertDatabaseHas('products', ['code' => 'W5003']);
+        $this->assertDatabaseHas('products', ['code' => 'W5030']);
+        $this->assertDatabaseMissing('products', ['code' => 'W9999']);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_product_import_requires_at_least_one_code(): void
+    {
+        Queue::fake();
+
+        $admin = $this->makeUserWithRole('superadmin');
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->set('importProductCodes', ' ')
+            ->call('runAction', 'import_products')
+            ->assertHasErrors(['importProductCodes'])
+            ->assertDispatched('notify');
+
+        $this->assertSame(0, KiposSyncRun::query()->where('action_key', 'import_products')->count());
+        Queue::assertNothingPushed();
+    }
+
+    public function test_admin_runs_kipos_order_status_update_immediately(): void
+    {
+        Queue::fake();
+
+        $admin = $this->makeUserWithRole('superadmin');
+        $newStatus = OrderStatus::query()->create([
+            'code' => 'new',
+            'name' => 'New',
+            'color' => 'blue',
+            'is_default' => true,
+            'is_paid' => false,
+            'is_cancelled' => false,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        $paidStatus = OrderStatus::query()->create([
+            'code' => 'paid',
+            'name' => 'Paid',
+            'color' => 'emerald',
+            'is_default' => false,
+            'is_paid' => true,
+            'is_cancelled' => false,
+            'is_active' => true,
+            'sort_order' => 2,
+        ]);
+        $order = Order::query()->create([
+            'order_number' => '123',
+            'status_id' => $newStatus->id,
+            'customer_name' => 'Kipos Customer',
+            'customer_email' => 'kipos@example.test',
+            'grand_total' => 25,
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+
+        $this->enableKiposOrderStatusSync();
+        Http::fake([
+            '*narudzba/statusi*' => Http::response([
+                [
+                    'CMS_ID' => 'KHR123',
+                    'STATUS' => 'PLACENO',
+                    'NAZIV' => 'Plaćeno',
+                ],
+            ], 200),
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KiposSyncManager::class)
+            ->call('runAction', 'update_order_statuses')
+            ->assertHasNoErrors()
+            ->assertDispatched('notify');
+
+        $run = KiposSyncRun::query()->where('action_key', 'update_order_statuses')->latest('id')->first();
+        $order->refresh();
+
+        $this->assertNotNull($run);
+        $this->assertSame('success', $run?->status, (string) $run?->error_message);
+        $this->assertSame(1, (int) (($run?->stats ?? [])['updated'] ?? 0));
+        $this->assertSame((int) $paidStatus->id, (int) $order->status_id);
+        $this->assertNotNull($order->paid_at);
+        $this->assertDatabaseHas('order_history', [
+            'order_id' => $order->id,
+            'from_status_id' => $newStatus->id,
+            'to_status_id' => $paidStatus->id,
+            'comment' => 'Kipos sync status update.',
+        ]);
+        Queue::assertNothingPushed();
+    }
+
     public function test_admin_runs_kipos_image_update_immediately(): void
     {
         Queue::fake();
@@ -445,6 +563,19 @@ class KiposSyncManagerFeatureTest extends TestCase
         ]);
     }
 
+    private function enableKiposImportSync(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'catalog_use_kipos_api' => true,
+            'kipos_api_enabled' => true,
+            'kipos_api_base_uri' => 'http://balidd.dyndns.org:8080/kipos.web.api/?route=',
+            'kipos_api_query_suffix' => 'webshop=2',
+            'kipos_api_timeout_seconds' => 30,
+            'kipos_api_verify_tls' => true,
+            'kipos_sync_price_field' => 'CIJENA_MPC',
+        ]);
+    }
+
     private function enableKiposImageSync(): void
     {
         app(SystemSettingsService::class)->putMany([
@@ -470,6 +601,20 @@ class KiposSyncManagerFeatureTest extends TestCase
         ]);
     }
 
+    private function enableKiposOrderStatusSync(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'catalog_use_kipos_api' => true,
+            'kipos_api_enabled' => true,
+            'kipos_api_base_uri' => 'http://balidd.dyndns.org:8080/kipos.web.api/?route=',
+            'kipos_api_query_suffix' => 'webshop=2',
+            'kipos_api_timeout_seconds' => 30,
+            'kipos_api_verify_tls' => true,
+            'kipos_order_status_endpoint' => 'narudzba/statusi',
+            'kipos_order_status_map' => '{"placeno":"paid"}',
+        ]);
+    }
+
     private function fakeKiposPrice(string $code, string $price): void
     {
         Http::fake([
@@ -477,6 +622,17 @@ class KiposSyncManagerFeatureTest extends TestCase
             '*getitems*' => Http::response([
                 ['IDROBA' => $code, 'IDODJEL' => $code, 'CIJENA_MPC' => $price],
             ], 200),
+        ]);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function fakeKiposProducts(array $rows): void
+    {
+        Http::fake([
+            '*getitemsextended*' => Http::response([], 200),
+            '*getitems*' => Http::response($rows, 200),
         ]);
     }
 

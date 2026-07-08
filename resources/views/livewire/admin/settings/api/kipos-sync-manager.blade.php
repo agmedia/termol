@@ -1,10 +1,10 @@
 <div class="space-y-6" @if($shouldPoll) wire:poll.2s="processActiveBrowserBatch" @endif>
     <div class="admin-panel admin-search-panel p-6">
         <h2 class="text-xl font-semibold tracking-tight">{{ __('Kipos Sync Manager') }}</h2>
-        <p class="mt-2 text-sm text-slate-600">{{ __('Granular Kipos console: import products once, then run only content, prices, quantities, actions, or images when needed.') }}</p>
+        <p class="mt-2 text-sm text-slate-600">{{ __('Granular Kipos console: import selected products by code, then run only content, prices, quantities, actions, or images when needed.') }}</p>
         <p class="mt-2 text-xs text-slate-500">{{ __('Every action runs manually in admin and writes a persistent run log with exact stats / error details.') }}</p>
         <div class="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900">
-            {{ __('Update Prices, Update Quantities, and Update Order Statuses run immediately. Update Images runs from this admin screen in batches of 10 products with visible progress. Import Images and the longer catalog syncs still run in background on the dedicated `kipos` queue; keep a worker active for those actions, for example `php artisan queue:work --queue=kipos,default`.') }}
+            {{ __('Import Products, Update Prices, Update Quantities, and Update Order Statuses run immediately. Update Images runs from this admin screen in batches of 10 products with visible progress. Import Images and the longer catalog syncs still run in background on the dedicated `kipos` queue; keep a worker active for those actions, for example `php artisan queue:work --queue=kipos,default`.') }}
         </div>
     </div>
 
@@ -117,24 +117,52 @@
                     <div class="mt-4 space-y-3">
                         @foreach ($group['actions'] as $action)
                             <div class="rounded-xl border border-slate-200 bg-white p-3">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p class="text-sm font-semibold text-slate-900">{{ $action['label'] }}</p>
-                                        <p class="mt-1 text-xs text-slate-500">{{ $action['description'] }}</p>
-                                        <p class="mt-1 text-[11px] uppercase tracking-[0.12em] text-slate-400">{{ $action['key'] }}</p>
+                                @if ($action['key'] === 'import_products')
+                                    <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                                        <div>
+                                            <p class="text-sm font-semibold text-slate-900">{{ $action['label'] }}</p>
+                                            <p class="mt-1 text-xs text-slate-500">{{ $action['description'] }}</p>
+                                            <input
+                                                type="text"
+                                                wire:model.defer="importProductCodes"
+                                                placeholder="W5003, W5030, W5027"
+                                                class="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-100"
+                                            />
+                                            @error('importProductCodes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                            <p class="mt-1 text-[11px] uppercase tracking-[0.12em] text-slate-400">{{ $action['key'] }}</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            wire:click="runAction('import_products')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="runAction"
+                                            class="shrink-0 rounded-lg bg-cyan-700 px-4 py-2 text-xs font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                            @if($runningActionKey !== '') disabled @endif
+                                        >
+                                            <span wire:loading.remove wire:target="runAction">{{ __('Import') }}</span>
+                                            <span wire:loading wire:target="runAction">{{ __('Importing...') }}</span>
+                                        </button>
                                     </div>
-                                    <button
-                                        type="button"
-                                        wire:click="runAction('{{ $action['key'] }}')"
-                                        wire:loading.attr="disabled"
-                                        wire:target="runAction"
-                                        class="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                        @if($runningActionKey !== '') disabled @endif
-                                    >
-                                        <span wire:loading.remove wire:target="runAction">{{ __('Run') }}</span>
-                                        <span wire:loading wire:target="runAction">{{ __('Running...') }}</span>
-                                    </button>
-                                </div>
+                                @else
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="text-sm font-semibold text-slate-900">{{ $action['label'] }}</p>
+                                            <p class="mt-1 text-xs text-slate-500">{{ $action['description'] }}</p>
+                                            <p class="mt-1 text-[11px] uppercase tracking-[0.12em] text-slate-400">{{ $action['key'] }}</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            wire:click="runAction('{{ $action['key'] }}')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="runAction"
+                                            class="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                            @if($runningActionKey !== '') disabled @endif
+                                        >
+                                            <span wire:loading.remove wire:target="runAction">{{ __('Run') }}</span>
+                                            <span wire:loading wire:target="runAction">{{ __('Running...') }}</span>
+                                        </button>
+                                    </div>
+                                @endif
                             </div>
                         @endforeach
                     </div>
