@@ -11,8 +11,7 @@ class StoreSettingsService
 {
     public function __construct(
         private readonly SystemSettingsService $settings
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -90,21 +89,21 @@ class StoreSettingsService
     {
         return [
             'enabled' => (bool) $this->settings->get('store_cookie_consent_enabled', true),
-            'title' => trim((string) $this->settings->get('store_cookie_consent_title', 'Koristimo kolačiće')),
-            'message' => trim((string) $this->settings->get('store_cookie_consent_message', 'Koristimo kolačiće za ispravan rad sajta i bolje korisničko iskustvo.')),
-            'accept_label' => trim((string) $this->settings->get('store_cookie_consent_accept_label', 'U redu')),
-            'policy_label' => trim((string) $this->settings->get('store_cookie_consent_policy_label', 'Politika kolačića')),
-            'policy_url' => trim((string) $this->settings->get('store_cookie_consent_policy_url', '')),
-            'preferences_title' => trim((string) $this->settings->get('store_cookie_preferences_title', 'Postavke kolačića')),
-            'preferences_accept_all_label' => trim((string) $this->settings->get('store_cookie_preferences_accept_all_label', 'Prihvati sve')),
-            'preferences_accept_necessary_label' => trim((string) $this->settings->get('store_cookie_preferences_accept_necessary_label', 'Samo nužni')),
-            'preferences_save_label' => trim((string) $this->settings->get('store_cookie_preferences_save_label', 'Spremi odabir')),
-            'necessary_title' => trim((string) $this->settings->get('store_cookie_necessary_title', 'Nužni kolačići')),
-            'necessary_description' => trim((string) $this->settings->get('store_cookie_necessary_description', 'Neki kolačići na ovoj internetskoj stranici neophodni su za pravilno funkcioniranje stranice stoga ih nije moguće onemogućiti.')),
-            'analytics_title' => trim((string) $this->settings->get('store_cookie_analytics_title', 'Analitički kolačići')),
-            'analytics_description' => trim((string) $this->settings->get('store_cookie_analytics_description', 'Analitički kolačići nam pomažu kako bismo poboljšali našu internetsku stranicu sakupljajući i analizirajući podatke o njenoj posjećenosti.')),
-            'marketing_title' => trim((string) $this->settings->get('store_cookie_marketing_title', 'Marketinški kolačići')),
-            'marketing_description' => trim((string) $this->settings->get('store_cookie_marketing_description', 'Marketinški kolačići služe za praćenje posjetitelja u korištenju internet stranice u svrhu omogućavanja prikazivanja relevantnih oglasa oglašivača trećih strana.')),
+            'title' => trim((string) $this->localizedSetting('store_cookie_consent_title', 'Koristimo kolačiće')),
+            'message' => trim((string) $this->localizedSetting('store_cookie_consent_message', 'Koristimo kolačiće za ispravan rad sajta i bolje korisničko iskustvo.')),
+            'accept_label' => trim((string) $this->localizedSetting('store_cookie_consent_accept_label', 'U redu')),
+            'policy_label' => trim((string) $this->localizedSetting('store_cookie_consent_policy_label', 'Politika kolačića')),
+            'policy_url' => trim((string) $this->localizedSetting('store_cookie_consent_policy_url', '')),
+            'preferences_title' => trim((string) $this->localizedSetting('store_cookie_preferences_title', 'Postavke kolačića')),
+            'preferences_accept_all_label' => trim((string) $this->localizedSetting('store_cookie_preferences_accept_all_label', 'Prihvati sve')),
+            'preferences_accept_necessary_label' => trim((string) $this->localizedSetting('store_cookie_preferences_accept_necessary_label', 'Samo nužni')),
+            'preferences_save_label' => trim((string) $this->localizedSetting('store_cookie_preferences_save_label', 'Spremi odabir')),
+            'necessary_title' => trim((string) $this->localizedSetting('store_cookie_necessary_title', 'Nužni kolačići')),
+            'necessary_description' => trim((string) $this->localizedSetting('store_cookie_necessary_description', 'Neki kolačići na ovoj internetskoj stranici neophodni su za pravilno funkcioniranje stranice stoga ih nije moguće onemogućiti.')),
+            'analytics_title' => trim((string) $this->localizedSetting('store_cookie_analytics_title', 'Analitički kolačići')),
+            'analytics_description' => trim((string) $this->localizedSetting('store_cookie_analytics_description', 'Analitički kolačići nam pomažu kako bismo poboljšali našu internetsku stranicu sakupljajući i analizirajući podatke o njenoj posjećenosti.')),
+            'marketing_title' => trim((string) $this->localizedSetting('store_cookie_marketing_title', 'Marketinški kolačići')),
+            'marketing_description' => trim((string) $this->localizedSetting('store_cookie_marketing_description', 'Marketinški kolačići služe za praćenje posjetitelja u korištenju internet stranice u svrhu omogućavanja prikazivanja relevantnih oglasa oglašivača trećih strana.')),
         ];
     }
 
@@ -164,10 +163,10 @@ class StoreSettingsService
             'phone' => trim((string) $this->settings->get('store_footer_phone', '')),
             'email_sales' => trim((string) $this->settings->get('store_footer_email_sales', '')),
             'email_support' => trim((string) $this->settings->get('store_footer_email_support', '')),
-            'hours' => trim((string) $this->settings->get('store_footer_hours', '')),
+            'hours' => trim((string) $this->localizedSetting('store_footer_hours', '', $locale, $fallbackLocale)),
             'link_columns' => $linkColumns,
             'bottom_links' => $bottomLinks,
-            'bottom_copyright_text' => trim((string) $this->settings->get('store_footer_bottom_copyright_text', '')),
+            'bottom_copyright_text' => trim((string) $this->localizedSetting('store_footer_bottom_copyright_text', '', $locale, $fallbackLocale)),
         ];
     }
 
@@ -363,7 +362,7 @@ class StoreSettingsService
 
         $result = [];
         foreach ([1, 2, 3] as $col) {
-            $title = trim((string) $this->settings->get('store_footer_col_'.$col.'_title', $defaults[$col]));
+            $title = trim((string) $this->localizedSetting('store_footer_col_'.$col.'_title', $defaults[$col], $locale, $fallbackLocale));
             if ($title === '') {
                 $title = $defaults[$col];
             }
@@ -381,7 +380,12 @@ class StoreSettingsService
                     $links[] = $entry;
                 }
             }
-            $links = array_merge($links, $this->parseCustomFooterLinks((string) $this->settings->get('store_footer_col_'.$col.'_custom_links', '')));
+            $links = array_merge($links, $this->parseCustomFooterLinks((string) $this->localizedSetting(
+                'store_footer_col_'.$col.'_custom_links',
+                '',
+                $locale,
+                $fallbackLocale
+            )));
 
             $result[] = [
                 'title' => $title,
@@ -392,8 +396,32 @@ class StoreSettingsService
         return $result;
     }
 
+    private function localizedSetting(
+        string $key,
+        mixed $default = null,
+        ?string $locale = null,
+        ?string $fallbackLocale = null
+    ): mixed {
+        $locale = strtolower(trim((string) ($locale ?? app()->getLocale())));
+        $fallbackLocale = strtolower(trim((string) ($fallbackLocale ?? config('app.locale', 'en'))));
+        $translations = $this->settings->get($key.'_translations', []);
+
+        if (is_array($translations)) {
+            foreach ([$locale, $fallbackLocale] as $preferredLocale) {
+                if ($preferredLocale !== '' && array_key_exists($preferredLocale, $translations)) {
+                    $value = $translations[$preferredLocale];
+                    if ($value !== null && (! is_string($value) || trim($value) !== '')) {
+                        return $value;
+                    }
+                }
+            }
+        }
+
+        return $this->settings->get($key, $default);
+    }
+
     /**
-     * @param array<int, int> $pageIds
+     * @param  array<int, int>  $pageIds
      * @return array<int, array{label:string,url:string,type:string}>
      */
     private function resolveFooterPageLinksMap(string $locale, string $fallbackLocale, array $pageIds): array
@@ -430,7 +458,7 @@ class StoreSettingsService
     }
 
     /**
-     * @param array<int, int> $pageIds
+     * @param  array<int, int>  $pageIds
      * @return array<int, array{label:string,url:string,type:string}>
      */
     private function resolveFooterPageLinks(string $locale, string $fallbackLocale, array $pageIds): array
@@ -448,7 +476,6 @@ class StoreSettingsService
     }
 
     /**
-     * @param mixed $value
      * @return array<int, int>
      */
     private function normalizeIdList(mixed $value): array

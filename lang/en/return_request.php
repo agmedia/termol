@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'slug' => 'returns-and-claims',
     'page_title' => 'Returns and Claims',
     'eyebrow' => 'Customer form',
     'heading' => 'Returns and claims form',

@@ -59,7 +59,7 @@ class Form extends Component
 
     public function updatedFormLocale(): void
     {
-        if (!in_array($this->form['locale'], $this->localeOptions, true)) {
+        if (! in_array($this->form['locale'], $this->localeOptions, true)) {
             $this->form['locale'] = $this->resolveDefaultLocale();
         }
 
@@ -68,7 +68,7 @@ class Form extends Component
 
     public function updatedFormScope(): void
     {
-        if (!in_array($this->form['scope'], Category::availableScopes(), true)) {
+        if (! in_array($this->form['scope'], Category::availableScopes(), true)) {
             $this->form['scope'] = Category::SCOPE_CATALOG;
         }
 
@@ -78,7 +78,7 @@ class Form extends Component
                 ->where('scope', $this->form['scope'])
                 ->exists();
 
-            if (!$validParent) {
+            if (! $validParent) {
                 $this->form['parent_id'] = null;
             }
         }
@@ -250,17 +250,15 @@ class Form extends Component
     public function getLocaleOptionsProperty(): array
     {
         $locales = Language::query()
-            ->where('is_active', true)
             ->orderBy('sort_order')
             ->pluck('code')
             ->map(fn ($code): string => (string) $code)
             ->all();
 
-        if ($locales === []) {
-            return [config('app.locale', 'en')];
-        }
-
-        return array_values(array_unique($locales));
+        return array_values(array_unique([
+            (string) config('app.locale', 'en'),
+            ...$locales,
+        ]));
     }
 
     public function getParentOptionsProperty(): Collection
@@ -343,7 +341,7 @@ class Form extends Component
 
     private function loadCategory(): void
     {
-        if (!$this->categoryId) {
+        if (! $this->categoryId) {
             return;
         }
 
@@ -390,8 +388,9 @@ class Form extends Component
 
     private function loadTranslationForLocale(): void
     {
-        if (!$this->categoryId) {
+        if (! $this->categoryId) {
             $this->clearTranslationFields();
+
             return;
         }
 
@@ -401,8 +400,9 @@ class Form extends Component
             ->where('locale', $this->form['locale'])
             ->first();
 
-        if (!$translation) {
+        if (! $translation) {
             $this->clearTranslationFields();
+
             return;
         }
 
@@ -441,12 +441,14 @@ class Form extends Component
         if (json_last_error() !== JSON_ERROR_NONE) {
             $this->addError($field, __('Invalid JSON payload.'));
             $this->dispatch('notify', type: 'danger', message: __('Invalid JSON payload.'));
+
             return false;
         }
 
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             $this->addError($field, __('JSON payload must decode to object/array.'));
             $this->dispatch('notify', type: 'danger', message: __('JSON payload must decode to object/array.'));
+
             return false;
         }
 

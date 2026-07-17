@@ -6,13 +6,21 @@ use App\Models\Catalog\Category\Category;
 use App\Models\Content\Page\InfoPage;
 use App\Services\Front\NavigationMenuService;
 use App\Services\Settings\SystemSettingsService;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 
 class Manager extends Component
 {
     use WithFileUploads;
+
+    /** @var array<string, string> */
+    private const PROMO_LOCALIZED_FIELDS = [
+        'desktop_promo_title' => 'desktop_promo_title_translations',
+        'desktop_promo_subtitle' => 'desktop_promo_subtitle_translations',
+        'desktop_promo_cta_label' => 'desktop_promo_cta_label_translations',
+        'desktop_promo_cta_url' => 'desktop_promo_cta_url_translations',
+    ];
 
     /**
      * @var array{items: array<int, array<string, mixed>>}
@@ -22,7 +30,9 @@ class Manager extends Component
     ];
 
     public string $locale = 'en';
+
     public string $previousLocale = 'en';
+
     /** @var array<int, TemporaryUploadedFile|null> */
     public array $desktopPromoUploads = [];
 
@@ -141,6 +151,14 @@ class Manager extends Component
             'form.items.*.desktop_promo_subtitle' => ['nullable', 'string', 'max:255'],
             'form.items.*.desktop_promo_cta_label' => ['nullable', 'string', 'max:80'],
             'form.items.*.desktop_promo_cta_url' => ['nullable', 'string', 'max:2048'],
+            'form.items.*.desktop_promo_title_translations' => ['nullable', 'array'],
+            'form.items.*.desktop_promo_title_translations.*' => ['nullable', 'string', 'max:120'],
+            'form.items.*.desktop_promo_subtitle_translations' => ['nullable', 'array'],
+            'form.items.*.desktop_promo_subtitle_translations.*' => ['nullable', 'string', 'max:255'],
+            'form.items.*.desktop_promo_cta_label_translations' => ['nullable', 'array'],
+            'form.items.*.desktop_promo_cta_label_translations.*' => ['nullable', 'string', 'max:80'],
+            'form.items.*.desktop_promo_cta_url_translations' => ['nullable', 'array'],
+            'form.items.*.desktop_promo_cta_url_translations.*' => ['nullable', 'string', 'max:2048'],
             'desktopPromoUploads.*' => ['nullable', 'image', 'max:4096'],
         ]);
 
@@ -266,7 +284,7 @@ class Manager extends Component
     }
 
     /**
-     * @param array<string, mixed> $item
+     * @param  array<string, mixed>  $item
      * @return array<string, mixed>
      */
     private function normalizeItem(array $item, int $index, mixed $desktopPromoUpload = null): array
@@ -301,7 +319,22 @@ class Manager extends Component
             $desktopPromoImagePath = $desktopPromoUpload->store('navigation/mega-promo', 'public');
         }
 
-        return [
+        $localizedPromo = [];
+        foreach (self::PROMO_LOCALIZED_FIELDS as $field => $translationsField) {
+            $translations = $this->normalizeTranslations($item[$translationsField] ?? []);
+            $value = trim((string) ($item[$field] ?? ''));
+
+            if ($value !== '' && $locale !== '') {
+                $translations[$locale] = $value;
+            } elseif ($locale !== '') {
+                unset($translations[$locale]);
+            }
+
+            $localizedPromo[$field] = $this->pickTranslationValue($translations, $fallbackLocale);
+            $localizedPromo[$translationsField] = $translations;
+        }
+
+        return array_merge([
             'type' => $type,
             'label' => $storedLabel,
             'label_translations' => $labelTranslations,
@@ -314,11 +347,7 @@ class Manager extends Component
             'is_active' => (bool) ($item['is_active'] ?? true),
             'sort_order' => (int) ($item['sort_order'] ?? $index),
             'desktop_promo_image_path' => $desktopPromoImagePath,
-            'desktop_promo_title' => trim((string) ($item['desktop_promo_title'] ?? '')),
-            'desktop_promo_subtitle' => trim((string) ($item['desktop_promo_subtitle'] ?? '')),
-            'desktop_promo_cta_label' => trim((string) ($item['desktop_promo_cta_label'] ?? '')),
-            'desktop_promo_cta_url' => trim((string) ($item['desktop_promo_cta_url'] ?? '')),
-        ];
+        ], $localizedPromo);
     }
 
     /**
@@ -340,9 +369,13 @@ class Manager extends Component
             'sort_order' => count($this->form['items']),
             'desktop_promo_image_path' => '',
             'desktop_promo_title' => '',
+            'desktop_promo_title_translations' => [],
             'desktop_promo_subtitle' => '',
+            'desktop_promo_subtitle_translations' => [],
             'desktop_promo_cta_label' => '',
+            'desktop_promo_cta_label_translations' => [],
             'desktop_promo_cta_url' => '',
+            'desktop_promo_cta_url_translations' => [],
         ];
     }
 
@@ -373,6 +406,19 @@ class Manager extends Component
 
             $this->form['items'][$index]['label_translations'] = $labelTranslations;
             $this->form['items'][$index]['url_translations'] = $urlTranslations;
+
+            foreach (self::PROMO_LOCALIZED_FIELDS as $field => $translationsField) {
+                $translations = $this->normalizeTranslations($item[$translationsField] ?? []);
+                $value = trim((string) ($item[$field] ?? ''));
+
+                if ($value !== '') {
+                    $translations[$normalizedLocale] = $value;
+                } else {
+                    unset($translations[$normalizedLocale]);
+                }
+
+                $this->form['items'][$index][$translationsField] = $translations;
+            }
         }
     }
 
@@ -392,11 +438,20 @@ class Manager extends Component
             $this->form['items'][$index]['url'] = $resolvedUrl !== '' ? $resolvedUrl : trim((string) ($item['url'] ?? ''));
             $this->form['items'][$index]['label_translations'] = $labelTranslations;
             $this->form['items'][$index]['url_translations'] = $urlTranslations;
+
+            foreach (self::PROMO_LOCALIZED_FIELDS as $field => $translationsField) {
+                $translations = $this->normalizeTranslations($item[$translationsField] ?? []);
+                $resolved = $this->pickTranslationValue($translations, $normalizedLocale, $fallbackLocale);
+
+                $this->form['items'][$index][$field] = $resolved !== ''
+                    ? $resolved
+                    : trim((string) ($item[$field] ?? ''));
+                $this->form['items'][$index][$translationsField] = $translations;
+            }
         }
     }
 
     /**
-     * @param mixed $translations
      * @return array<string, string>
      */
     private function normalizeTranslations(mixed $translations): array
@@ -424,7 +479,7 @@ class Manager extends Component
     }
 
     /**
-     * @param array<string, string> $translations
+     * @param  array<string, string>  $translations
      */
     private function pickTranslationValue(array $translations, string ...$preferredLocales): string
     {

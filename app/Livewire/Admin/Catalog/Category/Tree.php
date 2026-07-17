@@ -16,7 +16,9 @@ class Tree extends Component
     use WithPagination;
 
     public string $search = '';
+
     public string $scope = Category::SCOPE_CATALOG;
+
     public string $locale = 'en';
 
     /**
@@ -55,7 +57,7 @@ class Tree extends Component
 
     public function updatedScope(): void
     {
-        if (!in_array($this->scope, Category::availableScopes(), true)) {
+        if (! in_array($this->scope, Category::availableScopes(), true)) {
             $this->scope = Category::SCOPE_CATALOG;
         }
 
@@ -65,7 +67,7 @@ class Tree extends Component
 
     public function updatedLocale(): void
     {
-        if (!in_array($this->locale, $this->localeOptions, true)) {
+        if (! in_array($this->locale, $this->localeOptions, true)) {
             $this->locale = $this->resolveDefaultLocale();
         }
 
@@ -78,6 +80,7 @@ class Tree extends Component
         if (in_array($id, $this->expanded, true)) {
             $branchIds = Category::query()->descendantsAndSelf($id)->pluck('id')->all();
             $this->expanded = array_values(array_diff($this->expanded, $branchIds));
+
             return;
         }
 
@@ -86,7 +89,7 @@ class Tree extends Component
             ->whereKey($id)
             ->first();
 
-        if (!$category) {
+        if (! $category) {
             return;
         }
 
@@ -124,6 +127,7 @@ class Tree extends Component
 
         if ($category->children()->exists()) {
             $this->dispatch('notify', type: 'warning', message: __('Delete/move child categories first.'));
+
             return;
         }
 
@@ -154,17 +158,15 @@ class Tree extends Component
     public function getLocaleOptionsProperty(): array
     {
         $locales = Language::query()
-            ->where('is_active', true)
             ->orderBy('sort_order')
             ->pluck('code')
             ->map(fn ($code): string => (string) $code)
             ->all();
 
-        if ($locales === []) {
-            return [config('app.locale', 'en')];
-        }
-
-        return array_values(array_unique($locales));
+        return array_values(array_unique([
+            (string) config('app.locale', 'en'),
+            ...$locales,
+        ]));
     }
 
     public function render()
@@ -199,7 +201,7 @@ class Tree extends Component
     }
 
     /**
-     * @param EloquentCollection<int, Category> $roots
+     * @param  EloquentCollection<int, Category>  $roots
      * @return Collection<int, array<string, mixed>>
      */
     private function buildTreeRows(EloquentCollection $roots): Collection
@@ -226,12 +228,12 @@ class Tree extends Component
     }
 
     /**
-     * @param Collection<int, array<string, mixed>> $rows
-     * @param array<int, EloquentCollection<int, Category>> $childrenCache
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @param  array<int, EloquentCollection<int, Category>>  $childrenCache
      */
     private function appendChildrenRows(Collection $rows, int $parentId, int $depth, array &$childrenCache): void
     {
-        if (!array_key_exists($parentId, $childrenCache)) {
+        if (! array_key_exists($parentId, $childrenCache)) {
             $childrenCache[$parentId] = Category::query()
                 ->where('scope', $this->scope)
                 ->where('parent_id', $parentId)

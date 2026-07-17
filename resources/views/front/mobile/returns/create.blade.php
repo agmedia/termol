@@ -22,7 +22,7 @@
         <div class="content">
             <form
                 method="POST"
-                action="{{ route('returns.store') }}"
+                action="{{ route('returns.store', ['returnRequestSlug' => __('return_request.slug')]) }}"
                 novalidate
                 data-return-form
                 data-msg-email-required="{{ __('return_request.validation.inline.email_required') }}"

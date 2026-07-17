@@ -8,6 +8,7 @@ use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Option\Option;
 use App\Models\Catalog\Product\Product;
 use App\Models\Content\Page\InfoPage;
+use App\Models\Settings\Local\Language;
 use App\Services\Settings\SystemSettingsService;
 use App\Support\Media\MediaProfileRegistry;
 use Illuminate\Database\Eloquent\Builder;
@@ -26,7 +27,44 @@ class StoreSettings extends Component
 {
     use WithFileUploads;
 
+    /** @var array<int, string> */
+    private const LOCALIZED_SETTING_KEYS = [
+        'store_footer_hours',
+        'store_footer_col_1_title',
+        'store_footer_col_1_custom_links',
+        'store_footer_col_2_title',
+        'store_footer_col_2_custom_links',
+        'store_footer_col_3_title',
+        'store_footer_col_3_custom_links',
+        'store_footer_bottom_copyright_text',
+        'store_cookie_consent_title',
+        'store_cookie_consent_message',
+        'store_cookie_consent_accept_label',
+        'store_cookie_consent_policy_label',
+        'store_cookie_consent_policy_url',
+        'store_cookie_preferences_title',
+        'store_cookie_preferences_accept_all_label',
+        'store_cookie_preferences_accept_necessary_label',
+        'store_cookie_preferences_save_label',
+        'store_cookie_necessary_title',
+        'store_cookie_necessary_description',
+        'store_cookie_analytics_title',
+        'store_cookie_analytics_description',
+        'store_cookie_marketing_title',
+        'store_cookie_marketing_description',
+    ];
+
     public string $tab = 'email';
+
+    public string $locale = 'en';
+
+    public string $previousLocale = 'en';
+
+    /** @var array<string, array<string, string>> */
+    public array $localizedValues = [];
+
+    /** @var array<string, mixed> */
+    public array $baseLocalizedValues = [];
 
     /** @var array<string, mixed> */
     public array $form = [
@@ -178,12 +216,19 @@ class StoreSettings extends Component
     ];
 
     public ?TemporaryUploadedFile $logoUpload = null;
+
     public ?TemporaryUploadedFile $faviconUpload = null;
+
     public ?TemporaryUploadedFile $ogDefaultImageUpload = null;
+
     public ?TemporaryUploadedFile $ogHomeImageUpload = null;
+
     public ?TemporaryUploadedFile $ogCategoryImageUpload = null;
+
     public ?TemporaryUploadedFile $ogProductImageUpload = null;
+
     public ?TemporaryUploadedFile $ogPageImageUpload = null;
+
     public ?TemporaryUploadedFile $ogBlogImageUpload = null;
 
     /** @var array<string, mixed> */
@@ -208,9 +253,21 @@ class StoreSettings extends Component
         $this->authorizeAccess();
 
         $settings = app(SystemSettingsService::class);
+        $this->locale = strtolower(trim((string) (request()->query('locale') ?: config('app.locale', 'en'))));
+        $this->previousLocale = $this->locale;
+
         foreach ($this->form as $key => $default) {
             $this->form[$key] = $settings->get($key, $default);
         }
+
+        foreach (self::LOCALIZED_SETTING_KEYS as $key) {
+            $this->baseLocalizedValues[$key] = $this->form[$key] ?? '';
+            $this->localizedValues[$key] = $this->normalizeTranslations(
+                $settings->get($key.'_translations', [])
+            );
+        }
+
+        $this->loadLocalizedInputs($this->locale);
         $this->form = $this->sanitizeSelectableSettings($this->form);
 
         if (trim((string) $this->form['store_announcement_text']) === '') {
@@ -223,6 +280,7 @@ class StoreSettings extends Component
     public function save(): void
     {
         $this->authorizeAccess();
+        $this->syncLocalizedInputs($this->locale);
 
         $this->form = $this->sanitizeSelectableSettings($this->form);
         $validated = $this->validate($this->rulesForCurrentTab());
@@ -242,12 +300,26 @@ class StoreSettings extends Component
         }
 
         $payload = array_merge($payload, $this->uploadPayloadForCurrentTab());
+        $payload = $this->appendLocalizedPayload($payload);
 
         app(SystemSettingsService::class)->putMany($payload);
-        $this->form = array_merge($this->form, $payload);
+        $this->form = array_merge($this->form, Arr::only($payload, array_keys($this->form)));
+        $this->loadLocalizedInputs($this->locale);
         $this->resetUploadsForCurrentTab();
 
         $this->dispatch('notify', type: 'success', message: __('Store settings saved.'));
+    }
+
+    public function updatedLocale(): void
+    {
+        $this->syncLocalizedInputs($this->previousLocale);
+        $this->loadLocalizedInputs($this->locale);
+        $this->previousLocale = $this->locale;
+    }
+
+    public function hasLocalizedSettingsForCurrentTab(): bool
+    {
+        return array_intersect($this->currentTabSettingKeys(), self::LOCALIZED_SETTING_KEYS) !== [];
     }
 
     /**
@@ -456,7 +528,7 @@ class StoreSettings extends Component
 
     public function render()
     {
-        $locale = (string) app()->getLocale();
+        $locale = $this->locale;
         $fallbackLocale = (string) config('app.locale');
 
         $catalogCategoryOptions = Category::query()
@@ -624,6 +696,7 @@ class StoreSettings extends Component
 
         if ($total === 0) {
             $this->dispatch('notify', type: 'success', message: __('admin.settings.store.images.notify_no_media'));
+
             return;
         }
 
@@ -895,7 +968,6 @@ class StoreSettings extends Component
     }
 
     /**
-     * @param mixed $value
      * @return array<int, int>
      */
     private function normalizeIdList(mixed $value): array
@@ -921,7 +993,7 @@ class StoreSettings extends Component
     }
 
     /**
-     * @param array<string, mixed> $values
+     * @param  array<string, mixed>  $values
      * @return array<string, mixed>
      */
     private function sanitizeSelectableSettings(array $values): array
@@ -999,6 +1071,105 @@ class StoreSettings extends Component
         ));
     }
 
+    private function syncLocalizedInputs(string $locale): void
+    {
+        $locale = strtolower(trim($locale));
+        if ($locale === '') {
+            return;
+        }
+
+        foreach (self::LOCALIZED_SETTING_KEYS as $key) {
+            $translations = $this->normalizeTranslations($this->localizedValues[$key] ?? []);
+            $value = trim((string) ($this->form[$key] ?? ''));
+
+            if ($value !== '') {
+                $translations[$locale] = $value;
+            } else {
+                unset($translations[$locale]);
+            }
+
+            $this->localizedValues[$key] = $translations;
+        }
+    }
+
+    private function loadLocalizedInputs(string $locale): void
+    {
+        $locale = strtolower(trim($locale));
+        $fallbackLocale = $this->defaultContentLocale();
+
+        foreach (self::LOCALIZED_SETTING_KEYS as $key) {
+            $translations = $this->normalizeTranslations($this->localizedValues[$key] ?? []);
+
+            if (array_key_exists($locale, $translations)) {
+                $this->form[$key] = $translations[$locale];
+            } elseif ($locale === $fallbackLocale) {
+                $this->form[$key] = $this->baseLocalizedValues[$key] ?? '';
+            } else {
+                $this->form[$key] = '';
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function appendLocalizedPayload(array $payload): array
+    {
+        $fallbackLocale = $this->defaultContentLocale();
+
+        foreach (self::LOCALIZED_SETTING_KEYS as $key) {
+            if (! array_key_exists($key, $payload)) {
+                continue;
+            }
+
+            $translations = $this->normalizeTranslations($this->localizedValues[$key] ?? []);
+            $baseValue = $this->baseLocalizedValues[$key] ?? '';
+
+            if (array_key_exists($fallbackLocale, $translations)) {
+                $baseValue = $translations[$fallbackLocale];
+            }
+
+            $this->baseLocalizedValues[$key] = $baseValue;
+            $payload[$key] = $baseValue;
+            $payload[$key.'_translations'] = $translations;
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function normalizeTranslations(mixed $translations): array
+    {
+        if (! is_array($translations)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($translations as $locale => $value) {
+            $locale = strtolower(trim((string) $locale));
+            $value = trim((string) $value);
+
+            if ($locale !== '' && $value !== '') {
+                $normalized[$locale] = $value;
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function defaultContentLocale(): string
+    {
+        $default = Language::query()
+            ->where('is_default', true)
+            ->orderBy('sort_order')
+            ->value('code');
+
+        return strtolower(trim((string) $default)) ?: strtolower((string) config('app.locale', 'en'));
+    }
+
     /**
      * @return array<int, string>
      */
@@ -1067,7 +1238,7 @@ class StoreSettings extends Component
     }
 
     /**
-     * @param array<int, int> $allowedIds
+     * @param  array<int, int>  $allowedIds
      * @return array<int, int>
      */
     private function filterIdList(mixed $value, array $allowedIds): array

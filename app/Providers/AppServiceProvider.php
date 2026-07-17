@@ -25,14 +25,14 @@ use App\Services\Loyalty\LoyaltyService;
 use App\Services\Settings\LocalSettingsService;
 use App\Services\Settings\SystemSettingsService;
 use App\Services\UserTracking\UserTrackingService;
-use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\View;
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\URL;
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
@@ -42,10 +42,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(LocalSettingsService::class, fn () => new LocalSettingsService());
-        $this->app->singleton(SystemSettingsService::class, fn () => new SystemSettingsService());
+        $this->app->singleton(LocalSettingsService::class, fn () => new LocalSettingsService);
+        $this->app->singleton(SystemSettingsService::class, fn () => new SystemSettingsService);
         $this->app->singleton(CatalogFeatureService::class, fn ($app) => new CatalogFeatureService($app->make(SystemSettingsService::class)));
-        $this->app->singleton(ContentBlockResolver::class, fn () => new ContentBlockResolver());
+        $this->app->singleton(ContentBlockResolver::class, fn () => new ContentBlockResolver);
         $this->app->singleton(NavigationMenuService::class, fn ($app) => new NavigationMenuService($app->make(SystemSettingsService::class)));
         $this->app->singleton(StoreSettingsService::class, fn ($app) => new StoreSettingsService($app->make(SystemSettingsService::class)));
         $this->app->singleton(UserTrackingService::class, fn ($app) => new UserTrackingService($app->make(SystemSettingsService::class)));
@@ -90,8 +90,8 @@ class AppServiceProvider extends ServiceProvider
 
             if ($localeOptions === null) {
                 try {
-                    $localeOptions = Language::query()
-                        ->where('is_active', true)
+                    $configuredLocale = strtolower(trim((string) config('app.locale', 'en')));
+                    $databaseLocales = Language::query()
                         ->orderByDesc('is_default')
                         ->orderBy('sort_order')
                         ->orderBy('code')
@@ -101,6 +101,10 @@ class AppServiceProvider extends ServiceProvider
                         ->unique()
                         ->values()
                         ->all();
+                    $localeOptions = array_values(array_unique(array_filter([
+                        $configuredLocale,
+                        ...$databaseLocales,
+                    ])));
                 } catch (\Throwable) {
                     $localeOptions = [];
                 }

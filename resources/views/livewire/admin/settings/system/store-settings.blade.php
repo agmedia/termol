@@ -27,6 +27,20 @@
         </div>
         <p class="mb-4 text-xs text-slate-500">{{ __('Saving applies only to the currently open tab.') }}</p>
 
+        @if ($this->hasLocalizedSettingsForCurrentTab())
+            <div class="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-cyan-200 bg-cyan-50 p-3">
+                <div class="w-32">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-cyan-800">{{ __('admin.common.locale') }}</label>
+                    <select wire:model.live="locale" data-tom-select data-tom-no-search="1" class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm lowercase">
+                        @foreach ($adminLocaleOptions as $localeOption)
+                            <option value="{{ $localeOption }}">{{ $localeOption }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <p class="pb-2 text-xs text-cyan-900">{{ __('Text fields in this tab are saved separately for each language. Inactive languages remain available here for translation.') }}</p>
+            </div>
+        @endif
+
         <form wire:submit="save" class="space-y-4">
             @if ($errors->any())
                 <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">

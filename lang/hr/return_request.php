@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'slug' => 'forma-za-povrat-i-reklamacije',
     'page_title' => 'Povrat i reklamacije',
     'eyebrow' => 'Obrazac za kupce',
     'heading' => 'Forma za povrat i reklamacije',

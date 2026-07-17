@@ -12,8 +12,8 @@ use App\Models\Settings\Local\Region;
 use App\Models\Settings\Local\ShippingMethod;
 use App\Models\Settings\Local\TaxRate;
 use App\Support\CountryCatalog;
-use Illuminate\Support\Carbon;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 
 class SettingsLocalSeeder extends Seeder
@@ -152,7 +152,11 @@ class SettingsLocalSeeder extends Seeder
         );
         Language::updateOrCreate(
             ['code' => 'en'],
-            ['locale' => 'en_US', 'name' => 'English', 'native_name' => 'English', 'direction' => 'ltr', 'is_default' => false, 'is_active' => true, 'sort_order' => 2]
+            ['locale' => 'en_US', 'name' => 'English', 'native_name' => 'English', 'direction' => 'ltr', 'is_default' => false, 'is_active' => false, 'sort_order' => 2]
+        );
+        Language::updateOrCreate(
+            ['code' => 'de'],
+            ['locale' => 'de_DE', 'name' => 'German', 'native_name' => 'Deutsch', 'direction' => 'ltr', 'is_default' => false, 'is_active' => false, 'sort_order' => 3]
         );
 
         PaymentMethod::updateOrCreate(
@@ -332,12 +336,12 @@ class SettingsLocalSeeder extends Seeder
     private function seedRegions(): void
     {
         $path = public_path('front-theme/data/hr-places.json');
-        if (!File::exists($path)) {
+        if (! File::exists($path)) {
             return;
         }
 
         $raw = json_decode((string) File::get($path), true);
-        if (!is_array($raw)) {
+        if (! is_array($raw)) {
             return;
         }
 

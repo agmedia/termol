@@ -29,6 +29,29 @@ class StorefrontLocaleFeatureTest extends TestCase
             ->assertSessionHas('front_locale', 'en');
     }
 
+    public function test_return_request_form_has_localized_slugs(): void
+    {
+        $this->seedLanguages();
+
+        $this->get('/forma-za-povrat-i-reklamacije')
+            ->assertOk()
+            ->assertSee('Forma za povrat i reklamacije');
+
+        $this->from('/contact')->get('/locale/en');
+
+        $this->get('/returns-and-claims')
+            ->assertOk()
+            ->assertSee('Returns and claims form')
+            ->assertSee('/returns-and-claims', false);
+
+        $this->from('/returns-and-claims')->get('/locale/de');
+
+        $this->get('/rucksendungen-und-reklamationen')
+            ->assertOk()
+            ->assertSee('Formular für Rücksendungen und Reklamationen')
+            ->assertSee('/rucksendungen-und-reklamationen', false);
+    }
+
     private function seedLanguages(): void
     {
         Language::query()->create([
@@ -51,6 +74,18 @@ class StorefrontLocaleFeatureTest extends TestCase
             'is_default' => false,
             'is_active' => true,
             'sort_order' => 2,
+        ]);
+
+        Language::query()->updateOrCreate([
+            'code' => 'de',
+        ], [
+            'locale' => 'de_DE',
+            'name' => 'German',
+            'native_name' => 'Deutsch',
+            'direction' => 'ltr',
+            'is_default' => false,
+            'is_active' => true,
+            'sort_order' => 3,
         ]);
     }
 }

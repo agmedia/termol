@@ -7,6 +7,7 @@ use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Category\CategoryTranslation;
 use App\Models\Content\Page\InfoPage;
 use App\Models\Content\Page\InfoPageTranslation;
+use App\Models\Settings\Local\Language;
 use App\Models\User;
 use App\Services\Front\NavigationMenuService;
 use App\Services\Settings\SystemSettingsService;
@@ -26,7 +27,7 @@ class ContentNavigationFeatureTest extends TestCase
         $this->actingAs($user)
             ->get('/admin/content/navigation')
             ->assertOk()
-            ->assertSee('Main Navigation');
+            ->assertSee(__('admin.content.navigation.title'));
     }
 
     public function test_admin_can_save_navigation_config(): void
@@ -101,6 +102,63 @@ class ContentNavigationFeatureTest extends TestCase
         $this->assertSame((int) $category->id, (int) $saved[0]['category_id']);
         $this->assertSame('page', $saved[1]['type']);
         $this->assertSame((int) $page->id, (int) $saved[1]['page_id']);
+    }
+
+    public function test_inactive_languages_remain_available_for_content_translation(): void
+    {
+        $user = $this->makeAdminUser();
+
+        Language::query()->create([
+            'code' => 'en',
+            'locale' => 'en_US',
+            'name' => 'English',
+            'native_name' => 'English',
+            'direction' => 'ltr',
+            'is_default' => false,
+            'is_active' => false,
+            'sort_order' => 2,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/admin/content/navigation')
+            ->assertOk()
+            ->assertSee('value="en"', false);
+    }
+
+    public function test_navigation_promo_content_is_resolved_per_locale(): void
+    {
+        config(['app.locale' => 'hr']);
+
+        app(SystemSettingsService::class)->put(NavigationMenuService::SETTINGS_KEY, [[
+            'type' => 'custom',
+            'label' => 'Žene',
+            'label_translations' => ['hr' => 'Žene', 'en' => 'Women'],
+            'url' => '/shop',
+            'url_translations' => ['hr' => '/shop', 'en' => '/shop'],
+            'is_active' => true,
+            'show_dropdown' => true,
+            'open_in_new_tab' => false,
+            'sort_order' => 0,
+            'desktop_promo_title' => 'Nova kolekcija',
+            'desktop_promo_title_translations' => ['hr' => 'Nova kolekcija', 'en' => 'New collection'],
+            'desktop_promo_subtitle' => 'Istaknuti komadi sezone',
+            'desktop_promo_subtitle_translations' => ['hr' => 'Istaknuti komadi sezone', 'en' => 'Season highlights'],
+            'desktop_promo_cta_label' => 'Pogledaj više',
+            'desktop_promo_cta_label_translations' => ['hr' => 'Pogledaj više', 'en' => 'Shop now'],
+            'desktop_promo_cta_url' => '/category/zene',
+            'desktop_promo_cta_url_translations' => ['hr' => '/category/zene', 'en' => '/category/women'],
+        ]]);
+
+        $service = app(NavigationMenuService::class);
+        $croatian = $service->forLocale('hr')[0]['mega_promo'];
+        $english = $service->forLocale('en')[0]['mega_promo'];
+
+        $this->assertSame('Nova kolekcija', $croatian['title']);
+        $this->assertSame('Pogledaj više', $croatian['cta_label']);
+        $this->assertSame('/category/zene', $croatian['cta_url']);
+        $this->assertSame('New collection', $english['title']);
+        $this->assertSame('Shop now', $english['cta_label']);
+        $this->assertSame('/category/women', $english['cta_url']);
     }
 
     private function makeAdminUser(): User

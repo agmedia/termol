@@ -16,9 +16,7 @@ class NavigationMenuService
      */
     private array $resolvedCache = [];
 
-    public function __construct(private readonly SystemSettingsService $settings)
-    {
-    }
+    public function __construct(private readonly SystemSettingsService $settings) {}
 
     /**
      * @return array<int, array<string, mixed>>
@@ -118,7 +116,7 @@ class NavigationMenuService
                             'url' => route('pages.show', ['slug' => $slug]),
                             'children' => [],
                             'open_in_new_tab' => false,
-                            'mega_promo' => $this->resolveMegaPromo($item),
+                            'mega_promo' => $this->resolveMegaPromo($item, $locale, $fallbackLocale),
                         ];
                     }
                 }
@@ -130,7 +128,7 @@ class NavigationMenuService
                     'url' => route('blog.index'),
                     'children' => [],
                     'open_in_new_tab' => false,
-                    'mega_promo' => $this->resolveMegaPromo($item),
+                    'mega_promo' => $this->resolveMegaPromo($item, $locale, $fallbackLocale),
                 ];
             } elseif ($type === 'contact') {
                 $entry = [
@@ -140,7 +138,7 @@ class NavigationMenuService
                     'url' => route('contact.create'),
                     'children' => [],
                     'open_in_new_tab' => false,
-                    'mega_promo' => $this->resolveMegaPromo($item),
+                    'mega_promo' => $this->resolveMegaPromo($item, $locale, $fallbackLocale),
                 ];
             } elseif ($type === 'faq') {
                 $entry = [
@@ -150,7 +148,7 @@ class NavigationMenuService
                     'url' => route('faq.index'),
                     'children' => [],
                     'open_in_new_tab' => false,
-                    'mega_promo' => $this->resolveMegaPromo($item),
+                    'mega_promo' => $this->resolveMegaPromo($item, $locale, $fallbackLocale),
                 ];
             } else {
                 $url = $this->urlForItem($item, $locale, $fallbackLocale);
@@ -164,7 +162,7 @@ class NavigationMenuService
                         'url' => $url,
                         'children' => [],
                         'open_in_new_tab' => (bool) ($item['open_in_new_tab'] ?? false),
-                        'mega_promo' => $this->resolveMegaPromo($item),
+                        'mega_promo' => $this->resolveMegaPromo($item, $locale, $fallbackLocale),
                     ];
                 }
             }
@@ -196,6 +194,11 @@ class NavigationMenuService
 
             $labelTranslations = $this->normalizeTranslations($item['label_translations'] ?? []);
             $urlTranslations = $this->normalizeTranslations($item['url_translations'] ?? []);
+            $promoTitleTranslations = $this->normalizeTranslations($item['desktop_promo_title_translations'] ?? []);
+            $promoSubtitleTranslations = $this->normalizeTranslations($item['desktop_promo_subtitle_translations'] ?? []);
+            $promoCtaLabelTranslations = $this->normalizeTranslations($item['desktop_promo_cta_label_translations'] ?? []);
+            $promoCtaUrlTranslations = $this->normalizeTranslations($item['desktop_promo_cta_url_translations'] ?? []);
+            $fallbackLocale = strtolower((string) config('app.locale', 'en'));
 
             $legacyLabel = trim((string) ($item['label'] ?? ''));
             if ($legacyLabel !== '' && $labelTranslations === []) {
@@ -204,16 +207,34 @@ class NavigationMenuService
 
             $legacyUrl = trim((string) ($item['url'] ?? ''));
             if ($legacyUrl !== '' && $urlTranslations === []) {
-                $urlTranslations[strtolower((string) config('app.locale', 'en'))] = $legacyUrl;
+                $urlTranslations[$fallbackLocale] = $legacyUrl;
+            }
+
+            $legacyPromoTitle = trim((string) ($item['desktop_promo_title'] ?? ''));
+            $legacyPromoSubtitle = trim((string) ($item['desktop_promo_subtitle'] ?? ''));
+            $legacyPromoCtaLabel = trim((string) ($item['desktop_promo_cta_label'] ?? ''));
+            $legacyPromoCtaUrl = trim((string) ($item['desktop_promo_cta_url'] ?? ''));
+
+            if ($legacyPromoTitle !== '' && $promoTitleTranslations === []) {
+                $promoTitleTranslations[$fallbackLocale] = $legacyPromoTitle;
+            }
+            if ($legacyPromoSubtitle !== '' && $promoSubtitleTranslations === []) {
+                $promoSubtitleTranslations[$fallbackLocale] = $legacyPromoSubtitle;
+            }
+            if ($legacyPromoCtaLabel !== '' && $promoCtaLabelTranslations === []) {
+                $promoCtaLabelTranslations[$fallbackLocale] = $legacyPromoCtaLabel;
+            }
+            if ($legacyPromoCtaUrl !== '' && $promoCtaUrlTranslations === []) {
+                $promoCtaUrlTranslations[$fallbackLocale] = $legacyPromoCtaUrl;
             }
 
             $storedLabel = $this->pickLocalizedValue(
                 $labelTranslations,
-                strtolower((string) config('app.locale', 'en'))
+                $fallbackLocale
             );
             $storedUrl = $this->pickLocalizedValue(
                 $urlTranslations,
-                strtolower((string) config('app.locale', 'en'))
+                $fallbackLocale
             );
 
             $items[] = [
@@ -229,10 +250,14 @@ class NavigationMenuService
                 'is_active' => (bool) ($item['is_active'] ?? true),
                 'sort_order' => (int) ($item['sort_order'] ?? $index),
                 'desktop_promo_image_path' => trim((string) ($item['desktop_promo_image_path'] ?? ($item['desktop_promo_image_url'] ?? ''))),
-                'desktop_promo_title' => trim((string) ($item['desktop_promo_title'] ?? '')),
-                'desktop_promo_subtitle' => trim((string) ($item['desktop_promo_subtitle'] ?? '')),
-                'desktop_promo_cta_label' => trim((string) ($item['desktop_promo_cta_label'] ?? '')),
-                'desktop_promo_cta_url' => trim((string) ($item['desktop_promo_cta_url'] ?? '')),
+                'desktop_promo_title' => $this->pickLocalizedValue($promoTitleTranslations, $fallbackLocale),
+                'desktop_promo_title_translations' => $promoTitleTranslations,
+                'desktop_promo_subtitle' => $this->pickLocalizedValue($promoSubtitleTranslations, $fallbackLocale),
+                'desktop_promo_subtitle_translations' => $promoSubtitleTranslations,
+                'desktop_promo_cta_label' => $this->pickLocalizedValue($promoCtaLabelTranslations, $fallbackLocale),
+                'desktop_promo_cta_label_translations' => $promoCtaLabelTranslations,
+                'desktop_promo_cta_url' => $this->pickLocalizedValue($promoCtaUrlTranslations, $fallbackLocale),
+                'desktop_promo_cta_url_translations' => $promoCtaUrlTranslations,
             ];
         }
 
@@ -240,8 +265,8 @@ class NavigationMenuService
     }
 
     /**
-     * @param array<string, mixed> $item
-     * @param \Illuminate\Support\Collection<int, \Illuminate\Support\Collection<int, Category>> $childrenByParentId
+     * @param  array<string, mixed>  $item
+     * @param  \Illuminate\Support\Collection<int, \Illuminate\Support\Collection<int, Category>>  $childrenByParentId
      * @return array<string, mixed>|null
      */
     private function resolveCategoryItem(
@@ -275,15 +300,15 @@ class NavigationMenuService
             'url' => route('categories.show', ['slug' => $slug]),
             'children' => $children,
             'open_in_new_tab' => false,
-            'mega_promo' => $this->resolveMegaPromo($item),
+            'mega_promo' => $this->resolveMegaPromo($item, $locale, $fallbackLocale),
         ];
     }
 
     /**
-     * @param array<string, mixed> $item
+     * @param  array<string, mixed>  $item
      * @return array<string, string>
      */
-    private function resolveMegaPromo(array $item): array
+    private function resolveMegaPromo(array $item, string $locale, string $fallbackLocale): array
     {
         $imagePath = trim((string) ($item['desktop_promo_image_path'] ?? ''));
         $imageUrl = '';
@@ -298,15 +323,26 @@ class NavigationMenuService
 
         return [
             'image_url' => $imageUrl,
-            'title' => trim((string) ($item['desktop_promo_title'] ?? '')),
-            'subtitle' => trim((string) ($item['desktop_promo_subtitle'] ?? '')),
-            'cta_label' => trim((string) ($item['desktop_promo_cta_label'] ?? '')),
-            'cta_url' => trim((string) ($item['desktop_promo_cta_url'] ?? '')),
+            'title' => $this->localizedPromoValue($item, 'desktop_promo_title', $locale, $fallbackLocale),
+            'subtitle' => $this->localizedPromoValue($item, 'desktop_promo_subtitle', $locale, $fallbackLocale),
+            'cta_label' => $this->localizedPromoValue($item, 'desktop_promo_cta_label', $locale, $fallbackLocale),
+            'cta_url' => $this->localizedPromoValue($item, 'desktop_promo_cta_url', $locale, $fallbackLocale),
         ];
     }
 
     /**
-     * @param \Illuminate\Support\Collection<int, \Illuminate\Support\Collection<int, Category>> $childrenByParentId
+     * @param  array<string, mixed>  $item
+     */
+    private function localizedPromoValue(array $item, string $field, string $locale, string $fallbackLocale): string
+    {
+        $translations = $this->normalizeTranslations($item[$field.'_translations'] ?? []);
+        $value = $this->pickLocalizedValue($translations, $locale, $fallbackLocale);
+
+        return $value !== '' ? $value : trim((string) ($item[$field] ?? ''));
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, \Illuminate\Support\Collection<int, Category>>  $childrenByParentId
      * @return array<int, array<string, mixed>>
      */
     private function buildCategoryChildren(int $parentId, $childrenByParentId, string $locale, string $fallbackLocale): array
@@ -335,7 +371,7 @@ class NavigationMenuService
     }
 
     /**
-     * @param array<string, mixed> $item
+     * @param  array<string, mixed>  $item
      */
     private function labelForItem(array $item, string $fallback, string $locale, string $fallbackLocale): string
     {
@@ -349,7 +385,7 @@ class NavigationMenuService
     }
 
     /**
-     * @param array<string, mixed> $item
+     * @param  array<string, mixed>  $item
      */
     private function urlForItem(array $item, string $locale, string $fallbackLocale): string
     {
@@ -363,7 +399,6 @@ class NavigationMenuService
     }
 
     /**
-     * @param mixed $translations
      * @return array<string, string>
      */
     private function normalizeTranslations(mixed $translations): array
@@ -391,7 +426,7 @@ class NavigationMenuService
     }
 
     /**
-     * @param array<string, string> $translations
+     * @param  array<string, string>  $translations
      */
     private function pickLocalizedValue(array $translations, string ...$preferredLocales): string
     {

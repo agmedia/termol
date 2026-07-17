@@ -5,9 +5,12 @@ namespace Tests\Feature\Admin;
 use App\Jobs\GenerateWebpConversionsJob;
 use App\Livewire\Admin\Settings\System\StoreSettings;
 use App\Models\Catalog\Product\Product;
+use App\Models\Settings\Local\Language;
 use App\Models\User;
+use App\Services\Front\StoreSettingsService as FrontStoreSettingsService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
@@ -122,6 +125,57 @@ class StoreSettingsFeatureTest extends TestCase
         $this->assertSame(24, (int) $settings->get('store_announcement_scroll_duration_seconds'));
         $this->assertSame('#0ea5e9', $settings->get('store_announcement_background_color'));
         $this->assertSame('#ffffff', $settings->get('store_announcement_text_color'));
+    }
+
+    public function test_footer_text_and_custom_links_are_saved_per_locale(): void
+    {
+        $admin = $this->makeUserWithRole('admin');
+        config(['app.locale' => 'hr']);
+
+        Language::query()->create([
+            'code' => 'hr',
+            'locale' => 'hr_HR',
+            'name' => 'Croatian',
+            'native_name' => 'Hrvatski',
+            'direction' => 'ltr',
+            'is_default' => true,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        Language::query()->create([
+            'code' => 'en',
+            'locale' => 'en_US',
+            'name' => 'English',
+            'native_name' => 'English',
+            'direction' => 'ltr',
+            'is_default' => false,
+            'is_active' => false,
+            'sort_order' => 2,
+        ]);
+
+        app(SystemSettingsService::class)->putMany([
+            'store_footer_col_2_title' => 'Pomoć',
+            'store_footer_col_2_custom_links' => 'Kontakt|/contact',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(StoreSettings::class)
+            ->set('tab', 'branding')
+            ->set('locale', 'en')
+            ->set('form.store_footer_col_2_title', 'Help')
+            ->set('form.store_footer_col_2_custom_links', "Contact|/contact\nReturns and claims form|/returns-and-claims")
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $settings = app(SystemSettingsService::class);
+        $this->assertSame('Pomoć', $settings->get('store_footer_col_2_title'));
+        $this->assertSame('Help', $settings->get('store_footer_col_2_title_translations')['en']);
+
+        App::setLocale('en');
+        $footer = app(FrontStoreSettingsService::class)->footer();
+        $this->assertSame('Help', $footer['link_columns'][1]['title']);
+        $this->assertSame('Contact', $footer['link_columns'][1]['links'][0]['label']);
+        $this->assertSame('/returns-and-claims', $footer['link_columns'][1]['links'][1]['url']);
     }
 
     public function test_webp_generation_only_targets_active_product_media(): void

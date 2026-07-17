@@ -29,7 +29,7 @@
     <section class="grid gap-6 lg:grid-cols-[1fr_300px]">
         <form
             method="POST"
-            action="{{ route('returns.store') }}"
+            action="{{ route('returns.store', ['returnRequestSlug' => __('return_request.slug')]) }}"
             class="border border-slate-200 bg-white p-6 sm:p-8"
             novalidate
             data-return-form

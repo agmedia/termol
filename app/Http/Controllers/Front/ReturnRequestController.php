@@ -20,8 +20,7 @@ class ReturnRequestController extends Controller
     public function __construct(
         private readonly StoreNotificationService $notifications,
         private readonly StoreSettingsService $storeSettings
-    ) {
-    }
+    ) {}
 
     public function create(Request $request): View
     {
@@ -102,7 +101,7 @@ class ReturnRequestController extends Controller
         $this->notifications->sendReturnRequestNotification($message);
 
         return redirect()
-            ->route('returns.create')
+            ->route('returns.create', ['returnRequestSlug' => __('return_request.slug')])
             ->with('status', __('return_request.sent_status'));
     }
 

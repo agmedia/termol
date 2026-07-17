@@ -93,8 +93,12 @@ Route::middleware(['front.locale', 'front.device'])
 
         Route::get('contact', [ContactController::class, 'create'])->name('contact.create');
         Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
-        Route::get('forma-za-povrat-i-reklamacije', [ReturnRequestController::class, 'create'])->name('returns.create');
-        Route::post('forma-za-povrat-i-reklamacije', [ReturnRequestController::class, 'store'])->name('returns.store');
+        Route::get('{returnRequestSlug}', [ReturnRequestController::class, 'create'])
+            ->where('returnRequestSlug', 'forma-za-povrat-i-reklamacije|returns-and-claims|rucksendungen-und-reklamationen')
+            ->name('returns.create');
+        Route::post('{returnRequestSlug}', [ReturnRequestController::class, 'store'])
+            ->where('returnRequestSlug', 'forma-za-povrat-i-reklamacije|returns-and-claims|rucksendungen-und-reklamationen')
+            ->name('returns.store');
         Route::post('newsletter/subscribe', [NewsletterController::class, 'store'])->name('newsletter.subscribe');
 
         Route::get('cart', [CartController::class, 'index'])->name('cart.index');
