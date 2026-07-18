@@ -419,6 +419,29 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertSame([$product->id], $query->pluck('id')->all());
     }
 
+    public function test_category_pagination_uses_the_exact_configured_page_size_with_five_columns(): void
+    {
+        $this->useEnglishStorefrontLocale();
+
+        [$category, $categorySlug] = $this->seedCategory();
+
+        foreach (range(1, 25) as $index) {
+            $this->seedProduct($category->id);
+        }
+
+        app(SystemSettingsService::class)->put('front_category_products_per_page_desktop', 24);
+
+        $response = $this->get('/category/'.$categorySlug.'?cols=5');
+
+        $response->assertOk();
+
+        $products = $response->viewData('products');
+
+        $this->assertSame(24, $products->perPage());
+        $this->assertCount(24, $products->items());
+        $this->assertSame(2, $products->lastPage());
+    }
+
     public function test_search_autocomplete_is_not_available_when_disabled(): void
     {
         app(SystemSettingsService::class)->put('store_search_autocomplete_enabled', false);

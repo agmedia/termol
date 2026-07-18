@@ -259,7 +259,7 @@ class CatalogController extends Controller
         };
 
         $products = $query
-            ->paginate($this->shopPerPage($request, $gridCols))
+            ->paginate($this->shopPerPage($request))
             ->withQueryString();
 
         $categories = $this->cachedCatalogCategories($locale, $fallbackLocale);
@@ -504,7 +504,7 @@ class CatalogController extends Controller
             };
 
             $products = $productsQuery
-                ->paginate($this->shopPerPage($request, $gridCols))
+                ->paginate($this->shopPerPage($request))
                 ->withQueryString();
         } else {
             $priceBounds = $this->resolvePriceBounds(null, $priceMin, $priceMax);
@@ -512,7 +512,7 @@ class CatalogController extends Controller
             $products = (new LengthAwarePaginator(
                 items: [],
                 total: 0,
-                perPage: $this->shopPerPage($request, $gridCols),
+                perPage: $this->shopPerPage($request),
                 currentPage: max(1, (int) $request->query('page', 1)),
                 options: [
                     'path' => $request->url(),
@@ -1164,22 +1164,9 @@ class CatalogController extends Controller
         );
     }
 
-    private function shopPerPage(Request $request, int $gridCols): int
+    private function shopPerPage(Request $request): int
     {
-        $basePerPage = $this->productPerPage($request, false);
-        $variant = $this->frontendVariant($request);
-
-        if ($variant === 'mobile') {
-            $mobileCols = in_array($gridCols, [1, 2], true) ? $gridCols : 1;
-            $rows = (int) ceil($basePerPage / max(1, $mobileCols));
-
-            return max($mobileCols, $rows * $mobileCols);
-        }
-
-        $desktopCols = in_array($gridCols, [2, 3, 4, 5], true) ? $gridCols : 4;
-        $rows = (int) ceil($basePerPage / $desktopCols);
-
-        return max($desktopCols, $rows * $desktopCols);
+        return $this->productPerPage($request, false);
     }
 
     private function redirectWithoutCols(Request $request): RedirectResponse
