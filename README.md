@@ -86,6 +86,42 @@ Super-admin users are intentionally not listed in this table.
 php artisan wholesale:token user@example.com client-name
 ```
 
+## Asistent24 Integration Module (AGshop Connector)
+
+- Health check: `GET /api/v1/asistent24/ping`
+- OpenCart-compatible export: `GET /api/v1/asistent24/export-catalog`
+- Generic custom export: `GET /api/v1/asistent24/export-custom`
+
+### Required env/config
+
+```env
+ASISTENT24_CONNECTOR_ENABLED=true
+ASISTENT24_STORE_KEY=pk_agshop_store_123
+ASISTENT24_SYNC_SECRET=sk_agshop_sync_secret_123
+ASISTENT24_ALLOWED_SKEW_SECONDS=300
+ASISTENT24_EXPORT_INCLUDE_INACTIVE=false
+ASISTENT24_EXPORT_LOCALE=en
+```
+
+### Signature format
+
+- Message: `{store_key}|{timestamp}`
+- Signature: `hex(HMAC_SHA256(message, ASISTENT24_SYNC_SECRET))`
+- Query params: `store_key`, `timestamp`, `signature`
+- Optional: `changed_since=YYYY-MM-DD HH:MM:SS`, `include_inactive=1`, `locale=hr`
+
+### Example request (bash)
+
+```bash
+STORE_KEY="pk_agshop_store_123"
+SYNC_SECRET="sk_agshop_sync_secret_123"
+TS=$(date +%s)
+SIG=$(printf "%s|%s" "$STORE_KEY" "$TS" | openssl dgst -sha256 -hmac "$SYNC_SECRET" -binary | xxd -p -c 256)
+
+curl -s "http://agshop.test/api/v1/asistent24/export-catalog?store_key=${STORE_KEY}&timestamp=${TS}&signature=${SIG}" | jq .
+curl -s "http://agshop.test/api/v1/asistent24/export-custom?store_key=${STORE_KEY}&timestamp=${TS}&signature=${SIG}" | jq .
+```
+
 ## Useful Commands
 
 ```bash

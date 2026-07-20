@@ -1,0 +1,221 @@
+{
+  "currentFocus": [
+    {
+      "emoji": "🔵",
+      "color": "blue_background",
+      "text": "Admin panel core features are the immediate focus for v1.0 readiness: product management, order processing, and role-based controls."
+    },
+    {
+      "emoji": "⚠️",
+      "color": "yellow_background",
+      "text": "Storefront execution should prioritize shared components first, then listing/cart/checkout flows to avoid duplicate UI work."
+    },
+    {
+      "emoji": "✅",
+      "color": "green_background",
+      "text": "Integration hardening is the v1.2 critical path: ERP sync consistency, payment webhooks, and queue observability."
+    }
+  ],
+  "recommendations": [
+    "Keep blocker reasons mandatory for all Blocked tasks to reduce context switching and improve handoffs.",
+    "Update Done Date on completion and review overdue items daily to keep health metrics trustworthy.",
+    "Use milestone status changes only during weekly planning so roadmap trends remain stable and meaningful.",
+    "Treat payment and sync regressions as P0 and keep dedicated test coverage visible in task priority views."
+  ],
+  "releases": [
+    {
+      "key": "v1.0",
+      "name": "Admin Panel",
+      "target": "April 2026",
+      "highlights": [
+        "Product CRUD",
+        "Order management",
+        "Role-based access"
+      ]
+    },
+    {
+      "key": "v1.1",
+      "name": "Vue Storefront",
+      "target": "June 2026",
+      "highlights": [
+        "Storefront shell",
+        "Catalog and cart",
+        "Checkout UX"
+      ]
+    },
+    {
+      "key": "v1.2",
+      "name": "Integrations",
+      "target": "August 2026",
+      "highlights": [
+        "Luceed sync",
+        "Payment gateways",
+        "Queue monitoring"
+      ]
+    },
+    {
+      "key": "v1.3",
+      "name": "PWA & Mobile",
+      "target": "October 2026",
+      "highlights": [
+        "PWA foundation",
+        "Mobile polish",
+        "Offline readiness"
+      ]
+    }
+  ],
+  "milestones": [
+    {
+      "title": "v1.0 — Admin Panel Launch",
+      "description": "Full CRUD for products, categories, orders, users, and role-based access with production-ready auditability.",
+      "release": "v1.0",
+      "status": "In Progress",
+      "start": "2026-03-01",
+      "target": "2026-04-30"
+    },
+    {
+      "title": "v1.1 — Vue Storefront Beta",
+      "description": "Public storefront with product listing, cart, checkout, wishlist, and reusable component foundations.",
+      "release": "v1.1",
+      "status": "Planned",
+      "start": "2026-04-15",
+      "target": "2026-06-30"
+    },
+    {
+      "title": "v1.2 — Integrations Release",
+      "description": "Luceed two-way sync, CorvusPay/KeksPay/WSPay live checkout flows, and hardened queue operations.",
+      "release": "v1.2",
+      "status": "Planned",
+      "start": "2026-05-20",
+      "target": "2026-08-31"
+    },
+    {
+      "title": "v1.3 — PWA & Mobile",
+      "description": "PWA for mobile users, improved installability, and baseline offline browsing for core catalog flows.",
+      "release": "v1.3",
+      "status": "Planned",
+      "start": "2026-07-15",
+      "target": "2026-10-31"
+    }
+  ],
+  "tasks": [
+    {
+      "title": "Implement product bulk import from Luceed ERP",
+      "status": "In Progress",
+      "priority": "P0",
+      "release": "v1.2",
+      "milestone": "v1.2 — Integrations Release",
+      "start": "2026-03-10",
+      "due": "2026-03-28",
+      "estimate": 8,
+      "actual": 5
+    },
+    {
+      "title": "Add role-based admin permissions (super admin vs staff)",
+      "status": "In Progress",
+      "priority": "P1",
+      "release": "v1.0",
+      "milestone": "v1.0 — Admin Panel Launch",
+      "start": "2026-03-05",
+      "due": "2026-03-25",
+      "estimate": 5,
+      "actual": 3
+    },
+    {
+      "title": "Harden admin order audit log export",
+      "status": "Done",
+      "priority": "P2",
+      "release": "v1.0",
+      "milestone": "v1.0 — Admin Panel Launch",
+      "start": "2026-03-11",
+      "due": "2026-03-20",
+      "done": "2026-03-18",
+      "estimate": 5,
+      "actual": 4
+    },
+    {
+      "title": "Define Vue storefront component library",
+      "status": "In Progress",
+      "priority": "P1",
+      "release": "v1.1",
+      "milestone": "v1.1 — Vue Storefront Beta",
+      "start": "2026-03-14",
+      "due": "2026-03-29",
+      "estimate": 8,
+      "actual": 2
+    },
+    {
+      "title": "Build Vue storefront product listing page",
+      "status": "Not Started",
+      "priority": "P1",
+      "release": "v1.1",
+      "milestone": "v1.1 — Vue Storefront Beta",
+      "due": "2026-04-10",
+      "estimate": 8
+    },
+    {
+      "title": "Integrate CorvusPay payment gateway checkout flow",
+      "status": "Not Started",
+      "priority": "P0",
+      "release": "v1.2",
+      "milestone": "v1.2 — Integrations Release",
+      "due": "2026-04-15",
+      "estimate": 13
+    },
+    {
+      "title": "Integrate KeksPay payment gateway checkout flow",
+      "status": "Blocked",
+      "priority": "P0",
+      "release": "v1.2",
+      "milestone": "v1.2 — Integrations Release",
+      "due": "2026-04-20",
+      "blockedReason": "Depends on CorvusPay flow and shared payment orchestration layer.",
+      "blockedBy": [
+        "Integrate CorvusPay payment gateway checkout flow"
+      ],
+      "estimate": 8
+    },
+    {
+      "title": "Build checkout webhook reconciliation for payment callbacks",
+      "status": "In Review",
+      "priority": "P0",
+      "release": "v1.2",
+      "milestone": "v1.2 — Integrations Release",
+      "due": "2026-04-22",
+      "estimate": 8,
+      "actual": 6
+    },
+    {
+      "title": "Enable Laravel Horizon dashboards for queue monitoring",
+      "status": "Not Started",
+      "priority": "P1",
+      "release": "v1.2",
+      "milestone": "v1.2 — Integrations Release",
+      "due": "2026-04-05",
+      "estimate": 3
+    },
+    {
+      "title": "Add end-to-end payment regression suite (CorvusPay + KeksPay)",
+      "status": "Not Started",
+      "priority": "P0",
+      "release": "v1.2",
+      "milestone": "v1.2 — Integrations Release",
+      "due": "2026-04-18",
+      "blockedBy": [
+        "Integrate CorvusPay payment gateway checkout flow",
+        "Integrate KeksPay payment gateway checkout flow"
+      ],
+      "blockedReason": "Requires stable payment integrations before deterministic e2e coverage.",
+      "estimate": 5
+    },
+    {
+      "title": "Set up PWA manifest and service worker for mobile storefront",
+      "status": "Not Started",
+      "priority": "P2",
+      "release": "v1.3",
+      "milestone": "v1.3 — PWA & Mobile",
+      "due": "2026-05-01",
+      "estimate": 3
+    }
+  ]
+}

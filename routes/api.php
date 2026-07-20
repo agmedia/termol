@@ -1,11 +1,20 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Asistent24\CatalogExportController;
 use App\Http\Controllers\Api\V1\Wholesale\CategoryController;
 use App\Http\Controllers\Api\V1\Wholesale\ManufacturerController;
 use App\Http\Controllers\Api\V1\Wholesale\ProductController;
 use App\Http\Controllers\Api\V1\Wholesale\ProductPriceController;
 use App\Http\Controllers\Api\V1\Wholesale\ProductQuantityController;
 use Illuminate\Support\Facades\Route;
+
+Route::prefix('v1/asistent24')
+    ->middleware(['throttle:120,1'])
+    ->group(function (): void {
+        Route::get('ping', [CatalogExportController::class, 'ping']);
+        Route::get('export-catalog', [CatalogExportController::class, 'exportCatalog']);
+        Route::get('export-custom', [CatalogExportController::class, 'exportCustom']);
+    });
 
 Route::prefix('v1/wholesale')
     ->middleware(['catalog.feature:catalog_use_api', 'auth:sanctum', 'api.user.enabled', 'throttle:wholesale-api'])
