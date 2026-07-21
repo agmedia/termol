@@ -197,14 +197,14 @@
                             <div class="mt-4 grid gap-4 border-t border-slate-200 pt-4 md:grid-cols-2">
                                 <div>
                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.register.password') }}</label>
-                                    <input type="password" name="register_password" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-register-password>
+                                    <input type="password" name="register_password" autocomplete="new-password" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-register-password @disabled(! $showRegisterPanel)>
                                     @error('register_password')
                                         <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                                     @enderror
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.register.password_repeat') }}</label>
-                                    <input type="password" name="register_password_confirmation" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-register-password-confirmation>
+                                    <input type="password" name="register_password_confirmation" autocomplete="new-password" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-register-password-confirmation @disabled(! $showRegisterPanel)>
                                 </div>
                             </div>
                         </div>
@@ -816,6 +816,8 @@
                 }
 
                 if (registerToggle.checked) {
+                    registerPassword.disabled = false;
+                    registerPasswordConfirmation.disabled = false;
                     registerPassword.required = true;
                     registerPasswordConfirmation.required = true;
                     registerPanel.style.maxHeight = registerPanel.scrollHeight + 'px';
@@ -823,6 +825,10 @@
                 } else {
                     registerPassword.required = false;
                     registerPasswordConfirmation.required = false;
+                    registerPassword.disabled = true;
+                    registerPasswordConfirmation.disabled = true;
+                    registerPassword.value = '';
+                    registerPasswordConfirmation.value = '';
                     registerPanel.style.maxHeight = '0';
                     registerPanel.style.opacity = '0';
                 }

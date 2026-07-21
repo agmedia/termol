@@ -1241,6 +1241,10 @@ class StorefrontFrontFeatureTest extends TestCase
         [$category] = $this->seedCategory();
         [$product] = $this->seedProduct($category->id);
 
+        User::factory()->create([
+            'email' => 'jane@example.test',
+        ]);
+
         Currency::query()->create([
             'code' => 'EUR',
             'name' => 'Euro',
@@ -1307,6 +1311,10 @@ class StorefrontFrontFeatureTest extends TestCase
             'shipping_method_code' => 'standard',
             'payment_method_code' => 'bank',
             'customer_note' => 'Please ring bell on delivery.',
+            // Password managers may submit hidden registration fields even when
+            // the guest did not opt into account registration.
+            'register_password' => 'short',
+            'register_password_confirmation' => 'different',
             'accept_terms' => '1',
         ]);
 
@@ -1320,6 +1328,7 @@ class StorefrontFrontFeatureTest extends TestCase
             'id' => $order->id,
             'customer_email' => 'jane@example.test',
             'item_qty' => 2,
+            'user_id' => null,
         ]);
 
         $this->assertDatabaseHas('order_items', [

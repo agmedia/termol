@@ -184,7 +184,8 @@ class CheckoutController extends Controller
             'customer_note' => ['nullable', 'string', 'max:2000'],
             'newsletter_opt_in' => ['nullable', 'boolean'],
             'register_account' => ['nullable', 'boolean'],
-            'register_password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            'register_password' => ['exclude_unless:register_account,1', 'required', 'string', 'min:8', 'confirmed'],
+            'register_password_confirmation' => ['exclude_unless:register_account,1', 'required', 'string'],
             'accept_terms' => ['accepted'],
         ], [
             'required' => __('ui.checkout.validation.required'),
