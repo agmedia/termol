@@ -1,0 +1,64 @@
+body.termol-storefront,
+body.termol-storefront input,
+body.termol-storefront button,
+body.termol-storefront select,
+body.termol-storefront textarea {
+    font-family: "Sora", Arial, Helvetica, sans-serif;
+}
+
+.header .store-header-logo-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.header .store-header-logo {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 150px;
+    max-height: 34px;
+    object-fit: contain;
+}
+@media (min-width: 1025px) {
+    .site-main-header {
+        position: relative;
+        top: auto;
+        width: 100%;
+    }
+
+    .site-main-header.is-sticky {
+        position: fixed;
+        top: 0;
+        right: 0;
+        left: 0;
+    }
+
+    .site-main-header-row {
+        transition: none;
+    }
+
+    .site-main-header-spacer {
+        display: none;
+    }
+
+    .site-main-header.is-sticky + .site-main-header-spacer {
+        display: block;
+        height: var(--site-main-header-expanded-height, 224px);
+    }
+}
+
+.product-cart-modal {
+    z-index: 9999;
+}
+
+.product-cart-modal-backdrop {
+    z-index: 1;
+    background: rgb(0 0 0 / 60%);
+}
+
+.product-cart-modal-panel {
+    z-index: 2;
+    max-width: 460px;
+}

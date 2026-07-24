@@ -76,6 +76,7 @@ class ContentNavigationFeatureTest extends TestCase
                     'url' => '',
                     'open_in_new_tab' => false,
                     'show_dropdown' => true,
+                    'is_highlighted' => false,
                     'is_active' => true,
                     'sort_order' => 0,
                 ],
@@ -87,14 +88,48 @@ class ContentNavigationFeatureTest extends TestCase
                     'url' => '',
                     'open_in_new_tab' => false,
                     'show_dropdown' => false,
+                    'is_highlighted' => true,
                     'is_active' => true,
                     'sort_order' => 1,
                 ],
+            ])
+            ->set('form.appearance', [
+                'container_width' => 1240,
+                'header_content_width' => 1100,
+                'item_height' => 58,
+                'font_size' => 16,
+                'logo_height' => 68,
+                'background_color' => '#ffdf00',
+                'text_color' => '#0f172a',
+                'highlight_color' => '#b91c1c',
+            ])
+            ->set('form.top_bar', [
+                'is_enabled' => true,
+                'height' => 34,
+                'font_size' => 13,
+                'background_color' => '#eeeeee',
+                'text_color' => '#303030',
+                'border_color' => '#0057c8',
+                'links' => [[
+                    'label' => 'O nama',
+                    'url' => 'https://www.termol.hr/o-nama.aspx',
+                    'open_in_new_tab' => true,
+                    'is_active' => true,
+                    'sort_order' => 10,
+                ]],
+                'socials' => [[
+                    'network' => 'facebook',
+                    'url' => 'https://www.facebook.com/termoldoo/',
+                    'is_active' => true,
+                    'sort_order' => 0,
+                ]],
             ])
             ->call('save')
             ->assertHasNoErrors();
 
         $saved = app(SystemSettingsService::class)->get(NavigationMenuService::SETTINGS_KEY, []);
+        $appearance = app(SystemSettingsService::class)->get(NavigationMenuService::APPEARANCE_SETTINGS_KEY, []);
+        $topBar = app(SystemSettingsService::class)->get(NavigationMenuService::TOP_BAR_SETTINGS_KEY, []);
 
         $this->assertIsArray($saved);
         $this->assertCount(2, $saved);
@@ -102,6 +137,49 @@ class ContentNavigationFeatureTest extends TestCase
         $this->assertSame((int) $category->id, (int) $saved[0]['category_id']);
         $this->assertSame('page', $saved[1]['type']);
         $this->assertSame((int) $page->id, (int) $saved[1]['page_id']);
+        $this->assertTrue((bool) $saved[1]['is_highlighted']);
+        $this->assertSame(1240, (int) $appearance['container_width']);
+        $this->assertSame(1100, (int) $appearance['header_content_width']);
+        $this->assertSame('#ffdf00', $appearance['background_color']);
+        $this->assertSame('O nama', $topBar['links'][0]['label']);
+        $this->assertSame('facebook', $topBar['socials'][0]['network']);
+    }
+
+    public function test_storefront_stylesheet_uses_admin_navigation_values(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            NavigationMenuService::APPEARANCE_SETTINGS_KEY => [
+                'container_width' => 1810,
+                'header_content_width' => 1400,
+                'item_height' => 64,
+                'font_size' => 17,
+                'logo_height' => 70,
+                'background_color' => '#ff6b00',
+                'text_color' => '#262626',
+                'highlight_color' => '#003b75',
+            ],
+            NavigationMenuService::TOP_BAR_SETTINGS_KEY => [
+                'is_enabled' => true,
+                'height' => 36,
+                'font_size' => 13,
+                'background_color' => '#eeeeee',
+                'text_color' => '#303030',
+                'border_color' => '#0057c8',
+                'links' => [],
+                'socials' => [],
+            ],
+        ]);
+
+        $this->get('/storefront-settings.css')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'text/css; charset=UTF-8')
+            ->assertSee('--storefront-container-width:1810px', false)
+            ->assertSee('--header-content-width:1400px', false)
+            ->assertSee('--navigation-font-size:17px', false)
+            ->assertSee('--header-logo-height:70px', false)
+            ->assertSee('--navigation-background-color:#ff6b00', false)
+            ->assertSee('--top-bar-font-size:13px', false)
+            ->assertSee('--top-bar-border-color:#0057c8', false);
     }
 
     public function test_inactive_languages_remain_available_for_content_translation(): void
@@ -159,6 +237,77 @@ class ContentNavigationFeatureTest extends TestCase
         $this->assertSame('New collection', $english['title']);
         $this->assertSame('Shop now', $english['cta_label']);
         $this->assertSame('/category/women', $english['cta_url']);
+    }
+
+    public function test_catalog_navigation_item_resolves_all_visible_root_categories(): void
+    {
+        $originalLocale = (string) config('app.locale');
+        config(['app.locale' => 'hr']);
+
+        $climate = Category::query()->create([
+            'scope' => Category::SCOPE_CATALOG,
+            'code' => 'climate',
+            'is_active' => true,
+            'show_in_menu' => true,
+            'sort_order' => 10,
+        ]);
+        $climate->translations()->create([
+            'scope' => Category::SCOPE_CATALOG,
+            'locale' => 'hr',
+            'name' => 'Klimatizacija',
+            'slug' => 'klimatizacija',
+        ]);
+
+        $sets = Category::query()->create([
+            'scope' => Category::SCOPE_CATALOG,
+            'code' => 'climate-sets',
+            'is_active' => true,
+            'show_in_menu' => true,
+            'sort_order' => 10,
+            'parent_id' => $climate->id,
+        ]);
+        $sets->translations()->create([
+            'scope' => Category::SCOPE_CATALOG,
+            'locale' => 'hr',
+            'name' => 'Setovi',
+            'slug' => 'klimatizacija-setovi',
+        ]);
+
+        $bathroom = Category::query()->create([
+            'scope' => Category::SCOPE_CATALOG,
+            'code' => 'bathroom',
+            'is_active' => true,
+            'show_in_menu' => true,
+            'sort_order' => 20,
+        ]);
+        $bathroom->translations()->create([
+            'scope' => Category::SCOPE_CATALOG,
+            'locale' => 'hr',
+            'name' => 'Kupaonica i kuhinja',
+            'slug' => 'kupaonica-i-kuhinja',
+        ]);
+
+        app(SystemSettingsService::class)->put(NavigationMenuService::SETTINGS_KEY, [[
+            'type' => 'catalog',
+            'label_translations' => ['hr' => 'Proizvodi'],
+            'url_translations' => ['hr' => '/categories'],
+            'show_dropdown' => true,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]]);
+
+        $menu = app(NavigationMenuService::class)->forLocale('hr');
+
+        $this->assertCount(1, $menu);
+        $this->assertSame('catalog', $menu[0]['type']);
+        $this->assertSame('Proizvodi', $menu[0]['label']);
+        $this->assertSame(
+            ['Klimatizacija', 'Kupaonica i kuhinja'],
+            array_column($menu[0]['children'], 'label')
+        );
+        $this->assertSame('Setovi', $menu[0]['children'][0]['children'][0]['label']);
+
+        config(['app.locale' => $originalLocale]);
     }
 
     private function makeAdminUser(): User

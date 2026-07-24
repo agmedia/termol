@@ -188,14 +188,31 @@ class StoreSettings extends Component
         'store_announcement_scroll_duration_seconds' => 18,
         'store_announcement_background_color' => '#000000',
         'store_announcement_text_color' => '#ffffff',
+        'store_benefits_bar_enabled' => true,
+        'store_benefits_bar_item_1' => 'Više od **50 000 proizvoda** u ponudi',
+        'store_benefits_bar_item_2' => 'Plaćanje karticama do **12 rata bez naknada**',
+        'store_benefits_bar_item_3' => '**Dostava** u roku **3-5 radnih dana**',
         'store_images_use_webp' => false,
         'store_product_fit_finder_enabled' => false,
         'store_search_autocomplete_enabled' => false,
+        'store_search_autocomplete_products_enabled' => true,
+        'store_search_autocomplete_categories_enabled' => true,
+        'store_search_autocomplete_manufacturers_enabled' => true,
+        'store_search_autocomplete_blog_enabled' => true,
+        'store_search_autocomplete_products_limit' => 5,
+        'store_search_autocomplete_categories_limit' => 6,
+        'store_search_autocomplete_manufacturers_limit' => 6,
+        'store_search_autocomplete_blog_limit' => 3,
+        'store_search_autocomplete_show_product_image' => true,
+        'store_search_autocomplete_show_product_brand' => true,
+        'store_search_autocomplete_show_product_sku' => true,
+        'store_search_autocomplete_show_product_price' => true,
         'store_product_desktop_default_cols' => 4,
         'store_product_mobile_default_cols' => 2,
         'store_product_catalog_pagination_mode' => 'pagination',
         'store_product_filter_option_ids' => [],
         'store_product_filter_attribute_group_codes' => [],
+        'store_product_filter_panel_settings' => [],
 
         'store_cookie_consent_enabled' => true,
         'store_cookie_consent_title' => 'Koristimo kolačiće',
@@ -460,9 +477,25 @@ class StoreSettings extends Component
             'form.store_announcement_scroll_duration_seconds' => ['required', 'integer', 'min:6', 'max:60'],
             'form.store_announcement_background_color' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'form.store_announcement_text_color' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'form.store_benefits_bar_enabled' => ['required', 'boolean'],
+            'form.store_benefits_bar_item_1' => ['nullable', 'string', 'max:191'],
+            'form.store_benefits_bar_item_2' => ['nullable', 'string', 'max:191'],
+            'form.store_benefits_bar_item_3' => ['nullable', 'string', 'max:191'],
             'form.store_images_use_webp' => ['required', 'boolean'],
             'form.store_product_fit_finder_enabled' => ['required', 'boolean'],
             'form.store_search_autocomplete_enabled' => ['required', 'boolean'],
+            'form.store_search_autocomplete_products_enabled' => ['required', 'boolean'],
+            'form.store_search_autocomplete_categories_enabled' => ['required', 'boolean'],
+            'form.store_search_autocomplete_manufacturers_enabled' => ['required', 'boolean'],
+            'form.store_search_autocomplete_blog_enabled' => ['required', 'boolean'],
+            'form.store_search_autocomplete_products_limit' => ['required', 'integer', 'min:1', 'max:12'],
+            'form.store_search_autocomplete_categories_limit' => ['required', 'integer', 'min:1', 'max:10'],
+            'form.store_search_autocomplete_manufacturers_limit' => ['required', 'integer', 'min:1', 'max:10'],
+            'form.store_search_autocomplete_blog_limit' => ['required', 'integer', 'min:1', 'max:10'],
+            'form.store_search_autocomplete_show_product_image' => ['required', 'boolean'],
+            'form.store_search_autocomplete_show_product_brand' => ['required', 'boolean'],
+            'form.store_search_autocomplete_show_product_sku' => ['required', 'boolean'],
+            'form.store_search_autocomplete_show_product_price' => ['required', 'boolean'],
             'form.store_product_desktop_default_cols' => ['required', 'integer', 'in:4,5'],
             'form.store_product_mobile_default_cols' => ['required', 'integer', 'in:1,2'],
             'form.store_product_catalog_pagination_mode' => ['required', 'string', 'in:pagination,load_more,infinite'],
@@ -473,6 +506,7 @@ class StoreSettings extends Component
             ],
             'form.store_product_filter_attribute_group_codes' => ['nullable', 'array'],
             'form.store_product_filter_attribute_group_codes.*' => ['string', 'max:120'],
+            'form.store_product_filter_panel_settings' => ['nullable', 'array'],
 
             'form.store_cookie_consent_enabled' => ['required', 'boolean'],
             'form.store_cookie_consent_title' => ['nullable', 'string', 'max:120'],
@@ -609,6 +643,7 @@ class StoreSettings extends Component
                 return [
                     'id' => (int) $option->id,
                     'label' => (string) (($translation?->name ?? $option->code).' ('.(int) $option->values_count.')'),
+                    'panel_key' => 'opt_'.(int) $option->id,
                 ];
             })
             ->values()
@@ -627,7 +662,7 @@ class StoreSettings extends Component
                 $firstTranslation = $first?->translations?->firstWhere('locale', $locale)
                     ?? $first?->translations?->firstWhere('locale', $fallbackLocale)
                     ?? $first?->translations?->first();
-                $groupName = trim((string) ($firstTranslation?->name ?? ''));
+                $groupName = trim((string) ($firstTranslation?->group_name ?? ''));
                 if ($groupName === '') {
                     $groupName = ucfirst(str_replace('_', ' ', $groupCode));
                 }
@@ -635,6 +670,7 @@ class StoreSettings extends Component
                 return [
                     'group_code' => $groupCode,
                     'label' => $groupName.' ('.$groupCode.')',
+                    'panel_key' => 'attr_'.Str::slug($groupCode, '_'),
                 ];
             })
             ->values()
@@ -1038,6 +1074,37 @@ class StoreSettings extends Component
             ->unique()
             ->values()
             ->all();
+        $allowedFilterPanelKeys = collect(['category', 'manufacturer', 'price'])
+            ->merge(array_map(
+                static fn (int $id): string => 'opt_'.$id,
+                $validOptionIds
+            ))
+            ->merge(array_map(
+                static fn (string $code): string => 'attr_'.Str::slug($code, '_'),
+                $validAttributeGroupCodes
+            ))
+            ->unique()
+            ->values();
+        $rawFilterPanelSettings = is_array($values['store_product_filter_panel_settings'] ?? null)
+            ? $values['store_product_filter_panel_settings']
+            : [];
+        $allowedHeights = [160, 220, 286, 360];
+        $values['store_product_filter_panel_settings'] = $allowedFilterPanelKeys
+            ->mapWithKeys(function (string $panelKey) use ($rawFilterPanelSettings, $allowedHeights): array {
+                $raw = is_array($rawFilterPanelSettings[$panelKey] ?? null)
+                    ? $rawFilterPanelSettings[$panelKey]
+                    : [];
+                $height = (int) ($raw['max_height'] ?? 286);
+
+                return [
+                    $panelKey => [
+                        'visible' => array_key_exists('visible', $raw) ? (bool) $raw['visible'] : true,
+                        'default_open' => array_key_exists('default_open', $raw) ? (bool) $raw['default_open'] : true,
+                        'max_height' => in_array($height, $allowedHeights, true) ? $height : 286,
+                    ],
+                ];
+            })
+            ->all();
 
         return $values;
     }
@@ -1060,11 +1127,12 @@ class StoreSettings extends Component
                 'pricing' => str_starts_with($key, 'store_pricing_'),
                 'images' => str_starts_with($key, 'store_images_'),
                 'products' => str_starts_with($key, 'store_product_')
-                    || $key === 'store_search_autocomplete_enabled',
+                    || str_starts_with($key, 'store_search_autocomplete_'),
                 'seo' => str_starts_with($key, 'store_seo_'),
                 'og' => str_starts_with($key, 'store_og_'),
                 'schema' => str_starts_with($key, 'store_schema_'),
-                'announcement' => str_starts_with($key, 'store_announcement_'),
+                'announcement' => str_starts_with($key, 'store_announcement_')
+                    || str_starts_with($key, 'store_benefits_bar_'),
                 'cookies' => str_starts_with($key, 'store_cookie_'),
                 default => false,
             }

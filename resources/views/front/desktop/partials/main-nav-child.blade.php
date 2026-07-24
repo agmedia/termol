@@ -1,6 +1,6 @@
 @php
     $children = collect($child['children'] ?? []);
-    $padding = 0.15 + ($level * 0.75);
+    $depthClass = 'desktop-mega-depth-'.min(4, max(0, (int) $level));
     $textSize = match (true) {
         $level >= 2 => 'text-[11px]',
         $level === 1 => 'text-[12px]',
@@ -9,7 +9,7 @@
     $weightClass = $level === 0 ? 'font-light' : 'font-light';
 @endphp
 <li>
-    <a href="{{ $child['url'] ?? '#' }}" class="flex items-center justify-between rounded-md px-1.5 py-0.5 {{ $textSize }} {{ $weightClass }} text-slate-500 transition hover:bg-white/70 hover:text-slate-900" style="padding-left: {{ $padding }}rem;">
+    <a href="{{ $child['url'] ?? '#' }}" class="{{ $depthClass }} flex items-center justify-between rounded-md px-1.5 py-0.5 {{ $textSize }} {{ $weightClass }} text-slate-500 transition hover:bg-white/70 hover:text-slate-900">
         <span>{{ $child['label'] ?? '' }}</span>
     </a>
 

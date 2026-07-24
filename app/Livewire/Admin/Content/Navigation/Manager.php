@@ -23,10 +23,34 @@ class Manager extends Component
     ];
 
     /**
-     * @var array{items: array<int, array<string, mixed>>}
+     * @var array{
+     *     items: array<int, array<string, mixed>>,
+     *     appearance: array{container_width:int,header_content_width:int,item_height:int,font_size:int,logo_height:int,background_color:string,text_color:string,highlight_color:string},
+     *     top_bar: array<string, mixed>
+     * }
      */
     public array $form = [
         'items' => [],
+        'appearance' => [
+            'container_width' => 1860,
+            'header_content_width' => 1400,
+            'item_height' => 62,
+            'font_size' => 17,
+            'logo_height' => 70,
+            'background_color' => '#e65100',
+            'text_color' => '#ffffff',
+            'highlight_color' => '#ffffff',
+        ],
+        'top_bar' => [
+            'is_enabled' => true,
+            'height' => 34,
+            'font_size' => 13,
+            'background_color' => '#eeeeee',
+            'text_color' => '#334155',
+            'border_color' => '#4c1d95',
+            'links' => [],
+            'socials' => [],
+        ],
     ];
 
     public string $locale = 'en';
@@ -41,8 +65,11 @@ class Manager extends Component
         $this->locale = (string) (request()->query('locale') ?: config('app.locale', 'en'));
         $this->previousLocale = $this->locale;
 
-        $items = app(NavigationMenuService::class)->configuredItems();
+        $navigation = app(NavigationMenuService::class);
+        $items = $navigation->configuredItems();
         $this->form['items'] = $items;
+        $this->form['appearance'] = $navigation->appearance();
+        $this->form['top_bar'] = $navigation->topBar();
         $this->syncInputsFromLocaleTranslations($this->locale);
     }
 
@@ -56,6 +83,16 @@ class Manager extends Component
     public function addCategoryItem(): void
     {
         $this->form['items'][] = $this->makeDefaultItem('category');
+    }
+
+    public function addCatalogItem(): void
+    {
+        $item = $this->makeDefaultItem('catalog');
+        $item['label'] = (string) __('admin.content.navigation.defaults.catalog');
+        $item['label_translations'] = [$this->locale => (string) __('admin.content.navigation.defaults.catalog')];
+        $item['url'] = '/categories';
+        $item['url_translations'] = [$this->locale => '/categories'];
+        $this->form['items'][] = $item;
     }
 
     public function addPageItem(): void
@@ -127,13 +164,54 @@ class Manager extends Component
         [$this->form['items'][$index + 1], $this->form['items'][$index]] = [$this->form['items'][$index], $this->form['items'][$index + 1]];
     }
 
+    public function addTopBarLink(): void
+    {
+        $this->form['top_bar']['links'][] = [
+            'label' => (string) __('admin.content.navigation.top_bar_default_link'),
+            'url' => '/',
+            'open_in_new_tab' => false,
+            'is_active' => true,
+            'sort_order' => count($this->form['top_bar']['links']) * 10,
+        ];
+    }
+
+    public function removeTopBarLink(int $index): void
+    {
+        if (! isset($this->form['top_bar']['links'][$index])) {
+            return;
+        }
+
+        unset($this->form['top_bar']['links'][$index]);
+        $this->form['top_bar']['links'] = array_values($this->form['top_bar']['links']);
+    }
+
+    public function addSocialLink(): void
+    {
+        $this->form['top_bar']['socials'][] = [
+            'network' => 'facebook',
+            'url' => '',
+            'is_active' => true,
+            'sort_order' => count($this->form['top_bar']['socials']) * 10,
+        ];
+    }
+
+    public function removeSocialLink(int $index): void
+    {
+        if (! isset($this->form['top_bar']['socials'][$index])) {
+            return;
+        }
+
+        unset($this->form['top_bar']['socials'][$index]);
+        $this->form['top_bar']['socials'] = array_values($this->form['top_bar']['socials']);
+    }
+
     public function save(): void
     {
         $this->syncLocaleTranslationsFromInputs($this->locale);
 
         $validated = $this->validate([
             'form.items' => ['array'],
-            'form.items.*.type' => ['required', 'in:category,page,blog,contact,faq,custom'],
+            'form.items.*.type' => ['required', 'in:catalog,category,page,blog,contact,faq,custom'],
             'form.items.*.label' => ['nullable', 'string', 'max:120'],
             'form.items.*.category_id' => ['nullable', 'integer', 'min:0'],
             'form.items.*.page_id' => ['nullable', 'integer', 'min:0'],
@@ -144,6 +222,7 @@ class Manager extends Component
             'form.items.*.url_translations.*' => ['nullable', 'string', 'max:2048'],
             'form.items.*.is_active' => ['required', 'boolean'],
             'form.items.*.show_dropdown' => ['required', 'boolean'],
+            'form.items.*.is_highlighted' => ['required', 'boolean'],
             'form.items.*.open_in_new_tab' => ['required', 'boolean'],
             'form.items.*.sort_order' => ['required', 'integer', 'min:0', 'max:9999'],
             'form.items.*.desktop_promo_image_path' => ['nullable', 'string', 'max:2048'],
@@ -159,6 +238,31 @@ class Manager extends Component
             'form.items.*.desktop_promo_cta_label_translations.*' => ['nullable', 'string', 'max:80'],
             'form.items.*.desktop_promo_cta_url_translations' => ['nullable', 'array'],
             'form.items.*.desktop_promo_cta_url_translations.*' => ['nullable', 'string', 'max:2048'],
+            'form.appearance.container_width' => ['required', 'integer', 'min:960', 'max:1920'],
+            'form.appearance.header_content_width' => ['required', 'integer', 'min:960', 'max:1920', 'lte:form.appearance.container_width'],
+            'form.appearance.item_height' => ['required', 'integer', 'min:44', 'max:84'],
+            'form.appearance.font_size' => ['required', 'integer', 'min:13', 'max:20'],
+            'form.appearance.logo_height' => ['required', 'integer', 'min:48', 'max:82'],
+            'form.appearance.background_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'form.appearance.text_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'form.appearance.highlight_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'form.top_bar.is_enabled' => ['required', 'boolean'],
+            'form.top_bar.height' => ['required', 'integer', 'min:28', 'max:50'],
+            'form.top_bar.font_size' => ['required', 'integer', 'min:11', 'max:16'],
+            'form.top_bar.background_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'form.top_bar.text_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'form.top_bar.border_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'form.top_bar.links' => ['array'],
+            'form.top_bar.links.*.label' => ['required', 'string', 'max:120'],
+            'form.top_bar.links.*.url' => ['required', 'string', 'max:2048'],
+            'form.top_bar.links.*.open_in_new_tab' => ['required', 'boolean'],
+            'form.top_bar.links.*.is_active' => ['required', 'boolean'],
+            'form.top_bar.links.*.sort_order' => ['required', 'integer', 'min:0', 'max:9999'],
+            'form.top_bar.socials' => ['array'],
+            'form.top_bar.socials.*.network' => ['required', 'in:facebook,youtube,instagram'],
+            'form.top_bar.socials.*.url' => ['required', 'string', 'max:2048'],
+            'form.top_bar.socials.*.is_active' => ['required', 'boolean'],
+            'form.top_bar.socials.*.sort_order' => ['required', 'integer', 'min:0', 'max:9999'],
             'desktopPromoUploads.*' => ['nullable', 'image', 'max:4096'],
         ]);
 
@@ -188,7 +292,11 @@ class Manager extends Component
             return;
         }
 
-        app(SystemSettingsService::class)->put(NavigationMenuService::SETTINGS_KEY, $normalizedItems);
+        app(SystemSettingsService::class)->putMany([
+            NavigationMenuService::SETTINGS_KEY => $normalizedItems,
+            NavigationMenuService::APPEARANCE_SETTINGS_KEY => $validated['form']['appearance'],
+            NavigationMenuService::TOP_BAR_SETTINGS_KEY => $validated['form']['top_bar'],
+        ]);
         $this->desktopPromoUploads = [];
 
         $this->dispatch('notify', type: 'success', message: (string) __('admin.content.navigation.notify_saved'));
@@ -344,6 +452,7 @@ class Manager extends Component
             'url_translations' => $urlTranslations,
             'open_in_new_tab' => (bool) ($item['open_in_new_tab'] ?? false),
             'show_dropdown' => (bool) ($item['show_dropdown'] ?? true),
+            'is_highlighted' => (bool) ($item['is_highlighted'] ?? false),
             'is_active' => (bool) ($item['is_active'] ?? true),
             'sort_order' => (int) ($item['sort_order'] ?? $index),
             'desktop_promo_image_path' => $desktopPromoImagePath,
@@ -365,6 +474,7 @@ class Manager extends Component
             'url_translations' => [],
             'open_in_new_tab' => false,
             'show_dropdown' => true,
+            'is_highlighted' => false,
             'is_active' => true,
             'sort_order' => count($this->form['items']),
             'desktop_promo_image_path' => '',

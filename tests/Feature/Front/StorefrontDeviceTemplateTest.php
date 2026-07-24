@@ -104,6 +104,15 @@ class StorefrontDeviceTemplateTest extends TestCase
         $this->assertStringContainsStringIgnoringCase('User-Agent', (string) $response->headers->get('Vary'));
     }
 
+    public function test_brand_listing_uses_croatian_url_and_redirects_legacy_urls(): void
+    {
+        app(SystemSettingsService::class)->put('catalog_use_manufacturers', true);
+
+        $this->get('/brendovi')->assertOk();
+        $this->get('/brandovi')->assertStatus(301)->assertRedirect('/brendovi');
+        $this->get('/manufacturers')->assertStatus(301)->assertRedirect('/brendovi');
+    }
+
     public function test_mobile_user_agent_gets_desktop_template_when_mobile_view_feature_is_disabled(): void
     {
         app(SystemSettingsService::class)->put('catalog_use_mobile_view', false);

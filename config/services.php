@@ -35,8 +35,4 @@ return [
         ],
     ],
 
-    'kipos' => [
-        'cron_token' => env('KIPOS_CRON_TOKEN'),
-    ],
-
 ];

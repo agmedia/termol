@@ -29,16 +29,6 @@ class RuntimeAndApiAccessFeatureTest extends TestCase
             ->get('/admin/settings/api/wholesale')
             ->assertOk()
             ->assertSee('Wholesale API Settings');
-
-        $this->actingAs($admin)
-            ->get('/admin/settings/api/kipos')
-            ->assertOk()
-            ->assertSee('Kipos API');
-
-        $this->actingAs($admin)
-            ->get('/admin/settings/api/luceed')
-            ->assertOk()
-            ->assertSee('Luceed API');
     }
 
     public function test_editor_cannot_open_runtime_and_api_pages(): void
@@ -56,17 +46,9 @@ class RuntimeAndApiAccessFeatureTest extends TestCase
         $this->actingAs($editor)
             ->get('/admin/settings/api/wholesale')
             ->assertForbidden();
-
-        $this->actingAs($editor)
-            ->get('/admin/settings/api/kipos')
-            ->assertForbidden();
-
-        $this->actingAs($editor)
-            ->get('/admin/settings/api/luceed')
-            ->assertForbidden();
     }
 
-    public function test_api_index_redirects_to_kipos_when_wholesale_feature_is_disabled(): void
+    public function test_api_index_redirects_to_catalog_features_when_wholesale_feature_is_disabled(): void
     {
         $admin = $this->makeUserWithRole('admin');
 
@@ -74,55 +56,10 @@ class RuntimeAndApiAccessFeatureTest extends TestCase
 
         $this->actingAs($admin)
             ->get('/admin/settings/api')
-            ->assertRedirect('/admin/settings/api/kipos');
+            ->assertRedirect(route('admin.settings.system.catalog-features'));
 
         $this->actingAs($admin)
             ->get('/admin/settings/api/wholesale')
-            ->assertRedirect(route('admin.settings.system.catalog-features'));
-    }
-
-    public function test_kipos_route_is_blocked_when_kipos_feature_is_disabled(): void
-    {
-        $admin = $this->makeUserWithRole('admin');
-
-        app(SystemSettingsService::class)->putMany([
-            'catalog_use_api' => true,
-            'catalog_use_kipos_api' => false,
-            'catalog_use_luceed_api' => true,
-        ]);
-
-        $this->actingAs($admin)
-            ->get('/admin/settings/api/kipos')
-            ->assertRedirect(route('admin.settings.system.catalog-features'));
-    }
-
-    public function test_luceed_route_is_blocked_when_luceed_feature_is_disabled(): void
-    {
-        $admin = $this->makeUserWithRole('admin');
-
-        app(SystemSettingsService::class)->putMany([
-            'catalog_use_api' => true,
-            'catalog_use_kipos_api' => true,
-            'catalog_use_luceed_api' => false,
-        ]);
-
-        $this->actingAs($admin)
-            ->get('/admin/settings/api/luceed')
-            ->assertRedirect(route('admin.settings.system.catalog-features'));
-    }
-
-    public function test_api_index_redirects_to_catalog_features_when_no_api_modules_are_enabled(): void
-    {
-        $admin = $this->makeUserWithRole('admin');
-
-        app(SystemSettingsService::class)->putMany([
-            'catalog_use_api' => false,
-            'catalog_use_kipos_api' => false,
-            'catalog_use_luceed_api' => false,
-        ]);
-
-        $this->actingAs($admin)
-            ->get('/admin/settings/api')
             ->assertRedirect(route('admin.settings.system.catalog-features'));
     }
 

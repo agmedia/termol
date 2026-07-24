@@ -29,15 +29,10 @@
                             {{ $item['label'] }}
                         </a>
                         <span class="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center border border-slate-300 bg-white text-slate-600 group-open/nav:hidden" aria-hidden="true">
-                            <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                                <path d="M4 10h12"></path>
-                                <path d="M10 4v12"></path>
-                            </svg>
+                            <x-fa-icon name="plus" class="h-3.5 w-3.5" />
                         </span>
                         <span class="absolute right-3 top-1/2 hidden h-8 w-8 -translate-y-1/2 items-center justify-center border border-slate-300 bg-white text-slate-600 group-open/nav:inline-flex" aria-hidden="true">
-                            <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                                <path d="M4 10h12"></path>
-                            </svg>
+                            <x-fa-icon name="minus" class="h-3.5 w-3.5" />
                         </span>
                     </summary>
                     <ul class="desktop-mobile-menu-children text-[13px]">

@@ -64,9 +64,27 @@ class StoreSettingsFeatureTest extends TestCase
             ->set('tab', 'products')
             ->set('form.store_product_fit_finder_enabled', true)
             ->set('form.store_search_autocomplete_enabled', true)
+            ->set('form.store_search_autocomplete_products_enabled', true)
+            ->set('form.store_search_autocomplete_categories_enabled', true)
+            ->set('form.store_search_autocomplete_manufacturers_enabled', true)
+            ->set('form.store_search_autocomplete_blog_enabled', true)
+            ->set('form.store_search_autocomplete_products_limit', 7)
+            ->set('form.store_search_autocomplete_categories_limit', 5)
+            ->set('form.store_search_autocomplete_manufacturers_limit', 4)
+            ->set('form.store_search_autocomplete_blog_limit', 2)
+            ->set('form.store_search_autocomplete_show_product_image', false)
+            ->set('form.store_search_autocomplete_show_product_brand', true)
+            ->set('form.store_search_autocomplete_show_product_sku', true)
+            ->set('form.store_search_autocomplete_show_product_price', false)
             ->set('form.store_product_desktop_default_cols', 5)
             ->set('form.store_product_mobile_default_cols', 2)
             ->set('form.store_product_catalog_pagination_mode', 'load_more')
+            ->set('form.store_product_filter_panel_settings.category.visible', true)
+            ->set('form.store_product_filter_panel_settings.category.default_open', false)
+            ->set('form.store_product_filter_panel_settings.category.max_height', 220)
+            ->set('form.store_product_filter_panel_settings.manufacturer.visible', false)
+            ->set('form.store_product_filter_panel_settings.price.default_open', true)
+            ->set('form.store_product_filter_panel_settings.price.max_height', 360)
             ->call('save')
             ->assertHasNoErrors()
             ->assertDispatched('notify');
@@ -75,9 +93,26 @@ class StoreSettingsFeatureTest extends TestCase
 
         $this->assertTrue((bool) $settings->get('store_product_fit_finder_enabled'));
         $this->assertTrue((bool) $settings->get('store_search_autocomplete_enabled'));
+        $this->assertTrue((bool) $settings->get('store_search_autocomplete_categories_enabled'));
+        $this->assertTrue((bool) $settings->get('store_search_autocomplete_manufacturers_enabled'));
+        $this->assertTrue((bool) $settings->get('store_search_autocomplete_blog_enabled'));
+        $this->assertSame(7, (int) $settings->get('store_search_autocomplete_products_limit'));
+        $this->assertSame(5, (int) $settings->get('store_search_autocomplete_categories_limit'));
+        $this->assertSame(4, (int) $settings->get('store_search_autocomplete_manufacturers_limit'));
+        $this->assertSame(2, (int) $settings->get('store_search_autocomplete_blog_limit'));
+        $this->assertFalse((bool) $settings->get('store_search_autocomplete_show_product_image'));
+        $this->assertTrue((bool) $settings->get('store_search_autocomplete_show_product_brand'));
+        $this->assertTrue((bool) $settings->get('store_search_autocomplete_show_product_sku'));
+        $this->assertFalse((bool) $settings->get('store_search_autocomplete_show_product_price'));
         $this->assertSame(5, (int) $settings->get('store_product_desktop_default_cols'));
         $this->assertSame(2, (int) $settings->get('store_product_mobile_default_cols'));
         $this->assertSame('load_more', $settings->get('store_product_catalog_pagination_mode'));
+        $filterPanelSettings = $settings->get('store_product_filter_panel_settings', []);
+        $this->assertTrue((bool) data_get($filterPanelSettings, 'category.visible'));
+        $this->assertFalse((bool) data_get($filterPanelSettings, 'category.default_open'));
+        $this->assertSame(220, (int) data_get($filterPanelSettings, 'category.max_height'));
+        $this->assertFalse((bool) data_get($filterPanelSettings, 'manufacturer.visible'));
+        $this->assertSame(360, (int) data_get($filterPanelSettings, 'price.max_height'));
         $this->assertSame('mailchimp', $settings->get('store_newsletter_provider'));
         $this->assertSame('', $settings->get('store_newsletter_mailchimp_api_key'));
         $this->assertSame('', $settings->get('store_newsletter_mailchimp_list_id'));
@@ -115,6 +150,10 @@ class StoreSettingsFeatureTest extends TestCase
             ->set('form.store_announcement_scroll_duration_seconds', 24)
             ->set('form.store_announcement_background_color', '#0ea5e9')
             ->set('form.store_announcement_text_color', '#ffffff')
+            ->set('form.store_benefits_bar_enabled', true)
+            ->set('form.store_benefits_bar_item_1', 'Više od **60 000 proizvoda** u ponudi')
+            ->set('form.store_benefits_bar_item_2', 'Plaćanje do **24 rate**')
+            ->set('form.store_benefits_bar_item_3', '**Dostava** idući radni dan')
             ->call('save')
             ->assertHasNoErrors()
             ->assertDispatched('notify');
@@ -125,6 +164,10 @@ class StoreSettingsFeatureTest extends TestCase
         $this->assertSame(24, (int) $settings->get('store_announcement_scroll_duration_seconds'));
         $this->assertSame('#0ea5e9', $settings->get('store_announcement_background_color'));
         $this->assertSame('#ffffff', $settings->get('store_announcement_text_color'));
+        $this->assertTrue((bool) $settings->get('store_benefits_bar_enabled'));
+        $this->assertSame('Više od **60 000 proizvoda** u ponudi', $settings->get('store_benefits_bar_item_1'));
+        $this->assertSame('Plaćanje do **24 rate**', $settings->get('store_benefits_bar_item_2'));
+        $this->assertSame('**Dostava** idući radni dan', $settings->get('store_benefits_bar_item_3'));
     }
 
     public function test_footer_text_and_custom_links_are_saved_per_locale(): void

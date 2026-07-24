@@ -5,6 +5,8 @@ use App\Services\Import\DesktopProductImageImportService;
 use App\Services\Import\KozoProductContentSyncService;
 use App\Services\Import\OpenCartPathProductImageImportService;
 use App\Services\Import\OpenCartSizeOptionImportService;
+use App\Services\Import\TermolProductAttributeImportService;
+use App\Services\Import\TermolProductSnapshotImportService;
 use App\Models\User;
 use App\Models\Settings\Local\Region;
 use App\Services\Front\AddressDirectoryService;
@@ -448,6 +450,83 @@ Artisan::command('local:import-opencart-size-options
 
     return self::SUCCESS;
 })->purpose('Import OpenCart size option groups and product size rows into the local catalog');
+
+Artisan::command('local:import-termol-product-snapshot
+    {file=/tmp/termol-small-appliances.json : Browser-exported Termol product snapshot}
+    {--no-images : Import catalog data without attaching downloaded images}', function (TermolProductSnapshotImportService $importer): int {
+    try {
+        $result = $importer->import(
+            snapshotFile: (string) $this->argument('file'),
+            importImages: ! (bool) $this->option('no-images'),
+        );
+    } catch (\Throwable $e) {
+        $this->error($e->getMessage());
+        report($e);
+
+        return self::FAILURE;
+    }
+
+    $this->info('Termol product snapshot import completed.');
+    $this->line('Snapshot: '.(string) $result['snapshot_file']);
+    $this->line('Source products: '.(string) $result['source_products']);
+    $this->line('Products imported: '.(string) $result['products_imported']);
+    $this->line('Category links: '.(string) $result['categories_linked']);
+    $this->line('Main images attached: '.(string) $result['main_images_attached']);
+    $this->line('Images skipped: '.(string) $result['images_skipped']);
+    $this->line('Prices include tax: '.((bool) $result['prices_include_tax'] ? 'yes' : 'no'));
+    $this->line('Manufacturer ID: '.(string) $result['manufacturer_id']);
+    $this->line('Tax rate ID: '.(string) $result['tax_rate_id']);
+
+    return self::SUCCESS;
+})->purpose('Import a browser-exported Termol product snapshot into the local catalog');
+
+Artisan::command('local:sync-termol-product-attributes', function (TermolProductAttributeImportService $importer): int {
+    try {
+        $result = $importer->sync();
+    } catch (\Throwable $e) {
+        $this->error($e->getMessage());
+        report($e);
+
+        return self::FAILURE;
+    }
+
+    $this->info('Termol product attributes synchronized from descriptions.');
+    $this->line('Products scanned: '.(string) $result['products_scanned']);
+    $this->line('Products updated: '.(string) $result['products_updated']);
+    $this->line('Attributes created: '.(string) $result['attributes_created']);
+    $this->line('Attribute links: '.(string) $result['attribute_links']);
+    $this->line('Storefront filter groups: '.implode(', ', $result['filter_groups']));
+
+    return self::SUCCESS;
+})->purpose('Extract reusable Termol product attributes from imported descriptions');
+
+Artisan::command('local:import-termol-product-galleries
+    {file=/tmp/termol-small-appliance-galleries.json : Browser-exported Termol product gallery snapshot}
+    {--no-clear : Keep existing product gallery images}', function (TermolProductSnapshotImportService $importer): int {
+    try {
+        $result = $importer->importGalleries(
+            snapshotFile: (string) $this->argument('file'),
+            clearExisting: ! (bool) $this->option('no-clear'),
+        );
+    } catch (\Throwable $e) {
+        $this->error($e->getMessage());
+        report($e);
+
+        return self::FAILURE;
+    }
+
+    $this->info('Termol product gallery import completed.');
+    $this->line('Snapshot: '.(string) $result['snapshot_file']);
+    $this->line('Source products: '.(string) $result['source_products']);
+    $this->line('Source images: '.(string) $result['source_images']);
+    $this->line('Matched products: '.(string) $result['matched_products']);
+    $this->line('Products with galleries: '.(string) $result['products_with_galleries']);
+    $this->line('Galleries cleared: '.(string) $result['galleries_cleared']);
+    $this->line('Gallery images attached: '.(string) $result['gallery_images_attached']);
+    $this->line('Images skipped: '.(string) $result['images_skipped']);
+
+    return self::SUCCESS;
+})->purpose('Attach square Termol product gallery images to imported products');
 
 Artisan::command('local:sync-kozo-proizvodi-content
     {source_db=kozo : Source database name}

@@ -30,6 +30,7 @@
                 <thead class="text-slate-600">
                     <tr>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Placement') }}</th>
+                        <th class="px-3 py-2 text-left font-semibold">{{ __('Surface') }}</th>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Target') }}</th>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Block') }}</th>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Preview') }}</th>
@@ -42,6 +43,13 @@
                     @forelse ($rows as $row)
                         <tr>
                             <td class="px-3 py-2 font-mono text-xs text-slate-700">{{ $row->placement }}</td>
+                            <td class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                                {{ match ((string) ($row->frontend_variant ?? 'all')) {
+                                    'desktop' => __('Desktop Only'),
+                                    'mobile' => __('Mobile Only'),
+                                    default => __('All Devices'),
+                                } }}
+                            </td>
                             <td class="px-3 py-2 text-slate-700">
                                 @if ($row->target_type)
                                     <span class="font-semibold">{{ $row->target_type }}</span>
@@ -76,7 +84,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-3 py-8 text-center text-sm text-slate-500">{{ __('No content slots yet.') }}</td>
+                            <td colspan="8" class="px-3 py-8 text-center text-sm text-slate-500">{{ __('No content slots yet.') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

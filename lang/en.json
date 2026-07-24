@@ -35,5 +35,11 @@
     "Choose if stored catalog prices are entered with VAT included or VAT excluded.": "Choose if stored catalog prices are entered with VAT included or VAT excluded.",
     "Product prices include VAT": "Product prices include VAT",
     "Scroll text from right to left": "Scroll text from right to left",
-    "Text color": "Text color"
+    "Text color": "Text color",
+    "Category Products Carousel": "Category Products Carousel",
+    "Number of products to show": "Number of products to show",
+    "Source category": "Source category",
+    "Choose one category. Products are loaded automatically from it and its subcategories.": "Choose one category. Products are loaded automatically from it and its subcategories.",
+    "Select exactly one source category.": "Select exactly one source category.",
+    "from category": "from category"
 }

@@ -74,13 +74,8 @@
 
     const readVisualState = function (form) {
         const button = resolveButton(form);
-        if (button) {
-            if (button.classList.contains('bg-slate-900')) {
-                return true;
-            }
-            if (button.classList.contains('bg-white') || button.classList.contains('bg-white/95')) {
-                return false;
-            }
+        if (button && button.classList.contains('is-active')) {
+            return true;
         }
 
         return form.dataset.wishlisted === '1';
@@ -94,17 +89,17 @@
             return;
         }
 
-        button.classList.toggle('border-slate-900', isActive);
-        button.classList.toggle('bg-slate-900', isActive);
-        button.classList.toggle('text-white', isActive);
-        button.classList.toggle('hover:bg-slate-700', isActive);
-        button.classList.toggle('border-slate-200', !isActive);
-        button.classList.toggle('bg-white/95', !isActive);
-        button.classList.toggle('text-slate-700', !isActive);
-        button.classList.toggle('hover:text-slate-900', !isActive);
-        button.classList.toggle('border-slate-300', !isActive);
-        button.classList.toggle('bg-white', !isActive);
-        button.classList.toggle('hover:border-slate-900', !isActive);
+        button.classList.toggle('is-active', isActive);
+
+        const iconUse = button.querySelector('.fa6-icon use');
+        if (iconUse) {
+            const currentHref = String(iconUse.getAttribute('href') || '');
+            const nextHref = isActive
+                ? currentHref.replace('/regular.svg#heart', '/solid.svg#heart')
+                : currentHref.replace('/solid.svg#heart', '/regular.svg#heart');
+            iconUse.setAttribute('href', nextHref);
+        }
+
         button.setAttribute('aria-label', isActive ? (form.dataset.labelRemove || 'Remove') : (form.dataset.labelAdd || 'Add'));
     };
 

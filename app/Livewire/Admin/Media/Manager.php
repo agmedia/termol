@@ -6,7 +6,6 @@ use App\Models\Catalog\Product\Product;
 use App\Models\Content\Blog\BlogPost;
 use App\Models\Content\ContentBlock;
 use App\Services\Content\InstagramPostOEmbedService;
-use App\Services\Integrations\Kipos\KiposSyncService;
 use App\Support\Media\MediaProfileRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
@@ -38,6 +37,7 @@ class Manager extends Component
      *     alt: string,
      *     caption: string,
      *     link_url: string,
+     *     button_label: string,
      *     block_title: string,
      *     cta_1_label: string,
      *     cta_1_url: string,
@@ -54,15 +54,6 @@ class Manager extends Component
      * }>
      */
     public array $meta = [];
-
-    public string $kiposImageAction = '';
-
-    /**
-     * @var array<string, mixed>|null
-     */
-    public ?array $kiposImageResult = null;
-
-    public ?string $kiposImageError = null;
 
     public function mount(string $modelClass, ?int $modelId = null, string $locale = ''): void
     {
@@ -82,7 +73,7 @@ class Manager extends Component
             return;
         }
 
-        $collectionConfig = MediaProfileRegistry::collectionForModel($this->modelClass, $collectionName);
+        $collectionConfig = (array) ($this->collections[$collectionName] ?? []);
         if ($collectionConfig === []) {
             $this->dispatch('notify', type: 'danger', message: __('Unknown media collection.'));
             return;
@@ -226,16 +217,6 @@ class Manager extends Component
         $this->dispatch('notify', type: 'success', message: __('Image copied to main collection.'));
     }
 
-    public function importProductImagesFromKipos(KiposSyncService $kiposSync): void
-    {
-        $this->syncProductImagesFromKipos(false, $kiposSync);
-    }
-
-    public function replaceProductImagesFromKipos(KiposSyncService $kiposSync): void
-    {
-        $this->syncProductImagesFromKipos(true, $kiposSync);
-    }
-
     public function updatedMeta(mixed $value, string $key): void
     {
         [$mediaId, $field] = array_pad(explode('.', $key, 2), 2, '');
@@ -265,6 +246,7 @@ class Manager extends Component
         $alt = trim((string) ($meta['alt'] ?? ''));
         $caption = trim((string) ($meta['caption'] ?? ''));
         $linkUrl = trim((string) ($meta['link_url'] ?? ''));
+        $buttonLabel = trim((string) ($meta['button_label'] ?? ''));
         $blockTitle = trim((string) ($meta['block_title'] ?? ''));
         $cta1Label = trim((string) ($meta['cta_1_label'] ?? ''));
         $cta1Url = trim((string) ($meta['cta_1_url'] ?? ''));
@@ -319,6 +301,12 @@ class Manager extends Component
         } else {
             data_set($custom, "link_url.$locale", $linkUrl);
             data_set($custom, 'link_url_value', $linkUrl);
+        }
+
+        if ($buttonLabel === '') {
+            Arr::forget($custom, "button_label.$locale");
+        } else {
+            data_set($custom, "button_label.$locale", $buttonLabel);
         }
 
         if ($blockTitle === '') {
@@ -392,6 +380,7 @@ class Manager extends Component
             'alt' => $alt,
             'caption' => $caption,
             'link_url' => $linkUrl,
+            'button_label' => $buttonLabel,
             'block_title' => $blockTitle,
         ]);
 
@@ -460,7 +449,21 @@ class Manager extends Component
      */
     public function getCollectionsProperty(): array
     {
-        return MediaProfileRegistry::collectionsForModel($this->modelClass);
+        $collections = MediaProfileRegistry::collectionsForModel($this->modelClass);
+        $record = $this->record;
+
+        if (! $record instanceof ContentBlock) {
+            return $collections;
+        }
+
+        return array_filter(
+            $collections,
+            static function (array $collectionConfig) use ($record): bool {
+                $blockTypes = array_values(array_filter((array) ($collectionConfig['content_block_types'] ?? [])));
+
+                return $blockTypes === [] || in_array((string) $record->type, $blockTypes, true);
+            }
+        );
     }
 
     /**
@@ -497,7 +500,6 @@ class Manager extends Component
         $mediaByCollection = $this->mediaByCollection;
         $this->primeMetaInputs($mediaByCollection);
         $record = $this->record;
-        $kiposSync = app(KiposSyncService::class);
         $isContentBlock = $record instanceof \App\Models\Content\ContentBlock;
         $blockType = $isContentBlock ? (string) ($record->type ?? '') : '';
         $isDualImageCtaBlock = $blockType === 'dual_image_cta';
@@ -506,7 +508,6 @@ class Manager extends Component
         $isLinkableSliderBlock = in_array($blockType, ['full_width_image_slider', 'desktopfullwidthimageslider'], true);
         $isBlogPostMedia = $record instanceof BlogPost;
         $supportsProductHotspots = $isBlogPostMedia || $isLinkableSliderBlock;
-        $isProductMedia = $record instanceof Product;
 
         return view('livewire.admin.media.manager', [
             'collections' => $this->collections,
@@ -520,9 +521,6 @@ class Manager extends Component
             'isBlogPostMedia' => $isBlogPostMedia,
             'supportsProductHotspots' => $supportsProductHotspots,
             'hotspotProductOptions' => $supportsProductHotspots ? $this->hotspotProductOptions : collect(),
-            'isProductMedia' => $isProductMedia,
-            'kiposProductImagesEnabled' => $isProductMedia && $kiposSync->connectorEnabled(),
-            'kiposProductCode' => $isProductMedia ? strtoupper(trim((string) ($record->code ?? ''))) : '',
         ]);
     }
 
@@ -642,6 +640,7 @@ class Manager extends Component
                         data_get($custom, "link_url.$locale")
                         ?? data_get($custom, 'link_url_value', '')
                     ),
+                    'button_label' => (string) data_get($custom, "button_label.$locale", ''),
                     'block_title' => (string) data_get($custom, "block_title.$locale", ''),
                     'cta_1_label' => (string) data_get($custom, "cta_1_label.$locale", ''),
                     'cta_1_url' => (string) data_get($custom, "cta_1_url.$locale", ''),
@@ -741,33 +740,6 @@ class Manager extends Component
         $number = max($min, min(100.0, $number));
 
         return round($number, 2);
-    }
-
-    private function syncProductImagesFromKipos(bool $replaceExisting, KiposSyncService $kiposSync): void
-    {
-        $record = $this->record;
-        if (! $record instanceof Product) {
-            $this->dispatch('notify', type: 'warning', message: __('Kipos image sync is available only for product media.'));
-            return;
-        }
-
-        $this->kiposImageAction = $replaceExisting ? 'replace' : 'import';
-
-        try {
-            $this->kiposImageResult = $kiposSync->syncProductImages($record, $replaceExisting, $this->locale);
-            $this->kiposImageError = null;
-            $this->meta = [];
-
-            $updated = (int) ($this->kiposImageResult['updated_products'] ?? 0);
-            $message = (string) ($this->kiposImageResult['summary'] ?? __('Kipos product image sync completed.'));
-
-            $this->dispatch('notify', type: $updated > 0 ? 'success' : 'info', message: $message);
-        } catch (\Throwable $exception) {
-            $this->kiposImageError = $exception->getMessage();
-            $this->dispatch('notify', type: 'error', message: __('Kipos product image sync failed: :error', ['error' => $exception->getMessage()]));
-        } finally {
-            $this->kiposImageAction = '';
-        }
     }
 
     private function shouldImportInstagramPreview(Media $media, string $linkUrl): bool
@@ -878,6 +850,13 @@ class Manager extends Component
             return in_array($field, [
                 'link_url',
                 'block_title',
+            ], true);
+        }
+
+        if (in_array($blockType, ['full_width_image_slider', 'desktopfullwidthimageslider'], true)) {
+            return in_array($field, [
+                'link_url',
+                'button_label',
             ], true);
         }
 

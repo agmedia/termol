@@ -6,11 +6,9 @@
         @endphp
         @if ($features->useApi())
             <livewire:admin.settings.api.manager />
-        @elseif ($features->useLuceedApi())
-            <livewire:admin.settings.api.luceed-manager />
         @else
             <div class="admin-panel border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900">
-                {{ __('No API modules are enabled. Enable Wholesale API or Luceed API in Catalog Features.') }}
+                {{ __('Wholesale API is disabled. Enable it in Catalog Features.') }}
             </div>
         @endif
     </div>

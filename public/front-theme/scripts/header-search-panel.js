@@ -35,15 +35,16 @@
             && !!footer
             && !!viewAllLink;
 
-        let isOpen = false;
+        const mobileViewport = window.matchMedia('(max-width: 1023px)');
+        const isMobileViewport = function () {
+            return mobileViewport.matches;
+        };
+
+        let isOpen = !isMobileViewport();
         let debounceId = 0;
         let activeIndex = -1;
         let abortController = null;
         let resultLinks = [];
-
-        const isMobileViewport = function () {
-            return window.matchMedia('(max-width: 1023px)').matches;
-        };
 
         const ensurePanelVisible = function () {
             if (!isMobileViewport()) {
@@ -77,6 +78,11 @@
                 return;
             }
 
+            if (debounceId) {
+                window.clearTimeout(debounceId);
+                debounceId = 0;
+            }
+
             if (abortController) {
                 abortController.abort();
                 abortController = null;
@@ -100,21 +106,25 @@
             return label;
         };
 
-        const buildSuggestionRow = function (item, index) {
+        const buildSuggestionRow = function (item) {
             const link = document.createElement('a');
             link.href = item.url || '#';
             link.className = 'header-search-suggestion';
             link.dataset.headerSearchSuggestion = '';
-            link.dataset.index = String(index);
+            const hasImage = !!item.image_url;
+            const hasPrice = !!item.price;
+            link.classList.toggle('has-no-image', !hasImage);
+            link.classList.toggle('has-no-price', !hasPrice);
 
-            const thumb = document.createElement('span');
-            thumb.className = 'header-search-suggestion-thumb';
-            if (item.image_url) {
+            if (hasImage) {
+                const thumb = document.createElement('span');
+                thumb.className = 'header-search-suggestion-thumb';
                 const image = document.createElement('img');
                 image.src = item.image_url;
                 image.alt = item.name || '';
                 image.loading = 'lazy';
                 thumb.appendChild(image);
+                link.appendChild(thumb);
             }
 
             const copy = document.createElement('span');
@@ -125,36 +135,117 @@
             title.textContent = item.name || '';
             copy.appendChild(title);
 
-            const sku = document.createElement('span');
-            sku.className = 'header-search-suggestion-sku';
-            sku.textContent = item.sku || '';
-            copy.appendChild(sku);
+            if (item.brand || item.sku) {
+                const meta = document.createElement('span');
+                meta.className = 'header-search-suggestion-meta';
 
-            const prices = document.createElement('span');
-            prices.className = 'header-search-suggestion-prices';
+                if (item.brand) {
+                    const brand = document.createElement('span');
+                    brand.className = 'header-search-suggestion-brand';
+                    brand.textContent = item.brand;
+                    meta.appendChild(brand);
+                }
 
-            const currentPrice = document.createElement('span');
-            currentPrice.className = 'header-search-suggestion-price';
-            currentPrice.textContent = item.price || '';
-            prices.appendChild(currentPrice);
+                if (item.brand && item.sku) {
+                    const separator = document.createElement('span');
+                    separator.className = 'header-search-suggestion-meta-separator';
+                    separator.setAttribute('aria-hidden', 'true');
+                    separator.textContent = '•';
+                    meta.appendChild(separator);
+                }
 
-            if (item.has_discount && item.old_price) {
-                const oldPrice = document.createElement('span');
-                oldPrice.className = 'header-search-suggestion-old-price';
-                oldPrice.textContent = item.old_price;
-                prices.appendChild(oldPrice);
+                if (item.sku) {
+                    const sku = document.createElement('span');
+                    sku.className = 'header-search-suggestion-sku';
+                    sku.textContent = item.sku;
+                    meta.appendChild(sku);
+                }
+
+                copy.appendChild(meta);
             }
 
-            link.appendChild(thumb);
             link.appendChild(copy);
-            link.appendChild(prices);
 
-            link.addEventListener('mouseenter', function () {
-                activeIndex = index;
-                resetActiveLink();
-            });
+            if (hasPrice) {
+                const prices = document.createElement('span');
+                prices.className = 'header-search-suggestion-prices';
+
+                const currentPrice = document.createElement('span');
+                currentPrice.className = 'header-search-suggestion-price';
+                currentPrice.textContent = item.price;
+                prices.appendChild(currentPrice);
+
+                if (item.has_discount && item.old_price) {
+                    const oldPrice = document.createElement('span');
+                    oldPrice.className = 'header-search-suggestion-old-price';
+                    oldPrice.textContent = item.old_price;
+                    prices.appendChild(oldPrice);
+                }
+
+                link.appendChild(prices);
+            }
 
             return link;
+        };
+
+        const buildGroupHeading = function (label, total) {
+            const heading = document.createElement('div');
+            heading.className = 'header-search-group-heading';
+
+            const title = document.createElement('span');
+            title.textContent = label || '';
+            heading.appendChild(title);
+
+            if (total > 0) {
+                const count = document.createElement('span');
+                count.className = 'header-search-group-count';
+                count.textContent = String(total);
+                heading.appendChild(count);
+            }
+
+            return heading;
+        };
+
+        const buildRelatedGroup = function (groupKey, payload) {
+            const items = Array.isArray(payload.items) ? payload.items : [];
+            if (items.length === 0) {
+                return null;
+            }
+
+            const section = document.createElement('section');
+            section.className = `header-search-related-group is-${groupKey}`;
+            const labelKey = groupKey === 'manufacturers'
+                ? 'autocompleteManufacturersLabel'
+                : `autocomplete${groupKey.charAt(0).toUpperCase()}${groupKey.slice(1)}Label`;
+            section.appendChild(buildGroupHeading(form.dataset[labelKey], Number(payload.total || 0)));
+
+            const list = document.createElement('div');
+            list.className = 'header-search-related-list';
+
+            items.forEach((item) => {
+                const link = document.createElement('a');
+                link.href = item.url || '#';
+                link.className = 'header-search-related-suggestion';
+                link.classList.toggle('is-blog', groupKey === 'blog');
+                link.dataset.headerSearchSuggestion = '';
+                link.textContent = item.name || '';
+                list.appendChild(link);
+            });
+
+            section.appendChild(list);
+
+            return section;
+        };
+
+        const bindSuggestionLinks = function () {
+            resultLinks = Array.from(suggestionsList.querySelectorAll('[data-header-search-suggestion]'));
+            resultLinks.forEach((link, index) => {
+                link.dataset.index = String(index);
+                link.addEventListener('mouseenter', function () {
+                    activeIndex = index;
+                    resetActiveLink();
+                });
+            });
         };
 
         const renderLoading = function () {
@@ -184,9 +275,22 @@
             activeIndex = -1;
 
             const total = Number(payload.total || 0);
-            const items = Array.isArray(payload.items) ? payload.items : [];
+            const groups = payload.groups && typeof payload.groups === 'object'
+                ? payload.groups
+                : {
+                    products: {
+                        total,
+                        items: Array.isArray(payload.items) ? payload.items : [],
+                    },
+                };
+            const productGroup = groups.products || { total: 0, items: [] };
+            const productItems = Array.isArray(productGroup.items) ? productGroup.items : [];
+            const relatedGroupKeys = ['manufacturers', 'categories', 'blog'];
+            const relatedSections = relatedGroupKeys
+                .map((groupKey) => buildRelatedGroup(groupKey, groups[groupKey] || { total: 0, items: [] }))
+                .filter(Boolean);
 
-            if (items.length === 0) {
+            if (productItems.length === 0 && relatedSections.length === 0) {
                 suggestionsMeta.textContent = '';
                 emptyState.textContent = setMetaLabel(form.dataset.autocompleteEmptyLabel, {
                     '__QUERY__': query,
@@ -202,14 +306,47 @@
                 '__COUNT__': String(total),
             });
 
-            items.forEach((item, index) => {
-                suggestionsList.appendChild(buildSuggestionRow(item, index));
-            });
+            const grid = document.createElement('div');
+            grid.className = 'header-search-suggestions-grid';
+            grid.classList.toggle('has-no-products', productItems.length === 0);
 
-            resultLinks = Array.from(suggestionsList.querySelectorAll('[data-header-search-suggestion]'));
-            footer.hidden = false;
-            viewAllLink.textContent = form.dataset.autocompleteViewAllLabel || '';
-            viewAllLink.href = payload.search_url || `${form.action}?q=${encodeURIComponent(query)}`;
+            if (productItems.length > 0) {
+                const productSection = document.createElement('section');
+                productSection.className = 'header-search-products-group';
+                productSection.appendChild(buildGroupHeading(
+                    form.dataset.autocompleteProductsLabel,
+                    Number(productGroup.total || 0)
+                ));
+
+                const productList = document.createElement('div');
+                productList.className = 'header-search-products-list';
+                productItems.forEach((item) => {
+                    productList.appendChild(buildSuggestionRow(item));
+                });
+
+                productSection.appendChild(productList);
+                grid.appendChild(productSection);
+            }
+
+            if (relatedSections.length > 0) {
+                const relatedColumn = document.createElement('aside');
+                relatedColumn.className = 'header-search-related-column';
+                relatedSections.forEach((section) => {
+                    relatedColumn.appendChild(section);
+                });
+                grid.appendChild(relatedColumn);
+            }
+
+            suggestionsList.appendChild(grid);
+            bindSuggestionLinks();
+
+            footer.hidden = productItems.length === 0;
+            if (!footer.hidden) {
+                const productTotal = Number(productGroup.total || 0);
+                const totalSuffix = productTotal > 0 ? ` (${productTotal})` : '';
+                viewAllLink.textContent = `${form.dataset.autocompleteViewAllLabel || ''}${totalSuffix}`;
+                viewAllLink.href = payload.search_url || `${form.action}?q=${encodeURIComponent(query)}`;
+            }
         };
 
         const requestAutocomplete = function () {
@@ -217,6 +354,7 @@
                 return;
             }
 
+            debounceId = 0;
             const query = input.value.trim();
             if (query.length < MIN_QUERY_LENGTH) {
                 closeSuggestions();
@@ -229,7 +367,8 @@
                 abortController.abort();
             }
 
-            abortController = new AbortController();
+            const requestController = new AbortController();
+            abortController = requestController;
             const endpoint = new URL(form.dataset.autocompleteEndpoint, window.location.origin);
             endpoint.searchParams.set('q', query);
 
@@ -238,7 +377,7 @@
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',
                 },
-                signal: abortController.signal,
+                signal: requestController.signal,
             })
                 .then((response) => {
                     if (!response.ok) {
@@ -262,7 +401,9 @@
                     closeSuggestions();
                 })
                 .finally(() => {
-                    abortController = null;
+                    if (abortController === requestController) {
+                        abortController = null;
+                    }
                 });
         };
 
@@ -293,9 +434,15 @@
         };
 
         const closePanel = function () {
-            panel.classList.remove('is-open');
             closeSuggestions();
-            isOpen = false;
+
+            if (isMobileViewport()) {
+                panel.classList.remove('is-open');
+                isOpen = false;
+                return;
+            }
+
+            isOpen = true;
         };
 
         toggles.forEach(function (toggle) {
@@ -371,6 +518,22 @@
                 closePanel();
             }
         });
+
+        const syncViewportState = function () {
+            if (!isMobileViewport()) {
+                panel.classList.remove('is-open');
+                isOpen = true;
+                return;
+            }
+
+            isOpen = panel.classList.contains('is-open');
+        };
+
+        if (typeof mobileViewport.addEventListener === 'function') {
+            mobileViewport.addEventListener('change', syncViewportState);
+        } else {
+            mobileViewport.addListener(syncViewportState);
+        }
     };
 
     if (document.readyState === 'loading') {

@@ -145,8 +145,6 @@ class ProductColorVariantService
             'source.variant_group' => 'payload->source->variant_group',
             'source.mpn' => 'payload->source->mpn',
             'source.model' => 'payload->source->model',
-            'kipos.color_variant_group' => 'payload->kipos->color_variant_group',
-            'kipos.variant_group' => 'payload->kipos->variant_group',
         ];
 
         foreach ($payloadPaths as $path => $column) {

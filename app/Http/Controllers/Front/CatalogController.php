@@ -12,6 +12,7 @@ use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Option\Option;
 use App\Models\Catalog\Option\OptionValue;
 use App\Models\Catalog\Product\Product;
+use App\Models\Content\Blog\BlogPost;
 use App\Models\User;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
@@ -42,33 +43,74 @@ class CatalogController extends Controller
 
     public function autocomplete(Request $request): JsonResponse
     {
-        abort_unless(
-            (bool) app(SystemSettingsService::class)->get('store_search_autocomplete_enabled', false),
-            404
-        );
+        $settings = app(SystemSettingsService::class);
+        abort_unless((bool) $settings->get('store_search_autocomplete_enabled', false), 404);
 
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
         $search = trim((string) $request->query('q', ''));
+        $configuration = $this->autocompleteConfiguration($settings);
 
         if (mb_strlen($search) < 2) {
-            return response()->json([
-                'query' => $search,
-                'total' => 0,
-                'items' => [],
-                'search_url' => route('shop.index', ['q' => $search]),
-            ]);
+            return $this->autocompleteResponse($search, $this->emptyAutocompleteGroups());
+        }
+
+        $groups = [
+            'products' => $configuration['products_enabled']
+                ? $this->autocompleteProducts($request, $locale, $fallbackLocale, $search, $configuration)
+                : ['total' => 0, 'items' => []],
+            'categories' => $configuration['categories_enabled']
+                ? $this->autocompleteCategories($locale, $fallbackLocale, $search, $configuration['categories_limit'])
+                : ['total' => 0, 'items' => []],
+            'manufacturers' => $configuration['manufacturers_enabled']
+                ? $this->autocompleteManufacturers($locale, $fallbackLocale, $search, $configuration['manufacturers_limit'])
+                : ['total' => 0, 'items' => []],
+            'blog' => $configuration['blog_enabled']
+                ? $this->autocompleteBlogPosts($locale, $fallbackLocale, $search, $configuration['blog_limit'])
+                : ['total' => 0, 'items' => []],
+        ];
+
+        return $this->autocompleteResponse($search, $groups);
+    }
+
+    /**
+     * @param  array<string, bool|int>  $configuration
+     * @return array{total:int,items:array<int,array<string,mixed>>}
+     */
+    private function autocompleteProducts(
+        Request $request,
+        string $locale,
+        string $fallbackLocale,
+        string $search,
+        array $configuration
+    ): array {
+        $with = [
+            'translations' => fn ($translationQuery) => $translationQuery
+                ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt'])
+                ->whereIn('locale', [$locale, $fallbackLocale]),
+        ];
+
+        if ($configuration['show_product_price']) {
+            $with[] = 'taxRate:id,rate,rate_type,is_active';
+        }
+
+        if ($configuration['show_product_image']) {
+            $with[] = 'media';
+        }
+
+        if ($configuration['show_product_brand']) {
+            $with['manufacturer'] = fn ($manufacturerQuery) => $manufacturerQuery
+                ->where('is_active', true)
+                ->with([
+                    'translations' => fn ($translationQuery) => $translationQuery
+                        ->select(['id', 'manufacturer_id', 'locale', 'name'])
+                        ->whereIn('locale', [$locale, $fallbackLocale]),
+                ]);
         }
 
         $query = Product::query()
             ->visibleOnStorefront($this->hideOutOfStockProducts())
-            ->with([
-                'taxRate:id,rate,rate_type,is_active',
-                'translations' => fn ($translationQuery) => $translationQuery
-                    ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt'])
-                    ->whereIn('locale', [$locale, $fallbackLocale]),
-                'media',
-            ]);
+            ->with($with);
 
         $this->applyProductSearch($query, $locale, $fallbackLocale, $search);
 
@@ -79,42 +121,282 @@ class CatalogController extends Controller
 
         $products = $query
             ->orderByDesc('products.id')
-            ->limit(8)
+            ->limit((int) $configuration['products_limit'])
             ->get()
-            ->map(function (Product $product) use ($locale, $fallbackLocale, $viewer, $pricing, $preferWebp): array {
+            ->map(function (Product $product) use (
+                $locale,
+                $fallbackLocale,
+                $viewer,
+                $pricing,
+                $preferWebp,
+                $configuration
+            ): array {
                 $translation = $product->translations->firstWhere('locale', $locale)
                     ?? $product->translations->firstWhere('locale', $fallbackLocale)
                     ?? $product->translations->first();
 
                 $slug = (string) ($translation?->slug ?? $product->id);
-                $price = $pricing->forProduct($product, $viewer);
-                $mainMedia = $product->media->firstWhere('collection_name', 'product_main')
-                    ?? $product->media->firstWhere('collection_name', 'product_gallery')
-                    ?? $product->getFirstMedia('product_main')
-                    ?? $product->getFirstMedia('product_gallery');
-                $imageUrl = MediaUrl::conversionOrNull($mainMedia, 'card_320w', $preferWebp)
-                    ?? MediaUrl::conversionOrNull($mainMedia, 'card_480w', $preferWebp)
-                    ?? ($mainMedia ? (string) $mainMedia->getUrl() : null);
+                $price = $configuration['show_product_price']
+                    ? $pricing->forProduct($product, $viewer)
+                    : null;
                 $oldGross = $price['old_gross'] ?? null;
+                $imageUrl = null;
+                $brand = null;
+
+                if ($configuration['show_product_image']) {
+                    $mainMedia = $product->media->firstWhere('collection_name', 'product_main')
+                        ?? $product->media->firstWhere('collection_name', 'product_gallery')
+                        ?? $product->getFirstMedia('product_main')
+                        ?? $product->getFirstMedia('product_gallery');
+                    $imageUrl = MediaUrl::conversionOrNull($mainMedia, 'card_320w', $preferWebp)
+                        ?? MediaUrl::conversionOrNull($mainMedia, 'card_480w', $preferWebp)
+                        ?? ($mainMedia ? (string) $mainMedia->getUrl() : null);
+                }
+
+                if ($configuration['show_product_brand'] && $product->manufacturer) {
+                    $brandTranslation = $product->manufacturer->translations->firstWhere('locale', $locale)
+                        ?? $product->manufacturer->translations->firstWhere('locale', $fallbackLocale)
+                        ?? $product->manufacturer->translations->first();
+                    $brand = $brandTranslation?->name;
+                }
 
                 return [
                     'id' => (int) $product->id,
+                    'kind' => 'product',
                     'name' => (string) ($translation?->name ?? $product->code),
-                    'sku' => (string) ($product->sku ?: $product->code),
+                    'brand' => $brand,
+                    'sku' => $configuration['show_product_sku']
+                        ? (string) ($product->sku ?: $product->code)
+                        : null,
                     'url' => route('products.show', ['slug' => $slug]),
                     'image_url' => $imageUrl,
-                    'price' => number_format((float) ($price['current_gross'] ?? 0), 2).' €',
-                    'old_price' => $oldGross !== null ? number_format((float) $oldGross, 2).' €' : null,
-                    'has_discount' => $oldGross !== null && (float) $oldGross > (float) ($price['current_gross'] ?? 0),
+                    'price' => $price !== null
+                        ? number_format((float) ($price['current_gross'] ?? 0), 2).' €'
+                        : null,
+                    'old_price' => $price !== null && $oldGross !== null
+                        ? number_format((float) $oldGross, 2).' €'
+                        : null,
+                    'has_discount' => $price !== null
+                        && $oldGross !== null
+                        && (float) $oldGross > (float) ($price['current_gross'] ?? 0),
                 ];
             })
             ->values()
             ->all();
 
+        return [
+            'total' => $total,
+            'items' => $products,
+        ];
+    }
+
+    /**
+     * @return array{total:int,items:array<int,array<string,mixed>>}
+     */
+    private function autocompleteCategories(
+        string $locale,
+        string $fallbackLocale,
+        string $search,
+        int $limit
+    ): array {
+        $query = Category::query()
+            ->where('scope', Category::SCOPE_CATALOG)
+            ->currentlyVisible()
+            ->whereHas('translations', function ($translationQuery) use ($locale, $fallbackLocale, $search): void {
+                $translationQuery
+                    ->where('scope', Category::SCOPE_CATALOG)
+                    ->whereIn('locale', [$locale, $fallbackLocale])
+                    ->where('name', 'like', '%'.$search.'%');
+            })
+            ->with([
+                'translations' => fn ($translationQuery) => $translationQuery
+                    ->where('scope', Category::SCOPE_CATALOG)
+                    ->whereIn('locale', [$locale, $fallbackLocale]),
+            ]);
+
+        $total = (clone $query)->count('categories.id');
+        $items = $query
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->limit($limit)
+            ->get()
+            ->map(function (Category $category) use ($locale, $fallbackLocale): array {
+                $translation = $category->translations->firstWhere('locale', $locale)
+                    ?? $category->translations->firstWhere('locale', $fallbackLocale)
+                    ?? $category->translations->first();
+
+                return [
+                    'id' => (int) $category->id,
+                    'kind' => 'category',
+                    'name' => (string) ($translation?->name ?? $category->code),
+                    'url' => route('categories.show', ['slug' => (string) ($translation?->slug ?? $category->id)]),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return ['total' => $total, 'items' => $items];
+    }
+
+    /**
+     * @return array{total:int,items:array<int,array<string,mixed>>}
+     */
+    private function autocompleteManufacturers(
+        string $locale,
+        string $fallbackLocale,
+        string $search,
+        int $limit
+    ): array {
+        if (! app(CatalogFeatureService::class)->useManufacturers()) {
+            return ['total' => 0, 'items' => []];
+        }
+
+        $query = Manufacturer::query()
+            ->where('is_active', true)
+            ->whereHas('products', fn ($productQuery) => $productQuery
+                ->visibleOnStorefront($this->hideOutOfStockProducts()))
+            ->whereHas('translations', function ($translationQuery) use ($locale, $fallbackLocale, $search): void {
+                $translationQuery
+                    ->whereIn('locale', [$locale, $fallbackLocale])
+                    ->where('name', 'like', '%'.$search.'%');
+            })
+            ->with([
+                'translations' => fn ($translationQuery) => $translationQuery
+                    ->whereIn('locale', [$locale, $fallbackLocale]),
+            ]);
+
+        $total = (clone $query)->count('catalog_manufacturers.id');
+        $items = $query
+            ->orderByDesc('is_featured')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->limit($limit)
+            ->get()
+            ->map(function (Manufacturer $manufacturer) use ($locale, $fallbackLocale): array {
+                $translation = $manufacturer->translations->firstWhere('locale', $locale)
+                    ?? $manufacturer->translations->firstWhere('locale', $fallbackLocale)
+                    ?? $manufacturer->translations->first();
+
+                return [
+                    'id' => (int) $manufacturer->id,
+                    'kind' => 'manufacturer',
+                    'name' => (string) ($translation?->name ?? $manufacturer->code),
+                    'url' => route('manufacturers.show', ['slug' => (string) ($translation?->slug ?? $manufacturer->id)]),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return ['total' => $total, 'items' => $items];
+    }
+
+    /**
+     * @return array{total:int,items:array<int,array<string,mixed>>}
+     */
+    private function autocompleteBlogPosts(
+        string $locale,
+        string $fallbackLocale,
+        string $search,
+        int $limit
+    ): array {
+        if (! app(CatalogFeatureService::class)->useBlog()) {
+            return ['total' => 0, 'items' => []];
+        }
+
+        $query = BlogPost::query()
+            ->where('is_active', true)
+            ->where(function ($publishedQuery): void {
+                $publishedQuery
+                    ->whereNull('published_at')
+                    ->orWhere('published_at', '<=', now());
+            })
+            ->whereHas('translations', function ($translationQuery) use ($locale, $fallbackLocale, $search): void {
+                $translationQuery
+                    ->whereIn('locale', [$locale, $fallbackLocale])
+                    ->where(function ($copyQuery) use ($search): void {
+                        $copyQuery
+                            ->where('title', 'like', '%'.$search.'%')
+                            ->orWhere('excerpt', 'like', '%'.$search.'%');
+                    });
+            })
+            ->with([
+                'translations' => fn ($translationQuery) => $translationQuery
+                    ->whereIn('locale', [$locale, $fallbackLocale]),
+            ]);
+
+        $total = (clone $query)->count('content_blog_posts.id');
+        $items = $query
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get()
+            ->map(function (BlogPost $post) use ($locale, $fallbackLocale): array {
+                $translation = $post->translations->firstWhere('locale', $locale)
+                    ?? $post->translations->firstWhere('locale', $fallbackLocale)
+                    ?? $post->translations->first();
+
+                return [
+                    'id' => (int) $post->id,
+                    'kind' => 'blog',
+                    'name' => (string) ($translation?->title ?? $post->code),
+                    'url' => route('blog.show', ['slug' => (string) ($translation?->slug ?? $post->id)]),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return ['total' => $total, 'items' => $items];
+    }
+
+    /**
+     * @return array<string, bool|int>
+     */
+    private function autocompleteConfiguration(SystemSettingsService $settings): array
+    {
+        return [
+            'products_enabled' => (bool) $settings->get('store_search_autocomplete_products_enabled', true),
+            'categories_enabled' => (bool) $settings->get('store_search_autocomplete_categories_enabled', true),
+            'manufacturers_enabled' => (bool) $settings->get('store_search_autocomplete_manufacturers_enabled', true),
+            'blog_enabled' => (bool) $settings->get('store_search_autocomplete_blog_enabled', true),
+            'products_limit' => $settings->getInt('store_search_autocomplete_products_limit', 5, 1, 12),
+            'categories_limit' => $settings->getInt('store_search_autocomplete_categories_limit', 6, 1, 10),
+            'manufacturers_limit' => $settings->getInt('store_search_autocomplete_manufacturers_limit', 6, 1, 10),
+            'blog_limit' => $settings->getInt('store_search_autocomplete_blog_limit', 3, 1, 10),
+            'show_product_image' => (bool) $settings->get('store_search_autocomplete_show_product_image', true),
+            'show_product_brand' => (bool) $settings->get('store_search_autocomplete_show_product_brand', true),
+            'show_product_sku' => (bool) $settings->get('store_search_autocomplete_show_product_sku', true),
+            'show_product_price' => (bool) $settings->get('store_search_autocomplete_show_product_price', true),
+        ];
+    }
+
+    /**
+     * @return array<string,array{total:int,items:array<int,array<string,mixed>>}>
+     */
+    private function emptyAutocompleteGroups(): array
+    {
+        return [
+            'products' => ['total' => 0, 'items' => []],
+            'categories' => ['total' => 0, 'items' => []],
+            'manufacturers' => ['total' => 0, 'items' => []],
+            'blog' => ['total' => 0, 'items' => []],
+        ];
+    }
+
+    /**
+     * @param  array<string,array{total:int,items:array<int,array<string,mixed>>}>  $groups
+     */
+    private function autocompleteResponse(string $search, array $groups): JsonResponse
+    {
+        $total = array_sum(array_map(
+            static fn (array $group): int => (int) ($group['total'] ?? 0),
+            $groups
+        ));
+
         return response()->json([
             'query' => $search,
             'total' => $total,
-            'items' => $products,
+            'items' => $groups['products']['items'] ?? [],
+            'groups' => $groups,
             'search_url' => route('shop.index', ['q' => $search]),
         ]);
     }
@@ -330,6 +612,7 @@ class CatalogController extends Controller
         $categorySlug = $slug;
         $manufacturerSlug = trim((string) $request->query('manufacturer', ''));
         $sort = (string) $request->query('sort', 'default');
+        $availableOnly = $this->normalizeBooleanFilterValue($request->query('available_only'));
         $promoOnly = $this->normalizeBooleanFilterValue($request->query('promo_only'));
         [$priceMin, $priceMax] = $this->normalizedPriceRange(
             $request->query('price_min'),
@@ -434,6 +717,10 @@ class CatalogController extends Controller
                 $productsQuery->whereHas('attributes', function ($attributeQuery) use ($selectedAttributeId): void {
                     $attributeQuery->where('catalog_attributes.id', $selectedAttributeId);
                 });
+            }
+
+            if ($availableOnly) {
+                $productsQuery->visibleOnStorefront(true);
             }
 
             $promoAvailabilityQuery = clone $productsQuery;
@@ -613,6 +900,7 @@ class CatalogController extends Controller
                 'manufacturer' => $manufacturerSlug,
                 'price_min' => $priceMin,
                 'price_max' => $priceMax,
+                'available_only' => $availableOnly,
                 'promo_only' => $promoOnly,
                 'sort' => $sort,
                 'cols' => $gridCols,

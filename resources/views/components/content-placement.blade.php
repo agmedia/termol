@@ -64,6 +64,77 @@
                 ->values();
         }
 
+        if ((string) $block->type === 'category_products_carousel' && $categories->isNotEmpty()) {
+            $sourceCategory = $categories->first();
+            $categoryScopeIds = \App\Models\Catalog\Category\Category::query()
+                ->descendantsAndSelf((int) $sourceCategory->id)
+                ->filter(static fn ($category): bool => (string) $category->scope === \App\Models\Catalog\Category\Category::SCOPE_CATALOG
+                    && $category->isCurrentlyVisible())
+                ->pluck('id')
+                ->map(static fn ($id): int => (int) $id)
+                ->values()
+                ->all();
+            $mergedPayload = array_merge(
+                is_array($block->payload ?? null) ? $block->payload : [],
+                is_array($translation?->payload ?? null) ? $translation->payload : [],
+            );
+            $itemsLimit = max(1, min(50, (int) ($mergedPayload['items_limit'] ?? 12)));
+
+            if ($categoryScopeIds !== []) {
+                $categorySortSubquery = \Illuminate\Support\Facades\DB::table('category_product')
+                    ->selectRaw('product_id, MIN(sort_order) as category_sort_order')
+                    ->whereIn('category_id', $categoryScopeIds)
+                    ->groupBy('product_id');
+
+                $products = \App\Models\Catalog\Product\Product::query()
+                    ->visibleOnStorefront($hideOutOfStockProducts)
+                    ->whereHas('categories', function ($categoryQuery) use ($categoryScopeIds): void {
+                        $categoryQuery
+                            ->where('scope', \App\Models\Catalog\Category\Category::SCOPE_CATALOG)
+                            ->currentlyVisible()
+                            ->whereIn('categories.id', $categoryScopeIds);
+                    })
+                    ->whereHas('media', fn ($mediaQuery) => $mediaQuery->whereIn('collection_name', ['product_main', 'product_gallery']))
+                    ->leftJoinSub($categorySortSubquery, 'category_product_sort', function ($join): void {
+                        $join->on('category_product_sort.product_id', '=', 'products.id');
+                    })
+                    ->select('products.*')
+                    ->withApprovedCommentSummary([$locale, $fallbackLocale])
+                    ->with([
+                        'taxRate:id,rate,rate_type,is_active',
+                        'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                        'categories.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                        'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+                        'attributes' => \App\Support\ProductMaterialLabel::eagerLoadAttributes($locale, $fallbackLocale),
+                        'media' => fn ($q) => $q
+                            ->whereIn('collection_name', ['product_main', 'product_gallery'])
+                            ->orderBy('order_column')
+                            ->orderBy('id'),
+                        'optionValues' => fn ($q) => $q
+                            ->where('is_active', true)
+                            ->orderBy('sort_order')
+                            ->orderBy('id')
+                            ->with([
+                                'optionValue.option:id,payload',
+                                'optionValue.translations' => fn ($translationQuery) => $translationQuery
+                                    ->whereIn('locale', [$locale, $fallbackLocale]),
+                                'parentOptionValue.option:id,payload',
+                                'parentOptionValue.translations' => fn ($translationQuery) => $translationQuery
+                                    ->whereIn('locale', [$locale, $fallbackLocale]),
+                            ]),
+                    ])
+                    ->orderByRaw('COALESCE(category_product_sort.category_sort_order, 999999) ASC')
+                    ->orderByDesc('products.id')
+                    ->limit($itemsLimit)
+                    ->get()
+                    ->filter(function ($product): bool {
+                        return $product->media
+                            ->contains(fn ($media): bool => \App\Support\Media\MediaUrl::hasUsableSource($media, ['card_720w', 'card_480w', 'card_320w']));
+                    })
+                    ->values();
+            }
+        }
+
         $manufacturers = collect();
         if ($manufacturerIds !== []) {
             $manufacturers = \App\Models\Catalog\Manufacturer\Manufacturer::query()

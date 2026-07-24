@@ -21,6 +21,7 @@ class ProductCard extends Component
         public ?string $locale = null,
         public ?string $fallbackLocale = null,
         public bool $flat = false,
+        public bool $lined = false,
     ) {
     }
 
@@ -184,6 +185,7 @@ class ProductCard extends Component
             'lowest30DaysPrice' => $priceData['lowest_30_days_price'],
             'reviewSummary' => $this->product->approvedCommentSummary([$locale, $fallbackLocale]),
             'flat' => $this->flat,
+            'lined' => $this->lined,
         ]);
     }
 }

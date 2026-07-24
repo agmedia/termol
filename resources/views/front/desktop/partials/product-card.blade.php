@@ -3,4 +3,5 @@
     :locale="$locale ?? null"
     :fallback-locale="$fallbackLocale ?? null"
     :flat="(bool) ($flat ?? false)"
+    :lined="(bool) ($lined ?? false)"
 />

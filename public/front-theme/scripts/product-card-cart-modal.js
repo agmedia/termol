@@ -20,11 +20,10 @@
         }
 
         const wrapper = document.createElement('div');
-        wrapper.className = 'fixed inset-0 hidden items-center justify-center p-4';
-        wrapper.style.zIndex = '9999';
+        wrapper.className = 'product-cart-modal fixed inset-0 hidden items-center justify-center p-4';
         wrapper.innerHTML = [
-            '<div class="fixed inset-0" style="z-index: 1; background: rgba(0, 0, 0, 0.6);"></div>',
-            '<div class="relative w-full border border-slate-300 bg-white p-4 shadow-2xl" style="z-index: 2; max-width: 460px;">',
+            '<div class="product-cart-modal-backdrop fixed inset-0"></div>',
+            '<div class="product-cart-modal-panel relative w-full border border-slate-300 bg-white p-4 shadow-2xl">',
             '  <div class="flex gap-4">',
             '    <img src="" alt="" class="h-28 w-20 border border-slate-200 object-cover" data-cart-modal-image>',
             '    <div class="min-w-0 flex-1">',

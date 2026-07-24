@@ -602,7 +602,7 @@ return [
         ],
         'admin.settings.api.*' => [
             'title' => 'Settings / API',
-            'summary' => 'Manage API integrations: internal Wholesale API, Kipos catalog + ERP connector, and external Luceed sync console.',
+            'summary' => 'Manage the internal Wholesale API.',
             'sections' => [
                 [
                     'title' => 'Wholesale API',
@@ -623,57 +623,11 @@ return [
                     ],
                 ],
                 [
-                    'title' => 'Kipos API',
-                    'items' => [
-                        'Connection tab stores Kipos base route, webshop suffix, timeout, and optional image base URI fallback.',
-                        'Sync Manager exposes granular manual actions so prices, quantities, actions, content, and images can be run independently.',
-                        'Product import maps Kipos `IDODJEL` to local product code and Kipos `IDROBA` to local SKU / option rows.',
-                        'ERP order send runs only from admin order detail and stores preview/send payloads plus ERP response in order payload.',
-                    ],
-                ],
-                [
-                    'title' => 'Kipos Workflow',
-                    'items' => [
-                        '1) Enable Kipos in Catalog Features (`Use Kipos API`) and enable connector toggle in Kipos API settings.',
-                        '2) Save Kipos connection values and run Test Connection against product feed.',
-                        '3) Configure import category, size option, price field, and quantity overwrite map in Sync Settings.',
-                        '4) Run import once, then use narrow actions like Update Prices, Update Quantities, Update Actions, or Update Images as needed.',
-                        '5) Open any admin order and use Test Payload / Send to ERP when invoice should be sent manually.',
-                    ],
-                ],
-                [
-                    'title' => 'Luceed API',
-                    'items' => [
-                        'Connection tab configures Luceed DataSnap base URI and auth strategy (Basic/Bearer/Header/Query/None).',
-                        'Sync Manager tab exposes full operation set: dictionaries, products, prices, quantities, actions, related items, and order statuses.',
-                        'Each action runs manually in admin and writes a run log (status, summary, timestamps, and stats/error details).',
-                        'Run history is persistent and visible in History tab for post-run verification.',
-                    ],
-                ],
-                [
-                    'title' => 'Luceed Sync Workflow',
-                    'items' => [
-                        '1) Enable Luceed in Catalog Features (`Use Luceed API`) and enable Luceed connector toggle in Luceed API settings.',
-                        '2) Save connection/auth and run Test Connection probe.',
-                        '3) Open Sync Manager / Settings tab and define locale, stock warehouse CSV, and order status filters.',
-                        '4) Run actions in order: categories/manufacturers/payments -> products -> prices/quantities -> order statuses.',
-                        '5) Inspect History tab after each run; failed actions keep exact error message for troubleshooting.',
-                    ],
-                ],
-                [
-                    'title' => 'Luceed Sync Action Groups',
-                    'items' => [
-                        'Catalog Base Sync: Add/Update categories, Add/Update manufacturers, Sync warehouses, Sync payment methods.',
-                        'Product Sync: Add/Update products, Sync actions, Sync related products, Update prices, Update quantities.',
-                        'Order Sync: Update order statuses.',
-                    ],
-                ],
-                [
                     'title' => 'Gates And Safety',
                     'items' => [
-                        'Catalog Features switch `Use Luceed API` gates the entire Luceed module (menu entry, route access, and runtime usage).',
-                        'Connection toggle `Luceed connector enabled` is a second gate; both gates must be ON to execute actions.',
-                        'TLS verification should remain enabled in production unless endpoint uses trusted self-signed certificates in controlled environments.',
+                        'Catalog Features switch `Use Wholesale API` gates the settings page and runtime endpoints.',
+                        'User API access and token abilities should be limited to the minimum required scope.',
+                        'Revoke tokens immediately when an integration or client changes.',
                     ],
                 ],
             ],

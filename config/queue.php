@@ -2,8 +2,6 @@
 
 return [
 
-    'kipos_queue' => env('QUEUE_KIPOS', 'kipos'),
-
     /*
     |--------------------------------------------------------------------------
     | Default Queue Connection Name

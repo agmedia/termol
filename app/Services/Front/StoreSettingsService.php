@@ -20,6 +20,7 @@ class StoreSettingsService
     {
         return [
             'announcement' => $this->announcement(),
+            'benefits_bar' => $this->benefitsBar(),
             'images' => $this->images(),
             'product' => $this->product(),
             'cookies' => $this->cookies(),
@@ -55,6 +56,25 @@ class StoreSettingsService
     /**
      * @return array<string, mixed>
      */
+    public function benefitsBar(): array
+    {
+        return [
+            'enabled' => (bool) $this->settings->get('store_benefits_bar_enabled', true),
+            'items' => collect([
+                $this->settings->get('store_benefits_bar_item_1', 'Više od **50 000 proizvoda** u ponudi'),
+                $this->settings->get('store_benefits_bar_item_2', 'Plaćanje karticama do **12 rata bez naknada**'),
+                $this->settings->get('store_benefits_bar_item_3', '**Dostava** u roku **3-5 radnih dana**'),
+            ])
+                ->map(fn ($item): string => trim((string) $item))
+                ->filter()
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     public function images(): array
     {
         return [
@@ -79,7 +99,34 @@ class StoreSettingsService
                 ->unique()
                 ->values()
                 ->all(),
+            'filter_panel_settings' => $this->filterPanelSettings(),
         ];
+    }
+
+    /**
+     * @return array<string, array{visible:bool,default_open:bool,max_height:int}>
+     */
+    private function filterPanelSettings(): array
+    {
+        $raw = $this->settings->get('store_product_filter_panel_settings', []);
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $allowedHeights = [160, 220, 286, 360];
+
+        return collect($raw)
+            ->filter(fn ($settings, $key): bool => is_string($key) && is_array($settings))
+            ->map(function (array $settings) use ($allowedHeights): array {
+                $height = (int) ($settings['max_height'] ?? 286);
+
+                return [
+                    'visible' => array_key_exists('visible', $settings) ? (bool) $settings['visible'] : true,
+                    'default_open' => array_key_exists('default_open', $settings) ? (bool) $settings['default_open'] : true,
+                    'max_height' => in_array($height, $allowedHeights, true) ? $height : 286,
+                ];
+            })
+            ->all();
     }
 
     /**

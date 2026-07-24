@@ -9,6 +9,8 @@ use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Product\Product;
 use App\Models\Content\Page\InfoPage;
 use App\Models\Content\Support\Comment;
+use App\Models\Settings\Local\PaymentMethod;
+use App\Models\Settings\Local\ShippingMethod;
 use App\Models\User\UserProfile;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
@@ -119,7 +121,6 @@ class ProductController extends Controller
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'attributes' => fn ($q) => $q
                     ->where('catalog_attributes.is_active', true)
-                    ->whereIn('catalog_attributes.group_code', ['material', 'materijal', 'sastav', 'kvaliteta', 'garancija'])
                     ->orderBy('catalog_attribute_product.sort_order')
                     ->orderBy('catalog_attributes.sort_order')
                     ->orderBy('catalog_attributes.id')
@@ -158,6 +159,23 @@ class ProductController extends Controller
             ])
             ->firstOrFail();
 
+        $primaryCategory = $product->categories
+            ->first(fn (Category $category): bool => (bool) ($category->pivot?->is_primary ?? false))
+            ?? $product->categories
+                ->sortBy(fn (Category $category): int => (int) ($category->pivot?->sort_order ?? 0))
+                ->first();
+        $productBreadcrumbCategories = collect();
+
+        if ($primaryCategory) {
+            $productBreadcrumbCategories = $primaryCategory->ancestors()
+                ->where('scope', Category::SCOPE_CATALOG)
+                ->currentlyVisible()
+                ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+                ->orderBy('_lft')
+                ->get()
+                ->push($primaryCategory);
+        }
+
         $categoryIds = $product->categories->pluck('id')->map(fn ($id) => (int) $id)->all();
         $relatedLimit = max(4, $this->resolveGridCols($request, $this->defaultDesktopGridCols($request)));
 
@@ -174,6 +192,9 @@ class ProductController extends Controller
                     ->orderBy('id'),
                 'translations' => fn ($q) => $q
                     ->select(['id', 'product_id', 'locale', 'slug', 'name', 'excerpt'])
+                    ->whereIn('locale', [$locale, $fallbackLocale]),
+                'manufacturer.translations' => fn ($q) => $q
+                    ->select(['id', 'manufacturer_id', 'locale', 'slug', 'name'])
                     ->whereIn('locale', [$locale, $fallbackLocale]),
                 'attributes' => ProductMaterialLabel::eagerLoadAttributes($locale, $fallbackLocale),
                 'optionValues' => fn ($q) => $q
@@ -358,6 +379,18 @@ class ProductController extends Controller
         $sizeGuide = $this->resolveSizeGuide($product, $locale, $fallbackLocale);
         $fitFinderSelection = $this->resolveFitFinderSelection($request, $product);
         $colorVariants = app(ProductColorVariantService::class)->variantsFor($product, $locale, $fallbackLocale);
+        $shippingMethods = ShippingMethod::query()
+            ->select(['id', 'code', 'name', 'description', 'price', 'free_over', 'sort_order'])
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+        $paymentMethods = PaymentMethod::query()
+            ->select(['id', 'code', 'name', 'description', 'fee_type', 'fee_value', 'sort_order'])
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
 
         $response = response()->view($this->frontendView($request, 'products.show'), [
             'product' => $product,
@@ -367,6 +400,9 @@ class ProductController extends Controller
             'sizeGuide' => $sizeGuide,
             'fitFinderSelection' => $fitFinderSelection,
             'colorVariants' => $colorVariants,
+            'shippingMethods' => $shippingMethods,
+            'paymentMethods' => $paymentMethods,
+            'productBreadcrumbCategories' => $productBreadcrumbCategories,
             'topBlocks' => $topBlocks,
             'bottomBlocks' => $bottomBlocks,
             'pricePresentation' => app(ProductPricePresentationService::class)->forProduct($product, auth()->user()),

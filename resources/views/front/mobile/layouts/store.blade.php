@@ -11,8 +11,12 @@
     <noscript><link rel="stylesheet" href="{{ asset('front-theme/styles/bootstrap.css') }}?v={{ filemtime(public_path('front-theme/styles/bootstrap.css')) }}"></noscript>
     <link rel="preload" href="{{ asset('front-theme/styles/style.css') }}?v={{ filemtime(public_path('front-theme/styles/style.css')) }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="{{ asset('front-theme/styles/style.css') }}?v={{ filemtime(public_path('front-theme/styles/style.css')) }}"></noscript>
-    <link rel="preload" href="{{ asset('front-theme/styles/rising-sun-font.css') }}?v={{ filemtime(public_path('front-theme/styles/rising-sun-font.css')) }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="{{ asset('front-theme/styles/rising-sun-font.css') }}?v={{ filemtime(public_path('front-theme/styles/rising-sun-font.css')) }}"></noscript>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/termol-overrides.css') }}?v={{ filemtime(public_path('front-theme/styles/termol-overrides.css')) }}">
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/font-awesome-svg.css') }}?v={{ filemtime(public_path('front-theme/styles/font-awesome-svg.css')) }}">
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/scroll-to-top.css') }}?v={{ filemtime(public_path('front-theme/styles/scroll-to-top.css')) }}">
     @if (!empty($storeSettings['branding']['favicons']['ico_url'] ?? null))
         <link rel="icon" href="{{ $storeSettings['branding']['favicons']['ico_url'] }}" sizes="any">
     @endif
@@ -32,25 +36,9 @@
         <link rel="icon" href="{{ $storeSettings['branding']['favicon_url'] }}">
     @endif
     @include('front.partials.cookie-consent-head')
-    <style>
-        .header .store-header-logo-link {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1;
-        }
-
-        .header .store-header-logo {
-            display: block;
-            width: auto;
-            height: auto;
-            max-width: 150px;
-            max-height: 34px;
-            object-fit: contain;
-        }
-    </style>
+    @stack('head')
 </head>
-<body class="theme-light font-risingsun" data-highlight="highlight-red">
+<body class="termol-storefront theme-light" data-highlight="highlight-red">
 @php
     $mobileBrandName = trim((string) (($storeSettings['branding']['store_name'] ?? null) ?: config('app.name', 'AG Shop')));
     $mobileBrandLogoUrl = trim((string) ($storeSettings['branding']['logo_url'] ?? ''));
@@ -154,10 +142,13 @@
         } else {
             window.setTimeout(loadFontAwesome, 2500);
         }
+
     })();
 </script>
 @include('front.partials.scroll-to-top', ['mobileOffset' => true])
 @include('front.partials.cookie-consent')
+<script defer src="{{ asset('front-theme/scripts/storefront-ui.js') }}?v={{ filemtime(public_path('front-theme/scripts/storefront-ui.js')) }}"></script>
+<script defer src="{{ asset('front-theme/scripts/scroll-to-top.js') }}?v={{ filemtime(public_path('front-theme/scripts/scroll-to-top.js')) }}"></script>
 @stack('scripts')
 </body>
 </html>

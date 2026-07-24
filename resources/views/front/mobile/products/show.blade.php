@@ -5,8 +5,9 @@
         ?? $product->translations->firstWhere('locale', $fallbackLocale);
     $manufacturerTranslation = $product->manufacturer?->translations?->firstWhere('locale', $locale)
         ?? $product->manufacturer?->translations?->firstWhere('locale', $fallbackLocale);
-    $firstCategoryTranslation = $product->categories->first()?->translations?->firstWhere('locale', $locale)
-        ?? $product->categories->first()?->translations?->firstWhere('locale', $fallbackLocale);
+    $firstCategory = ($productBreadcrumbCategories ?? collect())->last() ?? $product->categories->first();
+    $firstCategoryTranslation = $firstCategory?->translations?->firstWhere('locale', $locale)
+        ?? $firstCategory?->translations?->firstWhere('locale', $fallbackLocale);
     $manufacturerEnabled = app(\App\Services\Catalog\CatalogFeatureService::class)->useManufacturers();
     $formatGrossPrice = static fn ($value): string => number_format((float) $value, 2).' €';
     $formatGrossDecimal = static fn ($value): string => number_format((float) $value, 2, '.', '');
@@ -36,6 +37,7 @@
         return $formatPriceData($pricePresenter->forStoredBase($product, $storedBase, $authUser));
     };
     $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
+    $isWishlisted = app(\App\Services\Front\WishlistService::class)->has((int) $product->id);
 
     $mediaItems = $product->relationLoaded('media')
         ? $product->media
@@ -114,6 +116,9 @@
     }
     $hasProductStory = ! empty($translation?->description) || ! empty($translation?->excerpt);
     $colorVariants = $colorVariants ?? collect();
+    $mobileDefaultCols = in_array((int) ($storeSettings['product']['mobile_default_cols'] ?? 2), [1, 2], true)
+        ? (int) ($storeSettings['product']['mobile_default_cols'] ?? 2)
+        : 2;
 @endphp
 
 @section('title', $translation?->name ?? __('ui.product.sku'))
@@ -121,67 +126,50 @@
 @section('page_title', $translation?->name ?? __('ui.shop.page_title'))
 
 @section('content')
-    <style>
-        html {
-            scroll-behavior: smooth;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            html {
-                scroll-behavior: auto;
-            }
-        }
-
-        [data-mobile-gallery-frame] {
-            aspect-ratio: 2 / 3;
-            overflow: hidden;
-            background: #f8fafc;
-        }
-
-        [data-mobile-gallery-frame] img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: top center;
-        }
-
-        .mobile-product-color-variant-link {
-            display: inline-flex;
-            width: 38px;
-            height: 38px;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #cbd5e1;
-            background: #ffffff;
-        }
-
-        .mobile-product-color-variant-link[aria-current="true"] {
-            border-color: #0f172a;
-            box-shadow: 0 0 0 1px #0f172a;
-        }
-
-        .mobile-product-color-variant-swatch {
-            display: block;
-            width: 28px;
-            height: 28px;
-            border: 1px solid rgba(15, 23, 42, 0.16);
-            background-color: #f8fafc;
-        }
-    </style>
+    @push('head')
+        <link rel="stylesheet" href="{{ asset('front-theme/styles/product-detail.css') }}?v={{ filemtime(public_path('front-theme/styles/product-detail.css')) }}">
+    @endpush
 
     @if ($topBlocks->isNotEmpty())
         @include('components.content-placement', ['items' => $topBlocks])
     @endif
 
+    <nav aria-label="Breadcrumb" class="product-detail-breadcrumb product-detail-breadcrumb-mobile">
+        <ol>
+            <li><a href="{{ route('home') }}">{{ __('ui.front.desktop.footer.home') }}</a></li>
+            <li aria-hidden="true">/</li>
+            <li><a href="{{ route('shop.index') }}">{{ __('ui.shop.page_title') }}</a></li>
+            @foreach (($productBreadcrumbCategories ?? collect()) as $breadcrumbCategory)
+                @php
+                    $breadcrumbTranslation = $breadcrumbCategory->translations->firstWhere('locale', $locale)
+                        ?? $breadcrumbCategory->translations->firstWhere('locale', $fallbackLocale)
+                        ?? $breadcrumbCategory->translations->first();
+                @endphp
+                @if ($breadcrumbTranslation)
+                    <li aria-hidden="true">/</li>
+                    <li>
+                        <a href="{{ route('categories.show', ['slug' => $breadcrumbTranslation->slug]) }}">
+                            {{ $breadcrumbTranslation->name }}
+                        </a>
+                    </li>
+                @endif
+            @endforeach
+            <li aria-hidden="true">/</li>
+            @php $breadcrumbProductName = (string) ($translation?->name ?? $product->code); @endphp
+            <li aria-current="page" title="{{ $breadcrumbProductName }}">
+                {{ \Illuminate\Support\Str::limit($breadcrumbProductName, 25, '...') }}
+            </li>
+        </ol>
+    </nav>
+
     <div class="card card-style">
         @if ($gallery->isNotEmpty())
-            <div class="content p-0" style="margin-top: -1px;" data-mobile-product-gallery>
-                <div class="d-flex overflow-auto" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; overflow-y: hidden;" data-mobile-gallery-track>
+            <div class="product-mobile-gallery-content content p-0" data-mobile-product-gallery>
+                <div class="product-mobile-gallery-track" data-mobile-gallery-track>
                     @foreach ($gallery as $index => $image)
                         <button
                             type="button"
-                            class="border-0 bg-transparent p-0 flex-shrink-0"
-                            style="min-width: 100%; scroll-snap-align: start;"
+                            class="product-mobile-gallery-frame border-0 bg-transparent p-0 flex-shrink-0"
                             data-mobile-gallery-frame
                             data-gallery-open="{{ $index }}"
                             aria-label="{{ $image['alt'] }}"
@@ -200,8 +188,7 @@
                     @foreach ($gallery as $index => $image)
                         <button
                             type="button"
-                            class="border-0 rounded-circle bg-white/70"
-                            style="width: 10px; height: 10px;"
+                            class="product-mobile-gallery-dot border-0 rounded-circle bg-white/70"
                             data-mobile-gallery-dot="{{ $index }}"
                             aria-label="{{ __('ui.product.slide_aria', ['index' => $index + 1]) }}"
                         ></button>
@@ -213,7 +200,31 @@
 
     <div class="card card-style">
         <div class="content">
-            <h2 class="mb-0" data-product-price-current>{{ $productPriceData['current'] }}</h2>
+            <div class="product-mobile-title-row">
+                <h2 class="mb-0" data-product-price-current>{{ $productPriceData['current'] }}</h2>
+                <form
+                    id="mobile-wishlist-product-{{ $product->id }}"
+                    method="POST"
+                    action="{{ route('wishlist.items.toggle', ['product' => $product->id]) }}"
+                    data-wishlist-form
+                    data-wishlisted="{{ $isWishlisted ? '1' : '0' }}"
+                    data-label-add="{{ __('ui.wishlist.add') }}"
+                    data-label-remove="{{ __('ui.wishlist.remove') }}"
+                    data-msg-failed="{{ __('ui.wishlist.status.failed') }}"
+                >
+                    @csrf
+                    <button
+                        type="submit"
+                        class="product-card-wishlist product-detail-wishlist {{ $isWishlisted ? 'is-active' : '' }}"
+                        aria-label="{{ $isWishlisted ? __('ui.wishlist.remove') : __('ui.wishlist.add') }}"
+                        data-wishlist-button
+                    >
+                        <svg class="fa6-icon h-5 w-5" fill="currentColor" aria-hidden="true" focusable="false">
+                            <use href="{{ asset('front-theme/fonts/sprites/'.($isWishlisted ? 'solid' : 'regular').'.svg') }}#heart"></use>
+                        </svg>
+                    </button>
+                </form>
+            </div>
             <p class="font-12 opacity-60 mb-2">{{ __('ui.product.sku') }} <span data-product-sku-value>{{ $product->sku ?: $product->code ?: 'n/a' }}</span></p>
 
             @if ($manufacturerTranslation && $manufacturerEnabled)
@@ -228,11 +239,6 @@
                     <p class="font-600 mb-2">{{ __('ui.product.color_variants') }}</p>
                     <div class="d-flex flex-wrap gap-2">
                         @foreach ($colorVariants as $variant)
-                            @php
-                                $swatchStyle = $variant['swatch_image_url']
-                                    ? 'background-image:url('.$variant['swatch_image_url'].');background-size:cover;background-position:center;background-repeat:no-repeat;background-color:transparent;'
-                                    : $variant['swatch_style'];
-                            @endphp
                             <a
                                 href="{{ $variant['url'] }}"
                                 class="mobile-product-color-variant-link"
@@ -242,7 +248,13 @@
                                 data-color-variant-link
                                 data-color-variant-label="{{ $variant['label'] }}"
                             >
-                                <span class="mobile-product-color-variant-swatch" style="{{ $swatchStyle }}" data-color-variant-swatch aria-hidden="true"></span>
+                                <span
+                                    class="mobile-product-color-variant-swatch"
+                                    data-color-variant-swatch
+                                    data-swatch-image="{{ $variant['swatch_image_url'] ?? '' }}"
+                                    data-swatch-style="{{ $variant['swatch_style'] ?? '' }}"
+                                    aria-hidden="true"
+                                ></span>
                             </a>
                         @endforeach
                     </div>
@@ -354,154 +366,46 @@
                     @endif
                 @endif
 
-                <div class="row mb-2">
+                <div class="product-mobile-purchase-controls">
                     @if ($isPurchasable)
-                        <div class="col-5">
-                            <div class="d-flex h-100" data-qty-control>
-                                <button type="button" class="btn btn-border border-gray-dark color-gray-dark rounded-0" data-qty-dec>-</button>
-                                <input type="text" name="quantity" value="1" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" class="form-control text-center rounded-0" data-qty-input>
-                                <button type="button" class="btn btn-border border-gray-dark color-gray-dark rounded-0" data-qty-inc>+</button>
-                            </div>
+                        <div class="product-detail-quantity-control" data-qty-control>
+                            <button type="button" data-qty-dec aria-label="{{ __('ui.cart.modal.quantity') }} -">-</button>
+                            <input type="text" name="quantity" value="1" inputmode="numeric" readonly aria-label="{{ __('ui.cart.modal.quantity') }}" data-qty-input>
+                            <button type="button" data-qty-inc aria-label="{{ __('ui.cart.modal.quantity') }} +">+</button>
                         </div>
-                        <div class="col-7">
-                            <button type="submit" class="btn btn-full bg-black color-white font-600 rounded-0 mt-1 d-inline-flex align-items-center justify-content-center gap-2">
-                                <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M7 9h10l-1 10H8L7 9Z"></path>
-                                    <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
-                                </svg>
-                                {{ __('ui.product.add_to_cart') }}
-                            </button>
-                        </div>
+
+                        <button type="submit" class="product-detail-action product-detail-cart-button">
+                            <x-fa-icon name="bag-shopping" class="product-mobile-cart-icon" />
+                            {{ __('ui.product.add_to_cart') }}
+                        </button>
                     @else
-                        <div class="col-12">
-                            <button type="button" disabled class="btn btn-full border border-gray-300 bg-light color-gray-dark font-600 rounded-0 mt-1">
-                                {{ __('ui.product.unavailable') }}
-                            </button>
-                        </div>
+                        <button type="button" disabled class="product-detail-cart-button product-detail-cart-button-disabled">
+                            {{ __('ui.product.unavailable') }}
+                        </button>
                     @endif
                 </div>
             </form>
 
-            @if (!empty($translation?->description))
-                <div class="divider mt-4"></div>
-                <div class="font-13">{!! $translation->description !!}</div>
-            @elseif (!empty($translation?->excerpt))
-                <div class="divider mt-4"></div>
-                <p class="font-13">{{ $translation->excerpt }}</p>
-            @endif
-
-            @include('front.partials.product-attribute-panels', [
+            @include('front.partials.product-purchase-information', [
                 'product' => $product,
-                'locale' => $locale,
-                'fallbackLocale' => $fallbackLocale,
-                'containerClass' => $hasProductStory ? 'mt-4' : 'mt-2',
+                'manufacturerTranslation' => $manufacturerTranslation,
+                'firstCategoryTranslation' => $firstCategoryTranslation,
+                'shippingMethods' => $shippingMethods ?? collect(),
+                'paymentMethods' => $paymentMethods ?? collect(),
             ])
-
-            @php
-                $commentFormHasErrors = $errors->has('author_name') || $errors->has('author_email') || $errors->has('body') || $errors->has('rating');
-                $commentUser = auth()->user();
-            @endphp
-
-            <div class="divider mt-4"></div>
-            <div id="product-comments" class="d-flex justify-content-between align-items-center gap-2 mb-2" style="scroll-margin-top: 90px;">
-                <h4 class="mb-0">{{ __('ui.product.comments_title') }}</h4>
-                <button type="button" class="btn p-0 font-600 text-uppercase font-11" data-comment-form-toggle aria-expanded="{{ $commentFormHasErrors ? 'true' : 'false' }}">
-                    {{ __('ui.product.comment_form.toggle') }}
-                </button>
-            </div>
-
-            <div class="{{ $commentFormHasErrors ? '' : 'd-none' }} border border-slate-200 bg-slate-50 p-3 mb-3" data-comment-form-panel>
-                <form method="POST" action="{{ route('products.comments.store', ['slug' => $translation?->slug ?? request()->route('slug')]) }}">
-                    @csrf
-                    <div class="input-style has-borders no-icon input-style-always-active mb-2">
-                        <label class="color-highlight">{{ __('ui.product.comment_form.name') }}</label>
-                        <input type="text" name="author_name" value="{{ old('author_name', $commentUser?->name ?? '') }}" @if($commentUser) readonly @endif>
-                    </div>
-                    @error('author_name') <p class="font-11 color-red-dark mb-2">{{ $message }}</p> @enderror
-
-                    <div class="input-style has-borders no-icon input-style-always-active mb-2">
-                        <label class="color-highlight">{{ __('ui.product.comment_form.email') }}</label>
-                        <input type="email" name="author_email" value="{{ old('author_email', $commentUser?->email ?? '') }}" @if($commentUser) readonly @endif>
-                    </div>
-                    @error('author_email') <p class="font-11 color-red-dark mb-2">{{ $message }}</p> @enderror
-
-                    <div class="input-style has-borders no-icon input-style-always-active mb-2">
-                        <label class="color-highlight">{{ __('ui.product.comment_form.rating') }}</label>
-                        <select name="rating">
-                            <option value="">{{ __('ui.product.comment_form.rating_optional') }}</option>
-                            @for ($i = 5; $i >= 1; $i--)
-                                <option value="{{ $i }}" @selected((string) old('rating') === (string) $i)>{{ $i }} ★</option>
-                            @endfor
-                        </select>
-                        <span><i class="fa fa-chevron-down"></i></span>
-                    </div>
-                    @error('rating') <p class="font-11 color-red-dark mb-2">{{ $message }}</p> @enderror
-
-                    <div class="input-style has-borders no-icon input-style-always-active mb-2">
-                        <label class="color-highlight">{{ __('ui.product.comment_form.body') }}</label>
-                        <textarea name="body" rows="4" required>{{ old('body') }}</textarea>
-                    </div>
-                    @error('body') <p class="font-11 color-red-dark mb-2">{{ $message }}</p> @enderror
-
-                    <button type="submit" class="btn btn-full bg-black color-white font-600 rounded-0 mt-2">{{ __('ui.product.comment_form.submit') }}</button>
-                </form>
-            </div>
-
-            @if (($comments ?? collect())->isNotEmpty())
-                <div class="d-flex flex-column gap-2">
-                    @foreach ($comments as $comment)
-                        <article class="border border-slate-200 bg-slate-50 p-3">
-                            <div class="d-flex justify-content-between align-items-center gap-2">
-                                <p class="mb-0 font-600">{{ $comment->author_name ?: ($comment->user?->name ?? __('ui.product.comments_anonymous')) }}</p>
-                                @if ((int) ($comment->rating ?? 0) > 0)
-                                    <p class="mb-0 font-11 opacity-70">{{ str_repeat('★', (int) $comment->rating) }}</p>
-                                @endif
-                            </div>
-                            <p class="mb-0 mt-2 font-13">{{ $comment->body }}</p>
-                        </article>
-                    @endforeach
-                </div>
-            @else
-                <p class="font-13 opacity-60 mb-0">{{ __('ui.product.comments_empty') }}</p>
-            @endif
         </div>
     </div>
 
+    @include('front.partials.product-detail-content', [
+        'product' => $product,
+        'translation' => $translation,
+        'locale' => $locale,
+        'fallbackLocale' => $fallbackLocale,
+        'hasProductStory' => $hasProductStory,
+        'comments' => $comments ?? collect(),
+    ])
+
     @if (!empty($sizeGuide) && $optionRows->isNotEmpty())
-        <style>
-            [data-size-guide-modal] .content-richtext {
-                font-size: 0.9rem;
-                line-height: 1.45;
-            }
-            [data-size-guide-modal] .content-richtext h1,
-            [data-size-guide-modal] .content-richtext h2,
-            [data-size-guide-modal] .content-richtext h3,
-            [data-size-guide-modal] .content-richtext h4 {
-                margin: 0.6rem 0 0.45rem;
-                line-height: 1.25;
-            }
-            [data-size-guide-modal] .content-richtext h2 { font-size: 1.3rem; }
-            [data-size-guide-modal] .content-richtext h3 { font-size: 1.05rem; }
-            [data-size-guide-modal] .content-richtext p,
-            [data-size-guide-modal] .content-richtext li {
-                margin-bottom: 0.4rem;
-            }
-            [data-size-guide-modal] .content-richtext table {
-                width: 100% !important;
-                border-collapse: collapse !important;
-                font-size: 0.8rem;
-            }
-            [data-size-guide-modal] .content-richtext th,
-            [data-size-guide-modal] .content-richtext td {
-                border: 1px solid #e2e8f0;
-                padding: 0.35rem 0.45rem;
-                vertical-align: middle;
-            }
-            [data-size-guide-modal] .content-richtext thead th {
-                background: #f8fafc;
-                font-weight: 700;
-            }
-        </style>
         <div class="fixed inset-0 z-[120] hidden items-end justify-center bg-black/50" data-size-guide-modal aria-hidden="true">
             <div class="w-full max-h-[88vh] overflow-hidden bg-white shadow-2xl sm:mx-auto sm:max-w-4xl">
                 <div class="d-flex justify-content-between align-items-center border-bottom px-4 py-3">
@@ -510,7 +414,7 @@
                         {{ __('ui.product.size_guide_close') }}
                     </button>
                 </div>
-                <div class="px-4 py-3 overflow-auto" style="max-height: calc(88vh - 64px);">
+                <div class="product-size-guide-scroll px-4 py-3 overflow-auto">
                     <div class="content-richtext">{!! $sizeGuide['body_html'] !!}</div>
                 </div>
             </div>
@@ -518,25 +422,57 @@
     @endif
 
     @if ($related->isNotEmpty())
-        <div class="card card-style">
-            <div class="content mb-1">
-                <h4>{{ __('ui.product.related') }}</h4>
+        <section class="product-products-widget px-3">
+            <h2 class="product-products-widget-heading">{{ __('ui.product.related') }}</h2>
+            <div
+                id="mobile-related-products-carousel-{{ $product->id }}"
+                class="splide"
+                data-related-products-splide
+                data-desktop-cols="5"
+                data-mobile-cols="{{ $mobileDefaultCols }}"
+            >
+                <div class="splide__track">
+                    <ul class="splide__list">
+                        @foreach ($related as $relatedProduct)
+                            <li class="splide__slide">
+                                @include('front.mobile.partials.product-widget-card', [
+                                    'product' => $relatedProduct,
+                                    'locale' => $locale,
+                                    'fallbackLocale' => $fallbackLocale,
+                                ])
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
             </div>
-        </div>
-        @foreach ($related as $product)
-            @include('front.mobile.partials.product-card', ['product' => $product, 'locale' => $locale, 'fallbackLocale' => $fallbackLocale])
-        @endforeach
+        </section>
     @endif
 
     @if (($recentlyViewed ?? collect())->isNotEmpty())
-        <div class="card card-style">
-            <div class="content mb-1">
-                <h4>{{ __('ui.product.recently_viewed') }}</h4>
+        <section class="product-products-widget px-3">
+            <h2 class="product-products-widget-heading">{{ __('ui.product.recently_viewed') }}</h2>
+            <div
+                id="mobile-recently-viewed-products-carousel-{{ $product->id }}"
+                class="splide"
+                data-related-products-splide
+                data-desktop-cols="5"
+                data-mobile-cols="{{ $mobileDefaultCols }}"
+            >
+                <div class="splide__track">
+                    <ul class="splide__list">
+                        @foreach ($recentlyViewed as $recentlyViewedProduct)
+                            <li class="splide__slide">
+                                @include('front.mobile.partials.product-widget-card', [
+                                    'product' => $recentlyViewedProduct,
+                                    'locale' => $locale,
+                                    'fallbackLocale' => $fallbackLocale,
+                                ])
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
             </div>
-        </div>
-        @foreach ($recentlyViewed as $product)
-            @include('front.mobile.partials.product-card', ['product' => $product, 'locale' => $locale, 'fallbackLocale' => $fallbackLocale])
-        @endforeach
+        </section>
     @endif
 
     @if ($bottomBlocks->isNotEmpty())
@@ -545,86 +481,10 @@
 @endsection
 
 @push('scripts')
+    @include('front.partials.splide-assets')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/css/lightgallery-bundle.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/lightgallery.min.js"></script>
-    <script defer src="{{ asset('front-theme/scripts/product-detail.js') }}?v={{ md5_file(public_path('front-theme/scripts/product-detail.js')) }}"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const commentsAnchor = document.getElementById('product-comments');
-            if (commentsAnchor) {
-                const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-                const scrollToComments = function () {
-                    commentsAnchor.scrollIntoView({
-                        behavior: prefersReducedMotion.matches ? 'auto' : 'smooth',
-                        block: 'start',
-                    });
-                };
-
-                if (window.location.hash === '#product-comments') {
-                    window.setTimeout(scrollToComments, 60);
-                }
-
-                window.addEventListener('hashchange', function () {
-                    if (window.location.hash === '#product-comments') {
-                        scrollToComments();
-                    }
-                });
-            }
-
-            const toggle = document.querySelector('[data-comment-form-toggle]');
-            const panel = document.querySelector('[data-comment-form-panel]');
-            if (!toggle || !panel) return;
-
-            toggle.addEventListener('click', function () {
-                panel.classList.toggle('d-none');
-                const isOpen = !panel.classList.contains('d-none');
-                toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-            });
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const modal = document.querySelector('[data-size-guide-modal]');
-            if (!modal) {
-                return;
-            }
-
-            const openButtons = document.querySelectorAll('[data-size-guide-open]');
-            const closeButtons = modal.querySelectorAll('[data-size-guide-close]');
-
-            const openModal = function () {
-                modal.classList.remove('hidden');
-                modal.classList.add('d-flex');
-                modal.setAttribute('aria-hidden', 'false');
-                document.body.classList.add('overflow-hidden');
-            };
-
-            const closeModal = function () {
-                modal.classList.add('hidden');
-                modal.classList.remove('d-flex');
-                modal.setAttribute('aria-hidden', 'true');
-                document.body.classList.remove('overflow-hidden');
-            };
-
-            openButtons.forEach(function (button) {
-                button.addEventListener('click', openModal);
-            });
-
-            closeButtons.forEach(function (button) {
-                button.addEventListener('click', closeModal);
-            });
-
-            modal.addEventListener('click', function (event) {
-                if (event.target === modal) {
-                    closeModal();
-                }
-            });
-
-            document.addEventListener('keydown', function (event) {
-                if (event.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') {
-                    closeModal();
-                }
-            });
-        });
-    </script>
+    <script defer src="{{ asset('front-theme/scripts/product-detail.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-detail.js')) }}"></script>
+    <script defer src="{{ asset('front-theme/scripts/product-page.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-page.js')) }}"></script>
+    <script defer src="{{ asset('front-theme/scripts/product-card-quantity.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-quantity.js')) }}"></script>
 @endpush

@@ -24,10 +24,10 @@
     <button
         type="button"
         id="cookie-consent-floating-button"
-        class="fixed bottom-4 left-4 z-[9999] inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
+        class="cookie-consent-floating-button"
         aria-label="Cookie postavke"
     >
-        <img src="{{ asset('front-theme/images/cookie-svg.svg') }}" alt="" class="h-6 w-6" width="24" height="24" loading="lazy" />
+        <x-fa-icon name="cookie-bite" class="h-6 w-6" />
     </button>
 
     <script>

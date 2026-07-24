@@ -7,6 +7,16 @@
     $allowedRoutes = config('content_blocks.route_whitelist', []);
     $displayTitle = trim((string) ($translation?->title ?? ''));
     $displaySubtitle = trim((string) ($translation?->subtitle ?? ''));
+    $categoryProductsMode = (bool) ($categoryProductsMode ?? false)
+        || (string) $block->type === 'category_products_carousel';
+    $sourceCategory = $categoryProductsMode ? $categories->first() : null;
+    $sourceCategoryTranslation = $sourceCategory?->translations?->firstWhere('locale', $locale)
+        ?? $sourceCategory?->translations?->firstWhere('locale', $fallbackLocale)
+        ?? $sourceCategory?->translations?->first();
+    $sourceCategoryName = trim((string) ($sourceCategoryTranslation?->name ?? $sourceCategory?->code ?? ''));
+    $sourceCategoryUrl = $sourceCategory
+        ? route('categories.show', ['slug' => $sourceCategoryTranslation?->slug ?? $sourceCategory->id])
+        : '';
 
     if ($displayTitle === '') {
         $allTranslations = $block->translations()->get(['locale', 'title']);
@@ -63,17 +73,35 @@
     $preferredGridCols = in_array((int) $requestedGridCols, [1, 2, 3, 4, 5], true)
         ? (int) $requestedGridCols
         : $desktopDefaultCols;
+    $carouselDesktopCols = $categoryProductsMode ? 5 : $preferredGridCols;
+    $carouselGap = $categoryProductsMode ? '0rem' : '1.25rem';
+    $carouselMobileGap = $categoryProductsMode ? '0rem' : '0.8rem';
 @endphp
 
-<section class="relative left-1/2 w-screen -translate-x-1/2 bg-white max-[540px]:py-5 py-8">
-    <div class="w-full px-3 sm:px-4 lg:px-6">
+<section class="{{ $categoryProductsMode ? 'w-full' : 'relative left-1/2 w-screen -translate-x-1/2' }} bg-white max-[540px]:py-5 py-8">
+    <div class="mx-auto w-full {{ $categoryProductsMode ? '' : 'px-3 sm:px-4 lg:px-6' }}">
         <div class="max-[540px]:mb-5 mb-8 text-center">
-            <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
-                @include('front.partials.section-heading-line', ['side' => 'left'])
-                <h2 class="text-[1.35rem] leading-[1.95rem] sm:text-[1.7rem] sm:leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $displayTitle }}</h2>
-                @include('front.partials.section-heading-line', ['side' => 'right'])
-            </div>
-            @if ($displaySubtitle !== '')
+            @if ($categoryProductsMode)
+                <h2
+                    class="font-extrabold tracking-tight text-slate-900"
+                    style="font-size: clamp(1.75rem, 3vw, 2.25rem); line-height: 1.08;"
+                >{{ $displayTitle }}</h2>
+                @if ($sourceCategoryName !== '' && $sourceCategoryUrl !== '')
+                    <p class="mt-1 text-sm text-slate-700 sm:text-base">
+                        {{ __('from category') }}
+                        <a href="{{ $sourceCategoryUrl }}" class="font-bold underline decoration-1 underline-offset-2 hover:text-slate-500">
+                            {{ $sourceCategoryName }}
+                        </a>
+                    </p>
+                @endif
+            @else
+                <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
+                    @include('front.partials.section-heading-line', ['side' => 'left'])
+                    <h2 class="text-[1.35rem] leading-[1.95rem] sm:text-[1.7rem] sm:leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $displayTitle }}</h2>
+                    @include('front.partials.section-heading-line', ['side' => 'right'])
+                </div>
+            @endif
+            @if (! $categoryProductsMode && $displaySubtitle !== '')
                 <p class="mx-auto mt-2 max-w-2xl text-sm text-slate-600 md:text-base">{{ $displaySubtitle }}</p>
             @endif
 
@@ -114,6 +142,11 @@
 
                 #products-carousel-{{ $block->id }} .splide__track {
                     overflow: hidden;
+                    @if ($categoryProductsMode)
+                        border-top: 1px solid #e2e8f0;
+                        border-bottom: 1px solid #e2e8f0;
+                        border-left: 1px solid #e2e8f0;
+                    @endif
                 }
 
                 #products-carousel-{{ $block->id }} .splide__list {
@@ -121,12 +154,17 @@
                     margin: 0 !important;
                     padding: 0 !important;
                     list-style: none;
-                    gap: 1.25rem;
+                    gap: {{ $carouselGap }};
                 }
 
                 #products-carousel-{{ $block->id }} .splide__slide {
-                    flex: 0 0 calc((100% - ({{ max(1, $preferredGridCols) }} - 1) * 1.25rem) / {{ max(1, $preferredGridCols) }});
+                    flex: 0 0 {{ $categoryProductsMode
+                        ? 'calc(100% / '.max(1, $carouselDesktopCols).')'
+                        : 'calc((100% - ('.max(1, $carouselDesktopCols).' - 1) * 1.25rem) / '.max(1, $carouselDesktopCols).')' }};
                     min-width: 0;
+                    @if ($categoryProductsMode)
+                        border-right: 1px solid #e2e8f0;
+                    @endif
                 }
 
                 #products-carousel-{{ $block->id }} .splide__pagination {
@@ -142,18 +180,20 @@
 
                 @media (max-width: 1024px) {
                     #products-carousel-{{ $block->id }} .splide__slide {
-                        flex-basis: calc((100% - 1.25rem) / 2);
+                        flex-basis: {{ $categoryProductsMode ? '50%' : 'calc((100% - 1.25rem) / 2)' }};
                     }
 
                 }
 
                 @media (max-width: 640px) {
                     #products-carousel-{{ $block->id }} .splide__list {
-                        gap: 0.8rem;
+                        gap: {{ $carouselMobileGap }};
                     }
 
                     #products-carousel-{{ $block->id }} .splide__slide {
-                        flex-basis: {{ $mobileDefaultCols === 2 ? 'calc((100% - 0.8rem) / 2)' : '100%' }};
+                        flex-basis: {{ $mobileDefaultCols === 2
+                            ? ($categoryProductsMode ? '50%' : 'calc((100% - 0.8rem) / 2)')
+                            : '100%' }};
                     }
 
                 }
@@ -162,7 +202,12 @@
 
             @include('front.partials.splide-assets')
 
-            <div class="mt-4">
+            <div
+                class="mt-4 {{ $categoryProductsMode ? 'relative left-1/2 -translate-x-1/2' : '' }}"
+                @if ($categoryProductsMode)
+                    style="width: min(calc(100vw - 2rem), var(--storefront-container-width, 1860px));"
+                @endif
+            >
                 <div id="products-carousel-{{ $block->id }}" class="splide" data-products-carousel-splide>
                     <div class="splide__track">
                         <ul class="splide__list">
@@ -173,6 +218,7 @@
                                         'locale' => $locale,
                                         'fallbackLocale' => $fallbackLocale,
                                         'flat' => true,
+                                        'lined' => $categoryProductsMode,
                                     ])
                                 </li>
                             @endforeach
@@ -199,12 +245,12 @@
 
                                     const count = el.querySelectorAll('.splide__slide').length;
                                     const mobilePerPage = {{ $mobileDefaultCols }};
-                                    const preferredDesktopPerPage = {{ $preferredGridCols }};
+                                    const preferredDesktopPerPage = {{ $carouselDesktopCols }};
                                     new window.Splide(el, {
                                         type: count > 1 ? 'loop' : 'slide',
                                         perPage: Math.min(Math.max(1, preferredDesktopPerPage), Math.max(1, count)),
                                         perMove: 1,
-                                        gap: '1.25rem',
+                                        gap: '{{ $carouselGap }}',
                                         drag: count > 1,
                                         snap: true,
                                         pagination: false,
@@ -215,8 +261,8 @@
                                             1536: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 5), Math.max(1, count)) },
                                             1280: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 4), Math.max(1, count)) },
                                             1024: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 3), Math.max(1, count)) },
-                                            860: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '1rem' },
-                                            640: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '0.8rem' },
+                                            860: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '{{ $categoryProductsMode ? '0rem' : '1rem' }}' },
+                                            640: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '{{ $carouselMobileGap }}' },
                                         },
                                     }).mount();
                                 });

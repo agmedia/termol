@@ -457,13 +457,84 @@
                         <input type="checkbox" wire:model="form.store_product_fit_finder_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
                         {{ __('admin.settings.store.products.fit_finder_enabled') }}
                     </label>
-                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 md:col-span-2">
-                        <input type="checkbox" wire:model="form.store_search_autocomplete_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
-                        {{ __('admin.settings.store.products.search_autocomplete_enabled') }}
-                    </label>
                     <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <h3 class="text-sm font-bold text-slate-800">{{ __('admin.settings.store.products.search_autocomplete_title') }}</h3>
+                        <label class="inline-flex items-center gap-2 text-sm font-bold text-slate-800">
+                            <input type="checkbox" wire:model="form.store_search_autocomplete_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                            {{ __('admin.settings.store.products.search_autocomplete_enabled') }}
+                        </label>
                         <p class="mt-1 text-xs text-slate-600">{{ __('admin.settings.store.products.search_autocomplete_help') }}</p>
+                    </div>
+                    <div class="md:col-span-2 grid gap-4 xl:grid-cols-2">
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                    <input type="checkbox" wire:model="form.store_search_autocomplete_products_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                    {{ __('admin.settings.store.products.search_autocomplete_products_enabled') }}
+                                </label>
+                                <label class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                    {{ __('admin.settings.store.products.search_autocomplete_max_results') }}
+                                    <input type="number" min="1" max="12" wire:model="form.store_search_autocomplete_products_limit" class="admin-search-input w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-800" />
+                                </label>
+                            </div>
+                            <p class="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('admin.settings.store.products.search_autocomplete_product_details') }}</p>
+                            <div class="mt-2 flex flex-wrap gap-x-5 gap-y-2">
+                                <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                                    <input type="checkbox" wire:model="form.store_search_autocomplete_show_product_image" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                    {{ __('admin.settings.store.products.search_autocomplete_show_image') }}
+                                </label>
+                                <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                                    <input type="checkbox" wire:model="form.store_search_autocomplete_show_product_brand" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                    {{ __('admin.settings.store.products.search_autocomplete_show_brand') }}
+                                </label>
+                                <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                                    <input type="checkbox" wire:model="form.store_search_autocomplete_show_product_sku" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                    {{ __('admin.settings.store.products.search_autocomplete_show_sku') }}
+                                </label>
+                                <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                                    <input type="checkbox" wire:model="form.store_search_autocomplete_show_product_price" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                    {{ __('admin.settings.store.products.search_autocomplete_show_price') }}
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                    <input type="checkbox" wire:model="form.store_search_autocomplete_categories_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                    {{ __('admin.settings.store.products.search_autocomplete_categories_enabled') }}
+                                </label>
+                                <label class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                    {{ __('admin.settings.store.products.search_autocomplete_max_results') }}
+                                    <input type="number" min="1" max="10" wire:model="form.store_search_autocomplete_categories_limit" class="admin-search-input w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-800" />
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                    <input type="checkbox" wire:model="form.store_search_autocomplete_manufacturers_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                    {{ __('admin.settings.store.products.search_autocomplete_manufacturers_enabled') }}
+                                </label>
+                                <label class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                    {{ __('admin.settings.store.products.search_autocomplete_max_results') }}
+                                    <input type="number" min="1" max="10" wire:model="form.store_search_autocomplete_manufacturers_limit" class="admin-search-input w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-800" />
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                    <input type="checkbox" wire:model="form.store_search_autocomplete_blog_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                                    {{ __('admin.settings.store.products.search_autocomplete_blog_enabled') }}
+                                </label>
+                                <label class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                    {{ __('admin.settings.store.products.search_autocomplete_max_results') }}
+                                    <input type="number" min="1" max="10" wire:model="form.store_search_autocomplete_blog_limit" class="admin-search-input w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-800" />
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <div class="md:col-span-2 rounded-xl border border-slate-200 p-4">
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.settings.store.products.desktop_default_grid_label') }}</label>
@@ -511,23 +582,87 @@
                             </label>
                         </div>
                     </div>
-                    <div class="rounded-xl border border-slate-200 p-4">
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.settings.store.products.filter_options_label') }}</label>
-                        <p class="mb-3 text-xs text-slate-600">{{ __('admin.settings.store.products.filter_options_help') }}</p>
-                        <select wire:model="form.store_product_filter_option_ids" multiple size="7" class="admin-multiselect w-full rounded-xl border border-slate-300 text-sm">
+                    <div class="md:col-span-2 rounded-xl border border-slate-200 p-4">
+                        @php
+                            $selectedOptionFilterIds = collect($form['store_product_filter_option_ids'] ?? [])->map(fn ($id): int => (int) $id);
+                            $selectedAttributeFilterGroups = collect($form['store_product_filter_attribute_group_codes'] ?? [])->map(fn ($code): string => (string) $code);
+                            $filterPanelSettings = is_array($form['store_product_filter_panel_settings'] ?? null)
+                                ? $form['store_product_filter_panel_settings']
+                                : [];
+                            $builtInFilterPanels = [
+                                ['panel_key' => 'category', 'label' => __('admin.settings.store.products.filter_builtin_category')],
+                                ['panel_key' => 'manufacturer', 'label' => __('admin.settings.store.products.filter_builtin_manufacturer')],
+                                ['panel_key' => 'price', 'label' => __('admin.settings.store.products.filter_builtin_price')],
+                            ];
+                        @endphp
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.settings.store.products.filter_panels_title') }}</label>
+                        <p class="mb-4 text-xs text-slate-600">{{ __('admin.settings.store.products.filter_panels_help') }}</p>
+
+                        <div class="overflow-x-auto rounded-xl border border-slate-200">
+                            <div class="grid min-w-[720px] grid-cols-[minmax(240px,1fr)_120px_180px_180px] items-center gap-3 bg-slate-100 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-600">
+                                <span>{{ __('admin.settings.store.products.filter_panel_name') }}</span>
+                                <span>{{ __('admin.settings.store.products.filter_panel_visible') }}</span>
+                                <span>{{ __('admin.settings.store.products.filter_panel_default_state') }}</span>
+                                <span>{{ __('admin.settings.store.products.filter_panel_max_height') }}</span>
+                            </div>
+
+                            @foreach ($builtInFilterPanels as $panel)
+                                <div class="grid min-w-[720px] grid-cols-[minmax(240px,1fr)_120px_180px_180px] items-center gap-3 border-t border-slate-200 px-4 py-3 text-sm">
+                                    <strong class="text-slate-900">{{ $panel['label'] }}</strong>
+                                    <label class="inline-flex items-center gap-2 text-slate-700">
+                                        <input type="checkbox" wire:model="form.store_product_filter_panel_settings.{{ $panel['panel_key'] }}.visible" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500">
+                                        {{ __('admin.settings.store.products.filter_panel_show') }}
+                                    </label>
+                                    <select wire:model="form.store_product_filter_panel_settings.{{ $panel['panel_key'] }}.default_open" class="rounded-lg border-slate-300 text-sm">
+                                        <option value="1">{{ __('admin.settings.store.products.filter_panel_open') }}</option>
+                                        <option value="0">{{ __('admin.settings.store.products.filter_panel_closed') }}</option>
+                                    </select>
+                                    <select wire:model="form.store_product_filter_panel_settings.{{ $panel['panel_key'] }}.max_height" class="rounded-lg border-slate-300 text-sm">
+                                        @foreach ([160, 220, 286, 360] as $height)
+                                            <option value="{{ $height }}">{{ $height }} px</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @endforeach
+
                             @foreach (($optionFilterOptions ?? []) as $option)
-                                <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>
+                                <div class="grid min-w-[720px] grid-cols-[minmax(240px,1fr)_120px_180px_180px] items-center gap-3 border-t border-slate-200 px-4 py-3 text-sm">
+                                    <strong class="text-slate-900">{{ $option['label'] }}</strong>
+                                    <label class="inline-flex items-center gap-2 text-slate-700">
+                                        <input type="checkbox" wire:model="form.store_product_filter_option_ids" value="{{ $option['id'] }}" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500">
+                                        {{ __('admin.settings.store.products.filter_panel_show') }}
+                                    </label>
+                                    <select wire:model="form.store_product_filter_panel_settings.{{ $option['panel_key'] }}.default_open" class="rounded-lg border-slate-300 text-sm">
+                                        <option value="1">{{ __('admin.settings.store.products.filter_panel_open') }}</option>
+                                        <option value="0">{{ __('admin.settings.store.products.filter_panel_closed') }}</option>
+                                    </select>
+                                    <select wire:model="form.store_product_filter_panel_settings.{{ $option['panel_key'] }}.max_height" class="rounded-lg border-slate-300 text-sm">
+                                        @foreach ([160, 220, 286, 360] as $height)
+                                            <option value="{{ $height }}">{{ $height }} px</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                             @endforeach
-                        </select>
-                    </div>
-                    <div class="rounded-xl border border-slate-200 p-4">
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.settings.store.products.filter_attribute_groups_label') }}</label>
-                        <p class="mb-3 text-xs text-slate-600">{{ __('admin.settings.store.products.filter_attribute_groups_help') }}</p>
-                        <select wire:model="form.store_product_filter_attribute_group_codes" multiple size="7" class="admin-multiselect w-full rounded-xl border border-slate-300 text-sm">
+
                             @foreach (($attributeFilterGroupOptions ?? []) as $group)
-                                <option value="{{ $group['group_code'] }}">{{ $group['label'] }}</option>
+                                <div class="grid min-w-[720px] grid-cols-[minmax(240px,1fr)_120px_180px_180px] items-center gap-3 border-t border-slate-200 px-4 py-3 text-sm">
+                                    <strong class="text-slate-900">{{ $group['label'] }}</strong>
+                                    <label class="inline-flex items-center gap-2 text-slate-700">
+                                        <input type="checkbox" wire:model="form.store_product_filter_attribute_group_codes" value="{{ $group['group_code'] }}" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500">
+                                        {{ __('admin.settings.store.products.filter_panel_show') }}
+                                    </label>
+                                    <select wire:model="form.store_product_filter_panel_settings.{{ $group['panel_key'] }}.default_open" class="rounded-lg border-slate-300 text-sm">
+                                        <option value="1">{{ __('admin.settings.store.products.filter_panel_open') }}</option>
+                                        <option value="0">{{ __('admin.settings.store.products.filter_panel_closed') }}</option>
+                                    </select>
+                                    <select wire:model="form.store_product_filter_panel_settings.{{ $group['panel_key'] }}.max_height" class="rounded-lg border-slate-300 text-sm">
+                                        @foreach ([160, 220, 286, 360] as $height)
+                                            <option value="{{ $height }}">{{ $height }} px</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                             @endforeach
-                        </select>
+                        </div>
                     </div>
                 </div>
             @endif
@@ -770,6 +905,29 @@
                         <input type="color" wire:model="form.store_announcement_text_color" class="h-10 w-20 cursor-pointer rounded-xl border border-slate-300 bg-white p-1" />
                         @error('form.store_announcement_text_color') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
+
+                    <div class="mt-2 border-t border-slate-200 pt-6 md:col-span-2">
+                        <h3 class="text-base font-bold text-slate-900">{{ __('Info traka ispod navigacije') }}</h3>
+                        <p class="mt-1 text-xs text-slate-600">{{ __('Dio poruke između **dvije zvjezdice** prikazuje se podebljano u boji naglaska.') }}</p>
+                        <p class="mt-1 text-xs text-slate-600">{{ __('Boja pozadine i boja teksta iznad primjenjuju se i na ovu info traku.') }}</p>
+                    </div>
+                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 md:col-span-2">
+                        <input type="checkbox" wire:model="form.store_benefits_bar_enabled" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500" />
+                        {{ __('Prikaži info traku ispod glavne navigacije') }}
+                    </label>
+                    @foreach ([1, 2, 3] as $benefitIndex)
+                        <div class="md:col-span-2">
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                {{ __('Poruka :number', ['number' => $benefitIndex]) }}
+                            </label>
+                            <input
+                                type="text"
+                                wire:model="form.store_benefits_bar_item_{{ $benefitIndex }}"
+                                class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                            />
+                            @error('form.store_benefits_bar_item_'.$benefitIndex) <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                    @endforeach
                 </div>
             @endif
 

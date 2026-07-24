@@ -1179,5 +1179,11 @@
     "to": "do",
     "Update Comment": "Ažuriraj komentar",
     "users.view": "users.view",
-    "users.view, users.manage...": "users.view, users.manage..."
+    "users.view, users.manage...": "users.view, users.manage...",
+    "Category Products Carousel": "Carousel artikala iz kategorije",
+    "Number of products to show": "Broj artikala za prikaz",
+    "Source category": "Izvorna kategorija",
+    "Choose one category. Products are loaded automatically from it and its subcategories.": "Odaberite jednu kategoriju. Artikli se automatski učitavaju iz nje i svih podkategorija.",
+    "Select exactly one source category.": "Odaberite točno jednu izvornu kategoriju.",
+    "from category": "iz kategorije"
 }

@@ -5,7 +5,12 @@
 
 @section('content')
     @php
-        $showManufacturers = app(\App\Services\Catalog\CatalogFeatureService::class)->useManufacturers();
+        $filterPanelSettings = is_array($storeSettings['product']['filter_panel_settings'] ?? null)
+            ? $storeSettings['product']['filter_panel_settings']
+            : [];
+        $showCategoryFilter = (bool) data_get($filterPanelSettings, 'category.visible', true);
+        $showManufacturers = app(\App\Services\Catalog\CatalogFeatureService::class)->useManufacturers()
+            && (bool) data_get($filterPanelSettings, 'manufacturer.visible', true);
         $mobileDefaultCols = in_array((int) ($storeSettings['product']['mobile_default_cols'] ?? 2), [1, 2], true)
             ? (int) ($storeSettings['product']['mobile_default_cols'] ?? 2)
             : 2;
@@ -17,7 +22,7 @@
         $paginationMode = (string) ($storeSettings['product']['catalog_pagination_mode'] ?? 'pagination');
         $useAsyncPagination = in_array($paginationMode, ['load_more', 'infinite'], true);
         $isInfinitePagination = $paginationMode === 'infinite';
-        $desktopFilterSelectCount = 1 + ($showManufacturers ? 1 : 0) + count($optionFilters ?? []) + count($attributeFilters ?? []) + 1;
+        $desktopFilterSelectCount = ($showCategoryFilter ? 1 : 0) + ($showManufacturers ? 1 : 0) + count($optionFilters ?? []) + count($attributeFilters ?? []) + 1;
         $hasActiveFilters = trim((string) ($filters['q'] ?? '')) !== ''
             || trim((string) ($filters['category'] ?? '')) !== ''
             || trim((string) ($filters['manufacturer'] ?? '')) !== ''
@@ -33,6 +38,11 @@
         };
     @endphp
 
+    @push('styles')
+        <link rel="stylesheet" href="{{ asset('front-theme/styles/category-catalog.css') }}?v={{ filemtime(public_path('front-theme/styles/category-catalog.css')) }}">
+    @endpush
+
+    {{--
     <style>
         .catalog-filter-sticky-shell {
             position: relative;
@@ -527,6 +537,7 @@
             }
         }
     </style>
+    --}}
 
     <section class="px-3 sm:px-4 lg:px-6">
         <div class="front-soft-hero px-4 py-4 text-center sm:px-6 sm:py-5">
@@ -598,6 +609,7 @@
                     </div>
                     <form method="GET" action="{{ route('shop.index') }}" class="catalog-mobile-filter-panel grid auto-rows-min gap-3" data-mobile-filter-panel id="shop-mobile-filter-panel">
                         <input type="hidden" name="q" value="{{ $filters['q'] }}">
+                        @if ($showCategoryFilter)
                         <div>
                             <label for="shop-category-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.category') }}</label>
                             <select
@@ -618,6 +630,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endif
                         @if ($showManufacturers)
                             <div>
                                 <label for="shop-manufacturer-mobile" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.shop.filters.manufacturer') }}</label>
@@ -689,6 +702,7 @@
 
         <form method="GET" action="{{ route('shop.index') }}" class="hidden gap-x-3 gap-y-2.5 min-[1025px]:flex min-[1025px]:flex-wrap min-[1025px]:items-end min-[1025px]:justify-start" data-desktop-filter-form>
             <input type="hidden" name="q" value="{{ $filters['q'] }}">
+            @if ($showCategoryFilter)
             <div class="w-[190px] xl:w-[210px]">
                 <label for="shop-category" class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('ui.shop.filters.category') }}</label>
                 <select
@@ -709,6 +723,7 @@
                     @endforeach
                 </select>
             </div>
+            @endif
             @if ($showManufacturers)
                 <div class="w-[190px] xl:w-[210px]">
                     <label for="shop-manufacturer" class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('ui.shop.filters.manufacturer') }}</label>
@@ -844,9 +859,11 @@
 @push('scripts')
     <script defer src="{{ asset('front-theme/scripts/category-select-redirect.js') }}?v={{ filemtime(public_path('front-theme/scripts/category-select-redirect.js')) }}"></script>
     <script defer src="{{ asset('front-theme/scripts/catalog-custom-select.js') }}?v={{ filemtime(public_path('front-theme/scripts/catalog-custom-select.js')) }}"></script>
+    <script defer src="{{ asset('front-theme/scripts/category-catalog.js') }}?v={{ filemtime(public_path('front-theme/scripts/category-catalog.js')) }}"></script>
     @if ($useAsyncPagination)
         <script defer src="{{ asset('front-theme/scripts/catalog-load-more.js') }}?v={{ filemtime(public_path('front-theme/scripts/catalog-load-more.js')) }}"></script>
     @endif
+    {{--
     <script>
         (() => {
             const initStickyFilterBar = () => {
@@ -1012,4 +1029,5 @@
             init();
         })();
     </script>
+    --}}
 @endpush

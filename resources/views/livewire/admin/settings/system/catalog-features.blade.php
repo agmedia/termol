@@ -13,14 +13,6 @@
                         'title' => __('Use Wholesale API'),
                         'description' => __('Enable API settings page and `/api/v1/wholesale/*` endpoints.'),
                     ],
-                    'catalog_use_kipos_api' => [
-                        'title' => __('Use Kipos API'),
-                        'description' => __('Enable Kipos connector, granular catalog sync actions, image sync tools, and admin ERP order send actions.'),
-                    ],
-                    'catalog_use_luceed_api' => [
-                        'title' => __('Use Luceed API'),
-                        'description' => __('Enable Luceed connector settings, sync actions, and Luceed runtime calls in admin.'),
-                    ],
                     'catalog_use_blog' => [
                         'title' => __('Use Blog'),
                         'description' => __('Enable blog module in Content section and related front routes.'),

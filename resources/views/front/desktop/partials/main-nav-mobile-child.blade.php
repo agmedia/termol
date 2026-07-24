@@ -1,6 +1,6 @@
 @php
     $children = collect($child['children'] ?? []);
-    $padding = 1.25 + ($level * 0.75);
+    $depthClass = 'desktop-mobile-depth-'.min(4, max(0, (int) $level));
     $labelWeightClass = $level === 0 ? 'font-semibold' : 'font-medium';
     $leafWeightClass = $level === 0 ? 'font-medium' : 'font-light';
     $target = !empty($child['open_in_new_tab']) ? '_blank' : null;
@@ -10,7 +10,7 @@
 <li>
 @if ($children->isNotEmpty())
         <details class="group/subnav desktop-mobile-menu-group" data-mobile-menu-accordion>
-            <summary class="desktop-mobile-menu-row relative flex min-h-[52px] cursor-pointer list-none items-center py-3 pr-3 text-[13px] text-slate-700 hover:bg-slate-50 hover:text-slate-900" style="padding-left: {{ $padding }}rem;">
+            <summary class="{{ $depthClass }} desktop-mobile-menu-row relative flex min-h-[52px] cursor-pointer list-none items-center py-3 pr-3 text-[13px] text-slate-700 hover:bg-slate-50 hover:text-slate-900">
                 <a
                     href="{{ $child['url'] ?? '#' }}"
                     class="min-w-0 flex-1 truncate pr-11 {{ $labelWeightClass }}"
@@ -20,15 +20,10 @@
                     {{ $child['label'] ?? '' }}
                 </a>
                 <span class="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center border border-slate-300 bg-white text-slate-500 group-open/subnav:hidden" aria-hidden="true">
-                    <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                        <path d="M4 10h12"></path>
-                        <path d="M10 4v12"></path>
-                    </svg>
+                    <x-fa-icon name="plus" class="h-3.5 w-3.5" />
                 </span>
                 <span class="absolute right-3 top-1/2 hidden h-7 w-7 -translate-y-1/2 items-center justify-center border border-slate-300 bg-white text-slate-500 group-open/subnav:inline-flex" aria-hidden="true">
-                    <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                        <path d="M4 10h12"></path>
-                    </svg>
+                    <x-fa-icon name="minus" class="h-3.5 w-3.5" />
                 </span>
             </summary>
             <ul class="desktop-mobile-menu-children">
@@ -38,7 +33,7 @@
             </ul>
         </details>
     @else
-        <a href="{{ $child['url'] ?? '#' }}" class="desktop-mobile-menu-row flex min-h-[52px] items-center py-3 text-[13px] {{ $leafWeightClass }} text-slate-700 hover:bg-slate-100 hover:text-slate-900" style="padding-left: {{ $padding }}rem;">
+        <a href="{{ $child['url'] ?? '#' }}" class="{{ $depthClass }} desktop-mobile-menu-row flex min-h-[52px] items-center py-3 text-[13px] {{ $leafWeightClass }} text-slate-700 hover:bg-slate-100 hover:text-slate-900">
             {{ $child['label'] ?? '' }}
         </a>
     @endif

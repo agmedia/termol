@@ -4,7 +4,6 @@ namespace App\Livewire\Admin\Sales\Order;
 
 use App\Models\Sales\Order\Order;
 use App\Models\Settings\Local\OrderStatus;
-use App\Services\Integrations\Kipos\KiposOrderService;
 use App\Services\Loyalty\LoyaltyService;
 use App\Services\Payments\BankTransferUpiService;
 use Illuminate\Support\Facades\DB;
@@ -168,71 +167,6 @@ class Show extends Component
         }
     }
 
-    public function generateKiposPreview(KiposOrderService $kiposOrders): void
-    {
-        $order = Order::query()->findOrFail($this->orderId);
-
-        try {
-            $preview = $kiposOrders->preview($order);
-            $state = $this->extractKiposOrderState($order);
-            $state['last_preview'] = array_merge($preview, [
-                'prepared_by' => auth()->id(),
-            ]);
-            $state['last_error'] = null;
-
-            $this->persistKiposOrderState(
-                $order,
-                $state,
-                'kipos_preview_generated',
-                'Kipos ERP preview generated from admin order view.'
-            );
-
-            $this->dispatch('notify', type: 'success', message: __('Kipos test payload generated.'));
-        } catch (\Throwable $exception) {
-            $this->persistKiposOrderError($order, 'preview', $exception->getMessage());
-            $this->dispatch('notify', type: 'error', message: __('Kipos test payload failed: :error', ['error' => $exception->getMessage()]));
-        }
-    }
-
-    public function sendKiposOrder(KiposOrderService $kiposOrders): void
-    {
-        $order = Order::query()->findOrFail($this->orderId);
-        $state = $this->extractKiposOrderState($order);
-        $preview = $state['last_preview'] ?? null;
-
-        if (! is_array($preview)) {
-            $this->dispatch('notify', type: 'warning', message: __('Generate Test Payload before sending this order to ERP.'));
-            return;
-        }
-
-        try {
-            $sent = $kiposOrders->sendPrepared($preview);
-            $state['last_send'] = array_merge($sent, [
-                'sent_by' => auth()->id(),
-            ]);
-            $state['last_error'] = null;
-
-            $this->persistKiposOrderState(
-                $order,
-                $state,
-                'kipos_order_sent',
-                'Kipos ERP order sent from admin order view.'
-            );
-
-            $statusResult = $this->markOrderAsSentAfterKiposSend();
-            $message = match ($statusResult) {
-                'changed' => __('Order payload sent to Kipos ERP and status set to sent.'),
-                'already' => __('Order payload sent to Kipos ERP. Order status was already sent.'),
-                default => __('Order payload sent to Kipos ERP. Sent order status was not found.'),
-            };
-
-            $this->dispatch('notify', type: $statusResult === 'missing' ? 'warning' : 'success', message: $message);
-        } catch (\Throwable $exception) {
-            $this->persistKiposOrderError($order, 'send', $exception->getMessage());
-            $this->dispatch('notify', type: 'error', message: __('Kipos ERP send failed: :error', ['error' => $exception->getMessage()]));
-        }
-    }
-
     public function render()
     {
         $order = Order::query()
@@ -289,8 +223,6 @@ class Show extends Component
             $maxRedeemablePoints = min($availableLoyaltyPoints, $maxByOrder);
         }
 
-        $kiposOrderService = app(KiposOrderService::class);
-
         return view('livewire.admin.sales.order.show', [
             'order' => $order,
             'statuses' => $statuses,
@@ -301,8 +233,6 @@ class Show extends Component
             'currencyValuePerPoint' => $currencyValuePerPoint,
             'loyaltyEnabled' => $loyaltyEnabled,
             'bankTransfer' => $bankTransfer,
-            'kiposConnectorEnabled' => $kiposOrderService->connectorEnabled(),
-            'kiposOrderState' => $this->extractKiposOrderState($order),
         ]);
     }
 
@@ -391,31 +321,6 @@ class Show extends Component
         return $saved;
     }
 
-    private function markOrderAsSentAfterKiposSend(): string
-    {
-        $sentStatus = OrderStatus::query()
-            ->where('is_active', true)
-            ->where('code', 'sent')
-            ->first();
-
-        if (! $sentStatus) {
-            return 'missing';
-        }
-
-        $order = Order::query()->findOrFail($this->orderId);
-        if ((int) $order->status_id === (int) $sentStatus->id) {
-            return 'already';
-        }
-
-        $updated = $this->applyStatusUpdate(
-            (int) $sentStatus->id,
-            'Kipos ERP order sent; order status auto-updated to sent.',
-            'kipos_send'
-        );
-
-        return $updated ? 'changed' : 'already';
-    }
-
     /**
      * @return array<int, string>
      */
@@ -458,60 +363,5 @@ class Show extends Component
                 'internal_tags' => $payload['internal_tags'],
             ])
             ->log($message);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function extractKiposOrderState(Order $order): array
-    {
-        $payload = is_array($order->payload) ? $order->payload : [];
-        $raw = $payload['kipos_order'] ?? [];
-
-        return is_array($raw) ? $raw : [];
-    }
-
-    /**
-     * @param  array<string, mixed>  $state
-     */
-    private function persistKiposOrderState(Order $order, array $state, string $event, string $message): void
-    {
-        $payload = is_array($order->payload) ? $order->payload : [];
-        $payload['kipos_order'] = $state;
-
-        $order->payload = $payload;
-        $order->updated_by = auth()->id();
-        $order->save();
-
-        activity('orders')
-            ->performedOn($order)
-            ->causedBy(auth()->user())
-            ->event($event)
-            ->withProperties([
-                'kipos_order' => [
-                    'has_preview' => is_array($state['last_preview'] ?? null),
-                    'has_send' => is_array($state['last_send'] ?? null),
-                    'error_stage' => data_get($state, 'last_error.stage'),
-                ],
-            ])
-            ->log($message);
-    }
-
-    private function persistKiposOrderError(Order $order, string $stage, string $message): void
-    {
-        $state = $this->extractKiposOrderState($order);
-        $state['last_error'] = [
-            'stage' => $stage,
-            'message' => $message,
-            'at' => now()->toIso8601String(),
-            'by' => auth()->id(),
-        ];
-
-        $this->persistKiposOrderState(
-            $order,
-            $state,
-            'kipos_'.$stage.'_failed',
-            'Kipos ERP '.$stage.' failed from admin order view.'
-        );
     }
 }

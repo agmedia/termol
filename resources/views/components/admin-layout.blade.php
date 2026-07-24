@@ -1159,8 +1159,6 @@
                 @php
                     $catalogUseBlog = app(\App\Services\Catalog\CatalogFeatureService::class)->useBlog();
                     $catalogUseApi = app(\App\Services\Catalog\CatalogFeatureService::class)->useApi();
-                    $catalogUseKiposApi = app(\App\Services\Catalog\CatalogFeatureService::class)->useKiposApi();
-                    $catalogUseLuceedApi = app(\App\Services\Catalog\CatalogFeatureService::class)->useLuceedApi();
                     $catalogUseAttributes = app(\App\Services\Catalog\CatalogFeatureService::class)->useAttributes();
                     $catalogUseOptions = app(\App\Services\Catalog\CatalogFeatureService::class)->useOptions();
                     $catalogUseManufacturers = app(\App\Services\Catalog\CatalogFeatureService::class)->useManufacturers();
@@ -1200,7 +1198,7 @@
                         auth()->user()->isA('superadmin')
                         || auth()->user()->can('settings.api.manage')
                     );
-                    $showSettingsApiMenu = $canManageApiSettings && ($catalogUseApi || $catalogUseKiposApi || $catalogUseLuceedApi);
+                    $showSettingsApiMenu = $canManageApiSettings && $catalogUseApi;
                     $usersListActive = request()->routeIs('admin.users') || request()->routeIs('admin.users.edit') || request()->routeIs('admin.users.show');
                     $usersGroupsActive = request()->routeIs('admin.users.groups');
                     $usersAccessActive = $canManageUsersAccess && request()->routeIs('admin.users.access');
@@ -1652,28 +1650,6 @@
                                                 <span class="flex items-center gap-2">
                                                     <span class="sidebar-dot"></span>
                                                     <span>{{ __('admin.layout.menu.wholesale_api') }}</span>
-                                                </span>
-                                            </a>
-                                        @endif
-                                        @if ($catalogUseKiposApi)
-                                            <a
-                                                href="{{ route('admin.settings.api.kipos') }}"
-                                                class="sidebar-dropdown-link block rounded-lg font-medium {{ request()->routeIs('admin.settings.api.kipos') ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
-                                            >
-                                                <span class="flex items-center gap-2">
-                                                    <span class="sidebar-dot"></span>
-                                                    <span>{{ __('admin.layout.menu.kipos_api') }}</span>
-                                                </span>
-                                            </a>
-                                        @endif
-                                        @if ($catalogUseLuceedApi)
-                                            <a
-                                                href="{{ route('admin.settings.api.luceed') }}"
-                                                class="sidebar-dropdown-link block rounded-lg font-medium {{ request()->routeIs('admin.settings.api.luceed') ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
-                                            >
-                                                <span class="flex items-center gap-2">
-                                                    <span class="sidebar-dot"></span>
-                                                    <span>{{ __('admin.layout.menu.luceed_api') }}</span>
                                                 </span>
                                             </a>
                                         @endif

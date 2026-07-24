@@ -16,7 +16,7 @@
                 $selectedBlock = $blockOptions->firstWhere('id', (int) ($form['content_block_id'] ?? 0));
             @endphp
 
-            <div class="grid gap-3 md:grid-cols-2">
+            <div class="grid gap-3 md:grid-cols-3">
                 <div>
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Block') }}</label>
                     <select wire:model="form.content_block_id" data-tom-select placeholder="{{ __('Choose block...') }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring">
@@ -35,6 +35,15 @@
                         @endforeach
                     </select>
                     @error('form.placement') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Surface') }}</label>
+                    <select wire:model="form.frontend_variant" data-tom-select data-tom-no-search="1" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring">
+                        @foreach ($frontendVariants as $frontendVariantKey => $frontendVariantLabel)
+                            <option value="{{ $frontendVariantKey }}">{{ $frontendVariantLabel }}</option>
+                        @endforeach
+                    </select>
+                    @error('form.frontend_variant') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
             </div>
 

@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Admin\AdminAiController;
 use App\Http\Controllers\Admin\SystemToolsController;
-use App\Http\Controllers\Cron\KiposCronController;
 use App\Http\Controllers\Front\AccountController;
 use App\Http\Controllers\Front\AuthController;
 use App\Http\Controllers\Front\BlogController;
@@ -17,6 +16,7 @@ use App\Http\Controllers\Front\PageController;
 use App\Http\Controllers\Front\ProductController;
 use App\Http\Controllers\Front\ReturnRequestController;
 use App\Http\Controllers\Front\StorefrontController;
+use App\Http\Controllers\Front\StorefrontStylesController;
 use App\Http\Controllers\Front\WishlistController;
 use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Attribute\Attribute as CatalogAttribute;
@@ -40,10 +40,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Spatie\Activitylog\Models\Activity;
 
-Route::get('cron/kipos/update-quantities', [KiposCronController::class, 'updateQuantities'])
-    ->name('cron.kipos.update-quantities');
-Route::get('cron/kipos/update-order-statuses', [KiposCronController::class, 'updateOrderStatuses'])
-    ->name('cron.kipos.update-order-statuses');
+Route::get('storefront-settings.css', StorefrontStylesController::class)
+    ->name('front.storefront.styles');
 
 Route::middleware(['front.locale', 'front.device'])
     ->group(function (): void {
@@ -81,7 +79,9 @@ Route::middleware(['front.locale', 'front.device'])
         Route::post('product/{slug}/comments', [ProductController::class, 'storeComment'])->name('products.comments.store');
         Route::post('product/fit-finder/preferences', [ProductController::class, 'storeFitFinderPreferences'])->name('products.fit_finder.preferences');
 
-        Route::get('manufacturers', [ManufacturerController::class, 'index'])->name('manufacturers.index');
+        Route::get('brendovi', [ManufacturerController::class, 'index'])->name('manufacturers.index');
+        Route::redirect('brandovi', '/brendovi', 301);
+        Route::redirect('manufacturers', '/brendovi', 301);
         Route::get('manufacturer/{slug}', [ManufacturerController::class, 'show'])->name('manufacturers.show');
 
         Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
@@ -420,24 +420,14 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
 
                             $features = app(\App\Services\Catalog\CatalogFeatureService::class);
                             $catalogUseApi = $features->useApi();
-                            $catalogUseKipos = $features->useKiposApi();
-                            $catalogUseLuceed = $features->useLuceedApi();
 
                             if ($catalogUseApi) {
                                 return redirect()->route('admin.settings.api.wholesale');
                             }
 
-                            if ($catalogUseKipos) {
-                                return redirect()->route('admin.settings.api.kipos');
-                            }
-
-                            if ($catalogUseLuceed) {
-                                return redirect()->route('admin.settings.api.luceed');
-                            }
-
                             return redirect()->route('admin.settings.system.catalog-features')->with('notify', [
                                 'type' => 'warning',
-                                'message' => 'No API modules are enabled in Catalog Features.',
+                                'message' => 'Wholesale API is disabled in Catalog Features.',
                             ]);
                         })->name('index');
 
@@ -451,25 +441,6 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
                             return view('admin.settings.api.wholesale');
                         })->name('wholesale');
 
-                        Route::middleware('catalog.feature:catalog_use_kipos_api')->get('kipos', function () {
-                            $current = auth()->user();
-                            abort_unless(
-                                $current && ($current->isA('superadmin') || $current->can('settings.api.manage')),
-                                403
-                            );
-
-                            return view('admin.settings.api.kipos');
-                        })->name('kipos');
-
-                        Route::middleware('catalog.feature:catalog_use_luceed_api')->get('luceed', function () {
-                            $current = auth()->user();
-                            abort_unless(
-                                $current && ($current->isA('superadmin') || $current->can('settings.api.manage')),
-                                403
-                            );
-
-                            return view('admin.settings.api.luceed');
-                        })->name('luceed');
                     });
                 Route::view('user', 'admin.settings.user.index')->name('user.index');
             });

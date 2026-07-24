@@ -4,6 +4,7 @@
     $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
     $sliderId = 'full-width-slider-'.$block->id;
     $slides = $block->getMedia('block_slides');
+    $mobileSlides = $block->getMedia('block_slides_mobile')->values();
 
     if ($slides->isEmpty()) {
         $fallback = $block->getFirstMedia('block_background');
@@ -44,6 +45,21 @@
             ?? $firstSlideUrl720
             ?? $firstSlideUrl540
             ?? $firstSlide->getUrl())
+        : null;
+    $firstMobileSlide = $mobileSlides->first();
+    $firstMobileSlideUrl1080 = \App\Support\Media\MediaUrl::conversionOrNull($firstMobileSlide, 'square_1080w', $preferWebp);
+    $firstMobileSlideUrl720 = \App\Support\Media\MediaUrl::conversionOrNull($firstMobileSlide, 'square_720w', $preferWebp);
+    $firstMobileSlideUrl540 = \App\Support\Media\MediaUrl::conversionOrNull($firstMobileSlide, 'square_540w', $preferWebp);
+    $firstMobileSlideSrcset = collect([
+        $firstMobileSlideUrl540 ? $firstMobileSlideUrl540.' 540w' : null,
+        $firstMobileSlideUrl720 ? $firstMobileSlideUrl720.' 720w' : null,
+        $firstMobileSlideUrl1080 ? $firstMobileSlideUrl1080.' 1080w' : null,
+    ])->filter()->unique()->implode(', ');
+    $firstMobileSlidePreloadUrl = $firstMobileSlide
+        ? ($firstMobileSlideUrl1080
+            ?? $firstMobileSlideUrl720
+            ?? $firstMobileSlideUrl540
+            ?? $firstMobileSlide->getUrl())
         : null;
 
     $autoplayMs = 5000;
@@ -109,9 +125,20 @@
                 rel="preload"
                 as="image"
                 href="{{ $firstSlidePreloadUrl }}"
-                @if ($firstSlideSrcset !== '') imagesrcset="{{ $firstSlideSrcset }}" imagesizes="100vw" @endif
+                @if ($firstSlideSrcset !== '') imagesrcset="{{ $firstSlideSrcset }}" imagesizes="(max-width: 1860px) 100vw, 1860px" @endif
+                @if ($firstMobileSlidePreloadUrl) media="(min-width: 769px)" @endif
                 fetchpriority="high"
             >
+            @if ($firstMobileSlidePreloadUrl)
+                <link
+                    rel="preload"
+                    as="image"
+                    href="{{ $firstMobileSlidePreloadUrl }}"
+                    @if ($firstMobileSlideSrcset !== '') imagesrcset="{{ $firstMobileSlideSrcset }}" imagesizes="100vw" @endif
+                    media="(max-width: 768px)"
+                    fetchpriority="high"
+                >
+            @endif
         @endpush
     @endif
 
@@ -156,6 +183,43 @@
             height: 100%;
             object-fit: cover;
             object-position: center;
+        }
+
+        #{{ $sliderId }} .hero-slide-picture {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #{{ $sliderId }} .hero-slide-cta {
+            position: absolute;
+            z-index: 18;
+            left: 50%;
+            bottom: 6.75rem;
+            display: inline-flex;
+            min-height: 60px;
+            max-width: calc(100% - 2rem);
+            align-items: center;
+            justify-content: center;
+            padding: 0.85rem 2.5rem;
+            transform: translateX(-50%);
+            background: #ffd800;
+            color: #111827;
+            font-size: 1rem;
+            font-weight: 800;
+            line-height: 1.15;
+            text-align: center;
+            text-decoration: none;
+            white-space: nowrap;
+            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.2);
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        #{{ $sliderId }} .hero-slide-cta:hover,
+        #{{ $sliderId }} .hero-slide-cta:focus-visible {
+            background: #ffe34d;
+            color: #111827;
+            transform: translateX(-50%) translateY(-2px);
         }
 
         #{{ $sliderId }} .ag-hotspot-toggle {
@@ -270,11 +334,18 @@
 
         @media (max-width: 768px) {
             #{{ $sliderId }} .hero-slide-frame {
-                aspect-ratio: 5 / 4;
+                aspect-ratio: 1 / 1;
             }
 
             #{{ $sliderId }} .hero-slide-image {
                 height: 100%;
+            }
+
+            #{{ $sliderId }} .hero-slide-cta {
+                bottom: 4.5rem;
+                min-height: 48px;
+                padding: 0.75rem 1.5rem;
+                font-size: 0.9rem;
             }
         }
 
@@ -296,7 +367,7 @@
         }
     </style>
 
-    <section class="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden {{ $customClasses }}">
+    <section id="{{ $sliderId }}-shell" class="full-width-image-slider-shell relative left-1/2 -translate-x-1/2 overflow-hidden {{ $customClasses }}">
         <div id="{{ $sliderId }}" class="splide" data-fullwidth-splide>
             <div class="splide__track">
                 <ul class="splide__list">
@@ -332,12 +403,40 @@
                                 $slideUrl1920 ? $slideUrl1920.' 1920w' : null,
                                 $slideUrl2560 ? $slideUrl2560.' 2560w' : null,
                             ])->filter()->unique()->implode(', ');
+                            $mobileMedia = $mobileSlides->get($loop->index);
+                            $mobileSlideUrl1080 = \App\Support\Media\MediaUrl::conversionOrNull($mobileMedia, 'square_1080w', $preferWebp);
+                            $mobileSlideUrl720 = \App\Support\Media\MediaUrl::conversionOrNull($mobileMedia, 'square_720w', $preferWebp);
+                            $mobileSlideUrl540 = \App\Support\Media\MediaUrl::conversionOrNull($mobileMedia, 'square_540w', $preferWebp);
+                            $mobileSlideUrl = $mobileMedia
+                                ? ($mobileSlideUrl1080
+                                    ?? $mobileSlideUrl720
+                                    ?? $mobileSlideUrl540
+                                    ?? $mobileMedia->getUrl())
+                                : null;
+                            $mobileSlideSrcset = collect([
+                                $mobileSlideUrl540 ? $mobileSlideUrl540.' 540w' : null,
+                                $mobileSlideUrl720 ? $mobileSlideUrl720.' 720w' : null,
+                                $mobileSlideUrl1080 ? $mobileSlideUrl1080.' 1080w' : null,
+                            ])->filter()->unique()->implode(', ');
                             $slideLink = trim((string) (
                                 data_get($media->custom_properties, 'link_url.'.app()->getLocale())
                                 ?: data_get($media->custom_properties, 'link_url.'.config('app.locale'))
                                 ?: data_get($media->custom_properties, 'link_url_value', '')
                             ));
+                            $slideButtonLabel = trim((string) (
+                                data_get($media->custom_properties, 'button_label.'.app()->getLocale())
+                                ?: data_get($media->custom_properties, 'button_label.'.config('app.locale'))
+                                ?: ''
+                            ));
                             $hasSlideLink = $slideLink !== '';
+                            $showSlideButton = $slideButtonLabel !== '' && $hasSlideLink;
+                            $slideAlt = trim((string) (
+                                data_get($media->custom_properties, 'alt.'.app()->getLocale())
+                                ?: data_get($media->custom_properties, 'alt.'.config('app.locale'))
+                                ?: data_get($mobileMedia?->custom_properties, 'alt.'.app()->getLocale())
+                                ?: data_get($mobileMedia?->custom_properties, 'alt.'.config('app.locale'))
+                                ?: (($translation?->title ?: $block->name).' '.$loop->iteration)
+                            ));
                             $slideWidth = max(1, (int) ($media->width ?? 1200));
                             $slideHeight = max(1, (int) ($media->height ?? 700));
                             $slideHotspots = collect((array) data_get($media->custom_properties, 'product_hotspots', []))
@@ -364,22 +463,31 @@
                                 @if ($hasSlideLink)
                                     <a href="{{ $slideLink }}" class="block h-full">
                                 @endif
-                                    <img
-                                        src="{{ $slideUrl }}"
-                                        @if ($slideSrcset !== '') srcset="{{ $slideSrcset }}" @endif
-                                        sizes="100vw"
-                                        alt="{{ $translation?->title ?: $block->name }} {{ $loop->iteration }}"
-                                        class="hero-slide-image bg-slate-100"
-                                        width="{{ $slideWidth }}"
-                                        height="{{ $slideHeight }}"
-                                        @if ($loop->first)
-                                            loading="eager"
-                                            fetchpriority="high"
-                                        @else
-                                            loading="lazy"
+                                    <picture class="hero-slide-picture">
+                                        @if ($mobileSlideUrl)
+                                            <source
+                                                media="(max-width: 768px)"
+                                                srcset="{{ $mobileSlideSrcset !== '' ? $mobileSlideSrcset : $mobileSlideUrl }}"
+                                                sizes="100vw"
+                                            >
                                         @endif
-                                        decoding="async"
-                                    >
+                                        <img
+                                            src="{{ $slideUrl }}"
+                                            @if ($slideSrcset !== '') srcset="{{ $slideSrcset }}" @endif
+                                            sizes="(max-width: 1860px) 100vw, 1860px"
+                                            alt="{{ $slideAlt }}"
+                                            class="hero-slide-image bg-slate-100"
+                                            width="{{ $slideWidth }}"
+                                            height="{{ $slideHeight }}"
+                                            @if ($loop->first)
+                                                loading="eager"
+                                                fetchpriority="high"
+                                            @else
+                                                loading="lazy"
+                                            @endif
+                                            decoding="async"
+                                        >
+                                    </picture>
                                     <div class="absolute inset-0 bg-black/10"></div>
                                     @if (($translation?->title ?? '') !== '' || ($translation?->subtitle ?? '') !== '')
                                         <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent px-6 pb-10 pt-16 text-white md:px-12">
@@ -389,7 +497,7 @@
                                             @if (($translation?->subtitle ?? '') !== '')
                                                 <p class="mt-3 max-w-3xl text-sm text-white/90 md:text-base">{{ $translation->subtitle }}</p>
                                             @endif
-                                            @if (($translation?->cta_label ?? '') !== '' && (($translation?->cta_url ?? '') !== '' || $hasSlideLink))
+                                            @if (! $showSlideButton && ($translation?->cta_label ?? '') !== '' && (($translation?->cta_url ?? '') !== '' || $hasSlideLink))
                                                 @if ($hasSlideLink)
                                                     <span class="mt-6 inline-flex h-11 items-center border border-white bg-white px-6 text-sm font-semibold text-slate-900">
                                                         {{ $translation->cta_label }}
@@ -403,6 +511,12 @@
                                         </div>
                                     @endif
                                 @if ($hasSlideLink)
+                                    </a>
+                                @endif
+
+                                @if ($showSlideButton)
+                                    <a href="{{ $slideLink }}" class="hero-slide-cta">
+                                        {{ $slideButtonLabel }}
                                     </a>
                                 @endif
 

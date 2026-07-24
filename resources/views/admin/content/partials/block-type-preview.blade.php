@@ -10,7 +10,7 @@
         <div class="cb-line cb-w-85"></div>
         <div class="cb-line cb-w-60"></div>
         <div class="cb-pill cb-w-35"></div>
-    @elseif ($typeKey === 'products' || $typeKey === 'products_carousel')
+    @elseif ($typeKey === 'products' || $typeKey === 'products_carousel' || $typeKey === 'category_products_carousel')
         <div class="cb-cards3">
             @for ($i = 0; $i < 3; $i++)
                 <div class="cb-card-mini">

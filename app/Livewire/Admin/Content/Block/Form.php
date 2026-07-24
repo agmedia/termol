@@ -34,6 +34,7 @@ class Form extends Component
     private const ITEM_TYPE_MAP = [
         'products' => 'product',
         'products_carousel' => 'product',
+        'category_products_carousel' => 'category',
         'categories' => 'category',
         'mobile_hero_banner' => 'category',
         'manufacturers' => 'manufacturer',
@@ -162,6 +163,10 @@ class Form extends Component
             $this->form['slot_frontend_variant'] = $suggestedSurface;
         }
 
+        if ($type === 'category_products_carousel' && $this->lastType !== $type) {
+            $this->form['items_limit'] = 12;
+        }
+
         $currentItemType = $this->itemTypeForBlockType($type);
         $existingType = $this->itemTypeForBlockType($this->lastType);
 
@@ -206,6 +211,12 @@ class Form extends Component
 
         $optionExists = $this->itemOptions->contains(fn ($row) => (int) ($row['id'] ?? 0) === $id);
         if (! $optionExists) {
+            return;
+        }
+
+        if ((string) ($this->form['type'] ?? '') === 'category_products_carousel') {
+            $this->form['selected_item_ids'] = [$id];
+
             return;
         }
 
@@ -325,6 +336,13 @@ class Form extends Component
         if ($itemType !== null && $selectedIds === []) {
             $this->addError('form.selected_item_ids', __('Select at least one item for this block type.'));
             $this->dispatch('notify', type: 'warning', message: __('Select at least one item.'));
+
+            return null;
+        }
+
+        if ((string) $validated['form']['type'] === 'category_products_carousel' && count($selectedIds) !== 1) {
+            $this->addError('form.selected_item_ids', __('Select exactly one source category.'));
+            $this->dispatch('notify', type: 'warning', message: __('Select exactly one source category.'));
 
             return null;
         }
@@ -1072,6 +1090,7 @@ class Form extends Component
             'hero_highlights_strip',
             'products',
             'products_carousel',
+            'category_products_carousel',
             'blogs_carousel',
             'categories',
             'manufacturers',
@@ -1099,6 +1118,7 @@ class Form extends Component
             'mobile_hero_banner' => 'mobile',
             'desktop_hero_banner',
             'full_width_image_slider',
+            'category_products_carousel',
             'dual_image_cta',
             'material_craftsmanship',
             'instagram_curated_grid',
@@ -1168,6 +1188,15 @@ BLADE,
         @endforelse
     </div>
 </section>
+BLADE,
+            'category_products_carousel' => <<<'BLADE'
+@include('front.content-blocks.types.category_products_carousel', [
+    'block' => $block,
+    'translation' => $translation,
+    'slot' => $slot ?? null,
+    'products' => $products,
+    'categories' => $categories,
+])
 BLADE,
             'products_carousel' => <<<'BLADE'
 @php
@@ -1677,6 +1706,13 @@ BLADE,
 </div>
 BLADE,
             'full_width_image_slider' => <<<'BLADE'
+@include('front.content-blocks.types.full_width_image_slider', [
+    'block' => $block,
+    'translation' => $translation,
+    'slot' => $slot ?? null,
+])
+BLADE,
+            'legacy_full_width_image_slider' => <<<'BLADE'
 @php
     $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
     $customClasses = trim((string) ($translationPayload['custom_classes'] ?? ''));
@@ -1702,6 +1738,10 @@ BLADE,
     @endonce
 
     <style>
+        #{{ $sliderId }}-shell {
+            width: min(calc(100vw - 2rem), var(--storefront-container-width, 1860px));
+        }
+
         #{{ $sliderId }} .splide__arrow {
             opacity: 0;
             width: 46px;
@@ -1729,7 +1769,7 @@ BLADE,
         }
     </style>
 
-    <section class="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen overflow-hidden {{ $customClasses }}">
+    <section id="{{ $sliderId }}-shell" class="relative left-1/2 -translate-x-1/2 overflow-hidden {{ $customClasses }}">
         <div id="{{ $sliderId }}" class="splide" data-fullwidth-splide>
             <div class="splide__track">
                 <ul class="splide__list">

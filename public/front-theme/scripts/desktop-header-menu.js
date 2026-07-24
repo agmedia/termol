@@ -1,5 +1,311 @@
 (() => {
+    const initStickyHeader = () => {
+        const header = document.querySelector('.site-main-header');
+        if (!(header instanceof HTMLElement)) {
+            return;
+        }
+
+        const spacer = document.querySelector('[data-site-main-header-spacer]');
+        const preservesHeaderFlow = spacer instanceof HTMLElement;
+        let expandedHeaderHeight = 24;
+        let sticky = header.classList.contains('is-sticky');
+
+        const syncExpandedHeaderHeight = () => {
+            if (!preservesHeaderFlow || sticky) {
+                return;
+            }
+
+            expandedHeaderHeight = Math.ceil(header.getBoundingClientRect().height);
+            spacer.style.setProperty('--site-main-header-expanded-height', `${expandedHeaderHeight}px`);
+        };
+
+        const updateHeaderState = () => {
+            syncExpandedHeaderHeight();
+            const stickAt = preservesHeaderFlow ? expandedHeaderHeight : 24;
+            const releaseAt = preservesHeaderFlow ? Math.max(24, expandedHeaderHeight - 16) : 24;
+            const shouldStick = sticky
+                ? window.scrollY > releaseAt
+                : window.scrollY > stickAt;
+
+            if (shouldStick === sticky) {
+                return;
+            }
+
+            sticky = shouldStick;
+            header.classList.toggle('is-sticky', sticky);
+        };
+
+        syncExpandedHeaderHeight();
+        updateHeaderState();
+
+        if (header.dataset.stickyHeaderInit === '1') {
+            return;
+        }
+
+        header.dataset.stickyHeaderInit = '1';
+        let frameRequested = false;
+
+        window.addEventListener('scroll', () => {
+            if (frameRequested) {
+                return;
+            }
+
+            frameRequested = true;
+            window.requestAnimationFrame(() => {
+                updateHeaderState();
+                frameRequested = false;
+            });
+        }, { passive: true });
+
+        window.addEventListener('resize', syncExpandedHeaderHeight, { passive: true });
+    };
+
+    const initCatalogMegaMenus = () => {
+        document.querySelectorAll('[data-catalog-mega]').forEach((megaMenu) => {
+            if (!(megaMenu instanceof HTMLElement) || megaMenu.dataset.catalogMegaInit === '1') {
+                return;
+            }
+
+            const treeSource = megaMenu.querySelector('[data-catalog-mega-tree]');
+            const columns = Array.from(megaMenu.querySelectorAll('[data-catalog-mega-column]'));
+            const navGroup = megaMenu.closest('.group\\/nav');
+            const trigger = navGroup?.querySelector(':scope > [data-catalog-mega-trigger]');
+            const rootLabel = megaMenu.dataset.catalogMegaLabel || 'Proizvodi';
+            const rootUrl = megaMenu.dataset.catalogMegaUrl || '#';
+            const rootTitle = megaMenu.dataset.catalogMegaRootTitle || 'Kategorije';
+            const maxColumns = Math.max(1, Math.min(5, Number.parseInt(megaMenu.dataset.catalogMegaMaxColumns || '1', 10) || 1));
+            let tree = [];
+
+            try {
+                tree = JSON.parse(treeSource?.textContent || '[]');
+            } catch {
+                tree = [];
+            }
+
+            if (!Array.isArray(tree) || tree.length === 0 || columns.length === 0) {
+                return;
+            }
+
+            megaMenu.dataset.catalogMegaInit = '1';
+
+            const nodesByDepth = [];
+            const activeIndexByDepth = [];
+            const hasChildren = (node) => Array.isArray(node?.children) && node.children.length > 0;
+
+            const setExpanded = (expanded) => {
+                if (trigger instanceof HTMLElement) {
+                    trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                }
+            };
+
+            const focusItem = (depth, index) => {
+                const target = columns[depth]?.querySelector(`[data-catalog-mega-item-index="${index}"]`);
+                if (target instanceof HTMLElement) {
+                    target.focus();
+                }
+            };
+
+            const hideColumnsAfter = (depth) => {
+                columns.forEach((column, columnIndex) => {
+                    if (columnIndex <= depth) {
+                        return;
+                    }
+
+                    column.hidden = true;
+                    column.querySelector('[data-catalog-mega-list]')?.replaceChildren();
+                });
+                nodesByDepth.splice(depth + 1);
+                activeIndexByDepth.splice(depth + 1);
+            };
+
+            const syncActiveItems = (depth) => {
+                const column = columns[depth];
+                if (!column) {
+                    return;
+                }
+
+                column.querySelectorAll('[data-catalog-mega-item]').forEach((item, itemIndex) => {
+                    const isActive = itemIndex === activeIndexByDepth[depth];
+                    item.classList.toggle('is-active', isActive);
+                    if (item.hasAttribute('aria-haspopup')) {
+                        item.setAttribute('aria-expanded', isActive ? 'true' : 'false');
+                    }
+                });
+            };
+
+            const activateItem = (depth, index) => {
+                const nodes = nodesByDepth[depth] || [];
+                const selectedNode = nodes[index];
+                if (!selectedNode) {
+                    return;
+                }
+
+                activeIndexByDepth[depth] = index;
+                activeIndexByDepth.splice(depth + 1);
+                syncActiveItems(depth);
+                hideColumnsAfter(depth);
+
+                const nestedNodes = hasChildren(selectedNode) ? selectedNode.children : [];
+                const nextDepth = depth + 1;
+
+                if (Array.isArray(nestedNodes) && nestedNodes.length > 0 && nextDepth < maxColumns) {
+                    renderColumn(nextDepth, nestedNodes, selectedNode);
+                    activeIndexByDepth[nextDepth] = -1;
+                    syncActiveItems(nextDepth);
+                }
+            };
+
+            const resetCascade = () => {
+                activeIndexByDepth[0] = -1;
+                activeIndexByDepth.splice(1);
+                syncActiveItems(0);
+                hideColumnsAfter(0);
+            };
+
+            const handleItemKeydown = (event, depth, index, node) => {
+                const nodes = nodesByDepth[depth] || [];
+
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    const direction = event.key === 'ArrowDown' ? 1 : -1;
+                    const nextIndex = (index + direction + nodes.length) % nodes.length;
+                    activateItem(depth, nextIndex);
+                    focusItem(depth, nextIndex);
+                    return;
+                }
+
+                if (event.key === 'ArrowRight' && hasChildren(node) && depth + 1 < maxColumns) {
+                    event.preventDefault();
+                    activateItem(depth, index);
+                    focusItem(depth + 1, activeIndexByDepth[depth + 1] || 0);
+                    return;
+                }
+
+                if (event.key === 'ArrowLeft' && depth > 0) {
+                    event.preventDefault();
+                    focusItem(depth - 1, activeIndexByDepth[depth - 1] || 0);
+                    return;
+                }
+
+                if (event.key === 'Home' || event.key === 'End') {
+                    event.preventDefault();
+                    const nextIndex = event.key === 'Home' ? 0 : nodes.length - 1;
+                    activateItem(depth, nextIndex);
+                    focusItem(depth, nextIndex);
+                    return;
+                }
+
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    setExpanded(false);
+                    resetCascade();
+                    if (document.activeElement instanceof HTMLElement) {
+                        document.activeElement.blur();
+                    }
+                }
+            };
+
+            const renderChevron = () => {
+                const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                icon.setAttribute('viewBox', '0 0 20 20');
+                icon.setAttribute('fill', 'none');
+                icon.setAttribute('stroke', 'currentColor');
+                icon.setAttribute('stroke-width', '1.8');
+                icon.setAttribute('stroke-linecap', 'round');
+                icon.setAttribute('stroke-linejoin', 'round');
+                icon.setAttribute('aria-hidden', 'true');
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', 'm7 4 6 6-6 6');
+                icon.append(path);
+
+                return icon;
+            };
+
+            function renderColumn(depth, nodes, parentNode, selectedIndex = -1) {
+                const column = columns[depth];
+                if (!column || !Array.isArray(nodes)) {
+                    return;
+                }
+
+                const title = column.querySelector('[data-catalog-mega-column-title]');
+                const viewAll = column.querySelector('[data-catalog-mega-column-link]');
+                const list = column.querySelector('[data-catalog-mega-list]');
+                if (!(list instanceof HTMLElement)) {
+                    return;
+                }
+
+                nodesByDepth[depth] = nodes;
+                column.hidden = false;
+
+                if (title instanceof HTMLElement) {
+                    title.textContent = depth === 0 ? rootTitle : (parentNode?.label || '');
+                }
+
+                if (viewAll instanceof HTMLAnchorElement) {
+                    const viewAllUrl = depth === 0 ? rootUrl : (parentNode?.url || '');
+                    viewAll.href = viewAllUrl || '#';
+                    viewAll.hidden = viewAllUrl === '';
+                }
+
+                const fragment = document.createDocumentFragment();
+                nodes.forEach((node, index) => {
+                    const item = document.createElement('li');
+                    const link = document.createElement('a');
+                    const label = document.createElement('span');
+                    const nodeHasChildren = hasChildren(node) && depth + 1 < maxColumns;
+
+                    link.href = typeof node?.url === 'string' && node.url !== '' ? node.url : '#';
+                    link.className = 'catalog-mega-item';
+                    link.dataset.catalogMegaItem = '';
+                    link.dataset.catalogMegaItemIndex = String(index);
+                    if (nodeHasChildren) {
+                        link.setAttribute('aria-haspopup', 'true');
+                        link.setAttribute('aria-expanded', index === selectedIndex ? 'true' : 'false');
+                    }
+
+                    label.textContent = typeof node?.label === 'string' ? node.label : '';
+                    link.append(label);
+                    if (nodeHasChildren) {
+                        link.append(renderChevron());
+                    }
+
+                    link.addEventListener('pointerenter', () => activateItem(depth, index));
+                    link.addEventListener('focus', () => activateItem(depth, index));
+                    link.addEventListener('keydown', (event) => handleItemKeydown(event, depth, index, node));
+                    item.append(link);
+                    fragment.append(item);
+                });
+
+                list.replaceChildren(fragment);
+            }
+
+            renderColumn(0, tree, { label: rootLabel, url: rootUrl });
+            resetCascade();
+
+            navGroup?.addEventListener('pointerenter', () => setExpanded(true));
+            navGroup?.addEventListener('pointerleave', () => {
+                if (!navGroup.contains(document.activeElement)) {
+                    setExpanded(false);
+                    resetCascade();
+                }
+            });
+            navGroup?.addEventListener('focusin', () => setExpanded(true));
+            navGroup?.addEventListener('focusout', () => {
+                window.setTimeout(() => {
+                    if (!navGroup.contains(document.activeElement)) {
+                        setExpanded(false);
+                        resetCascade();
+                    }
+                }, 0);
+            });
+        });
+    };
+
     const init = () => {
+        initStickyHeader();
+        initCatalogMegaMenus();
+
         const root = document.querySelector('[data-mobile-menu-root]');
         if (!root) {
             document.body.classList.remove('overflow-hidden');

@@ -26,18 +26,6 @@
         ? $order->totals
         : $order->totals->reject(fn ($total) => $total->code === 'loyalty_redemption');
     $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
-    $kiposLastPreview = is_array($kiposOrderState['last_preview'] ?? null) ? $kiposOrderState['last_preview'] : null;
-    $kiposLastSend = is_array($kiposOrderState['last_send'] ?? null) ? $kiposOrderState['last_send'] : null;
-    $kiposLastError = is_array($kiposOrderState['last_error'] ?? null) ? $kiposOrderState['last_error'] : null;
-    $kiposEndpoint = $kiposLastSend['endpoint'] ?? $kiposLastPreview['endpoint'] ?? null;
-    $kiposWarnings = collect($kiposLastPreview['warnings'] ?? [])->filter(fn ($row) => is_string($row) && trim($row) !== '')->values();
-    $kiposRequestJson = $kiposLastPreview
-        ? (json_encode($kiposLastPreview['request'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}')
-        : null;
-    $kiposResponseJson = $kiposLastSend
-        ? (json_encode($kiposLastSend['response'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}')
-        : null;
-    $showKiposPanel = $kiposConnectorEnabled || $kiposLastPreview || $kiposLastSend || $kiposLastError;
 @endphp
 
 <div class="space-y-6">
@@ -286,111 +274,6 @@
             </div>
         </div>
     </div>
-
-    @if ($showKiposPanel)
-        <div class="admin-panel admin-form-panel p-6">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                    <p class="admin-section-title">{{ __('Kipos ERP') }}</p>
-                    <p class="mt-2 text-sm text-slate-600">{{ __('ERP slanje ide ručno iz admina. Prvo generiraj Test Payload, pa tek onda pošalji narudžbu u Kipos kada je spremna za export.') }}</p>
-                </div>
-                @if ($kiposConnectorEnabled)
-                    <div class="flex flex-wrap items-center gap-2">
-                        <button
-                            type="button"
-                            wire:click="generateKiposPreview"
-                            wire:loading.attr="disabled"
-                            wire:target="generateKiposPreview"
-                            class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {{ __('Test Payload') }}
-                        </button>
-                        <button
-                            type="button"
-                            wire:click="sendKiposOrder"
-                            wire:loading.attr="disabled"
-                            wire:target="sendKiposOrder"
-                            @if (! $kiposLastPreview) disabled @endif
-                            class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {{ __('Send to ERP') }}
-                        </button>
-                    </div>
-                @endif
-            </div>
-
-            @if (! $kiposConnectorEnabled)
-                <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                    {{ __('Kipos connector is currently disabled in Catalog Features or in Kipos API settings. Stored previews and responses remain visible here for traceability.') }}
-                </div>
-            @endif
-
-            @if ($kiposLastError)
-                <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-                    <p class="font-semibold">{{ __('Last ERP error') }}</p>
-                    <p class="mt-1">{{ $kiposLastError['message'] ?? '-' }}</p>
-                    <p class="mt-1 text-xs uppercase tracking-[0.12em] text-rose-700">
-                        {{ strtoupper((string) ($kiposLastError['stage'] ?? 'error')) }}
-                        @if (!empty($kiposLastError['at']))
-                            / {{ $kiposLastError['at'] }}
-                        @endif
-                    </p>
-                </div>
-            @endif
-
-            <div class="mt-4 grid gap-4 lg:grid-cols-3">
-                <div class="rounded-xl border border-slate-200 bg-white p-3">
-                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Connector') }}</p>
-                    <p class="mt-2 text-sm font-semibold text-slate-900">{{ $kiposConnectorEnabled ? __('Enabled') : __('Disabled') }}</p>
-                    <p class="mt-1 break-all text-xs text-slate-600">{{ $kiposEndpoint ?: __('Generate Test Payload to resolve ERP endpoint.') }}</p>
-                </div>
-                <div class="rounded-xl border border-slate-200 bg-white p-3">
-                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Last Test Payload') }}</p>
-                    <p class="mt-2 text-sm font-semibold text-slate-900">{{ $kiposLastPreview['prepared_at'] ?? __('Not generated yet') }}</p>
-                    @if (!empty($kiposLastPreview['line_total']))
-                        <p class="mt-1 text-xs text-slate-600">{{ __('Prepared total') }}: {{ $kiposLastPreview['line_total'] }}</p>
-                    @endif
-                    @if (!empty($kiposLastPreview['idfirma']))
-                        <p class="mt-1 text-xs text-slate-600">IDFIRMA: {{ $kiposLastPreview['idfirma'] }}</p>
-                    @endif
-                </div>
-                <div class="rounded-xl border border-slate-200 bg-white p-3">
-                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Last ERP Send') }}</p>
-                    <p class="mt-2 text-sm font-semibold text-slate-900">{{ $kiposLastSend['sent_at'] ?? __('Not sent yet') }}</p>
-                    @if (!empty($kiposLastSend['response']))
-                        <p class="mt-1 text-xs text-slate-600">{{ __('ERP response saved on order payload.') }}</p>
-                    @else
-                        <p class="mt-1 text-xs text-slate-600">{{ __('Use Send to ERP after confirming the preview payload.') }}</p>
-                    @endif
-                </div>
-            </div>
-
-            @if ($kiposWarnings->isNotEmpty())
-                <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">{{ __('Preview warnings') }}</p>
-                    <ul class="mt-2 space-y-1 text-sm text-amber-900">
-                        @foreach ($kiposWarnings as $warning)
-                            <li>{{ $warning }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
-            @if ($kiposRequestJson)
-                <details class="mt-4 rounded-xl border border-slate-200 bg-white p-3" open>
-                    <summary class="cursor-pointer text-sm font-semibold text-slate-800">{{ __('Prepared request JSON') }}</summary>
-                    <pre class="mt-3 overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs leading-6 text-slate-100">{{ $kiposRequestJson }}</pre>
-                </details>
-            @endif
-
-            @if ($kiposResponseJson)
-                <details class="mt-4 rounded-xl border border-slate-200 bg-white p-3">
-                    <summary class="cursor-pointer text-sm font-semibold text-slate-800">{{ __('ERP response JSON') }}</summary>
-                    <pre class="mt-3 overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs leading-6 text-slate-100">{{ $kiposResponseJson }}</pre>
-                </details>
-            @endif
-        </div>
-    @endif
 
     <div class="grid gap-6 xl:grid-cols-3">
         <div class="admin-panel admin-panel-soft p-5 xl:col-span-2">

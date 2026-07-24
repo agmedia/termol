@@ -10,18 +10,40 @@ document.addEventListener('DOMContentLoaded', function () {
     const galleryOpenButtons = Array.from(document.querySelectorAll('[data-gallery-open]'));
     const productSplide = document.querySelector('[data-product-splide]');
 
-    if (productSplide && typeof window.Splide === 'function' && window.matchMedia('(max-width: 768px)').matches) {
+    if (productSplide && typeof window.Splide === 'function') {
+        const galleryNavigation = Array.from(document.querySelectorAll('[data-gallery-nav]'));
+        const gallerySlideCount = productSplide.querySelectorAll('.splide__slide').length;
         const slider = new window.Splide(productSplide, {
             type: 'slide',
             perPage: 1,
             perMove: 1,
-            arrows: false,
-            pagination: true,
-            drag: true,
+            arrows: gallerySlideCount > 1,
+            pagination: gallerySlideCount > 1,
+            drag: gallerySlideCount > 1,
             speed: 450,
-            rewind: true,
+            rewind: gallerySlideCount > 1,
         });
+
+        const syncGalleryNavigation = function (index) {
+            galleryNavigation.forEach(function (button, buttonIndex) {
+                const isActive = buttonIndex === index;
+                button.classList.toggle('is-active', isActive);
+                button.setAttribute('aria-current', isActive ? 'true' : 'false');
+            });
+        };
+
+        slider.on('mounted', function () {
+            syncGalleryNavigation(0);
+        });
+        slider.on('move', syncGalleryNavigation);
         slider.mount();
+
+        galleryNavigation.forEach(function (button) {
+            button.addEventListener('click', function () {
+                const index = Number.parseInt(String(button.dataset.galleryNav || '0'), 10);
+                slider.go(Number.isNaN(index) ? 0 : index);
+            });
+        });
     }
 
     const normalizeGalleryUrl = function (value) {
@@ -121,27 +143,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const LIGHTGALLERY_MAX_SCALE = 4;
     const LIGHTGALLERY_SCALE_STEP = 0.25;
 
-    const ensureLightGalleryStyles = function () {
-        if (document.querySelector('[data-product-lightgallery-style="1"]')) {
-            return;
-        }
-
-        const style = document.createElement('style');
-        style.setAttribute('data-product-lightgallery-style', '1');
-        style.textContent = [
-            '.lg-backdrop{z-index:12000!important;}',
-            '.lg-container,.lg-outer{z-index:12001!important;}',
-            '.product-lightgallery-zoom{position:fixed;top:calc(env(safe-area-inset-top,0px) + 4.5rem);right:1rem;z-index:12002;display:flex;flex-direction:column;gap:.65rem;}',
-            '.product-lightgallery-zoom__btn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:1px solid rgba(255,255,255,.28);background:rgba(15,23,42,.82);color:#fff;border-radius:0;box-shadow:0 10px 24px rgba(15,23,42,.22);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:opacity .2s ease,transform .2s ease;}',
-            '.product-lightgallery-zoom__btn:hover{opacity:1;transform:translateY(-1px);}',
-            '.product-lightgallery-zoom__btn[disabled]{opacity:.38;cursor:not-allowed;transform:none;}',
-            '.product-lightgallery-zoom__btn svg{display:block;width:20px;height:20px;}',
-            '.lg-current .lg-object,.lg-current .lg-image,.lg-current img{transform-origin:center center;transition:transform .2s ease;}',
-            '@media (max-width:768px){.product-lightgallery-zoom{top:calc(env(safe-area-inset-top,0px) + 4rem);right:.9rem;gap:.55rem;}.product-lightgallery-zoom__btn{width:40px;height:40px;}.product-lightgallery-zoom__btn svg{width:18px;height:18px;}}',
-        ].join('');
-
-        document.head.appendChild(style);
-    };
+    const ensureLightGalleryStyles = function () {};
 
     const clampLightGalleryScale = function (value) {
         return Math.min(LIGHTGALLERY_MAX_SCALE, Math.max(LIGHTGALLERY_MIN_SCALE, value));
@@ -632,11 +634,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const wrapper = document.createElement('div');
-        wrapper.className = 'fixed inset-0 hidden items-center justify-center p-4';
-        wrapper.style.zIndex = '9999';
+        wrapper.className = 'product-cart-modal fixed inset-0 hidden items-center justify-center p-4';
         wrapper.innerHTML = [
-            '<div class="fixed inset-0" style="z-index: 1; background: rgba(0, 0, 0, 0.6);"></div>',
-            '<div class="relative w-full border border-slate-300 bg-white p-4 shadow-2xl" style="z-index: 2; max-width: 460px;">',
+            '<div class="product-cart-modal-backdrop fixed inset-0"></div>',
+            '<div class="product-cart-modal-panel relative w-full border border-slate-300 bg-white p-4 shadow-2xl">',
             '  <div class="flex gap-4">',
             '    <img src="" alt="" class="h-28 w-20 border border-slate-200 object-cover" data-cart-modal-image>',
             '    <div class="min-w-0 flex-1">',

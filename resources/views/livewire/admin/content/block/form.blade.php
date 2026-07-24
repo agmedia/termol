@@ -164,10 +164,16 @@
                     </div>
                 </div>
 
-                @if (($form['type'] ?? '') === 'five_star_reviews_carousel' || ($form['type'] ?? '') === 'blogs_carousel')
+                @if (in_array(($form['type'] ?? ''), ['five_star_reviews_carousel', 'blogs_carousel', 'category_products_carousel'], true))
                     <div class="mt-3">
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                            {{ ($form['type'] ?? '') === 'blogs_carousel' ? __('Number of blog posts to show') : __('Number of comments to show') }}
+                            @if (($form['type'] ?? '') === 'blogs_carousel')
+                                {{ __('Number of blog posts to show') }}
+                            @elseif (($form['type'] ?? '') === 'category_products_carousel')
+                                {{ __('Number of products to show') }}
+                            @else
+                                {{ __('Number of comments to show') }}
+                            @endif
                         </label>
                         <input type="number" min="1" max="50" wire:model="form.items_limit" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm md:max-w-[220px]" />
                         @error('form.items_limit') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
@@ -180,7 +186,7 @@
                                     <option value="featured">{{ __('Featured only') }}</option>
                                 </select>
                             </div>
-                        @else
+                        @elseif (($form['type'] ?? '') === 'five_star_reviews_carousel')
                             <label class="inline-flex items-center gap-2">
                                 <input type="checkbox" wire:model="form.reviews_featured_only" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0">
                                 <span class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">{{ __('Featured comments only') }}</span>
@@ -267,8 +273,12 @@
 
         @if ($this->isItemBlock)
             <div class="admin-panel admin-form-panel p-6">
-                <p class="admin-section-title">{{ __('Selected Items') }}</p>
-                <p class="mt-1 text-xs text-slate-500">{{ __('Choose items and order them. No JSON IDs needed.') }}</p>
+                <p class="admin-section-title">
+                    {{ ($form['type'] ?? '') === 'category_products_carousel' ? __('Source category') : __('Selected Items') }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                    {{ ($form['type'] ?? '') === 'category_products_carousel' ? __('Choose one category. Products are loaded automatically from it and its subcategories.') : __('Choose items and order them. No JSON IDs needed.') }}
+                </p>
 
                 <div class="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                     <div>

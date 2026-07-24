@@ -18,7 +18,7 @@
 
         const setValue = function (value) {
             const numeric = Number.parseInt(String(value), 10);
-            const clamped = Number.isNaN(numeric) ? 1 : Math.min(99, Math.max(1, numeric));
+            const clamped = Number.isNaN(numeric) ? 1 : Math.min(9999, Math.max(1, numeric));
             input.value = String(clamped);
             if ('value' in valueEl) {
                 valueEl.value = String(clamped);

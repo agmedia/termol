@@ -11,6 +11,10 @@ class NavigationMenuService
 {
     public const SETTINGS_KEY = 'front_navigation_main';
 
+    public const APPEARANCE_SETTINGS_KEY = 'front_navigation_appearance';
+
+    public const TOP_BAR_SETTINGS_KEY = 'front_navigation_top_bar';
+
     /**
      * @var array<string, array<int, array<string, mixed>>>
      */
@@ -94,6 +98,18 @@ class NavigationMenuService
                 if ($category instanceof Category) {
                     $entry = $this->resolveCategoryItem($category, $item, $childrenByParentId, $locale, $fallbackLocale);
                 }
+            } elseif ($type === 'catalog') {
+                $entry = [
+                    'key' => 'catalog-'.$index,
+                    'type' => 'catalog',
+                    'label' => $this->labelForItem($item, 'Proizvodi', $locale, $fallbackLocale),
+                    'url' => $this->urlForItem($item, $locale, $fallbackLocale) ?: route('categories.index'),
+                    'children' => (bool) ($item['show_dropdown'] ?? true)
+                        ? $this->buildCategoryChildren(0, $childrenByParentId, $locale, $fallbackLocale)
+                        : [],
+                    'open_in_new_tab' => false,
+                    'mega_promo' => $this->resolveMegaPromo($item, $locale, $fallbackLocale),
+                ];
             } elseif ($type === 'page') {
                 $pageId = (int) ($item['page_id'] ?? 0);
                 $page = $pageId > 0 ? $pagesById->get($pageId) : null;
@@ -168,6 +184,7 @@ class NavigationMenuService
             }
 
             if (is_array($entry) && trim((string) ($entry['url'] ?? '')) !== '') {
+                $entry['is_highlighted'] = (bool) ($item['is_highlighted'] ?? false);
                 $resolved[] = $entry;
             }
         }
@@ -247,6 +264,7 @@ class NavigationMenuService
                 'url_translations' => $urlTranslations,
                 'open_in_new_tab' => (bool) ($item['open_in_new_tab'] ?? false),
                 'show_dropdown' => (bool) ($item['show_dropdown'] ?? true),
+                'is_highlighted' => (bool) ($item['is_highlighted'] ?? false),
                 'is_active' => (bool) ($item['is_active'] ?? true),
                 'sort_order' => (int) ($item['sort_order'] ?? $index),
                 'desktop_promo_image_path' => trim((string) ($item['desktop_promo_image_path'] ?? ($item['desktop_promo_image_url'] ?? ''))),
@@ -262,6 +280,90 @@ class NavigationMenuService
         }
 
         return $items;
+    }
+
+    /**
+     * @return array{container_width:int,header_content_width:int,item_height:int,font_size:int,logo_height:int,background_color:string,text_color:string,highlight_color:string}
+     */
+    public function appearance(): array
+    {
+        $raw = $this->settings->get(self::APPEARANCE_SETTINGS_KEY, []);
+        $raw = is_array($raw) ? $raw : [];
+        $containerWidth = max(960, min(1920, (int) ($raw['container_width'] ?? 1860)));
+
+        return [
+            'container_width' => $containerWidth,
+            'header_content_width' => max(960, min($containerWidth, (int) ($raw['header_content_width'] ?? 1400))),
+            'item_height' => max(44, min(84, (int) ($raw['item_height'] ?? 62))),
+            'font_size' => max(13, min(20, (int) ($raw['font_size'] ?? 17))),
+            'logo_height' => max(48, min(82, (int) ($raw['logo_height'] ?? 70))),
+            'background_color' => $this->normalizeHexColor($raw['background_color'] ?? null, '#e65100'),
+            'text_color' => $this->normalizeHexColor($raw['text_color'] ?? null, '#ffffff'),
+            'highlight_color' => $this->normalizeHexColor($raw['highlight_color'] ?? null, '#ffffff'),
+        ];
+    }
+
+    /**
+     * @return array{
+     *     is_enabled:bool,
+     *     height:int,
+     *     font_size:int,
+     *     background_color:string,
+     *     text_color:string,
+     *     border_color:string,
+     *     links:array<int, array{label:string,url:string,open_in_new_tab:bool,is_active:bool,sort_order:int}>,
+     *     socials:array<int, array{network:string,url:string,is_active:bool,sort_order:int}>
+     * }
+     */
+    public function topBar(): array
+    {
+        $raw = $this->settings->get(self::TOP_BAR_SETTINGS_KEY, []);
+        $raw = is_array($raw) ? $raw : [];
+
+        $links = collect(is_array($raw['links'] ?? null) ? $raw['links'] : [])
+            ->filter(fn ($item): bool => is_array($item))
+            ->map(function (array $item, int $index): array {
+                return [
+                    'label' => trim((string) ($item['label'] ?? '')),
+                    'url' => trim((string) ($item['url'] ?? '')),
+                    'open_in_new_tab' => (bool) ($item['open_in_new_tab'] ?? false),
+                    'is_active' => (bool) ($item['is_active'] ?? true),
+                    'sort_order' => (int) ($item['sort_order'] ?? $index),
+                ];
+            })
+            ->filter(fn (array $item): bool => $item['label'] !== '' && $item['url'] !== '')
+            ->sortBy('sort_order')
+            ->values()
+            ->all();
+
+        $allowedSocialNetworks = ['facebook', 'youtube', 'instagram'];
+        $socials = collect(is_array($raw['socials'] ?? null) ? $raw['socials'] : [])
+            ->filter(fn ($item): bool => is_array($item))
+            ->map(function (array $item, int $index) use ($allowedSocialNetworks): array {
+                $network = strtolower(trim((string) ($item['network'] ?? '')));
+
+                return [
+                    'network' => in_array($network, $allowedSocialNetworks, true) ? $network : 'facebook',
+                    'url' => trim((string) ($item['url'] ?? '')),
+                    'is_active' => (bool) ($item['is_active'] ?? true),
+                    'sort_order' => (int) ($item['sort_order'] ?? $index),
+                ];
+            })
+            ->filter(fn (array $item): bool => $item['url'] !== '')
+            ->sortBy('sort_order')
+            ->values()
+            ->all();
+
+        return [
+            'is_enabled' => (bool) ($raw['is_enabled'] ?? true),
+            'height' => max(28, min(50, (int) ($raw['height'] ?? 34))),
+            'font_size' => max(11, min(16, (int) ($raw['font_size'] ?? 13))),
+            'background_color' => $this->normalizeHexColor($raw['background_color'] ?? null, '#eeeeee'),
+            'text_color' => $this->normalizeHexColor($raw['text_color'] ?? null, '#334155'),
+            'border_color' => $this->normalizeHexColor($raw['border_color'] ?? null, '#4c1d95'),
+            'links' => $links,
+            'socials' => $socials,
+        ];
     }
 
     /**
@@ -349,6 +451,7 @@ class NavigationMenuService
     {
         $children = [];
         $childrenRows = $childrenByParentId->get($parentId, collect())
+            ->filter(fn (Category $category): bool => (bool) $category->show_in_menu)
             ->sortBy(fn (Category $category): array => [(int) $category->sort_order, (int) $category->id])
             ->values();
 
@@ -423,6 +526,13 @@ class NavigationMenuService
         }
 
         return $normalized;
+    }
+
+    private function normalizeHexColor(mixed $value, string $fallback): string
+    {
+        $color = strtolower(trim((string) $value));
+
+        return preg_match('/^#[0-9a-f]{6}$/', $color) === 1 ? $color : $fallback;
     }
 
     /**

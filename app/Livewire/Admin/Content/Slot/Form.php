@@ -30,12 +30,24 @@ class Form extends Component
         'custom' => 'Custom',
     ];
 
+    /**
+     * @var array<string, string>
+     */
+    public array $frontendVariants = [
+        'all' => 'All Devices',
+        'desktop' => 'Desktop Only',
+        'mobile' => 'Mobile Only',
+    ];
+
     public function mount(?int $slotId = null): void
     {
         /** @var array<string, string> $placements */
         $placements = config('content_blocks.placements', []);
         $this->placements = $placements;
         $this->targetTypes = collect($this->targetTypes)
+            ->map(static fn ($label) => __((string) $label))
+            ->all();
+        $this->frontendVariants = collect($this->frontendVariants)
             ->map(static fn ($label) => __((string) $label))
             ->all();
 
@@ -80,6 +92,7 @@ class Form extends Component
         $data = [
             'content_block_id' => (int) $validated['form']['content_block_id'],
             'placement' => $validated['form']['placement'],
+            'frontend_variant' => (string) ($validated['form']['frontend_variant'] ?? 'all'),
             'target_type' => $validated['form']['target_type'] ?: null,
             'sort_order' => (int) $validated['form']['sort_order'],
             'is_active' => (bool) $validated['form']['is_active'],
@@ -100,6 +113,7 @@ class Form extends Component
                 $exists = ContentBlockSlot::query()
                     ->where('content_block_id', $slot->content_block_id)
                     ->where('placement', $slot->placement)
+                    ->where('frontend_variant', $slot->frontend_variant)
                     ->where('target_type', $slot->target_type)
                     ->where('target_ref', $extraRef)
                     ->exists();
@@ -190,6 +204,7 @@ class Form extends Component
         return [
             'form.content_block_id' => ['required', Rule::exists('content_blocks', 'id')],
             'form.placement' => ['required', 'string', 'max:120'],
+            'form.frontend_variant' => ['required', Rule::in(['all', 'desktop', 'mobile'])],
             'form.target_type' => ['nullable', 'string', 'max:80'],
             'form.target_ref' => ['nullable', 'string', 'max:2000'],
             'form.sort_order' => ['nullable', 'integer', 'min:0'],
@@ -204,6 +219,7 @@ class Form extends Component
         $this->form = [
             'content_block_id' => null,
             'placement' => array_key_first($this->placements) ?: 'home.hero',
+            'frontend_variant' => 'all',
             'target_type' => '',
             'target_ref' => '',
             'sort_order' => 0,
@@ -223,6 +239,7 @@ class Form extends Component
 
         $this->form['content_block_id'] = $slot->content_block_id;
         $this->form['placement'] = $slot->placement;
+        $this->form['frontend_variant'] = $slot->frontend_variant ?? 'all';
         $this->form['target_type'] = $slot->target_type ?? '';
         $this->form['target_ref'] = $slot->target_ref ?? '';
         $this->form['sort_order'] = (int) $slot->sort_order;

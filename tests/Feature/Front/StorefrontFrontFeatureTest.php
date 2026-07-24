@@ -58,7 +58,7 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->get('/categories')->assertOk();
         $this->get('/category/'.$categorySlug)->assertOk();
         $this->get('/product/'.$productSlug)->assertOk();
-        $this->get('/manufacturers')->assertOk();
+        $this->get('/brendovi')->assertOk();
         $this->get('/manufacturer/'.$manufacturerSlug)->assertOk();
         $this->get('/blog')->assertOk();
         $this->get('/blog/'.$postSlug)->assertOk();
@@ -136,9 +136,36 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Spring promo')
             ->assertSee('store-announcement-bar is-scrolling', false)
-            ->assertSee('style="background-color: #123456; color: #abcdef; --store-announcement-duration: 24s;"', false)
-            ->assertSee('animation: store-announcement-marquee var(--store-announcement-duration, 18s) linear infinite;', false)
-            ->assertSee('@keyframes store-announcement-marquee', false);
+            ->assertSee(route('front.storefront.styles'), false)
+            ->assertDontSee('style="background-color: #123456', false);
+
+        $this->get('/storefront-settings.css')
+            ->assertOk()
+            ->assertSee('--store-announcement-background-color:#123456', false)
+            ->assertSee('--store-announcement-text-color:#abcdef', false)
+            ->assertSee('--store-announcement-duration:24s', false);
+    }
+
+    public function test_desktop_benefits_bar_uses_admin_text_and_renders_bold_markers_safely(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'store_benefits_bar_enabled' => true,
+            'store_benefits_bar_item_1' => 'Više od **50 000 proizvoda** u ponudi',
+            'store_benefits_bar_item_2' => 'Plaćanje karticama do **12 rata bez naknada**',
+            'store_benefits_bar_item_3' => '**Dostava** u roku **3-5 radnih dana**',
+        ]);
+
+        $this
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            ])
+            ->get('/')
+            ->assertOk()
+            ->assertSee('store-benefits-bar', false)
+            ->assertSee('<strong>50 000 proizvoda</strong>', false)
+            ->assertSee('<strong>12 rata bez naknada</strong>', false)
+            ->assertSee('<strong>Dostava</strong>', false)
+            ->assertSee('<strong>3-5 radnih dana</strong>', false);
     }
 
     public function test_contact_form_stores_message(): void
@@ -496,8 +523,83 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertJsonPath('items.0.has_discount', true);
     }
 
+    public function test_search_autocomplete_returns_configured_result_groups_limits_and_product_details(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        app(SystemSettingsService::class)->putMany([
+            'store_search_autocomplete_enabled' => true,
+            'store_search_autocomplete_products_enabled' => true,
+            'store_search_autocomplete_categories_enabled' => true,
+            'store_search_autocomplete_manufacturers_enabled' => true,
+            'store_search_autocomplete_blog_enabled' => true,
+            'store_search_autocomplete_products_limit' => 1,
+            'store_search_autocomplete_categories_limit' => 1,
+            'store_search_autocomplete_manufacturers_limit' => 1,
+            'store_search_autocomplete_blog_limit' => 1,
+            'store_search_autocomplete_show_product_image' => false,
+            'store_search_autocomplete_show_product_brand' => true,
+            'store_search_autocomplete_show_product_sku' => false,
+            'store_search_autocomplete_show_product_price' => false,
+            'catalog_use_manufacturers' => true,
+            'catalog_use_blog' => true,
+        ]);
+
+        [$category, $categorySlug] = $this->seedCategory();
+        $category->translations()->where('locale', 'en')->update(['name' => 'Searchable Category One']);
+        [$secondCategory] = $this->seedCategory();
+        $secondCategory->translations()->where('locale', 'en')->update(['name' => 'Searchable Category Two']);
+
+        [$product] = $this->seedProduct($category->id);
+        $product->translations()->where('locale', 'en')->update(['name' => 'Searchable Product One']);
+        [$secondProduct] = $this->seedProduct($category->id);
+        $secondProduct->translations()->where('locale', 'en')->update(['name' => 'Searchable Product Two']);
+
+        [$manufacturer, $manufacturerSlug] = $this->seedManufacturer();
+        $manufacturer->translations()->where('locale', 'en')->update(['name' => 'Searchable Brand']);
+        $product->update(['manufacturer_id' => $manufacturer->id]);
+        $secondProduct->update(['manufacturer_id' => $manufacturer->id]);
+
+        [$post, $postSlug] = $this->seedBlogPost();
+        $post->translations()->where('locale', 'en')->update(['title' => 'Searchable Blog Story']);
+
+        $response = $this->getJson('/search/autocomplete?q=Searchable');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('total', 6)
+            ->assertJsonCount(1, 'groups.products.items')
+            ->assertJsonPath('groups.products.total', 2)
+            ->assertJsonPath('groups.products.items.0.brand', 'Searchable Brand')
+            ->assertJsonPath('groups.products.items.0.sku', null)
+            ->assertJsonPath('groups.products.items.0.image_url', null)
+            ->assertJsonPath('groups.products.items.0.price', null)
+            ->assertJsonCount(1, 'groups.categories.items')
+            ->assertJsonPath('groups.categories.total', 2)
+            ->assertJsonPath('groups.categories.items.0.url', route('categories.show', ['slug' => $categorySlug]))
+            ->assertJsonCount(1, 'groups.manufacturers.items')
+            ->assertJsonPath('groups.manufacturers.items.0.url', route('manufacturers.show', ['slug' => $manufacturerSlug]))
+            ->assertJsonCount(1, 'groups.blog.items')
+            ->assertJsonPath('groups.blog.items.0.url', route('blog.show', ['slug' => $postSlug]));
+
+        app(SystemSettingsService::class)->putMany([
+            'store_search_autocomplete_categories_enabled' => false,
+            'store_search_autocomplete_show_product_brand' => false,
+        ]);
+
+        $this->getJson('/search/autocomplete?q=Searchable')
+            ->assertOk()
+            ->assertJsonPath('total', 4)
+            ->assertJsonPath('groups.products.items.0.brand', null)
+            ->assertJsonPath('groups.categories.total', 0)
+            ->assertJsonCount(0, 'groups.categories.items');
+
+        $this->assertNotNull($secondProduct);
+    }
+
     public function test_home_renders_configured_navigation_with_subcategories(): void
     {
+        $this->useEnglishStorefrontLocale();
+
         [$parent, $parentSlug] = $this->seedCategory();
 
         $child = Category::query()->create([
@@ -537,6 +639,56 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('Hrana i namirnice')
             ->assertSee('Child menu category')
             ->assertSee('/category/'.$parentSlug, false);
+    }
+
+    public function test_catalog_navigation_renders_five_column_cascading_mega_menu(): void
+    {
+        $this->useEnglishStorefrontLocale();
+
+        $parentId = null;
+        foreach (range(1, 5) as $depth) {
+            $category = Category::query()->create([
+                'scope' => Category::SCOPE_CATALOG,
+                'code' => 'mega-level-'.$depth,
+                'is_active' => true,
+                'show_in_menu' => true,
+                'sort_order' => $depth,
+                'parent_id' => $parentId,
+            ]);
+
+            CategoryTranslation::query()->create([
+                'category_id' => $category->id,
+                'scope' => Category::SCOPE_CATALOG,
+                'locale' => 'en',
+                'name' => 'Mega category level '.$depth,
+                'slug' => 'mega-category-level-'.$depth,
+                'description' => '',
+            ]);
+
+            $parentId = $category->id;
+        }
+
+        app(SystemSettingsService::class)->put(NavigationMenuService::SETTINGS_KEY, [[
+            'type' => 'catalog',
+            'label_translations' => ['en' => 'Products'],
+            'url_translations' => ['en' => '/categories'],
+            'show_dropdown' => true,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]]);
+
+        $this
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            ])
+            ->get('/')
+            ->assertOk()
+            ->assertSee('data-catalog-mega', false)
+            ->assertSee('data-catalog-mega-max-columns="5"', false)
+            ->assertSee('class="catalog-mega-columns catalog-mega-columns-5"', false)
+            ->assertSee('data-catalog-mega-column="4"', false)
+            ->assertSee('Mega category level 1')
+            ->assertSee('Mega category level 5');
     }
 
     public function test_home_renders_instagram_curated_grid_block(): void
@@ -1610,7 +1762,14 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('data-size-label="S"', false)
             ->assertDontSee('data-size-label="L"', false)
-            ->assertSee('color: #ffffff !important;', false);
+            ->assertSee('front-theme/styles/product-detail.css', false)
+            ->assertSee('product-detail-breadcrumb', false)
+            ->assertSee('data-product-detail-lower', false)
+            ->assertSee('product-detail-quantity-control', false)
+            ->assertSee('class="product-information-panel" open', false)
+            ->assertSee('solid.svg#bag-shopping', false)
+            ->assertDontSee('<style', false)
+            ->assertDontSee(' style=', false);
     }
 
     public function test_product_detail_exposes_option_price_overrides_for_live_price_updates(): void
@@ -1693,7 +1852,7 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertJsonPath('message', 'Product option is unavailable or out of stock.');
     }
 
-    public function test_product_detail_renders_attribute_panels_in_requested_order_without_store_check_button(): void
+    public function test_product_detail_renders_active_attribute_panels_in_requested_order_without_store_check_button(): void
     {
         $this->useEnglishStorefrontLocale();
         [$category] = $this->seedCategory();
@@ -1711,8 +1870,62 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('100% cotton')
             ->assertSee('Premium stitching')
             ->assertSee('2 year guarantee')
-            ->assertDontSee('Origin Label')
-            ->assertDontSee('Croatia');
+            ->assertSee('Origin Label')
+            ->assertSee('Croatia')
+            ->assertSeeInOrder(['Composition Label', 'Quality Label', 'Guarantee Label', 'Origin Label']);
+    }
+
+    public function test_product_detail_shows_only_admin_enabled_shipping_and_payment_methods(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [, $slug] = $this->seedProduct($category->id);
+
+        ShippingMethod::query()->create([
+            'code' => 'product-page-active-shipping',
+            'name' => 'Enabled product page shipping',
+            'description' => 'Visible delivery description.',
+            'price' => 4.99,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        ShippingMethod::query()->create([
+            'code' => 'product-page-disabled-shipping',
+            'name' => 'Disabled product page shipping',
+            'price' => 9.99,
+            'is_active' => false,
+            'sort_order' => 2,
+        ]);
+        PaymentMethod::query()->create([
+            'code' => 'product-page-active-payment',
+            'name' => 'Enabled product page payment',
+            'provider' => 'bank',
+            'description' => 'Visible payment description.',
+            'fee_type' => 'fixed',
+            'fee_value' => 0,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        PaymentMethod::query()->create([
+            'code' => 'product-page-disabled-payment',
+            'name' => 'Disabled product page payment',
+            'provider' => 'bank',
+            'fee_type' => 'fixed',
+            'fee_value' => 0,
+            'is_active' => false,
+            'sort_order' => 2,
+        ]);
+
+        $this->get('/product/'.$slug)
+            ->assertOk()
+            ->assertSee('data-product-purchase-information', false)
+            ->assertSee('Basic information')
+            ->assertSee('Enabled product page shipping')
+            ->assertSee('Visible delivery description.')
+            ->assertDontSee('Disabled product page shipping')
+            ->assertSee('Enabled product page payment')
+            ->assertSee('Visible payment description.')
+            ->assertDontSee('Disabled product page payment');
     }
 
     public function test_product_detail_renders_material_feature_labels_under_icons(): void
@@ -1886,6 +2099,23 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('data-price-filter-root', false)
             ->assertDontSee($cheapSlug)
             ->assertSee($expensiveSlug);
+    }
+
+    public function test_category_page_available_only_filter_hides_products_without_stock(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category, $categorySlug] = $this->seedCategory();
+        [$availableProduct, $availableSlug] = $this->seedProduct($category->id);
+        [$unavailableProduct, $unavailableSlug] = $this->seedProduct($category->id);
+
+        $availableProduct->update(['stock_qty' => 3]);
+        $unavailableProduct->update(['stock_qty' => 0]);
+
+        $this->get('/category/'.$categorySlug.'?available_only=1')
+            ->assertOk()
+            ->assertSee('name="available_only"', false)
+            ->assertSee($availableSlug)
+            ->assertDontSee($unavailableSlug);
     }
 
     public function test_category_page_promo_only_filter_shows_only_products_with_active_sale_action(): void
