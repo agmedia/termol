@@ -1,7 +1,12 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('contact.page_title'))
-@section('main_class', 'mx-auto w-full max-w-7xl px-6 pt-0 pb-8')
+@section('body_class', 'commerce-body contact-commerce-body')
+@section('main_class', 'commerce-main')
+
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
     @php
@@ -9,28 +14,16 @@
         $captchaEnabled = (bool) ($storeSettings['captcha']['recaptcha_v3_enabled'] ?? false) && $captchaSiteKey !== '';
     @endphp
 
-    <section class="mb-8 px-1">
-        <div class="front-soft-hero px-6 py-4 text-center sm:px-8 sm:py-5">
-            <nav aria-label="Breadcrumb" class="mb-2">
-                <ol class="flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-500 sm:gap-2">
-                    <li>
-                        <a href="{{ route('home') }}" class="inline-flex items-center justify-center text-slate-500 hover:text-slate-700">{{ __('ui.front.desktop.footer.home') }}</a>
-                    </li>
-                    <li class="text-slate-400">/</li>
-                    <li class="text-slate-700">{{ __('contact.page_title') }}</li>
-                </ol>
-            </nav>
-            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{{ __('contact.eyebrow') }}</p>
-            <h1 class="mt-1 text-2xl font-extrabold uppercase tracking-tight text-slate-900">{{ __('contact.heading') }}</h1>
-            <p class="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{{ __('contact.subheading') }}</p>
-        </div>
+    <section class="commerce-hero">
+        <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('contact.heading') }}</h1>
+        <p class="mt-2 text-slate-600">{{ __('contact.subheading') }}</p>
     </section>
 
-    <section class="grid gap-6 lg:grid-cols-[1fr_340px]">
+    <section class="contact-layout">
         <form
             method="POST"
             action="{{ route('contact.store') }}"
-            class="border border-slate-200 bg-white p-6 sm:p-8"
+            class="contact-form-card border border-slate-200 p-6 sm:p-8"
             novalidate
             data-contact-form
             data-msg-name-required="{{ __('contact.validation.inline.name_required') }}"
@@ -83,7 +76,7 @@
                 <p class="mt-2 text-xs font-semibold text-rose-600 {{ $errors->has('accept_terms') ? '' : 'hidden' }}" data-field-error="accept_terms">@error('accept_terms'){{ $message }}@enderror</p>
             </div>
 
-            <button type="submit" class="mt-6 inline-flex h-11 items-center justify-center border border-slate-900 bg-slate-900 px-6 text-sm font-semibold text-white transition hover:bg-slate-700">
+            <button type="submit" class="commerce-primary-action mt-6 px-6 py-3">
                 {{ __('contact.form.submit') }}
             </button>
             <p class="mt-2 text-xs font-semibold text-rose-600 {{ $errors->has('recaptcha_token') ? '' : 'hidden' }}" data-field-error="recaptcha_token">@error('recaptcha_token'){{ $message }}@enderror</p>

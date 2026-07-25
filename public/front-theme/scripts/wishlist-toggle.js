@@ -11,8 +11,9 @@
     const syncWishlistVisibility = function (count) {
         const hasItems = count > 0;
         wishlistLinks.forEach(function (link) {
-            link.classList.toggle('hidden', !hasItems);
-            link.style.display = hasItems ? 'inline-flex' : 'none';
+            const shouldShow = hasItems || link.hasAttribute('data-wishlist-always-visible');
+            link.classList.toggle('hidden', !shouldShow);
+            link.style.display = shouldShow ? 'inline-flex' : 'none';
         });
     };
 
@@ -21,6 +22,8 @@
         syncWishlistVisibility(safeCount);
         countNodes.forEach(function (node) {
             node.textContent = String(safeCount);
+            node.classList.toggle('hidden', safeCount === 0);
+            node.classList.toggle('inline-flex', safeCount > 0);
         });
     };
 

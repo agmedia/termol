@@ -3,6 +3,11 @@
 @section('title', __('return_request.page_title'))
 @section('header_title', __('return_request.page_title'))
 @section('page_title', __('return_request.heading'))
+@section('body_class', 'mobile-commerce-body mobile-returns-commerce-body')
+
+@push('head')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
     @php
@@ -10,7 +15,7 @@
         $captchaEnabled = (bool) ($storeSettings['captcha']['recaptcha_v3_enabled'] ?? false) && $captchaSiteKey !== '';
     @endphp
 
-    <div class="card card-style rounded-0 bg-white border border-gray-light">
+    <div class="returns-mobile-header card card-style bg-white">
         <div class="content">
             <p class="font-12 color-highlight mb-n1">{{ __('return_request.eyebrow') }}</p>
             <h2 class="mb-2">{{ __('return_request.heading') }}</h2>
@@ -18,7 +23,7 @@
         </div>
     </div>
 
-    <div class="card card-style rounded-0">
+    <div class="returns-mobile-form card card-style">
         <div class="content">
             <form
                 method="POST"
@@ -37,13 +42,13 @@
 
                 <div class="input-style has-borders no-icon input-style-always-active mb-3">
                     <label for="return-email" class="color-highlight">{{ __('return_request.form.email') }}</label>
-                    <input id="return-email" type="email" name="email" value="{{ old('email', auth()->user()?->email) }}" required>
+                    <input id="return-email" type="email" name="email" value="{{ old('email', auth()->user()?->email) }}" autocomplete="email" required>
                     <p class="font-11 color-red-dark mb-0 mt-1 {{ $errors->has('email') ? '' : 'hidden' }}" data-field-error="email">@error('email'){{ $message }}@enderror</p>
                 </div>
 
                 <div class="input-style has-borders no-icon input-style-always-active mb-3">
                     <label for="return-order-number" class="color-highlight">{{ __('return_request.form.order_number') }}</label>
-                    <input id="return-order-number" type="text" name="order_number" value="{{ old('order_number') }}" required>
+                    <input id="return-order-number" type="text" name="order_number" value="{{ old('order_number') }}" autocomplete="off" required>
                     <p class="font-11 color-red-dark mb-0 mt-1 {{ $errors->has('order_number') ? '' : 'hidden' }}" data-field-error="order_number">@error('order_number'){{ $message }}@enderror</p>
                 </div>
 
@@ -59,7 +64,7 @@
                     <p class="font-11 color-red-dark mb-0 mt-1 {{ $errors->has('note') ? '' : 'hidden' }}" data-field-error="note">@error('note'){{ $message }}@enderror</p>
                 </div>
 
-                <button type="submit" class="btn btn-full btn-border border-dark-dark color-dark-dark font-600">{{ __('return_request.form.submit') }}</button>
+                <button type="submit" class="commerce-primary-action btn btn-full font-600">{{ __('return_request.form.submit') }}</button>
                 <p class="font-11 color-red-dark mb-2 mt-1 {{ $errors->has('recaptcha_token') ? '' : 'hidden' }}" data-field-error="recaptcha_token">@error('recaptcha_token'){{ $message }}@enderror</p>
             </form>
         </div>
@@ -87,6 +92,8 @@
                 forms.forEach(function (form) {
                     const clearError = function (field) {
                         const errorNode = form.querySelector('[data-field-error="' + field + '"]');
+                        const fieldNode = form.querySelector('[name="' + field + '"]');
+                        fieldNode?.removeAttribute('aria-invalid');
                         if (!errorNode) {
                             return;
                         }
@@ -97,6 +104,8 @@
 
                     const setError = function (field, message) {
                         const errorNode = form.querySelector('[data-field-error="' + field + '"]');
+                        const fieldNode = form.querySelector('[name="' + field + '"]');
+                        fieldNode?.setAttribute('aria-invalid', 'true');
                         if (!errorNode) {
                             return;
                         }
@@ -151,6 +160,7 @@
                     form.addEventListener('submit', function (event) {
                         event.preventDefault();
                         if (!validate()) {
+                            form.querySelector('[aria-invalid="true"]')?.focus();
                             return;
                         }
 

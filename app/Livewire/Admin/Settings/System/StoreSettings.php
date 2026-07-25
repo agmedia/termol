@@ -30,6 +30,8 @@ class StoreSettings extends Component
     /** @var array<int, string> */
     private const LOCALIZED_SETTING_KEYS = [
         'store_footer_hours',
+        'store_footer_contact_title',
+        'store_footer_contact_intro',
         'store_footer_col_1_title',
         'store_footer_col_1_custom_links',
         'store_footer_col_2_title',
@@ -87,6 +89,8 @@ class StoreSettings extends Component
         'store_footer_email_sales' => '',
         'store_footer_email_support' => '',
         'store_footer_hours' => '',
+        'store_footer_contact_title' => '',
+        'store_footer_contact_intro' => '',
         'store_footer_col_1_title' => '',
         'store_footer_col_1_category_ids' => [],
         'store_footer_col_1_page_ids' => [],
@@ -364,6 +368,8 @@ class StoreSettings extends Component
             'form.store_footer_email_sales' => ['nullable', 'email', 'max:191'],
             'form.store_footer_email_support' => ['nullable', 'email', 'max:191'],
             'form.store_footer_hours' => ['nullable', 'string', 'max:255'],
+            'form.store_footer_contact_title' => ['nullable', 'string', 'max:120'],
+            'form.store_footer_contact_intro' => ['nullable', 'string', 'max:255'],
             'form.store_footer_col_1_title' => ['nullable', 'string', 'max:120'],
             'form.store_footer_col_1_category_ids' => ['nullable', 'array'],
             'form.store_footer_col_1_category_ids.*' => ['integer', Rule::exists('categories', 'id')->where(fn ($q) => $q->where('scope', Category::SCOPE_CATALOG))],

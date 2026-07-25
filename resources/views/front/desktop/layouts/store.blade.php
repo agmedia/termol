@@ -116,7 +116,7 @@
 
     <div class="site-main-header-shell bg-white">
         <div class="site-main-header-row storefront-header-container relative mx-auto flex h-[60px] w-full items-stretch justify-between px-2 sm:px-4 lg:px-0">
-            <a href="{{ route('home') }}" class="inline-flex h-full shrink-0 items-center pr-4 text-2xl font-black tracking-tight text-slate-900 sm:text-4xl lg:w-[230px] lg:px-6">
+            <a href="{{ route('home') }}" class="responsive-header-brand inline-flex h-full shrink-0 items-center pr-4 text-2xl font-black tracking-tight text-slate-900 sm:text-4xl lg:w-[230px] lg:px-6">
                 @if ($storeBrandLogoUrl !== '')
                     <img src="{{ $storeBrandLogoUrl }}" alt="{{ $storeBrandName }}" class="site-main-logo h-10 w-auto object-contain" width="176" height="44" data-store-brand-logo>
                 @else
@@ -124,7 +124,7 @@
                 @endif
             </a>
 
-            <div class="header-search-panel-shell" data-header-search-panel>
+            <div class="header-search-panel-shell" data-header-search-panel data-header-search-persistent>
                 <form
                     method="GET"
                     action="{{ route('shop.index') }}"
@@ -166,6 +166,9 @@
                     </button>
                     <div class="header-search-suggestions" data-header-search-suggestions hidden>
                         <div class="header-search-suggestions-meta" data-header-search-suggestions-meta></div>
+                        <button type="button" class="header-search-suggestions-close" aria-label="{{ __('Zatvori rezultate pretrage') }}" data-header-search-suggestions-close>
+                            <x-fa-icon name="xmark" />
+                        </button>
                         <div class="header-search-suggestions-loading" data-header-search-loading hidden></div>
                         <div class="header-search-suggestions-empty" data-header-search-empty hidden></div>
                         <div class="header-search-suggestions-list" data-header-search-suggestions-list></div>
@@ -176,7 +179,7 @@
                 </form>
             </div>
 
-            <div class="hidden h-full shrink-0 items-stretch lg:flex">
+            <div class="desktop-header-actions hidden h-full shrink-0 items-stretch lg:flex">
                 @php
                     $activeLocale = (string) ($frontLocale ?? app()->getLocale());
                     $switchLanguage = collect($frontLanguages ?? [])->first(
@@ -222,36 +225,32 @@
                 </a>
             </div>
 
-            <div class="flex h-full items-stretch border-l border-slate-200 lg:hidden">
-                <button type="button" class="inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.search') }}" data-header-search-toggle>
-                    <x-fa-icon name="magnifying-glass" class="h-5 w-5" />
-                </button>
-
+            <div class="responsive-header-actions flex h-full items-stretch border-l border-slate-200 lg:hidden">
                 @auth
-                    <a href="{{ route('account.dashboard') }}" class="inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.account') }}">
+                    <a href="{{ route('account.dashboard') }}" class="responsive-header-action inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.account') }}">
                         <x-fa-icon name="user" style="regular" class="h-5 w-5" />
                     </a>
                 @else
-                    <a href="{{ route('front.auth.login') }}" class="inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.sign_in') }}">
+                    <a href="{{ route('front.auth.login') }}" class="responsive-header-action inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.sign_in') }}">
                         <x-fa-icon name="user" style="regular" class="h-5 w-5" />
                     </a>
                 @endauth
 
-                <a href="{{ route('wishlist.index') }}" class="relative inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16 {{ $wishlistCount > 0 ? '' : 'hidden' }}" aria-label="{{ __('ui.front.desktop.favorites') }}" data-wishlist-link>
+                <a href="{{ route('wishlist.index') }}" class="responsive-header-action relative inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.favorites') }}" data-wishlist-link data-wishlist-always-visible>
                     <x-fa-icon name="heart" style="regular" class="h-5 w-5" />
-                    <span class="header-count-badge absolute right-0.5 top-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold" data-wishlist-count>
+                    <span class="header-count-badge absolute right-0.5 top-2.5 h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold {{ $wishlistCount > 0 ? 'inline-flex' : 'hidden' }}" data-wishlist-count>
                         {{ $wishlistCount }}
                     </span>
                 </a>
 
-                <a href="{{ route('cart.index') }}" class="relative inline-flex h-full w-12 items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.cart') }}">
+                <a href="{{ route('cart.index') }}" class="responsive-header-action relative inline-flex h-full w-12 items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.cart') }}">
                     <x-fa-icon name="bag-shopping" class="h-6 w-6" />
                     <span class="header-count-badge absolute right-0.5 top-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold" data-cart-count>
                         {{ (int) $cartSummary['item_qty'] }}
                     </span>
                 </a>
 
-                <button type="button" class="flex h-full w-12 items-center justify-center border-r border-slate-200 bg-white text-slate-900 transition hover:bg-slate-50 sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.open_navigation') }}" data-mobile-menu-open>
+                <button type="button" class="responsive-header-action flex h-full w-12 items-center justify-center border-r border-slate-200 bg-white text-slate-900 transition hover:bg-slate-50 sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.open_navigation') }}" data-mobile-menu-open>
                     <x-fa-icon name="bars" class="h-5 w-5" />
                 </button>
             </div>
@@ -267,9 +266,9 @@
     </div>
 
     @if ((bool) ($benefitsBar['enabled'] ?? true) && !empty($benefitsBar['items']))
-        <div class="store-benefits-shell storefront-container hidden lg:block">
-            <div class="store-benefits-bar" aria-label="{{ __('Prednosti kupnje') }}">
-                @foreach ($benefitsBar['items'] as $benefitItem)
+        <div class="store-benefits-shell storefront-container">
+            <div class="store-benefits-bar" aria-label="{{ __('Prednosti kupnje') }}" aria-live="off" data-store-benefits-rotator>
+                @foreach ($benefitsBar['items'] as $benefitIndex => $benefitItem)
                     @php
                         $benefitSegments = preg_split(
                             '/(\*\*.+?\*\*)/u',
@@ -278,14 +277,16 @@
                             PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY
                         ) ?: [(string) $benefitItem];
                     @endphp
-                    <p class="store-benefits-item">
-                        @foreach ($benefitSegments as $benefitSegment)
-                            @if (str_starts_with($benefitSegment, '**') && str_ends_with($benefitSegment, '**') && mb_strlen($benefitSegment) > 4)
-                                <strong>{{ mb_substr($benefitSegment, 2, mb_strlen($benefitSegment) - 4) }}</strong>
-                            @else
-                                {{ $benefitSegment }}
-                            @endif
-                        @endforeach
+                    <p class="store-benefits-item {{ $benefitIndex === 0 ? 'is-active' : '' }}" data-store-benefit-item>
+                        <span class="store-benefits-copy">
+                            @foreach ($benefitSegments as $benefitSegment)
+                                @if (str_starts_with($benefitSegment, '**') && str_ends_with($benefitSegment, '**') && mb_strlen($benefitSegment) > 4)
+                                    <strong>{{ mb_substr($benefitSegment, 2, mb_strlen($benefitSegment) - 4) }}</strong>
+                                @else
+                                    {{ $benefitSegment }}
+                                @endif
+                            @endforeach
+                        </span>
                     </p>
                 @endforeach
             </div>
@@ -346,6 +347,14 @@
             $newsletterSubtitle = trim((string) ($newsletterSettings['subtitle'] ?? '')) ?: __('ui.front.desktop.newsletter.subtitle');
             $newsletterButtonLabel = trim((string) ($newsletterSettings['button_label'] ?? '')) ?: __('ui.front.desktop.newsletter.button');
             $newsletterConsentLabel = trim((string) ($newsletterSettings['consent_label'] ?? '')) ?: __('ui.front.desktop.newsletter.consent');
+            $footerContactTitle = trim((string) ($storeSettings['footer']['contact_title'] ?? '')) ?: __('ui.front.desktop.footer.support');
+            $footerContactIntro = trim((string) ($storeSettings['footer']['contact_intro'] ?? '')) ?: __('ui.front.desktop.footer.webshop_queries');
+            $footerContactAddress = trim((string) ($storeSettings['footer']['address'] ?? ''));
+            $footerBenefits = collect($benefitsBar['items'] ?? [])
+                ->map(fn ($item) => trim((string) $item))
+                ->filter()
+                ->take(3)
+                ->values();
         @endphp
 
         <section class="site-footer-newsletter">
@@ -409,26 +418,35 @@
             </div>
         </section>
 
-        <div class="site-footer-benefits grid gap-0 md:grid-cols-3">
-            <div class="site-footer-benefit flex items-center gap-4">
-                <span class="site-footer-benefit-icon">
-                    <x-fa-icon name="truck-fast" class="site-footer-benefit-svg" />
-                </span>
-                <p class="text-sm font-semibold">{{ __('ui.front.desktop.benefits.shipping') }}</p>
+        @if ((bool) ($benefitsBar['enabled'] ?? true) && $footerBenefits->isNotEmpty())
+            <div class="site-footer-benefits grid md:grid-cols-3">
+                @foreach ($footerBenefits as $benefitIndex => $benefitItem)
+                    @php
+                        $benefitSegments = preg_split(
+                            '/(\*\*.+?\*\*)/u',
+                            $benefitItem,
+                            -1,
+                            PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY
+                        ) ?: [$benefitItem];
+                        $benefitIcon = ['truck-fast', 'credit-card', 'lock'][$benefitIndex] ?? 'circle-check';
+                    @endphp
+                    <div class="site-footer-benefit flex items-center gap-4">
+                        <span class="site-footer-benefit-icon">
+                            <x-fa-icon :name="$benefitIcon" class="site-footer-benefit-svg" />
+                        </span>
+                        <p class="text-sm">
+                            @foreach ($benefitSegments as $benefitSegment)
+                                @if (str_starts_with($benefitSegment, '**') && str_ends_with($benefitSegment, '**') && mb_strlen($benefitSegment) > 4)
+                                    <strong>{{ mb_substr($benefitSegment, 2, mb_strlen($benefitSegment) - 4) }}</strong>
+                                @else
+                                    {{ $benefitSegment }}
+                                @endif
+                            @endforeach
+                        </p>
+                    </div>
+                @endforeach
             </div>
-            <div class="site-footer-benefit flex items-center gap-4">
-                <span class="site-footer-benefit-icon">
-                    <x-fa-icon name="arrow-rotate-left" class="site-footer-benefit-svg" />
-                </span>
-                <p class="text-sm font-semibold">{{ __('ui.front.desktop.benefits.returns') }}</p>
-            </div>
-            <div class="site-footer-benefit flex items-center gap-4">
-                <span class="site-footer-benefit-icon">
-                    <x-fa-icon name="lock" class="site-footer-benefit-svg" />
-                </span>
-                <p class="text-sm font-semibold">{{ __('ui.front.desktop.benefits.secure') }}</p>
-            </div>
-        </div>
+        @endif
 
         @php
             $footerColumnsRaw = collect($storeSettings['footer']['link_columns'] ?? [])->take(3)->values();
@@ -455,8 +473,36 @@
         @endphp
 
         <div class="site-footer-mobile-links lg:hidden">
+            <details class="site-footer-mobile-section group">
+                <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
+                    {{ $footerContactTitle }}
+                    <span class="inline-flex h-6 w-6 items-center justify-center text-[21px] font-light leading-none text-slate-500 group-open:hidden">+</span>
+                    <span class="hidden h-6 w-6 items-center justify-center text-[21px] font-light leading-none text-slate-500 group-open:inline-flex">−</span>
+                </summary>
+                <div class="space-y-2 px-4 pb-4 text-sm text-slate-600">
+                    @if ($footerContactIntro !== '')
+                        <p class="text-slate-500">{{ $footerContactIntro }}</p>
+                    @endif
+                    @if (!empty($storeSettings['footer']['phone'] ?? ''))
+                        <p><a href="tel:{{ preg_replace('/\\s+/', '', (string) $storeSettings['footer']['phone']) }}" class="text-base font-semibold text-slate-900 transition hover:text-slate-700">{{ $storeSettings['footer']['phone'] }}</a></p>
+                    @endif
+                    @if (!empty($storeSettings['footer']['email_sales'] ?? ''))
+                        <p><a href="mailto:{{ $storeSettings['footer']['email_sales'] }}" class="transition hover:text-slate-900">{{ $storeSettings['footer']['email_sales'] }}</a></p>
+                    @endif
+                    @if (!empty($storeSettings['footer']['email_support'] ?? ''))
+                        <p><a href="mailto:{{ $storeSettings['footer']['email_support'] }}" class="transition hover:text-slate-900">{{ $storeSettings['footer']['email_support'] }}</a></p>
+                    @endif
+                    @if (!empty($storeSettings['footer']['hours'] ?? ''))
+                        <p>{{ $storeSettings['footer']['hours'] }}</p>
+                    @endif
+                    @if ($footerContactAddress !== '')
+                        <p>{{ $footerContactAddress }}</p>
+                    @endif
+                </div>
+            </details>
+
             @foreach ($footerColumns as $column)
-                <details class="group border-b border-slate-200">
+                <details class="site-footer-mobile-section group">
                     <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
                         {{ $column['title'] }}
                         <span class="inline-flex h-6 w-6 items-center justify-center text-[21px] font-light leading-none text-slate-500 group-open:hidden">+</span>
@@ -469,133 +515,119 @@
                     </ul>
                 </details>
             @endforeach
-
-            <details class="group">
-                <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-base font-semibold text-slate-900">
-                    {{ __('ui.front.desktop.footer.support') }}
-                    <span class="inline-flex h-6 w-6 items-center justify-center text-[21px] font-light leading-none text-slate-500 group-open:hidden">+</span>
-                    <span class="hidden h-6 w-6 items-center justify-center text-[21px] font-light leading-none text-slate-500 group-open:inline-flex">−</span>
-                </summary>
-                <div class="space-y-2 px-4 pb-4 text-sm text-slate-600">
-                    <p class="text-slate-500">{{ __('ui.front.desktop.footer.webshop_queries') }}</p>
-                    @if (!empty($storeSettings['footer']['phone'] ?? ''))
-                        <p><a href="tel:{{ preg_replace('/\\s+/', '', (string) $storeSettings['footer']['phone']) }}" class="text-base font-medium text-slate-900 transition hover:text-slate-700">{{ $storeSettings['footer']['phone'] }}</a></p>
-                    @endif
-                    @if (!empty($storeSettings['footer']['email_sales'] ?? ''))
-                        <p><a href="mailto:{{ $storeSettings['footer']['email_sales'] }}" class="transition hover:text-slate-900">{{ $storeSettings['footer']['email_sales'] }}</a></p>
-                    @endif
-                    @if (!empty($storeSettings['footer']['email_support'] ?? ''))
-                        <p><a href="mailto:{{ $storeSettings['footer']['email_support'] }}" class="transition hover:text-slate-900">{{ $storeSettings['footer']['email_support'] }}</a></p>
-                    @endif
-                    <p>{{ (string) ($storeSettings['footer']['hours'] ?? __('ui.front.desktop.footer.work_hours')) }}</p>
-                </div>
-            </details>
         </div>
 
-        <div class="site-footer-links hidden lg:grid lg:grid-cols-[1fr_1fr_1fr_1.15fr]">
-            @foreach ($footerColumns as $column)
-                <div class="site-footer-link-column space-y-5">
-                    <h3 class="text-sm font-extrabold uppercase tracking-[0.16em] text-slate-900">{{ $column['title'] }}</h3>
-                    <ul class="space-y-2.5 text-sm text-slate-600">
-                        @foreach ($column['links'] as $link)
-                            <li><a href="{{ $link['url'] }}" class="transition hover:text-slate-900">{{ $link['label'] }}</a></li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endforeach
-
-            <div class="site-footer-link-column space-y-5">
-                <h3 class="text-sm font-extrabold uppercase tracking-[0.16em] text-slate-900">{{ __('ui.front.desktop.footer.support') }}</h3>
-                <div class="space-y-2 text-sm text-slate-600">
-                    <p class="text-slate-500">{{ __('ui.front.desktop.footer.webshop_queries') }}</p>
+        <div class="site-footer-links hidden lg:grid">
+            <div class="site-footer-link-column site-footer-contact">
+                <h3 class="site-footer-contact-title">{{ $footerContactTitle }}</h3>
+                <div class="site-footer-contact-details">
+                    @if ($footerContactIntro !== '')
+                        <p class="site-footer-contact-intro">{{ $footerContactIntro }}</p>
+                    @endif
                     @if (!empty($storeSettings['footer']['phone'] ?? ''))
-                        <p><a href="tel:{{ preg_replace('/\\s+/', '', (string) $storeSettings['footer']['phone']) }}" class="text-xl font-medium text-slate-900 transition hover:text-slate-700">{{ $storeSettings['footer']['phone'] }}</a></p>
+                        <p><a href="tel:{{ preg_replace('/\\s+/', '', (string) $storeSettings['footer']['phone']) }}" class="site-footer-contact-phone transition">{{ $storeSettings['footer']['phone'] }}</a></p>
                     @endif
                     @if (!empty($storeSettings['footer']['email_sales'] ?? ''))
-                        <p><a href="mailto:{{ $storeSettings['footer']['email_sales'] }}" class="transition hover:text-slate-900">{{ $storeSettings['footer']['email_sales'] }}</a></p>
+                        <p><a href="mailto:{{ $storeSettings['footer']['email_sales'] }}" class="transition">{{ $storeSettings['footer']['email_sales'] }}</a></p>
                     @endif
                     @if (!empty($storeSettings['footer']['email_support'] ?? ''))
-                        <p><a href="mailto:{{ $storeSettings['footer']['email_support'] }}" class="transition hover:text-slate-900">{{ $storeSettings['footer']['email_support'] }}</a></p>
+                        <p><a href="mailto:{{ $storeSettings['footer']['email_support'] }}" class="transition">{{ $storeSettings['footer']['email_support'] }}</a></p>
                     @endif
-                    <p>{{ (string) ($storeSettings['footer']['hours'] ?? __('ui.front.desktop.footer.work_hours')) }}</p>
+                    @if (!empty($storeSettings['footer']['hours'] ?? ''))
+                        <p>{{ $storeSettings['footer']['hours'] }}</p>
+                    @endif
+                    @if ($footerContactAddress !== '')
+                        <p>{{ $footerContactAddress }}</p>
+                    @endif
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="site-footer-socials flex items-center gap-2">
                     @if (!empty($storeSettings['branding']['social']['facebook']['url'] ?? '') && (bool) ($storeSettings['branding']['social']['facebook']['enabled'] ?? true))
-                        <a href="{{ (string) $storeSettings['branding']['social']['facebook']['url'] }}" aria-label="{{ __('ui.front.desktop.social.facebook') }}" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-slate-50 text-slate-700 transition hover:border-slate-500 hover:text-slate-900" target="_blank" rel="noopener noreferrer">
+                        <a href="{{ (string) $storeSettings['branding']['social']['facebook']['url'] }}" aria-label="{{ __('ui.front.desktop.social.facebook') }}" target="_blank" rel="noopener noreferrer">
                             <x-fa-icon name="facebook-f" style="brands" class="h-4 w-4" />
                         </a>
                     @endif
                     @if (!empty($storeSettings['branding']['social']['instagram']['url'] ?? '') && (bool) ($storeSettings['branding']['social']['instagram']['enabled'] ?? true))
-                        <a href="{{ (string) $storeSettings['branding']['social']['instagram']['url'] }}" aria-label="{{ __('ui.front.desktop.social.instagram') }}" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-slate-50 text-slate-700 transition hover:border-slate-500 hover:text-slate-900" target="_blank" rel="noopener noreferrer">
+                        <a href="{{ (string) $storeSettings['branding']['social']['instagram']['url'] }}" aria-label="{{ __('ui.front.desktop.social.instagram') }}" target="_blank" rel="noopener noreferrer">
                             <x-fa-icon name="instagram" style="brands" class="h-4 w-4" />
                         </a>
                     @endif
                     @if (!empty($storeSettings['branding']['social']['tiktok']['url'] ?? '') && (bool) ($storeSettings['branding']['social']['tiktok']['enabled'] ?? true))
-                        <a href="{{ (string) $storeSettings['branding']['social']['tiktok']['url'] }}" aria-label="{{ __('ui.front.desktop.social.tiktok') }}" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-slate-50 text-slate-700 transition hover:border-slate-500 hover:text-slate-900" target="_blank" rel="noopener noreferrer">
+                        <a href="{{ (string) $storeSettings['branding']['social']['tiktok']['url'] }}" aria-label="{{ __('ui.front.desktop.social.tiktok') }}" target="_blank" rel="noopener noreferrer">
                             <x-fa-icon name="tiktok" style="brands" class="h-4 w-4" />
                         </a>
                     @endif
                     @if (!empty($storeSettings['branding']['social']['youtube']['url'] ?? '') && (bool) ($storeSettings['branding']['social']['youtube']['enabled'] ?? true))
-                        <a href="{{ (string) $storeSettings['branding']['social']['youtube']['url'] }}" aria-label="{{ __('ui.front.desktop.social.youtube') }}" class="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-slate-50 text-slate-700 transition hover:border-slate-500 hover:text-slate-900" target="_blank" rel="noopener noreferrer">
+                        <a href="{{ (string) $storeSettings['branding']['social']['youtube']['url'] }}" aria-label="{{ __('ui.front.desktop.social.youtube') }}" target="_blank" rel="noopener noreferrer">
                             <x-fa-icon name="youtube" style="brands" class="h-4 w-4" />
                         </a>
                     @endif
                 </div>
             </div>
+
+            @foreach ($footerColumns as $column)
+                <div class="site-footer-link-column site-footer-nav-column">
+                    <h3 class="site-footer-column-title">{{ $column['title'] }}</h3>
+                    <ul class="site-footer-link-list">
+                        @foreach ($column['links'] as $link)
+                            <li><a href="{{ $link['url'] }}" class="transition">{{ $link['label'] }}</a></li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endforeach
         </div>
 
         <div class="site-footer-payments">
-            <div class="flex flex-wrap items-center justify-center gap-2.5">
-                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+            <div class="site-footer-payment-logos flex flex-wrap items-center justify-center gap-2.5">
+                <span class="site-footer-payment-logo inline-flex h-12 w-28 items-center justify-center px-1">
                     <img src="{{ asset('assets/payments/corvus-logo.svg') }}" alt="Corvus Pay" class="block h-6 w-auto object-contain" loading="lazy" width="116" height="24">
                 </span>
-                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                <span class="site-footer-payment-logo inline-flex h-12 w-28 items-center justify-center px-1">
                     <img src="{{ asset('assets/payments/visa-brand.svg') }}" alt="Visa" class="block h-6 w-auto object-contain" loading="lazy" width="74" height="24">
                 </span>
-                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                <span class="site-footer-payment-logo inline-flex h-12 w-28 items-center justify-center px-1">
                     <img src="{{ asset('assets/payments/mastercard-brand.svg') }}" alt="Mastercard" class="block h-6 w-auto object-contain" loading="lazy" width="31" height="24">
                 </span>
-                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                <span class="site-footer-payment-logo inline-flex h-12 w-28 items-center justify-center px-1">
                     <img src="{{ asset('assets/payments/diners-brand.svg') }}" alt="Diners Club" class="block h-6 w-auto object-contain" loading="lazy" width="93" height="24">
                 </span>
-                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                <span class="site-footer-payment-logo inline-flex h-12 w-28 items-center justify-center px-1">
                     <img src="{{ asset('assets/payments/maestro-brand.svg') }}" alt="Maestro" class="block h-6 w-auto object-contain" loading="lazy" width="31" height="24">
                 </span>
-                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                <span class="site-footer-payment-logo inline-flex h-12 w-28 items-center justify-center px-1">
                     <img src="{{ asset('assets/payments/applepay.svg') }}" alt="Apple Pay" class="block h-6 w-auto object-contain" loading="lazy" width="38" height="24">
                 </span>
-                <span class="inline-flex h-12 w-28 items-center justify-center px-1">
+                <span class="site-footer-payment-logo inline-flex h-12 w-28 items-center justify-center px-1">
                     <img src="{{ asset('assets/payments/googlepay.svg') }}" alt="Google Pay" class="block h-6 w-auto object-contain" loading="lazy" width="45" height="24">
                 </span>
             </div>
         </div>
 
-        <div class="store-footer-bottom flex flex-col items-center gap-3 text-xs lg:flex-row lg:justify-between">
-            <div>
-                @php
-                    $copyrightText = trim((string) ($storeSettings['footer']['bottom_copyright_text'] ?? ''));
-                    if ($copyrightText === '') {
-                        $copyrightText = (string) __('ui.front.desktop.footer.copyright');
-                    }
-                    $storeName = (string) ($storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop'));
-                    $bottomLinks = collect($storeSettings['footer']['bottom_links'] ?? [])
-                        ->filter(fn ($link) => is_array($link) && trim((string) ($link['url'] ?? '')) !== '' && trim((string) ($link['label'] ?? '')) !== '')
-                        ->map(fn ($link) => ['label' => (string) $link['label'], 'url' => (string) $link['url']])
-                        ->values()
-                        ->all();
-                    if ($bottomLinks === []) {
-                        $bottomLinks = [
-
-                            ['label' => (string) __('ui.front.desktop.footer.agmedia'), 'url' => 'https://www.agmedia.hr'],
-                        ];
-                    }
-                @endphp
+        @php
+            $copyrightText = trim((string) ($storeSettings['footer']['bottom_copyright_text'] ?? ''));
+            if ($copyrightText === '') {
+                $copyrightText = (string) __('ui.front.desktop.footer.copyright');
+            }
+            $storeName = (string) ($storeSettings['branding']['store_name'] ?? config('app.name', 'AG Shop'));
+            $bottomLinks = collect($storeSettings['footer']['bottom_links'] ?? [])
+                ->filter(fn ($link) => is_array($link) && trim((string) ($link['url'] ?? '')) !== '' && trim((string) ($link['label'] ?? '')) !== '')
+                ->map(fn ($link) => ['label' => (string) $link['label'], 'url' => (string) $link['url']])
+                ->values()
+                ->all();
+        @endphp
+        <div class="store-footer-bottom grid items-center gap-3 text-xs lg:grid-cols-[1fr_auto_1fr]">
+            <div class="store-footer-copyright">
                 © {{ now()->year }} {{ $storeName }}. {{ $copyrightText }}
             </div>
-            <div class="store-footer-bottom-links flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div class="store-footer-bottom-links flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
                 @foreach ($bottomLinks as $link)
-                    <a href="{{ $link['url'] }}" class="transition hover:text-slate-900">{{ $link['label'] }}</a>
+                    <a href="{{ $link['url'] }}" class="store-footer-bottom-link transition">{{ $link['label'] }}</a>
                 @endforeach
+            </div>
+            <div class="store-footer-creator flex items-center justify-center gap-2 lg:justify-end">
+                <span>{{ __('ui.front.desktop.footer.web_by') }}</span>
+                <a href="https://www.agmedia.hr" class="store-footer-creator-link inline-flex" target="_blank" rel="noopener noreferrer" aria-label="AG media">
+                    <img src="{{ asset('assets/payments/ag-footer-logo.svg') }}" alt="AG media" width="91" height="30" loading="lazy">
+                </a>
             </div>
         </div>
         </div>
@@ -879,6 +911,7 @@
 
         onLoadScripts.push(@json(asset('front-theme/scripts/desktop-header-menu.js').'?v='.filemtime(public_path('front-theme/scripts/desktop-header-menu.js'))));
         onLoadScripts.push(@json(asset('front-theme/scripts/header-search-panel.js').'?v='.filemtime(public_path('front-theme/scripts/header-search-panel.js'))));
+        onLoadScripts.push(@json(asset('front-theme/scripts/store-benefits-rotator.js').'?v='.filemtime(public_path('front-theme/scripts/store-benefits-rotator.js'))));
         onLoadScripts.push(@json(asset('front-theme/scripts/wishlist-toggle.js').'?v='.filemtime(public_path('front-theme/scripts/wishlist-toggle.js'))));
 
         function loadScript(src, module) {

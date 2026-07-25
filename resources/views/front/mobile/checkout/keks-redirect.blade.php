@@ -4,6 +4,10 @@
 @section('header_title', __('ui.checkout.keks.redirect_page_title'))
 @section('page_title', __('ui.checkout.keks.redirect_page_title'))
 
+@push('head')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/checkout.css') }}?v={{ filemtime(public_path('front-theme/styles/checkout.css')) }}">
+@endpush
+
 @section('content')
     <div class="card card-style rounded-0">
         <div class="content">
@@ -27,7 +31,7 @@
 
             <img src="{{ (string) ($sellData['qr_image_url'] ?? '') }}" alt="KEKS Pay QR" class="img-fluid border rounded-sm p-2 bg-white mb-3" style="width:100%; max-width:320px; margin:0 auto; display:block;">
 
-            <a href="{{ (string) ($sellData['deeplink'] ?? '#') }}" class="btn btn-margins btn-full gradient-blue font-13 btn-l font-700 rounded-sm mb-2">
+            <a href="{{ (string) ($sellData['deeplink'] ?? '#') }}" class="checkout-primary-button btn btn-margins btn-full font-13 btn-l font-700 mb-2">
                 {{ __('ui.checkout.keks.open_app_button') }}
             </a>
             <a href="{{ route('checkout.success', ['orderNumber' => $order->order_number]) }}" class="btn btn-margins btn-full border border-slate-400 font-13 btn-l font-600 rounded-sm text-slate-700">

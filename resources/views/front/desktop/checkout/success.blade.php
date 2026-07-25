@@ -1,13 +1,18 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('ui.checkout.success.page_title'))
+@section('main_class', 'w-full px-0 py-8')
 
 @section('content')
     @php
         $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
     @endphp
 
-    <section class="border border-emerald-300 bg-white p-8">
+    @push('styles')
+        <link rel="stylesheet" href="{{ asset('front-theme/styles/checkout.css') }}?v={{ filemtime(public_path('front-theme/styles/checkout.css')) }}">
+    @endpush
+
+    <section class="checkout-status-card checkout-status-card--success">
         <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">{{ __('ui.checkout.success.eyebrow') }}</p>
         <h1 class="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.checkout.success.title') }}</h1>
         <p class="mt-3 text-slate-600">{{ __('ui.checkout.success.order_number') }}: <span class="font-semibold text-slate-900">{{ $order->order_number }}</span></p>
@@ -59,9 +64,9 @@
 
         <div class="mt-8 flex flex-wrap gap-2">
             @auth
-                <a href="{{ route('account.orders.show', ['orderNumber' => $order->order_number]) }}" class="bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">{{ __('ui.checkout.success.view_in_account') }}</a>
+                <a href="{{ route('account.orders.show', ['orderNumber' => $order->order_number]) }}" class="checkout-primary-button px-5 py-2.5">{{ __('ui.checkout.success.view_in_account') }}</a>
             @endauth
-            <a href="{{ route('shop.index') }}" class="border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">{{ __('ui.checkout.success.continue_shopping') }}</a>
+            <a href="{{ route('shop.index') }}" class="inline-flex min-h-12 items-center justify-center rounded-[3px] border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">{{ __('ui.checkout.success.continue_shopping') }}</a>
         </div>
     </section>
 

@@ -42,8 +42,8 @@ class TermolProductSnapshotImportService
             throw new RuntimeException('An active tax rate is required before importing Termol products.');
         }
 
-        $manufacturer = $this->upsertSmegManufacturer($userId);
         $productsWithRows = [];
+        $manufacturerIds = [];
         $stats = [
             'snapshot_file' => $snapshotFile,
             'source_products' => count($rows),
@@ -51,17 +51,20 @@ class TermolProductSnapshotImportService
             'categories_linked' => 0,
             'main_images_attached' => 0,
             'images_skipped' => 0,
+            'documents_attached' => 0,
+            'documents_skipped' => 0,
             'prices_include_tax' => 1,
-            'manufacturer_id' => (int) $manufacturer->id,
+            'manufacturers_linked' => 0,
+            'manufacturer_id' => 0,
             'tax_rate_id' => (int) $taxRate->id,
         ];
 
         DB::transaction(function () use (
             $rows,
-            $manufacturer,
             $taxRate,
             $userId,
             &$productsWithRows,
+            &$manufacturerIds,
             &$stats
         ): void {
             foreach (array_values($rows) as $index => $row) {
@@ -71,6 +74,7 @@ class TermolProductSnapshotImportService
 
                 $normalized = $this->normalizeRow($row);
                 $category = $this->resolveCategory($normalized['category_path']);
+                $manufacturer = $this->resolveManufacturer($normalized, $userId);
                 $code = 'termol-'.$normalized['sku'];
                 $grossPrice = $this->parseGrossPrice($normalized['price']);
 
@@ -87,7 +91,7 @@ class TermolProductSnapshotImportService
                     'code' => $code,
                     'sku' => $normalized['sku'],
                     'is_active' => true,
-                    'manufacturer_id' => $manufacturer->id,
+                    'manufacturer_id' => $manufacturer?->id,
                     'tax_rate_id' => $taxRate->id,
                     'base_price' => $grossPrice,
                     'stock_qty' => $this->stockQuantity($normalized['stock']),
@@ -99,12 +103,33 @@ class TermolProductSnapshotImportService
                         'source_price_gross' => $grossPrice,
                         'source_price_includes_tax' => true,
                         'source_availability' => $normalized['stock'],
+                        'source_main_category' => $normalized['main_category'],
+                        'source_main_category_url' => $this->absoluteUrl($normalized['main_category_path']),
+                        'source_breadcrumbs' => $normalized['breadcrumbs'],
+                        'source_specifications' => $normalized['specifications'],
+                        'source_installment_pricing' => $normalized['installment_pricing'],
+                        'source_documents' => array_values(array_map(
+                            static fn (array $document): array => [
+                                'name' => $document['name'],
+                                'url' => $document['url'],
+                            ],
+                            $normalized['documents']
+                        )),
+                        'source_image_urls' => array_values(array_filter(array_map(
+                            static fn (array $image): string => trim((string) ($image['source_url'] ?? '')),
+                            $normalized['images']
+                        ))),
                     ],
                     'updated_by' => $userId,
                 ]);
                 $product->save();
 
-                $description = $this->descriptionCleaner->clean($normalized['description_html']);
+                $description = $this->descriptionCleaner->clean(
+                    $this->descriptionWithSpecifications(
+                        $normalized['description_html'],
+                        $normalized['specifications']
+                    )
+                );
                 $excerpt = $this->excerpt($normalized['name'], $description);
                 $slug = $this->sourceSlug($normalized['source_url'], $normalized['name']);
 
@@ -132,10 +157,18 @@ class TermolProductSnapshotImportService
                 ]);
 
                 $productsWithRows[] = [$product, $normalized];
+                if ($manufacturer) {
+                    $manufacturerIds[(int) $manufacturer->id] = true;
+                }
                 $stats['products_imported']++;
                 $stats['categories_linked']++;
             }
         });
+
+        $stats['manufacturers_linked'] = count($manufacturerIds);
+        if (count($manufacturerIds) === 1) {
+            $stats['manufacturer_id'] = (int) array_key_first($manufacturerIds);
+        }
 
         $this->settings->put('store_pricing_prices_include_tax', true);
 
@@ -143,28 +176,62 @@ class TermolProductSnapshotImportService
             $imagePath = trim((string) $row['local_image_path']);
             if (! $importImages || $imagePath === '' || ! is_file($imagePath)) {
                 $stats['images_skipped']++;
+            } else {
+                $extension = strtolower((string) pathinfo($imagePath, PATHINFO_EXTENSION));
+                if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'avif'], true)) {
+                    $extension = 'jpg';
+                }
 
-                continue;
+                $product->clearMediaCollection('product_main');
+                $product->addMedia($imagePath)
+                    ->usingName($row['name'])
+                    ->usingFileName($row['sku'].'.'.$extension)
+                    ->preservingOriginal()
+                    ->withCustomProperties([
+                        'alt' => ['hr' => $row['name']],
+                        'source' => 'termol.hr',
+                        'source_url' => $row['source_image_url'],
+                    ])
+                    ->toMediaCollection('product_main');
+
+                $stats['main_images_attached']++;
             }
 
-            $extension = strtolower((string) pathinfo($imagePath, PATHINFO_EXTENSION));
-            if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'avif'], true)) {
-                $extension = 'jpg';
+            $documents = is_array($row['documents'] ?? null) ? $row['documents'] : [];
+            $product->clearMediaCollection('product_documents');
+
+            foreach ($documents as $documentIndex => $document) {
+                if (! is_array($document)) {
+                    $stats['documents_skipped']++;
+
+                    continue;
+                }
+
+                $documentPath = trim((string) ($document['local_path'] ?? ''));
+                if ($documentPath === '' || ! is_file($documentPath)) {
+                    $stats['documents_skipped']++;
+
+                    continue;
+                }
+
+                $sourceUrl = trim((string) ($document['url'] ?? ''));
+                $documentName = trim((string) ($document['name'] ?? ''));
+                $extension = strtolower((string) pathinfo($documentPath, PATHINFO_EXTENSION));
+                $fileName = $row['sku'].'-document-'.($documentIndex + 1)
+                    .($extension !== '' ? '.'.$extension : '');
+
+                $product->addMedia($documentPath)
+                    ->usingName($documentName !== '' ? $documentName : $row['name'])
+                    ->usingFileName($fileName)
+                    ->preservingOriginal()
+                    ->withCustomProperties([
+                        'source' => 'termol.hr',
+                        'source_url' => $sourceUrl,
+                    ])
+                    ->toMediaCollection('product_documents');
+
+                $stats['documents_attached']++;
             }
-
-            $product->clearMediaCollection('product_main');
-            $product->addMedia($imagePath)
-                ->usingName($row['name'])
-                ->usingFileName($row['sku'].'.'.$extension)
-                ->preservingOriginal()
-                ->withCustomProperties([
-                    'alt' => ['hr' => $row['name']],
-                    'source' => 'termol.hr',
-                    'source_url' => $row['source_image_url'],
-                ])
-                ->toMediaCollection('product_main');
-
-            $stats['main_images_attached']++;
         }
 
         return $stats;
@@ -197,6 +264,24 @@ class TermolProductSnapshotImportService
             $sku = trim((string) ($row['sku'] ?? ''));
             $name = trim((string) ($row['name'] ?? $sku));
             $images = is_array($row['images'] ?? null) ? array_values($row['images']) : [];
+            $mainImagePath = trim((string) ($row['local_image_path'] ?? ''));
+            $mainImageUrl = trim((string) ($row['source_image_url'] ?? ''));
+            $images = array_values(array_filter(
+                $images,
+                static function (mixed $image) use ($mainImagePath, $mainImageUrl): bool {
+                    if (! is_array($image)) {
+                        return true;
+                    }
+
+                    $imagePath = trim((string) ($image['local_image_path'] ?? ''));
+                    $imageUrl = trim((string) ($image['source_url'] ?? ''));
+
+                    return ! (
+                        ($mainImagePath !== '' && $imagePath === $mainImagePath)
+                        || ($mainImageUrl !== '' && $imageUrl === $mainImageUrl)
+                    );
+                }
+            ));
             $stats['source_images'] += count($images);
 
             if ($sku === '') {
@@ -273,21 +358,43 @@ class TermolProductSnapshotImportService
         return $stats;
     }
 
-    private function upsertSmegManufacturer(?int $userId): Manufacturer
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function resolveManufacturer(array $row, ?int $userId): ?Manufacturer
     {
-        $manufacturer = Manufacturer::query()->firstOrNew(['code' => 'smeg']);
+        $name = trim((string) ($row['manufacturer'] ?? ''));
+        if ($name === '') {
+            $name = $this->inferManufacturerName((string) ($row['name'] ?? ''));
+        }
+        $name = match (mb_strtoupper($name, 'UTF-8')) {
+            'INNNOLAB' => 'INNOLAB',
+            default => $name,
+        };
+
+        if ($name === '') {
+            return null;
+        }
+
+        $code = Str::slug($name);
+        if ($code === '') {
+            $code = 'termol-'.substr(hash('sha256', Str::lower($name)), 0, 24);
+        }
+
+        $manufacturer = Manufacturer::query()->firstOrNew(['code' => $code]);
 
         if (! $manufacturer->exists) {
             $manufacturer->created_by = $userId;
+            $manufacturer->is_featured = false;
+            $manufacturer->sort_order = 0;
         }
 
+        $payload = is_array($manufacturer->payload) ? $manufacturer->payload : [];
         $manufacturer->fill([
             'is_active' => true,
-            'is_featured' => true,
-            'sort_order' => 10,
-            'payload' => [
+            'payload' => array_merge($payload, [
                 'source' => 'termol.hr',
-            ],
+            ]),
             'updated_by' => $userId,
         ]);
         $manufacturer->save();
@@ -295,10 +402,10 @@ class TermolProductSnapshotImportService
         $manufacturer->translations()->updateOrCreate(
             ['locale' => 'hr'],
             [
-                'name' => 'SMEG',
-                'slug' => 'smeg',
+                'name' => $name,
+                'slug' => $code,
                 'description' => null,
-                'meta_title' => 'SMEG',
+                'meta_title' => $name,
                 'meta_description' => null,
                 'payload' => [
                     'source' => 'termol.hr',
@@ -307,6 +414,40 @@ class TermolProductSnapshotImportService
         );
 
         return $manufacturer;
+    }
+
+    private function inferManufacturerName(string $productName): string
+    {
+        $firstWord = trim((string) Str::of($productName)->before(' '));
+        if (
+            $firstWord === ''
+            || mb_strtoupper($firstWord, 'UTF-8') !== $firstWord
+            || mb_strlen($firstWord, 'UTF-8') < 3
+        ) {
+            return '';
+        }
+
+        $genericWords = [
+            'ALUPLAST',
+            'ANTIFRIZ',
+            'APARAT',
+            'BRTVA',
+            'CIJEV',
+            'DETEKTOR',
+            'ELEKTRIČNI',
+            'ELEKTRICNI',
+            'HIDRANTNI',
+            'HIDRANTSKI',
+            'LUSTER',
+            'MLAZNICA',
+            'PLAFONJERA',
+            'POKLOPAC',
+            'RAD',
+            'STROPNI',
+            'VISILICA',
+        ];
+
+        return in_array($firstWord, $genericWords, true) ? '' : $firstWord;
     }
 
     /**
@@ -335,7 +476,7 @@ class TermolProductSnapshotImportService
 
     /**
      * @param  array<string, mixed>  $row
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     private function normalizeRow(array $row): array
     {
@@ -362,7 +503,131 @@ class TermolProductSnapshotImportService
             }
         }
 
+        $normalized['manufacturer'] = trim((string) ($row['manufacturer'] ?? ''));
+        $normalized['main_category'] = trim((string) ($row['main_category'] ?? ''));
+        $normalized['main_category_path'] = trim((string) ($row['main_category_path'] ?? ''));
+        $normalized['installment_pricing'] = trim((string) ($row['installment_pricing'] ?? ''));
+        $normalized['breadcrumbs'] = $this->normalizeNamedLinks($row['breadcrumbs'] ?? []);
+        $normalized['documents'] = $this->normalizeDocuments($row['documents'] ?? []);
+        $normalized['images'] = $this->normalizeImages($row['images'] ?? []);
+        $normalized['specifications'] = $this->normalizeSpecifications($row['specifications'] ?? []);
+
         return $normalized;
+    }
+
+    /**
+     * @return array<int, array{name:string,path:string}>
+     */
+    private function normalizeNamedLinks(mixed $links): array
+    {
+        if (! is_array($links)) {
+            return [];
+        }
+
+        return collect($links)
+            ->filter(static fn (mixed $link): bool => is_array($link))
+            ->map(static fn (array $link): array => [
+                'name' => trim((string) ($link['name'] ?? '')),
+                'path' => trim((string) ($link['path'] ?? '')),
+            ])
+            ->filter(static fn (array $link): bool => $link['name'] !== '' || $link['path'] !== '')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{name:string,url:string,local_path:string}>
+     */
+    private function normalizeDocuments(mixed $documents): array
+    {
+        if (! is_array($documents)) {
+            return [];
+        }
+
+        return collect($documents)
+            ->filter(static fn (mixed $document): bool => is_array($document))
+            ->map(static fn (array $document): array => [
+                'name' => trim((string) ($document['name'] ?? '')),
+                'url' => trim((string) ($document['url'] ?? '')),
+                'local_path' => trim((string) ($document['local_path'] ?? '')),
+            ])
+            ->filter(static fn (array $document): bool => $document['url'] !== '' || $document['local_path'] !== '')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{source_url:string,local_image_path:string,alt:string}>
+     */
+    private function normalizeImages(mixed $images): array
+    {
+        if (! is_array($images)) {
+            return [];
+        }
+
+        return collect($images)
+            ->filter(static fn (mixed $image): bool => is_array($image))
+            ->map(static fn (array $image): array => [
+                'source_url' => trim((string) ($image['source_url'] ?? '')),
+                'local_image_path' => trim((string) ($image['local_image_path'] ?? '')),
+                'alt' => trim((string) ($image['alt'] ?? '')),
+            ])
+            ->filter(static fn (array $image): bool => $image['source_url'] !== '' || $image['local_image_path'] !== '')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{group:string,label:string,value:string}>
+     */
+    private function normalizeSpecifications(mixed $specifications): array
+    {
+        if (! is_array($specifications)) {
+            return [];
+        }
+
+        return collect($specifications)
+            ->filter(static fn (mixed $specification): bool => is_array($specification))
+            ->map(static fn (array $specification): array => [
+                'group' => trim((string) ($specification['group'] ?? '')),
+                'label' => trim((string) ($specification['label'] ?? '')),
+                'value' => trim((string) ($specification['value'] ?? '')),
+            ])
+            ->filter(static fn (array $specification): bool => (
+                $specification['label'] !== '' && $specification['value'] !== ''
+            ))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array{group:string,label:string,value:string}>  $specifications
+     */
+    private function descriptionWithSpecifications(string $description, array $specifications): string
+    {
+        if ($specifications === []) {
+            return $description;
+        }
+
+        $groups = collect($specifications)->groupBy(
+            static fn (array $specification): string => $specification['group'] !== ''
+                ? $specification['group']
+                : 'Specifikacije'
+        );
+        $html = trim($description);
+
+        foreach ($groups as $group => $rows) {
+            $html .= '<h2>'.htmlspecialchars((string) $group, ENT_QUOTES | ENT_HTML5, 'UTF-8').'</h2><dl>';
+
+            foreach ($rows as $row) {
+                $html .= '<dt>'.htmlspecialchars($row['label'], ENT_QUOTES | ENT_HTML5, 'UTF-8').'</dt>';
+                $html .= '<dd>'.htmlspecialchars($row['value'], ENT_QUOTES | ENT_HTML5, 'UTF-8').'</dd>';
+            }
+
+            $html .= '</dl>';
+        }
+
+        return $html;
     }
 
     private function resolveCategory(string $sourcePath): Category

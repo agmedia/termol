@@ -6,32 +6,47 @@
     $commentUser = auth()->user();
     $hasSpecificationAttributes = $product->relationLoaded('attributes')
         && $product->attributes->isNotEmpty();
+    $firstDetailSectionId = $hasProductStory
+        ? 'product-description'
+        : ($hasSpecificationAttributes ? 'product-specifications' : 'product-comments');
 @endphp
 
 <section class="product-detail-lower" data-product-detail-lower>
-    <nav class="product-detail-tabs" aria-label="{{ __('ui.product.detail_navigation') }}">
+    <nav class="product-detail-tabs" aria-label="{{ __('ui.product.detail_navigation') }}" data-product-detail-tabs>
         @if ($hasProductStory)
-            <a href="#product-description">
-                <span aria-hidden="true">01</span>
-                {{ __('ui.product.description') }}
+            <a
+                href="#product-description"
+                class="{{ $firstDetailSectionId === 'product-description' ? 'is-active' : '' }}"
+                data-product-detail-tab
+                @if ($firstDetailSectionId === 'product-description') aria-current="true" @endif
+            >
+                <span class="product-detail-tab-description-full">{{ __('ui.product.description') }}</span>
+                <span class="product-detail-tab-description-short">{{ __('ui.product.description_short') }}</span>
             </a>
         @endif
         @if ($hasSpecificationAttributes)
-            <a href="#product-specifications">
-                <span aria-hidden="true">{{ $hasProductStory ? '02' : '01' }}</span>
+            <a
+                href="#product-specifications"
+                class="{{ $firstDetailSectionId === 'product-specifications' ? 'is-active' : '' }}"
+                data-product-detail-tab
+                @if ($firstDetailSectionId === 'product-specifications') aria-current="true" @endif
+            >
                 {{ __('ui.product.specifications') }}
             </a>
         @endif
-        <a href="#product-comments">
-            <span aria-hidden="true">{{ ($hasProductStory ? 1 : 0) + ($hasSpecificationAttributes ? 1 : 0) + 1 < 10 ? '0' : '' }}{{ ($hasProductStory ? 1 : 0) + ($hasSpecificationAttributes ? 1 : 0) + 1 }}</span>
+        <a
+            href="#product-comments"
+            class="{{ $firstDetailSectionId === 'product-comments' ? 'is-active' : '' }}"
+            data-product-detail-tab
+            @if ($firstDetailSectionId === 'product-comments') aria-current="true" @endif
+        >
             {{ __('ui.product.comments_title') }}
         </a>
     </nav>
 
     @if ($hasProductStory)
-        <section id="product-description" class="product-detail-content-section">
+        <section id="product-description" class="product-detail-content-section" data-product-detail-section>
             <header class="product-detail-section-intro">
-                <span class="product-detail-section-number" aria-hidden="true">01</span>
                 <h2 class="product-detail-section-heading">{{ __('ui.product.description') }}</h2>
             </header>
 
@@ -46,9 +61,8 @@
     @endif
 
     @if ($hasSpecificationAttributes)
-        <section id="product-specifications" class="product-detail-content-section">
+        <section id="product-specifications" class="product-detail-content-section" data-product-detail-section>
             <header class="product-detail-section-intro">
-                <span class="product-detail-section-number" aria-hidden="true">{{ $hasProductStory ? '02' : '01' }}</span>
                 <h2 class="product-detail-section-heading">{{ __('ui.product.specifications') }}</h2>
             </header>
 
@@ -63,9 +77,8 @@
         </section>
     @endif
 
-    <section id="product-comments" class="product-comments-anchor product-detail-content-section">
+    <section id="product-comments" class="product-comments-anchor product-detail-content-section" data-product-detail-section>
         <header class="product-detail-section-intro product-detail-comments-heading">
-            <span class="product-detail-section-number" aria-hidden="true">{{ ($hasProductStory ? 1 : 0) + ($hasSpecificationAttributes ? 1 : 0) + 1 < 10 ? '0' : '' }}{{ ($hasProductStory ? 1 : 0) + ($hasSpecificationAttributes ? 1 : 0) + 1 }}</span>
             <h2 class="product-detail-section-heading">{{ __('ui.product.comments_title') }}</h2>
             <button
                 type="button"

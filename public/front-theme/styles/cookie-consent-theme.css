@@ -142,7 +142,7 @@ body #cc-main .pm__footer {
 
 #cookie-consent-floating-button {
     position: fixed !important;
-    bottom: 1rem !important;
+    bottom: 4.75rem !important;
     left: 1rem !important;
     z-index: 9500 !important;
     display: inline-flex !important;
@@ -181,7 +181,15 @@ body #cc-main .pm__footer {
     flex-shrink: 0;
 }
 
+body.termol-storefront #cookie-consent-floating-button {
+    bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px)) !important;
+}
+
 @media (max-width: 640px) {
+    #cookie-consent-floating-button {
+        bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
     body #cc-main .cm__body {
         padding: 1.35rem 1.1rem 1rem !important;
     }

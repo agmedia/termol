@@ -1,18 +1,17 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('ui.account.order_show.page_title', ['number' => $order->order_number]))
+@section('body_class', 'commerce-body account-commerce-body')
+@section('main_class', 'commerce-main')
+
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
     @php
         $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
     @endphp
-
-    @include('front.desktop.account.partials.breadcrumbs', ['items' => [
-        ['label' => __('ui.account.breadcrumb.home'), 'url' => route('home')],
-        ['label' => __('ui.account.breadcrumb.account'), 'url' => route('account.dashboard')],
-        ['label' => __('ui.account.orders.title'), 'url' => route('account.orders')],
-        ['label' => __('ui.account.order_show.title', ['number' => $order->order_number])],
-    ]])
 
     <section class="front-soft-hero mb-8 px-4 py-6 text-center sm:px-6">
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.account.order_show.title', ['number' => $order->order_number]) }}</h1>
@@ -20,7 +19,7 @@
         <p class="mt-1 text-sm text-slate-500">{{ __('ui.account.order_show.placed_at') }}: {{ optional($order->placed_at ?? $order->created_at)->format('Y-m-d H:i') }}</p>
     </section>
 
-    <div class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div class="account-layout">
         @include('front.desktop.account.partials.nav', ['current' => 'order_show'])
 
         <div class="min-w-0 space-y-6">
@@ -238,7 +237,7 @@
                                                 <input type="hidden" name="product_option_value_id" value="{{ (int) $item->product_option_value_id }}">
                                             @endif
                                             <input type="hidden" name="quantity" value="{{ max(1, (int) $item->quantity) }}">
-                                            <button type="submit" class="h-9 border border-slate-300 bg-white px-3 text-xs font-semibold uppercase tracking-wide text-slate-800 hover:border-slate-500 hover:bg-slate-50">
+                                            <button type="submit" class="commerce-secondary-action px-3 text-xs uppercase tracking-wide">
                                                 {{ __('ui.account.order_show.reorder') }}
                                             </button>
                                         </form>

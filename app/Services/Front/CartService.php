@@ -302,7 +302,7 @@ class CartService
         ];
         Session::put(self::SESSION_KEY, $items);
 
-        return true;
+        return $quantity <= $stock;
     }
 
     public function remove(int $productId, ?int $productOptionValueId = null): void

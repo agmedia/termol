@@ -3,6 +3,11 @@
 @section('title', __('contact.page_title'))
 @section('header_title', __('contact.page_title'))
 @section('page_title', __('contact.heading'))
+@section('body_class', 'mobile-commerce-body mobile-contact-commerce-body')
+
+@push('head')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
     @php
@@ -18,7 +23,7 @@
         </div>
     </div>
 
-    <div class="card card-style rounded-0">
+    <div class="contact-mobile-form card card-style">
         <div class="content">
             <form
                 method="POST"
@@ -71,7 +76,7 @@
                 </label>
                 <p class="font-11 color-red-dark mb-2 mt-1 {{ $errors->has('accept_terms') ? '' : 'hidden' }}" data-field-error="accept_terms">@error('accept_terms'){{ $message }}@enderror</p>
 
-                <button type="submit" class="btn btn-full btn-border border-dark-dark color-dark-dark font-600">{{ __('contact.form.submit') }}</button>
+                <button type="submit" class="commerce-primary-action btn btn-full font-600">{{ __('contact.form.submit') }}</button>
                 <p class="font-11 color-red-dark mb-2 mt-1 {{ $errors->has('recaptcha_token') ? '' : 'hidden' }}" data-field-error="recaptcha_token">@error('recaptcha_token'){{ $message }}@enderror</p>
             </form>
         </div>

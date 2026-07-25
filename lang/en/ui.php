@@ -196,6 +196,7 @@ return [
                 'shipping_returns' => 'Shipping and returns',
                 'secure_checkout' => 'Secure checkout',
                 'copyright' => 'All rights reserved.',
+                'web_by' => 'Web by:',
             ],
             'social' => [
                 'facebook' => 'Facebook',
@@ -231,6 +232,7 @@ return [
         'color_variants' => 'Color variants',
         'product_images' => 'Product images',
         'description' => 'Product description',
+        'description_short' => 'Description',
         'specifications' => 'Specifications',
         'detail_navigation' => 'Product information',
         'size_guide_close' => 'Close',
@@ -355,6 +357,7 @@ return [
             'unavailable' => 'Product option is unavailable or out of stock.',
             'updated' => 'Cart updated.',
             'adjusted' => 'Quantity adjusted because product is unavailable.',
+            'adjusted_with_stock' => 'Only :stock item(s) are available. The cart quantity was adjusted.',
             'removed' => 'Item removed from cart.',
             'cleared' => 'Cart cleared.',
             'coupon_applied' => 'Coupon applied.',

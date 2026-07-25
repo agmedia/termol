@@ -141,6 +141,14 @@
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Footer Working Hours') }}</label>
                         <input type="text" wire:model="form.store_footer_hours" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
                     </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Footer Contact Title') }}</label>
+                        <input type="text" wire:model="form.store_footer_contact_title" placeholder="{{ __('ui.front.desktop.footer.support') }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Footer Contact Intro') }}</label>
+                        <input type="text" wire:model="form.store_footer_contact_intro" placeholder="{{ __('ui.front.desktop.footer.webshop_queries') }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
                     <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <h3 class="text-sm font-bold text-slate-800">{{ __('Footer Link Columns') }}</h3>
                         <p class="mt-1 text-xs text-slate-600">{{ __('Configure 3 footer columns: title + product categories + pages + custom links.') }}</p>

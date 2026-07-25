@@ -1,0 +1,278 @@
+.checkout-shell {
+    --checkout-accent: #11896d;
+    --checkout-accent-hover: #0d6f59;
+    --checkout-border: #d7dee7;
+    --checkout-border-strong: #aab7c6;
+    --checkout-muted: #64748b;
+    width: min(calc(100vw - 2rem), 1400px);
+    margin-inline: auto;
+}
+
+.checkout-page-header {
+    max-width: 44rem;
+    margin-bottom: 2rem;
+}
+
+.checkout-login-card,
+.checkout-card,
+.checkout-summary,
+.checkout-status-card {
+    border: 1px solid var(--checkout-border);
+    border-radius: 4px;
+    background: #fff;
+}
+
+.checkout-login-card,
+.checkout-card {
+    padding: clamp(1.25rem, 2vw, 1.75rem);
+    background: #f4f7fb;
+}
+
+.checkout-login-card {
+    margin-bottom: 1.5rem;
+}
+
+.checkout-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(360px, .75fr);
+    align-items: start;
+    gap: clamp(2rem, 3vw, 3rem);
+}
+
+.checkout-stack {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.checkout-shell label {
+    line-height: 1.45;
+}
+
+.checkout-shell input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.checkout-shell select,
+.checkout-shell textarea {
+    width: 100%;
+    min-height: 48px;
+    border: 1px solid var(--checkout-border-strong);
+    border-radius: 3px;
+    background: #fff;
+    color: #111827;
+    transition:
+        border-color .18s ease,
+        box-shadow .18s ease,
+        background-color .18s ease;
+}
+
+.checkout-shell textarea {
+    min-height: 108px;
+    padding-top: .75rem;
+    padding-bottom: .75rem;
+    resize: vertical;
+}
+
+.checkout-shell input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):hover,
+.checkout-shell select:hover,
+.checkout-shell textarea:hover {
+    border-color: #7c8b9c;
+}
+
+.checkout-shell input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus,
+.checkout-shell select:focus,
+.checkout-shell textarea:focus {
+    border-color: var(--checkout-accent);
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(17 137 109 / 14%);
+}
+
+.checkout-shell input[aria-invalid="true"],
+.checkout-shell select[aria-invalid="true"],
+.checkout-shell textarea[aria-invalid="true"] {
+    border-color: #e11d48;
+}
+
+.checkout-shell input[type="checkbox"],
+.checkout-shell input[type="radio"] {
+    accent-color: var(--checkout-accent);
+    color: var(--checkout-accent);
+}
+
+.checkout-option-card {
+    min-height: 52px;
+    border: 1px solid var(--checkout-border);
+    border-radius: 3px;
+    background: #fff;
+    transition:
+        border-color .18s ease,
+        background-color .18s ease,
+        box-shadow .18s ease;
+}
+
+.checkout-option-card:hover {
+    border-color: #8b99a9;
+    background: #fbfcfd;
+}
+
+.checkout-option-card:has(input:checked) {
+    border-color: var(--checkout-accent);
+    background: #f0faf7;
+    box-shadow: inset 3px 0 0 var(--checkout-accent);
+}
+
+.checkout-inline-panel {
+    border: 1px solid var(--checkout-border);
+    border-radius: 3px;
+    background: #f8fafc;
+}
+
+.checkout-primary-button {
+    display: inline-flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--checkout-accent);
+    border-radius: 3px;
+    background: var(--checkout-accent);
+    color: #fff;
+    font-size: .875rem;
+    font-weight: 700;
+    line-height: 1.2;
+    transition:
+        border-color .18s ease,
+        background-color .18s ease,
+        box-shadow .18s ease,
+        transform .18s ease;
+}
+
+.checkout-primary-button:hover {
+    border-color: var(--checkout-accent-hover);
+    background: var(--checkout-accent-hover);
+}
+
+.checkout-primary-button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgb(17 137 109 / 18%);
+}
+
+.checkout-primary-button:active {
+    transform: translateY(1px);
+}
+
+.checkout-primary-button:disabled {
+    cursor: wait;
+    opacity: .62;
+}
+
+.checkout-primary-button--compact {
+    min-height: 44px;
+}
+
+.checkout-summary {
+    position: sticky;
+    top: 7rem;
+    padding: clamp(1.25rem, 2vw, 1.75rem);
+    box-shadow: none;
+}
+
+.checkout-summary-line {
+    border: 0 !important;
+    border-bottom: 1px solid #edf1f5 !important;
+    padding: .85rem 0 !important;
+}
+
+.checkout-summary-line:first-child {
+    padding-top: 0 !important;
+}
+
+.checkout-summary-line:last-child {
+    border-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+.checkout-status-card {
+    width: min(calc(100vw - 2rem), 1100px);
+    margin-inline: auto;
+    padding: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.checkout-status-card--success {
+    border-color: #6ee7b7;
+}
+
+.mobile-checkout {
+    --checkout-accent: #11896d;
+    --checkout-accent-hover: #0d6f59;
+}
+
+.mobile-checkout .card {
+    border: 1px solid #e1e6ec;
+    border-radius: 6px;
+    background: #f4f7fb;
+    box-shadow: none;
+}
+
+.mobile-checkout .input-style.has-borders input,
+.mobile-checkout .input-style.has-borders select,
+.mobile-checkout .input-style.has-borders textarea {
+    border-color: #aab7c6 !important;
+    border-radius: 3px !important;
+    background: #fff !important;
+}
+
+.mobile-checkout .input-style.has-borders input:focus,
+.mobile-checkout .input-style.has-borders select:focus,
+.mobile-checkout .input-style.has-borders textarea:focus {
+    border-color: var(--checkout-accent) !important;
+    box-shadow: 0 0 0 3px rgb(17 137 109 / 14%) !important;
+}
+
+.mobile-checkout input[type="checkbox"],
+.mobile-checkout input[type="radio"] {
+    accent-color: var(--checkout-accent);
+}
+
+.mobile-checkout [data-checkout-shipping-options] > label,
+.mobile-checkout [data-checkout-payment-options] > label {
+    min-height: 52px;
+    border-color: #d7dee7 !important;
+    border-radius: 3px !important;
+}
+
+.mobile-checkout [data-checkout-shipping-options] > label:has(input:checked),
+.mobile-checkout [data-checkout-payment-options] > label:has(input:checked) {
+    border-color: var(--checkout-accent) !important;
+    background: #f0faf7;
+    box-shadow: inset 3px 0 0 var(--checkout-accent);
+}
+
+.mobile-checkout .checkout-primary-button {
+    min-height: 50px;
+}
+
+@media (max-width: 1023px) {
+    .checkout-layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1.5rem;
+    }
+
+    .checkout-summary {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    .checkout-shell,
+    .checkout-status-card {
+        width: min(calc(100vw - 1.5rem), 1400px);
+    }
+
+    .checkout-page-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .checkout-login-card,
+    .checkout-card,
+    .checkout-summary,
+    .checkout-status-card {
+        padding: 1.1rem;
+    }
+}

@@ -4,6 +4,10 @@
 @section('header_title', __('ui.checkout.title'))
 @section('page_title', __('ui.checkout.title'))
 
+@push('head')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/checkout.css') }}?v={{ filemtime(public_path('front-theme/styles/checkout.css')) }}">
+@endpush
+
 @section('content')
     @php
         $showShippingAddress = old('ship_to_different_address') === '1' || old('use_billing_for_shipping') === '0';
@@ -47,7 +51,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('checkout.store') }}" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($checkoutTotals['grand_total'] ?? $summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
+    <form method="POST" action="{{ route('checkout.store') }}" class="mobile-checkout" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($checkoutTotals['grand_total'] ?? $summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
         @csrf
 
         <div class="card card-style">
@@ -110,44 +114,39 @@
             </div>
         </div>
 
-        <div class="card card-style">
-            <div class="content">
-                <p class="font-600 color-highlight mb-n1">{{ __('ui.checkout.sections.customer') }}</p>
-                <h3>{{ __('ui.checkout.sections.basic_information') }}</h3>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="customer-first" class="color-highlight">{{ __('ui.account.fields.first_name') }}</label><input id="customer-first" type="text" name="customer_first_name" value="{{ old('customer_first_name', $prefill['first_name']) }}" required></div>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="customer-last" class="color-highlight">{{ __('ui.account.fields.last_name') }}</label><input id="customer-last" type="text" name="customer_last_name" value="{{ old('customer_last_name', $prefill['last_name']) }}" required></div>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="customer-email" class="color-highlight">{{ __('ui.account.fields.email') }}</label><input id="customer-email" type="email" name="customer_email" value="{{ old('customer_email', $prefill['email']) }}" required></div>
-                <div class="input-style has-borders no-icon input-style-always-active mb-0"><label for="customer-phone" class="color-highlight">{{ __('ui.account.fields.phone') }}</label><input id="customer-phone" type="text" name="customer_phone" value="{{ old('customer_phone', $prefill['phone']) }}"></div>
-            </div>
-        </div>
-
         <div class="card card-style" data-address-scope="billing">
             <div class="content">
-                <p class="font-600 color-highlight mb-n1">{{ __('ui.account.address.types.billing') }}</p>
-                <h3>{{ __('ui.checkout.sections.billing') }}</h3>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-first" class="color-highlight">{{ __('ui.account.fields.first_name') }}</label><input id="billing-first" type="text" name="billing_first_name" value="{{ old('billing_first_name', $prefill['billing']['first_name']) }}" required></div>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-last" class="color-highlight">{{ __('ui.account.fields.last_name') }}</label><input id="billing-last" type="text" name="billing_last_name" value="{{ old('billing_last_name', $prefill['billing']['last_name']) }}" required></div>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-company" class="color-highlight">{{ __('ui.account.fields.company') }}</label><input id="billing-company" type="text" name="billing_company" value="{{ old('billing_company', $prefill['billing']['company']) }}"></div>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-oib" class="color-highlight">{{ __('ui.account.fields.oib') }}</label><input id="billing-oib" type="text" name="billing_oib" value="{{ old('billing_oib', $prefill['billing']['oib']) }}"></div>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-address1" class="color-highlight">{{ __('ui.account.fields.address_line_1') }}</label><input id="billing-address1" type="text" name="billing_address_line_1" value="{{ old('billing_address_line_1', $prefill['billing']['address_line_1']) }}" required></div>
+                <p class="font-600 color-highlight mb-n1">{{ __('ui.checkout.sections.customer') }}</p>
+                <h3>{{ __('ui.checkout.sections.customer') }} / {{ __('ui.checkout.sections.billing') }}</h3>
+
+                <input type="hidden" name="customer_first_name" value="{{ old('customer_first_name', old('billing_first_name', $prefill['billing']['first_name'])) }}" data-customer-first-hidden>
+                <input type="hidden" name="customer_last_name" value="{{ old('customer_last_name', old('billing_last_name', $prefill['billing']['last_name'])) }}" data-customer-last-hidden>
+
+                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-first" class="color-highlight">{{ __('ui.account.fields.first_name') }}</label><input id="billing-first" type="text" name="billing_first_name" value="{{ old('billing_first_name', $prefill['billing']['first_name']) }}" autocomplete="billing given-name" data-billing-first required></div>
+                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-last" class="color-highlight">{{ __('ui.account.fields.last_name') }}</label><input id="billing-last" type="text" name="billing_last_name" value="{{ old('billing_last_name', $prefill['billing']['last_name']) }}" autocomplete="billing family-name" data-billing-last required></div>
+                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="customer-email" class="color-highlight">{{ __('ui.account.fields.email') }}</label><input id="customer-email" type="email" name="customer_email" value="{{ old('customer_email', $prefill['email']) }}" autocomplete="email" required></div>
+                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="customer-phone" class="color-highlight">{{ __('ui.account.fields.phone') }}</label><input id="customer-phone" type="tel" name="customer_phone" value="{{ old('customer_phone', $prefill['phone']) }}" autocomplete="tel" inputmode="tel" required></div>
+                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-company" class="color-highlight">{{ __('ui.account.fields.company') }}</label><input id="billing-company" type="text" name="billing_company" value="{{ old('billing_company', $prefill['billing']['company']) }}" autocomplete="billing organization"></div>
+                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-oib" class="color-highlight">{{ __('ui.account.fields.oib') }}</label><input id="billing-oib" type="text" name="billing_oib" value="{{ old('billing_oib', $prefill['billing']['oib']) }}" inputmode="numeric"></div>
+                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-address1" class="color-highlight">{{ __('ui.account.fields.address_line_1') }}</label><input id="billing-address1" type="text" name="billing_address_line_1" value="{{ old('billing_address_line_1', $prefill['billing']['address_line_1']) }}" autocomplete="billing street-address" required></div>
                 <div class="row">
-                    <div class="col-4"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-postal" class="color-highlight">{{ __('ui.account.fields.postal_code') }}</label><input id="billing-postal" type="text" name="billing_postal_code" value="{{ old('billing_postal_code', $prefill['billing']['postal_code']) }}" data-address-postal required></div></div>
-                    <div class="col-8"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-city" class="color-highlight">{{ __('ui.account.fields.city') }}</label><input id="billing-city" type="text" name="billing_city" value="{{ old('billing_city', $prefill['billing']['city']) }}" data-address-city required></div></div>
+                    <div class="col-4"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-postal" class="color-highlight">{{ __('ui.account.fields.postal_code') }}</label><input id="billing-postal" type="text" name="billing_postal_code" value="{{ old('billing_postal_code', $prefill['billing']['postal_code']) }}" autocomplete="billing postal-code" inputmode="numeric" data-address-postal required></div></div>
+                    <div class="col-8"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-city" class="color-highlight">{{ __('ui.account.fields.city') }}</label><input id="billing-city" type="text" name="billing_city" value="{{ old('billing_city', $prefill['billing']['city']) }}" autocomplete="billing address-level2" data-address-city required></div></div>
                 </div>
                 <div class="input-style has-borders no-icon input-style-always-active mb-3">
                     <label for="billing-state" class="color-highlight" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
-                    <select id="billing-state" name="billing_state" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
+                    <select id="billing-state" name="billing_state" autocomplete="billing address-level1" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
                         <option value="">{{ __('ui.account.fields.select_county') }}</option>
                         @foreach ($countyOptions as $countyOption)
                             <option value="{{ $countyOption }}" @selected(old('billing_state', $prefill['billing']['state']) === $countyOption)>{{ $countyOption }}</option>
                         @endforeach
                     </select>
-                    <input type="text" value="{{ old('billing_state', $prefill['billing']['state']) }}" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" style="display:none;">
+                    <input type="text" value="{{ old('billing_state', $prefill['billing']['state']) }}" autocomplete="billing address-level1" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" style="display:none;">
                     <span><i class="fa fa-chevron-down"></i></span>
                 </div>
                 <div class="input-style has-borders no-icon input-style-always-active mb-0">
                     <label for="billing-country" class="color-highlight">{{ __('ui.account.fields.country_code') }}</label>
-                    <select id="billing-country" name="billing_country_code" data-address-country required>
+                    <select id="billing-country" name="billing_country_code" autocomplete="billing country" data-address-country required>
                         @foreach ($countryOptions as $countryOption)
                             <option value="{{ $countryOption['code'] }}" @selected(old('billing_country_code', $prefill['billing']['country_code']) === $countryOption['code'])>{{ $countryOption['label'] }}</option>
                         @endforeach
@@ -165,13 +164,13 @@
                         <h3>{{ __('ui.checkout.sections.shipping') }}</h3>
                     </div>
                     <div class="ms-auto align-self-end">
-                        <label class="font-12"><input type="checkbox" name="ship_to_different_address" value="1" @checked($showShippingAddress) data-ship-to-different> {{ __('ui.checkout.options.ship_to_different_address') }}</label>
+                        <label for="mobile-ship-to-different" class="font-12"><input id="mobile-ship-to-different" type="checkbox" name="ship_to_different_address" value="1" @checked($showShippingAddress) data-ship-to-different aria-controls="mobile-shipping-fields" aria-expanded="{{ $showShippingAddress ? 'true' : 'false' }}"> {{ __('ui.checkout.options.ship_to_different_address') }}</label>
                     </div>
                 </div>
 
                 <input type="hidden" name="use_billing_for_shipping" value="{{ $showShippingAddress ? '0' : '1' }}" data-use-billing-for-shipping>
 
-                <div class="overflow-hidden" data-shipping-fields style="{{ $showShippingAddress ? '' : 'max-height:0;opacity:0;' }}; transition: max-height 0.3s ease, opacity 0.3s ease;">
+                <div id="mobile-shipping-fields" class="overflow-hidden" data-shipping-fields aria-hidden="{{ $showShippingAddress ? 'false' : 'true' }}" @if (! $showShippingAddress) inert @endif style="{{ $showShippingAddress ? '' : 'max-height:0;opacity:0;' }}; transition: max-height 0.3s ease, opacity 0.3s ease;">
                     <div class="pt-2">
                         <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="shipping-first" class="color-highlight">{{ __('ui.account.fields.first_name') }}</label><input id="shipping-first" type="text" name="shipping_first_name" value="{{ old('shipping_first_name', $prefill['shipping']['first_name']) }}"></div>
                         <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="shipping-last" class="color-highlight">{{ __('ui.account.fields.last_name') }}</label><input id="shipping-last" type="text" name="shipping_last_name" value="{{ old('shipping_last_name', $prefill['shipping']['last_name']) }}"></div>
@@ -238,7 +237,7 @@
                     <input type="hidden" name="shipping_boxnow_postal_code" value="{{ $selectedBoxNowPostalCode }}" data-boxnow-postal-code>
                     <input type="hidden" name="shipping_boxnow_city" value="{{ $selectedBoxNowCity }}" data-boxnow-city>
 
-                    <button type="button" class="btn btn-xxs gradient-blue rounded-sm font-700 text-uppercase mb-2" data-boxnow-open>{{ __('ui.checkout.boxnow.select_locker') }}</button>
+                    <button type="button" class="checkout-primary-button checkout-primary-button--compact px-3 py-2 mb-2" data-boxnow-open>{{ __('ui.checkout.boxnow.select_locker') }}</button>
                     <p class="font-12 mb-0" data-boxnow-selected>
                         {{ $selectedBoxNowLockerId !== '' ? $selectedBoxNowLockerName.' ('.$selectedBoxNowLockerId.')' : __('ui.checkout.boxnow.no_locker_selected') }}
                     </p>
@@ -280,7 +279,7 @@
                 <label class="font-12 d-block mb-3"><input type="checkbox" name="accept_terms" value="1" required @checked((bool) old('accept_terms'))> {{ __('ui.checkout.options.accept_terms') }}</label>
                 <label class="font-12 d-block mb-3"><input type="checkbox" name="newsletter_opt_in" value="1" @checked((bool) old('newsletter_opt_in', false))> {{ __('ui.checkout.options.newsletter_opt_in') }}</label>
 
-                <button type="submit" class="btn btn-margins btn-full gradient-blue font-13 btn-l font-600 rounded-sm">{{ __('ui.checkout.actions.place_order') }}</button>
+                <button type="submit" class="checkout-primary-button btn btn-margins btn-full font-13 btn-l font-600">{{ __('ui.checkout.actions.place_order') }}</button>
             </div>
         </div>
     </form>
@@ -296,6 +295,10 @@
             const toggle = document.querySelector('[data-ship-to-different]');
             const shippingFields = document.querySelector('[data-shipping-fields]');
             const useBillingInput = document.querySelector('[data-use-billing-for-shipping]');
+            const billingFirst = document.querySelector('[data-billing-first]');
+            const billingLast = document.querySelector('[data-billing-last]');
+            const customerFirstHidden = document.querySelector('[data-customer-first-hidden]');
+            const customerLastHidden = document.querySelector('[data-customer-last-hidden]');
             const optionsUrl = form?.dataset.checkoutOptionsUrl || '';
             const regionOptionsByCountry = form?.dataset.regionOptions ? JSON.parse(form.dataset.regionOptions) : {};
             const shippingOptionsRoot = form?.querySelector('[data-checkout-shipping-options]');
@@ -323,15 +326,30 @@
                 return;
             }
 
+            const syncCustomerNames = function () {
+                if (!billingFirst || !billingLast || !customerFirstHidden || !customerLastHidden) {
+                    return;
+                }
+
+                customerFirstHidden.value = billingFirst.value;
+                customerLastHidden.value = billingLast.value;
+            };
+
             const setState = function () {
                 if (toggle.checked) {
                     useBillingInput.value = '0';
                     shippingFields.style.maxHeight = shippingFields.scrollHeight + 'px';
                     shippingFields.style.opacity = '1';
+                    toggle.setAttribute('aria-expanded', 'true');
+                    shippingFields.setAttribute('aria-hidden', 'false');
+                    shippingFields.inert = false;
                 } else {
                     useBillingInput.value = '1';
                     shippingFields.style.maxHeight = '0';
                     shippingFields.style.opacity = '0';
+                    toggle.setAttribute('aria-expanded', 'false');
+                    shippingFields.setAttribute('aria-hidden', 'true');
+                    shippingFields.inert = true;
                 }
 
                 scheduleOptionsRefresh();
@@ -606,12 +624,16 @@
                 refreshTimer = setTimeout(refreshOptions, 200);
             };
 
+            syncCustomerNames();
             setState();
             applyAllStateModes();
             scheduleOptionsRefresh();
             toggleBoxNowPanel();
             initBoxNowWidget();
             toggle.addEventListener('change', setState);
+            billingFirst?.addEventListener('input', syncCustomerNames);
+            billingLast?.addEventListener('input', syncCustomerNames);
+            form?.addEventListener('submit', syncCustomerNames);
             shippingOptionsRoot?.addEventListener('change', function (event) {
                 if (event.target && event.target.name === 'shipping_method_code') {
                     toggleBoxNowPanel();

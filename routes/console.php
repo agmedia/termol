@@ -1,15 +1,15 @@
 <?php
 
-use App\Services\Import\OpenCartCatalogImportService;
+use App\Models\Settings\Local\Region;
+use App\Models\User;
+use App\Services\Front\AddressDirectoryService;
 use App\Services\Import\DesktopProductImageImportService;
 use App\Services\Import\KozoProductContentSyncService;
+use App\Services\Import\OpenCartCatalogImportService;
 use App\Services\Import\OpenCartPathProductImageImportService;
 use App\Services\Import\OpenCartSizeOptionImportService;
 use App\Services\Import\TermolProductAttributeImportService;
 use App\Services\Import\TermolProductSnapshotImportService;
-use App\Models\User;
-use App\Models\Settings\Local\Region;
-use App\Services\Front\AddressDirectoryService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Carbon;
@@ -23,6 +23,7 @@ Artisan::command('inspire', function () {
 Artisan::command('wholesale:token {user : User ID or email} {name=wholesale-client} {--abilities=wholesale.read,products.read,manufacturers.read,categories.read,products.prices.read,products.quantities.read} {--expires=}', function (): int {
     if (! app(\App\Services\Catalog\CatalogFeatureService::class)->useApi()) {
         $this->error('Wholesale API is disabled in Catalog Features.');
+
         return self::FAILURE;
     }
 
@@ -37,10 +38,12 @@ Artisan::command('wholesale:token {user : User ID or email} {name=wholesale-clie
 
     if (! $user) {
         $this->error('User not found.');
+
         return self::FAILURE;
     }
     if (! (bool) ($user->api_access_enabled ?? false)) {
         $this->error('User API access is disabled. Enable it in Settings > API first.');
+
         return self::FAILURE;
     }
 
@@ -52,6 +55,7 @@ Artisan::command('wholesale:token {user : User ID or email} {name=wholesale-clie
 
     if ($abilities === []) {
         $this->error('At least one ability is required.');
+
         return self::FAILURE;
     }
 
@@ -61,6 +65,7 @@ Artisan::command('wholesale:token {user : User ID or email} {name=wholesale-clie
             $expiresAt = CarbonImmutable::parse($expiresRaw);
         } catch (\Throwable) {
             $this->error('Invalid --expires value. Use a parseable datetime, e.g. "2026-12-31 23:59:59".');
+
             return self::FAILURE;
         }
     }
@@ -83,21 +88,24 @@ Artisan::command('wholesale:token {user : User ID or email} {name=wholesale-clie
 
 Artisan::command('local:import-regions-opencart {file : Path to OpenCart zones CSV} {--truncate : Truncate regions table before import}', function (): int {
     $file = (string) $this->argument('file');
-    if (!is_file($file)) {
+    if (! is_file($file)) {
         $this->error('CSV file not found: '.$file);
+
         return self::FAILURE;
     }
 
     $handle = fopen($file, 'rb');
-    if (!$handle) {
+    if (! $handle) {
         $this->error('Unable to open CSV file.');
+
         return self::FAILURE;
     }
 
     $header = fgetcsv($handle, 0, ',', '"', '\\');
-    if (!is_array($header)) {
+    if (! is_array($header)) {
         fclose($handle);
         $this->error('CSV header missing or invalid.');
+
         return self::FAILURE;
     }
 
@@ -106,9 +114,10 @@ Artisan::command('local:import-regions-opencart {file : Path to OpenCart zones C
     $index = array_flip($header);
 
     foreach ($required as $column) {
-        if (!array_key_exists($column, $index)) {
+        if (! array_key_exists($column, $index)) {
             fclose($handle);
             $this->error('Missing required column: '.$column);
+
             return self::FAILURE;
         }
     }
@@ -121,6 +130,7 @@ Artisan::command('local:import-regions-opencart {file : Path to OpenCart zones C
             $value
         );
         $value = preg_replace('/\s+/', ' ', $value) ?? $value;
+
         return trim($value);
     };
 
@@ -213,7 +223,7 @@ Artisan::command('local:import-regions-opencart {file : Path to OpenCart zones C
     $now = Carbon::now();
 
     while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
-        if (!is_array($row) || $row === []) {
+        if (! is_array($row) || $row === []) {
             continue;
         }
 
@@ -233,6 +243,7 @@ Artisan::command('local:import-regions-opencart {file : Path to OpenCart zones C
         $countryCode = $countryMap[$normalizedCountry] ?? ($aliases[$normalizedCountry] ?? '');
         if ($countryCode === '') {
             $unknownCountries[$countryName] = true;
+
             continue;
         }
 
@@ -259,6 +270,7 @@ Artisan::command('local:import-regions-opencart {file : Path to OpenCart zones C
 
     if ($records === []) {
         $this->error('No importable region rows found.');
+
         return self::FAILURE;
     }
 
@@ -473,8 +485,13 @@ Artisan::command('local:import-termol-product-snapshot
     $this->line('Category links: '.(string) $result['categories_linked']);
     $this->line('Main images attached: '.(string) $result['main_images_attached']);
     $this->line('Images skipped: '.(string) $result['images_skipped']);
+    $this->line('Documents attached: '.(string) $result['documents_attached']);
+    $this->line('Documents skipped: '.(string) $result['documents_skipped']);
     $this->line('Prices include tax: '.((bool) $result['prices_include_tax'] ? 'yes' : 'no'));
-    $this->line('Manufacturer ID: '.(string) $result['manufacturer_id']);
+    $this->line('Manufacturers linked: '.(string) $result['manufacturers_linked']);
+    if ((int) $result['manufacturer_id'] > 0) {
+        $this->line('Manufacturer ID: '.(string) $result['manufacturer_id']);
+    }
     $this->line('Tax rate ID: '.(string) $result['tax_rate_id']);
 
     return self::SUCCESS;
@@ -562,10 +579,10 @@ Artisan::command('local:sync-kozo-proizvodi-content
     $this->line('Duplicate source SKUs: '.(string) $result['duplicate_source_skus']);
     $this->line('Attribute values: '.json_encode($result['attribute_values'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     $this->line('Remaining unresolved ? tokens: '.(string) $result['remaining_question_mark_count']);
-    if (!empty($result['remaining_question_mark_tokens'])) {
+    if (! empty($result['remaining_question_mark_tokens'])) {
         $this->warn('Unresolved tokens sample: '.implode(', ', array_slice((array) $result['remaining_question_mark_tokens'], 0, 12)));
     }
-    if (!$result['dry_run']) {
+    if (! $result['dry_run']) {
         $this->line('Translations updated: '.(string) $result['translations_updated']);
         $this->line('Products updated: '.(string) $result['products_updated']);
         $this->line('Attribute records created: '.(string) $result['attribute_records_created']);

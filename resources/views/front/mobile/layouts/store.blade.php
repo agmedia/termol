@@ -38,7 +38,7 @@
     @include('front.partials.cookie-consent-head')
     @stack('head')
 </head>
-<body class="termol-storefront theme-light" data-highlight="highlight-red">
+<body class="termol-storefront theme-light @yield('body_class')" data-highlight="highlight-red">
 @php
     $mobileBrandName = trim((string) (($storeSettings['branding']['store_name'] ?? null) ?: config('app.name', 'AG Shop')));
     $mobileBrandLogoUrl = trim((string) ($storeSettings['branding']['logo_url'] ?? ''));

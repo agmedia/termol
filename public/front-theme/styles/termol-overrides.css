@@ -62,3 +62,28 @@ body.termol-storefront textarea {
     z-index: 2;
     max-width: 460px;
 }
+
+@media (max-width: 640px) {
+    .site-footer-payments {
+        padding: .75rem;
+    }
+
+    .site-footer-payment-logos {
+        gap: .35rem;
+    }
+
+    .site-footer-payment-logo {
+        width: auto;
+        height: 2.75rem;
+        flex: 0 0 calc((100% - 1.05rem) / 4);
+        padding-right: .125rem;
+        padding-left: .125rem;
+    }
+
+    .site-footer-payment-logo img {
+        width: auto;
+        max-width: 100%;
+        height: 1.35rem;
+        object-fit: contain;
+    }
+}

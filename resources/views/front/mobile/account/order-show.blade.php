@@ -3,6 +3,11 @@
 @section('title', __('ui.account.order_show.page_title', ['number' => $order->order_number]))
 @section('header_title', __('ui.account.orders.title'))
 @section('page_title', $order->order_number)
+@section('body_class', 'mobile-commerce-body mobile-account-commerce-body')
+
+@push('head')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
     @php

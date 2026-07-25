@@ -4,6 +4,10 @@
 @section('header_title', __('ui.checkout.success.order_complete'))
 @section('page_title', __('ui.checkout.success.page_title'))
 
+@push('head')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/checkout.css') }}?v={{ filemtime(public_path('front-theme/styles/checkout.css')) }}">
+@endpush
+
 @section('content')
     @php
         $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
@@ -105,7 +109,7 @@
         </div>
     @endif
 
-    <a href="{{ route('shop.index') }}" class="btn btn-margins btn-full gradient-blue font-13 btn-l font-600 rounded-0">{{ __('ui.checkout.success.continue_shopping') }}</a>
+    <a href="{{ route('shop.index') }}" class="checkout-primary-button btn btn-margins btn-full font-13 btn-l font-600">{{ __('ui.checkout.success.continue_shopping') }}</a>
 
     @auth
         <a href="{{ route('account.orders.show', ['orderNumber' => $order->order_number]) }}" class="btn btn-margins btn-full btn-border border-gray-dark color-gray-dark font-13 btn-l font-600 rounded-0 mt-2">{{ __('ui.checkout.success.view_in_account') }}</a>

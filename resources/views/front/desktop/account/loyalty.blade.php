@@ -1,20 +1,20 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('ui.account.loyalty.page_title'))
+@section('body_class', 'commerce-body account-commerce-body')
+@section('main_class', 'commerce-main')
+
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
-    @include('front.desktop.account.partials.breadcrumbs', ['items' => [
-        ['label' => __('ui.account.breadcrumb.home'), 'url' => route('home')],
-        ['label' => __('ui.account.breadcrumb.account'), 'url' => route('account.dashboard')],
-        ['label' => __('ui.account.loyalty.title')],
-    ]])
-
     <section class="front-soft-hero mb-8 px-4 py-6 text-center sm:px-6">
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.account.loyalty.title') }}</h1>
         <p class="mt-2 text-slate-600">{{ __('ui.account.loyalty.subtitle') }}</p>
     </section>
 
-    <div class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div class="account-layout">
         @include('front.desktop.account.partials.nav', ['current' => 'loyalty'])
 
         <div class="min-w-0 space-y-6">

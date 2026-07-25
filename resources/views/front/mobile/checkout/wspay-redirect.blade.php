@@ -4,6 +4,10 @@
 @section('header_title', __('ui.checkout.wspay.redirect_page_title'))
 @section('page_title', __('ui.checkout.wspay.redirect_page_title'))
 
+@push('head')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/checkout.css') }}?v={{ filemtime(public_path('front-theme/styles/checkout.css')) }}">
+@endpush
+
 @section('content')
     <div class="card card-style rounded-0">
         <div class="content">
@@ -29,7 +33,7 @@
                 <input type="hidden" name="CustomerPhone" value="{{ (string) ($formData['customer']['phone'] ?? '') }}">
                 <input type="hidden" name="CustomerEmail" value="{{ (string) ($formData['customer']['email'] ?? '') }}">
 
-                <button type="submit" class="btn btn-margins btn-full gradient-blue font-13 btn-l font-600 rounded-sm">
+                <button type="submit" class="checkout-primary-button btn btn-margins btn-full font-13 btn-l font-600">
                     {{ __('ui.checkout.wspay.redirect_button') }}
                 </button>
             </form>

@@ -37,6 +37,24 @@ class StorefrontDeviceTemplateTest extends TestCase
         $response->assertDontSee('front-theme/styles/bootstrap.css', false);
     }
 
+    public function test_responsive_desktop_header_keeps_search_visible_and_rotates_benefits(): void
+    {
+        $response = $this
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            ])
+            ->get('/');
+
+        $response->assertOk();
+        $response->assertSee('class="responsive-header-brand', false);
+        $response->assertSee('class="responsive-header-actions', false);
+        $response->assertSee('data-header-search-persistent', false);
+        $response->assertSee('data-header-search-suggestions-close', false);
+        $response->assertSee('data-wishlist-always-visible', false);
+        $response->assertSee('data-store-benefits-rotator', false);
+        $response->assertSee('store-benefits-rotator.js', false);
+    }
+
     public function test_mobile_user_agent_gets_mobile_storefront_template_when_mobile_view_is_enabled(): void
     {
         app(SystemSettingsService::class)->put('catalog_use_mobile_view', true);

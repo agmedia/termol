@@ -3,6 +3,11 @@
 @section('title', __('ui.account.orders.page_title'))
 @section('header_title', __('ui.account.breadcrumb.account'))
 @section('page_title', __('ui.account.orders.title'))
+@section('body_class', 'mobile-commerce-body mobile-account-commerce-body')
+
+@push('head')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
     <div class="card card-style">

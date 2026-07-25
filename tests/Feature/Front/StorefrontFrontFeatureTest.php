@@ -117,6 +117,29 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertSame(180.0, (float) $summary['grand_total']);
     }
 
+    public function test_cart_update_reports_when_requested_quantity_exceeds_stock(): void
+    {
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+        $product->update(['stock_qty' => 1]);
+
+        $this->post('/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 1,
+        ])->assertRedirect();
+
+        $this->patch('/cart/items/'.$product->id, [
+            'quantity' => 3,
+        ])
+            ->assertRedirect()
+            ->assertSessionHas('warning', __('ui.cart.status.adjusted_with_stock', ['stock' => 1]))
+            ->assertSessionMissing('status');
+
+        $line = app(\App\Services\Front\CartService::class)->raw();
+
+        $this->assertSame(1, (int) collect($line)->first()['quantity']);
+    }
+
     public function test_desktop_announcement_bar_uses_saved_scroll_and_color_settings(): void
     {
         app(SystemSettingsService::class)->putMany([
@@ -153,6 +176,12 @@ class StorefrontFrontFeatureTest extends TestCase
             'store_benefits_bar_item_1' => 'Više od **50 000 proizvoda** u ponudi',
             'store_benefits_bar_item_2' => 'Plaćanje karticama do **12 rata bez naknada**',
             'store_benefits_bar_item_3' => '**Dostava** u roku **3-5 radnih dana**',
+            'store_footer_contact_title' => 'Kontakt i podrška',
+            'store_footer_contact_intro' => 'Webshop upiti i informacije',
+            'store_footer_phone' => '+385 91 600 1958',
+            'store_schema_address_street' => 'Lapovačka 11A',
+            'store_schema_address_postal_code' => '32100',
+            'store_schema_address_city' => 'Vinkovci',
         ]);
 
         $this
@@ -162,10 +191,17 @@ class StorefrontFrontFeatureTest extends TestCase
             ->get('/')
             ->assertOk()
             ->assertSee('store-benefits-bar', false)
+            ->assertSee('site-footer-benefits', false)
             ->assertSee('<strong>50 000 proizvoda</strong>', false)
             ->assertSee('<strong>12 rata bez naknada</strong>', false)
             ->assertSee('<strong>Dostava</strong>', false)
-            ->assertSee('<strong>3-5 radnih dana</strong>', false);
+            ->assertSee('<strong>3-5 radnih dana</strong>', false)
+            ->assertSee('Kontakt i podrška')
+            ->assertSee('Webshop upiti i informacije')
+            ->assertSee('+385 91 600 1958')
+            ->assertSee('Lapovačka 11A, 32100 Vinkovci')
+            ->assertSee('assets/payments/ag-footer-logo.svg', false)
+            ->assertDontSee('Web by: AG media.');
     }
 
     public function test_contact_form_stores_message(): void
@@ -176,6 +212,7 @@ class StorefrontFrontFeatureTest extends TestCase
             'phone' => '+38591000000',
             'subject' => 'Wholesale inquiry',
             'message' => 'Please contact me with available B2B pricing details.',
+            'accept_terms' => 1,
         ])->assertRedirect('/contact');
 
         $this->assertDatabaseHas('contact_messages', [
@@ -1494,6 +1531,62 @@ class StorefrontFrontFeatureTest extends TestCase
         ]);
     }
 
+    public function test_checkout_renders_the_wide_accessible_ui_on_desktop_and_the_reduced_form_on_mobile(): void
+    {
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        ShippingMethod::query()->create([
+            'code' => 'standard-ui',
+            'name' => 'Standard Shipping',
+            'price' => 4.99,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        PaymentMethod::query()->create([
+            'code' => 'bank-ui',
+            'name' => 'Bank Transfer',
+            'provider' => 'bank',
+            'fee_type' => 'fixed',
+            'fee_value' => 0,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $this->post('/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 1,
+        ])->assertRedirect();
+
+        $this
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            ])
+            ->get('/checkout')
+            ->assertOk()
+            ->assertSee('front-theme/styles/checkout.css', false)
+            ->assertSee('class="checkout-shell"', false)
+            ->assertSee('class="checkout-layout"', false)
+            ->assertSee('checkout-primary-button', false)
+            ->assertSee('autocomplete="billing given-name"', false)
+            ->assertSee('aria-controls="shipping-address-fields"', false);
+
+        app(SystemSettingsService::class)->put('catalog_use_mobile_view', true);
+
+        $this
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            ])
+            ->get('/checkout')
+            ->assertOk()
+            ->assertSee('front-theme/styles/checkout.css', false)
+            ->assertSee('class="mobile-checkout"', false)
+            ->assertSee('data-customer-first-hidden', false)
+            ->assertSee('data-billing-first', false)
+            ->assertDontSee('id="customer-first"', false);
+    }
+
     public function test_category_shows_only_option_filters_available_in_that_category_scope(): void
     {
         [$categoryA, $slugA] = $this->seedCategory();
@@ -1942,6 +2035,41 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('assets/payments/ELASTICNOST.svg', false)
             ->assertSee('assets/payments/HIPOALERGEN.svg', false)
             ->assertSeeInOrder(['95% Micromodal, 5% Elastane', 'Svilenkast', 'Elastičan', 'Hipoalergen']);
+    }
+
+    public function test_product_detail_renders_swipe_aids_and_a_single_row_gallery_thumbnail_strip(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product, $slug] = $this->seedProduct($category->id);
+
+        $recentlyViewedIds = [];
+        foreach (range(1, 3) as $index) {
+            [$relatedProduct] = $this->seedProduct($category->id);
+            $recentlyViewedIds[] = $relatedProduct->id;
+        }
+
+        foreach (range(1, 7) as $index) {
+            $image = UploadedFile::fake()->image("gallery-image-{$index}.jpg", 900, 900);
+            $product
+                ->addMedia($image->getPathname())
+                ->usingName("Gallery image {$index}")
+                ->usingFileName("gallery-image-{$index}.jpg")
+                ->toMediaCollection($index === 1 ? 'product_main' : 'product_gallery');
+        }
+
+        $response = $this
+            ->withSession(['front_recently_viewed_products' => $recentlyViewedIds])
+            ->get('/product/'.$slug)
+            ->assertOk()
+            ->assertSee('data-product-gallery-thumbnails', false)
+            ->assertSee('data-related-products-splide', false)
+            ->assertSee('data-product-products-widget-swipe-hint', false);
+
+        $html = $response->getContent();
+        $this->assertIsString($html);
+        $this->assertSame(7, substr_count($html, 'data-gallery-nav='));
+        $this->assertSame(2, substr_count($html, 'data-product-products-widget-swipe-hint'));
     }
 
     public function test_mobile_product_detail_renders_attribute_panels_in_requested_order(): void

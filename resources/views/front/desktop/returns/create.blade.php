@@ -1,7 +1,12 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('return_request.page_title'))
-@section('main_class', 'mx-auto w-full max-w-5xl px-6 pt-0 pb-8')
+@section('body_class', 'commerce-body returns-commerce-body')
+@section('main_class', 'commerce-main')
+
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
     @php
@@ -9,28 +14,16 @@
         $captchaEnabled = (bool) ($storeSettings['captcha']['recaptcha_v3_enabled'] ?? false) && $captchaSiteKey !== '';
     @endphp
 
-    <section class="mb-8 px-1">
-        <div class="front-soft-hero px-6 py-4 text-center sm:px-8 sm:py-5">
-            <nav aria-label="Breadcrumb" class="mb-2">
-                <ol class="flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-500 sm:gap-2">
-                    <li>
-                        <a href="{{ route('home') }}" class="inline-flex items-center justify-center text-slate-500 hover:text-slate-700">{{ __('ui.front.desktop.footer.home') }}</a>
-                    </li>
-                    <li class="text-slate-400">/</li>
-                    <li class="text-slate-700">{{ __('return_request.page_title') }}</li>
-                </ol>
-            </nav>
-            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{{ __('return_request.eyebrow') }}</p>
-            <h1 class="mt-1 text-2xl font-extrabold uppercase tracking-tight text-slate-900">{{ __('return_request.heading') }}</h1>
-            <p class="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{{ __('return_request.subheading') }}</p>
-        </div>
+    <section class="commerce-hero">
+        <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('return_request.heading') }}</h1>
+        <p class="mt-2 text-slate-600">{{ __('return_request.subheading') }}</p>
     </section>
 
-    <section class="grid gap-6 lg:grid-cols-[1fr_300px]">
+    <section class="returns-layout">
         <form
             method="POST"
             action="{{ route('returns.store', ['returnRequestSlug' => __('return_request.slug')]) }}"
-            class="border border-slate-200 bg-white p-6 sm:p-8"
+            class="returns-form-card border border-slate-200 p-6 sm:p-8"
             novalidate
             data-return-form
             data-msg-email-required="{{ __('return_request.validation.inline.email_required') }}"
@@ -46,35 +39,35 @@
             <div class="grid gap-4 md:grid-cols-2">
                 <div>
                     <label for="return-email" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('return_request.form.email') }}</label>
-                    <input id="return-email" type="email" name="email" value="{{ old('email', auth()->user()?->email) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required>
-                    <p class="mt-2 text-xs font-semibold text-rose-600 {{ $errors->has('email') ? '' : 'hidden' }}" data-field-error="email">@error('email'){{ $message }}@enderror</p>
+                    <input id="return-email" type="email" name="email" value="{{ old('email', auth()->user()?->email) }}" autocomplete="email" class="w-full px-3 text-sm" required aria-describedby="return-email-error" @error('email') aria-invalid="true" @enderror>
+                    <p id="return-email-error" class="mt-2 text-xs font-semibold text-rose-600 {{ $errors->has('email') ? '' : 'hidden' }}" data-field-error="email" aria-live="polite">@error('email'){{ $message }}@enderror</p>
                 </div>
                 <div>
                     <label for="return-order-number" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('return_request.form.order_number') }}</label>
-                    <input id="return-order-number" type="text" name="order_number" value="{{ old('order_number') }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required>
-                    <p class="mt-2 text-xs font-semibold text-rose-600 {{ $errors->has('order_number') ? '' : 'hidden' }}" data-field-error="order_number">@error('order_number'){{ $message }}@enderror</p>
+                    <input id="return-order-number" type="text" name="order_number" value="{{ old('order_number') }}" autocomplete="off" class="w-full px-3 text-sm" required aria-describedby="return-order-number-error" @error('order_number') aria-invalid="true" @enderror>
+                    <p id="return-order-number-error" class="mt-2 text-xs font-semibold text-rose-600 {{ $errors->has('order_number') ? '' : 'hidden' }}" data-field-error="order_number" aria-live="polite">@error('order_number'){{ $message }}@enderror</p>
                 </div>
             </div>
 
             <div class="mt-4">
                 <label for="return-items" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('return_request.form.return_items') }}</label>
-                <textarea id="return-items" name="return_items" rows="6" class="w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" placeholder="{{ __('return_request.form.return_items_placeholder') }}" required>{{ old('return_items') }}</textarea>
-                <p class="mt-2 text-xs font-semibold text-rose-600 {{ $errors->has('return_items') ? '' : 'hidden' }}" data-field-error="return_items">@error('return_items'){{ $message }}@enderror</p>
+                <textarea id="return-items" name="return_items" rows="6" class="w-full px-3 text-sm" placeholder="{{ __('return_request.form.return_items_placeholder') }}" required aria-describedby="return-items-error" @error('return_items') aria-invalid="true" @enderror>{{ old('return_items') }}</textarea>
+                <p id="return-items-error" class="mt-2 text-xs font-semibold text-rose-600 {{ $errors->has('return_items') ? '' : 'hidden' }}" data-field-error="return_items" aria-live="polite">@error('return_items'){{ $message }}@enderror</p>
             </div>
 
             <div class="mt-4">
                 <label for="return-note" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('return_request.form.note') }}</label>
-                <textarea id="return-note" name="note" rows="5" class="w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" placeholder="{{ __('return_request.form.note_placeholder') }}">{{ old('note') }}</textarea>
+                <textarea id="return-note" name="note" rows="5" class="w-full px-3 text-sm" placeholder="{{ __('return_request.form.note_placeholder') }}">{{ old('note') }}</textarea>
                 <p class="mt-2 text-xs font-semibold text-rose-600 {{ $errors->has('note') ? '' : 'hidden' }}" data-field-error="note">@error('note'){{ $message }}@enderror</p>
             </div>
 
-            <button type="submit" class="mt-6 inline-flex h-11 items-center justify-center border border-slate-900 bg-slate-900 px-6 text-sm font-semibold text-white transition hover:bg-slate-700">
+            <button type="submit" class="commerce-primary-action mt-6 px-6 py-3">
                 {{ __('return_request.form.submit') }}
             </button>
             <p class="mt-2 text-xs font-semibold text-rose-600 {{ $errors->has('recaptcha_token') ? '' : 'hidden' }}" data-field-error="recaptcha_token">@error('recaptcha_token'){{ $message }}@enderror</p>
         </form>
 
-        <aside class="border border-slate-200 bg-slate-100 p-6">
+        <aside class="returns-help-card border border-slate-200 bg-white p-6">
             <h2 class="text-sm font-bold uppercase tracking-wide text-slate-700">{{ __('return_request.help.title') }}</h2>
             <p class="mt-2 text-sm text-slate-700">{{ __('return_request.help.body') }}</p>
         </aside>
@@ -95,6 +88,8 @@
                 forms.forEach(function (form) {
                     const clearError = function (field) {
                         const errorNode = form.querySelector('[data-field-error="' + field + '"]');
+                        const fieldNode = form.querySelector('[name="' + field + '"]');
+                        fieldNode?.removeAttribute('aria-invalid');
                         if (!errorNode) {
                             return;
                         }
@@ -105,6 +100,8 @@
 
                     const setError = function (field, message) {
                         const errorNode = form.querySelector('[data-field-error="' + field + '"]');
+                        const fieldNode = form.querySelector('[name="' + field + '"]');
+                        fieldNode?.setAttribute('aria-invalid', 'true');
                         if (!errorNode) {
                             return;
                         }
@@ -159,6 +156,7 @@
                     form.addEventListener('submit', function (event) {
                         event.preventDefault();
                         if (!validate()) {
+                            form.querySelector('[aria-invalid="true"]')?.focus();
                             return;
                         }
 

@@ -197,6 +197,8 @@ class StoreSettingsFeatureTest extends TestCase
         ]);
 
         app(SystemSettingsService::class)->putMany([
+            'store_footer_contact_title' => 'Kontakt i podrška',
+            'store_footer_contact_intro' => 'Webshop upiti i informacije',
             'store_footer_col_2_title' => 'Pomoć',
             'store_footer_col_2_custom_links' => 'Kontakt|/contact',
         ]);
@@ -205,6 +207,8 @@ class StoreSettingsFeatureTest extends TestCase
             ->test(StoreSettings::class)
             ->set('tab', 'branding')
             ->set('locale', 'en')
+            ->set('form.store_footer_contact_title', 'Contact and support')
+            ->set('form.store_footer_contact_intro', 'Webshop inquiries and information')
             ->set('form.store_footer_col_2_title', 'Help')
             ->set('form.store_footer_col_2_custom_links', "Contact|/contact\nReturns and claims form|/returns-and-claims")
             ->call('save')
@@ -216,6 +220,8 @@ class StoreSettingsFeatureTest extends TestCase
 
         App::setLocale('en');
         $footer = app(FrontStoreSettingsService::class)->footer();
+        $this->assertSame('Contact and support', $footer['contact_title']);
+        $this->assertSame('Webshop inquiries and information', $footer['contact_intro']);
         $this->assertSame('Help', $footer['link_columns'][1]['title']);
         $this->assertSame('Contact', $footer['link_columns'][1]['links'][0]['label']);
         $this->assertSame('/returns-and-claims', $footer['link_columns'][1]['links'][1]['url']);

@@ -1,9 +1,15 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('ui.cart.page_title'))
+@section('body_class', 'commerce-body cart-commerce-body')
+@section('main_class', 'commerce-main')
+
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
-    <section class="mb-8">
+    <section class="commerce-hero">
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.cart.title') }}</h1>
         <p class="mt-2 text-slate-600">{{ __('ui.cart.subtitle') }}</p>
     </section>
@@ -11,10 +17,10 @@
     @if ($lines->isEmpty())
         <div class="border border-dashed border-slate-300 bg-white p-10 text-center">
             <p class="text-slate-600">{{ __('ui.cart.empty') }}</p>
-            <a href="{{ route('shop.index') }}" class="mt-4 inline-flex bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">{{ __('ui.cart.actions.continue') }}</a>
+            <a href="{{ route('shop.index') }}" class="commerce-primary-action mt-4 px-5 py-2.5">{{ __('ui.cart.actions.continue') }}</a>
         </div>
     @else
-        <div class="grid items-start gap-8 xl:grid-cols-[minmax(0,1.45fr)_minmax(430px,1fr)]">
+        <div class="cart-layout">
             <div class="border border-slate-200 bg-white">
                 <div class="divide-y divide-slate-200 md:hidden">
                     @foreach ($lines as $line)
@@ -88,8 +94,12 @@
                                     @if (!empty($line['product_option_value_id']))
                                         <input type="hidden" name="product_option_value_id" value="{{ (int) $line['product_option_value_id'] }}">
                                     @endif
-                                    <input type="number" name="quantity" value="{{ (int) $line['quantity'] }}" min="0" max="999" class="h-10 min-w-0 w-20 border border-slate-300 bg-white px-2 py-1.5 text-sm">
-                                    <button type="submit" class="h-10 flex-1 border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('ui.cart.table.save') }}</button>
+                                    <div class="cart-quantity-stepper" data-cart-qty-control>
+                                        <button type="button" data-cart-qty-dec aria-label="{{ __('ui.cart.modal.quantity') }} -">−</button>
+                                        <input type="text" name="quantity" value="{{ (int) $line['quantity'] }}" inputmode="numeric" readonly aria-label="{{ __('ui.cart.table.quantity') }}" data-cart-qty-input>
+                                        <button type="button" data-cart-qty-inc aria-label="{{ __('ui.cart.modal.quantity') }} +">+</button>
+                                    </div>
+                                    <button type="submit" class="commerce-primary-action cart-save-action flex-1 px-3 py-2 text-xs">{{ __('ui.cart.table.save') }}</button>
                                 </form>
                                 <form
                                     method="POST"
@@ -110,7 +120,7 @@
                                     @endif
                                     <button
                                         type="submit"
-                                        class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-base font-bold leading-none text-white transition hover:bg-slate-700"
+                                        class="cart-remove-action inline-flex h-11 w-11 items-center justify-center rounded-full text-base font-bold leading-none transition"
                                         aria-label="{{ __('ui.cart.table.remove') }}"
                                         title="{{ __('ui.cart.table.remove') }}"
                                     >
@@ -123,7 +133,14 @@
                 </div>
 
                 <div class="hidden overflow-x-auto md:block md:overflow-visible">
-                <table class="min-w-[720px] w-full text-sm md:min-w-0">
+                <table class="cart-items-table min-w-[760px] w-full text-sm md:min-w-0">
+                    <colgroup>
+                        <col>
+                        <col class="w-[130px]">
+                        <col class="w-[230px]">
+                        <col class="w-[140px]">
+                        <col class="w-[72px]">
+                    </colgroup>
                     <thead class="bg-slate-100/70 text-left text-xs uppercase tracking-wide text-slate-500">
                     <tr>
                         <th class="px-4 py-3">{{ __('ui.cart.table.product') }}</th>
@@ -154,9 +171,9 @@
                             $displayCurrent = (float) ($line['display_unit_price'] ?? $line['unit_price'] ?? 0);
                         @endphp
                         <tr class="border-t border-slate-200">
-                            <td class="px-4 py-4">
+                            <td class="cart-product-cell px-4 py-3.5">
                                 <div class="flex items-start gap-3">
-                                    <a href="{{ route('products.show', ['slug' => $translation?->slug ?? $product->id]) }}" class="block w-16 shrink-0 border border-slate-200 bg-slate-50 p-1">
+                                    <a href="{{ route('products.show', ['slug' => $translation?->slug ?? $product->id]) }}" class="cart-product-thumb block border border-slate-200 bg-slate-50 p-1">
                                         @if ($productImageUrl)
                                             <img
                                                 src="{{ $productImageUrl }}"
@@ -169,8 +186,8 @@
                                             <span class="flex h-full w-full items-center justify-center text-[10px] font-semibold uppercase text-slate-500">{{ __('ui.product.no_image') }}</span>
                                         @endif
                                     </a>
-                                    <div>
-                                        <a href="{{ route('products.show', ['slug' => $translation?->slug ?? $product->id]) }}" class="font-semibold text-slate-900 hover:text-blue-700">
+                                    <div class="cart-product-copy min-w-0">
+                                        <a href="{{ route('products.show', ['slug' => $translation?->slug ?? $product->id]) }}" class="cart-product-name break-words font-semibold leading-snug text-slate-900 hover:text-blue-700">
                                             {{ $translation?->name ?? $product->code }}
                                         </a>
                                         @if (!empty($line['sku']))
@@ -182,7 +199,7 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-4 py-4">
+                            <td class="whitespace-nowrap px-4 py-3.5">
                                 @php
                                     $displayCurrent = (float) ($line['display_unit_price'] ?? $line['unit_price'] ?? 0);
                                     $displayBase = (float) ($line['display_base_unit_price'] ?? $line['base_unit_price'] ?? $displayCurrent);
@@ -194,19 +211,23 @@
                                     <span class="font-semibold text-slate-900">{{ number_format($displayCurrent, 2) }} €</span>
                                 </div>
                             </td>
-                            <td class="px-4 py-4">
+                            <td class="px-4 py-3.5">
                                 <form method="POST" action="{{ route('cart.items.update', ['product' => $product->id]) }}" class="flex items-center gap-2">
                                     @csrf
                                     @method('PATCH')
                                     @if (!empty($line['product_option_value_id']))
                                         <input type="hidden" name="product_option_value_id" value="{{ (int) $line['product_option_value_id'] }}">
                                     @endif
-                                    <input type="number" name="quantity" value="{{ (int) $line['quantity'] }}" min="0" max="999" class="w-20 border border-slate-300 bg-white px-2 py-1.5 text-sm">
-                                    <button type="submit" class="border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('ui.cart.table.save') }}</button>
+                                    <div class="cart-quantity-stepper" data-cart-qty-control>
+                                        <button type="button" data-cart-qty-dec aria-label="{{ __('ui.cart.modal.quantity') }} -">−</button>
+                                        <input type="text" name="quantity" value="{{ (int) $line['quantity'] }}" inputmode="numeric" readonly aria-label="{{ __('ui.cart.table.quantity') }}" data-cart-qty-input>
+                                        <button type="button" data-cart-qty-inc aria-label="{{ __('ui.cart.modal.quantity') }} +">+</button>
+                                    </div>
+                                    <button type="submit" class="commerce-primary-action cart-save-action px-3 py-2 text-xs">{{ __('ui.cart.table.save') }}</button>
                                 </form>
                             </td>
-                            <td class="px-4 py-4 font-semibold text-slate-900">{{ number_format((float) ($line['display_line_total'] ?? $line['line_total']), 2) }} €</td>
-                            <td class="px-4 py-4">
+                            <td class="whitespace-nowrap px-4 py-3.5 font-semibold text-slate-900">{{ number_format((float) ($line['display_line_total'] ?? $line['line_total']), 2) }} €</td>
+                            <td class="px-4 py-3.5">
                                 <form
                                     method="POST"
                                     action="{{ route('cart.items.destroy', ['product' => $product->id]) }}"
@@ -226,7 +247,7 @@
                                     @endif
                                     <button
                                         type="submit"
-                                        class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-base font-bold leading-none text-white transition hover:bg-slate-700"
+                                        class="cart-remove-action inline-flex h-10 w-10 items-center justify-center rounded-full text-base font-bold leading-none transition"
                                         aria-label="{{ __('ui.cart.table.remove') }}"
                                         title="{{ __('ui.cart.table.remove') }}"
                                     >
@@ -241,7 +262,7 @@
                 </div>
             </div>
 
-            <aside class="h-fit self-start border border-slate-200 bg-white p-4 sm:p-6 xl:sticky xl:top-28">
+            <aside class="cart-summary h-fit self-start border border-slate-200 bg-white p-4 sm:p-6">
                 <h2 class="text-lg font-semibold text-slate-900">{{ __('ui.cart.summary.title') }}</h2>
                 <dl class="mt-4 space-y-2 text-sm">
                     <div class="flex items-center justify-between">
@@ -279,7 +300,7 @@
                 <div class="mt-4 border-t border-slate-200 pt-4 {{ $couponOpen ? 'mb-4' : 'mb-0' }}" data-coupon-wrap>
                     <button
                         type="button"
-                        class="h-10 w-full border border-slate-300 bg-white px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+                        class="cart-coupon-toggle commerce-secondary-action w-full px-3 text-xs uppercase tracking-wide"
                         data-coupon-toggle
                         data-label-open="{{ __('ui.cart.coupon.toggle_open') }}"
                         data-label-close="{{ __('ui.cart.coupon.toggle_close') }}"
@@ -293,6 +314,8 @@
                         class="mt-3 overflow-hidden transition-all duration-300"
                         data-coupon-panel
                         data-open="{{ $couponOpen ? '1' : '0' }}"
+                        aria-hidden="{{ $couponOpen ? 'false' : 'true' }}"
+                        @if (! $couponOpen) inert @endif
                         style="{{ $couponOpen ? '' : 'max-height:0;opacity:0;' }}"
                     >
                         <label for="coupon_code" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.cart.coupon.label') }}</label>
@@ -304,9 +327,10 @@
                                 name="coupon_code"
                                 value="{{ (string) ($summary['coupon_code'] ?? '') }}"
                                 placeholder="{{ __('ui.cart.coupon.placeholder') }}"
-                                class="h-10 min-w-0 flex-1 border border-slate-300 px-3 text-sm"
+                                autocomplete="off"
+                                class="min-w-0 flex-1 px-3 text-sm"
                             >
-                            <button type="submit" class="h-10 w-full border border-slate-300 bg-white px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-100 sm:w-auto">
+                            <button type="submit" class="commerce-secondary-action w-full px-3 text-xs uppercase tracking-wide sm:w-auto">
                                 {{ __('ui.cart.actions.apply_coupon') }}
                             </button>
                         </form>
@@ -314,7 +338,7 @@
                             <form method="POST" action="{{ route('cart.coupon.remove') }}" class="mt-2">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="h-9 w-full border border-slate-300 px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-100">
+                                <button type="submit" class="commerce-secondary-action w-full px-3 text-xs uppercase tracking-wide">
                                     {{ __('ui.cart.actions.remove_coupon') }}
                                 </button>
                             </form>
@@ -322,7 +346,7 @@
                     </div>
                 </div>
 
-                <a href="{{ route('checkout.create') }}" class="mt-0 block bg-slate-900 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-slate-700">{{ __('ui.cart.actions.checkout') }}</a>
+                <a href="{{ route('checkout.create') }}" class="commerce-primary-action mt-0 px-4 py-3 text-center">{{ __('ui.cart.actions.checkout') }}</a>
             </aside>
         </div>
     @endif
@@ -330,4 +354,5 @@
 
 @push('scripts')
     <script defer src="{{ asset('front-theme/scripts/cart-coupon-toggle.js') }}?v={{ filemtime(public_path('front-theme/scripts/cart-coupon-toggle.js')) }}"></script>
+    <script defer src="{{ asset('front-theme/scripts/cart-quantity.js') }}?v={{ filemtime(public_path('front-theme/scripts/cart-quantity.js')) }}"></script>
 @endpush

@@ -13,11 +13,12 @@
         const form = document.querySelector('[data-header-search-form]');
         const input = document.querySelector('[data-header-search-input]');
 
-        if (!panel || !toggles.length || !form || !input) {
+        if (!panel || !form || !input) {
             return;
         }
 
         const suggestions = form.querySelector('[data-header-search-suggestions]');
+        const suggestionsClose = form.querySelector('[data-header-search-suggestions-close]');
         const suggestionsMeta = form.querySelector('[data-header-search-suggestions-meta]');
         const suggestionsList = form.querySelector('[data-header-search-suggestions-list]');
         const loadingState = form.querySelector('[data-header-search-loading]');
@@ -35,12 +36,15 @@
             && !!footer
             && !!viewAllLink;
 
-        const mobileViewport = window.matchMedia('(max-width: 1023px)');
+        const mobileViewport = window.matchMedia('(max-width: 1279px)');
         const isMobileViewport = function () {
             return mobileViewport.matches;
         };
+        const isPersistentMobileSearch = function () {
+            return isMobileViewport() && panel.hasAttribute('data-header-search-persistent');
+        };
 
-        let isOpen = !isMobileViewport();
+        let isOpen = !isMobileViewport() || isPersistentMobileSearch();
         let debounceId = 0;
         let activeIndex = -1;
         let abortController = null;
@@ -97,6 +101,11 @@
             emptyState.hidden = true;
             footer.hidden = true;
         };
+
+        suggestionsClose?.addEventListener('click', function () {
+            closeSuggestions();
+            input.blur();
+        });
 
         const setMetaLabel = function (template, valueMap) {
             let label = String(template || '');
@@ -436,7 +445,7 @@
         const closePanel = function () {
             closeSuggestions();
 
-            if (isMobileViewport()) {
+            if (isMobileViewport() && !isPersistentMobileSearch()) {
                 panel.classList.remove('is-open');
                 isOpen = false;
                 return;
@@ -526,7 +535,7 @@
                 return;
             }
 
-            isOpen = panel.classList.contains('is-open');
+            isOpen = isPersistentMobileSearch() || panel.classList.contains('is-open');
         };
 
         if (typeof mobileViewport.addEventListener === 'function') {

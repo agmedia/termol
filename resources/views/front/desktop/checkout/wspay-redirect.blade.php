@@ -1,9 +1,14 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('ui.checkout.wspay.redirect_page_title'))
+@section('main_class', 'w-full px-0 py-8')
 
 @section('content')
-    <section class="border border-slate-200 bg-white p-8">
+    @push('styles')
+        <link rel="stylesheet" href="{{ asset('front-theme/styles/checkout.css') }}?v={{ filemtime(public_path('front-theme/styles/checkout.css')) }}">
+    @endpush
+
+    <section class="checkout-status-card">
         <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">{{ __('ui.checkout.wspay.redirect_title') }}</h1>
         <p class="mt-2 text-sm text-slate-600">{{ __('ui.checkout.wspay.redirect_subtitle') }}</p>
 
@@ -26,7 +31,7 @@
             <input type="hidden" name="CustomerPhone" value="{{ (string) ($formData['customer']['phone'] ?? '') }}">
             <input type="hidden" name="CustomerEmail" value="{{ (string) ($formData['customer']['email'] ?? '') }}">
 
-            <button type="submit" class="border border-slate-900 bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">
+            <button type="submit" class="checkout-primary-button px-5 py-2.5">
                 {{ __('ui.checkout.wspay.redirect_button') }}
             </button>
         </form>

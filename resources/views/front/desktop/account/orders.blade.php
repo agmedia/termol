@@ -1,20 +1,20 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('ui.account.orders.page_title'))
+@section('body_class', 'commerce-body account-commerce-body')
+@section('main_class', 'commerce-main')
+
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
-    @include('front.desktop.account.partials.breadcrumbs', ['items' => [
-        ['label' => __('ui.account.breadcrumb.home'), 'url' => route('home')],
-        ['label' => __('ui.account.breadcrumb.account'), 'url' => route('account.dashboard')],
-        ['label' => __('ui.account.orders.title')],
-    ]])
-
     <section class="front-soft-hero mb-8 px-4 py-6 text-center sm:px-6">
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.account.orders.title') }}</h1>
         <p class="mt-2 text-slate-600">{{ __('ui.account.orders.subtitle') }}</p>
     </section>
 
-    <div class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div class="account-layout">
         @include('front.desktop.account.partials.nav', ['current' => 'orders'])
 
         <div class="min-w-0">
@@ -38,7 +38,7 @@
                                 <td class="px-4 py-3">{{ $order->status?->name ?? __('ui.account.orders.status_new') }}</td>
                                 <td class="px-4 py-3 font-semibold">{{ \App\Support\Currency::format((float) $order->grand_total, $order->currency_code) }}</td>
                                 <td class="px-4 py-3">
-                                    <a href="{{ route('account.orders.show', ['orderNumber' => $order->order_number]) }}" class="inline-flex h-9 items-center justify-center border border-slate-300 bg-white px-3 text-xs font-semibold uppercase tracking-wide text-slate-800 hover:border-slate-500 hover:bg-slate-50">
+                                    <a href="{{ route('account.orders.show', ['orderNumber' => $order->order_number]) }}" class="commerce-secondary-action px-3 text-xs uppercase tracking-wide">
                                         {{ __('ui.account.orders.table.details') }}
                                     </a>
                                 </td>

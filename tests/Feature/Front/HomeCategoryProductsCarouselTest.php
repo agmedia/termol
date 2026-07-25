@@ -55,6 +55,33 @@ class HomeCategoryProductsCarouselTest extends TestCase
             ->usingFileName('appliance.jpg')
             ->toMediaCollection('product_main');
 
+        foreach ([2, 3] as $index) {
+            $additionalProduct = Product::query()->create([
+                'code' => "test-appliance-{$index}",
+                'sku' => "TEST-APPLIANCE-{$index}",
+                'is_active' => true,
+                'base_price' => 129.99 + $index,
+                'stock_qty' => 10,
+            ]);
+            $additionalProduct->translations()->create([
+                'locale' => 'hr',
+                'name' => "Testni kućanski aparat {$index}",
+                'slug' => "testni-kucanski-aparat-{$index}",
+                'excerpt' => null,
+                'description' => null,
+            ]);
+            $additionalProduct->categories()->attach($category->id, [
+                'sort_order' => $index,
+                'is_primary' => true,
+            ]);
+            $additionalImage = UploadedFile::fake()->image("appliance-{$index}.jpg", 900, 1200);
+            $additionalProduct
+                ->addMedia($additionalImage->getPathname())
+                ->usingName("Testni kućanski aparat {$index}")
+                ->usingFileName("appliance-{$index}.jpg")
+                ->toMediaCollection('product_main');
+        }
+
         $block = ContentBlock::query()->create([
             'code' => 'home-category-products-test',
             'name' => 'Home Category Products Test',
@@ -102,6 +129,9 @@ class HomeCategoryProductsCarouselTest extends TestCase
             ->assertSee('<section class="w-full bg-white', false)
             ->assertSee('class="mt-4 relative left-1/2 -translate-x-1/2"', false)
             ->assertSee('width: min(calc(100vw - 2rem), var(--storefront-container-width, 1860px));', false)
-            ->assertSee('data-products-carousel-splide', false);
+            ->assertSee('data-products-carousel-splide', false)
+            ->assertSee('data-products-carousel-swipe-hint', false)
+            ->assertSee('arrows: false', false)
+            ->assertSee('pagination: count > mobilePerPage', false);
     }
 }

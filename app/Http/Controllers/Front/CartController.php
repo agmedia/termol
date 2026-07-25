@@ -112,10 +112,9 @@ class CartController extends Controller
             ], $ok ? 200 : 422);
         }
 
-        return back()->with(
-            'status',
-            $message
-        );
+        return $ok
+            ? back()->with('status', $message)
+            : back()->with('warning', $message);
     }
 
     public function update(Request $request, Product $product): RedirectResponse
@@ -125,16 +124,34 @@ class CartController extends Controller
             'quantity' => ['required', 'integer', 'min:0', 'max:999'],
         ]);
 
+        $optionValueId = isset($validated['product_option_value_id'])
+            ? (int) $validated['product_option_value_id']
+            : null;
+        $availableStock = (int) $product->stock_qty;
+        if ($optionValueId !== null) {
+            $availableStock = (int) (ProductOptionValue::query()
+                ->where('id', $optionValueId)
+                ->where('product_id', $product->id)
+                ->where('is_active', true)
+                ->value('stock_qty') ?? 0);
+        }
+
         $ok = $this->cart->set(
             $product,
             (int) $validated['quantity'],
-            isset($validated['product_option_value_id']) ? (int) $validated['product_option_value_id'] : null
+            $optionValueId
         );
 
-        return back()->with(
-            'status',
-            $ok ? __('ui.cart.status.updated') : __('ui.cart.status.adjusted')
-        );
+        $quantityWasStockAdjusted = (int) $validated['quantity'] > $availableStock && $availableStock > 0;
+        $message = $ok
+            ? __('ui.cart.status.updated')
+            : ($quantityWasStockAdjusted
+                ? __('ui.cart.status.adjusted_with_stock', ['stock' => $availableStock])
+                : __('ui.cart.status.adjusted'));
+
+        return $ok
+            ? back()->with('status', $message)
+            : back()->with('warning', $message);
     }
 
     public function destroy(Request $request, Product $product): RedirectResponse

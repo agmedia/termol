@@ -3,6 +3,7 @@
     $customClasses = trim((string) ($translationPayload['custom_classes'] ?? ''));
     $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
     $sliderId = 'full-width-slider-'.$block->id;
+    $isHomeMainSlider = (string) $block->code === 'home-main-slider';
     $slides = $block->getMedia('block_slides');
     $mobileSlides = $block->getMedia('block_slides_mobile')->values();
 
@@ -190,6 +191,16 @@
             width: 100%;
             height: 100%;
         }
+
+        @if ($isHomeMainSlider)
+            @media (min-width: 1440px) and (max-width: 1599px) {
+                #{{ $sliderId }} .hero-slide-frame {
+                    aspect-ratio: auto;
+                    height: calc(100vh - 223px);
+                    height: calc(100dvh - 223px);
+                }
+            }
+        @endif
 
         #{{ $sliderId }} .hero-slide-cta {
             position: absolute;

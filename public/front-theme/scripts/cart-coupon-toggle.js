@@ -14,6 +14,8 @@
             toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
             toggle.textContent = open ? closeLabel : openLabel;
             panel.dataset.open = open ? '1' : '0';
+            panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+            panel.toggleAttribute('inert', !open);
             if (wrap) {
                 wrap.classList.toggle('mb-4', open);
                 wrap.classList.toggle('mb-0', !open);
@@ -31,7 +33,11 @@
         setOpen(panel.dataset.open === '1');
 
         toggle.addEventListener('click', () => {
-            setOpen(panel.dataset.open !== '1');
+            const willOpen = panel.dataset.open !== '1';
+            setOpen(willOpen);
+            if (willOpen) {
+                panel.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href]')?.focus();
+            }
         });
 
         window.addEventListener('resize', () => {

@@ -3,9 +3,14 @@
 @section('title', __('ui.account.dashboard.page_title'))
 @section('header_title', __('ui.account.breadcrumb.account'))
 @section('page_title', __('ui.account.nav.dashboard'))
+@section('body_class', 'mobile-commerce-body mobile-account-commerce-body')
+
+@push('head')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
-    <div class="card card-style bg-11" data-card-height="170">
+    <div class="account-mobile-identity card card-style" data-card-height="170">
         <div class="card-bottom ps-3 pb-3 pe-3">
             <p class="color-white opacity-70 mb-1">{{ __('ui.account.dashboard.cards.user') }}</p>
             <h2 class="color-white font-800 mb-0">{{ $user->name }}</h2>

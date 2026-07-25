@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const gallerySecondary = Array.from(document.querySelectorAll('[data-gallery-secondary]'));
     const galleryOpenButtons = Array.from(document.querySelectorAll('[data-gallery-open]'));
     const productSplide = document.querySelector('[data-product-splide]');
+    const galleryThumbnailStrip = document.querySelector('[data-product-gallery-thumbnails]');
 
     if (productSplide && typeof window.Splide === 'function') {
         const galleryNavigation = Array.from(document.querySelectorAll('[data-gallery-nav]'));
@@ -24,12 +25,39 @@ document.addEventListener('DOMContentLoaded', function () {
             rewind: gallerySlideCount > 1,
         });
 
+        const revealGalleryNavigation = function (button) {
+            if (!galleryThumbnailStrip || !button) {
+                return;
+            }
+
+            const stripRect = galleryThumbnailStrip.getBoundingClientRect();
+            const buttonRect = button.getBoundingClientRect();
+            const isOutsideView = buttonRect.left < stripRect.left || buttonRect.right > stripRect.right;
+
+            if (!isOutsideView) {
+                return;
+            }
+
+            const targetLeft = galleryThumbnailStrip.scrollLeft
+                + buttonRect.left
+                - stripRect.left
+                - ((stripRect.width - buttonRect.width) / 2);
+            const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            galleryThumbnailStrip.scrollTo({
+                left: Math.max(0, targetLeft),
+                behavior: reducedMotion ? 'auto' : 'smooth',
+            });
+        };
+
         const syncGalleryNavigation = function (index) {
             galleryNavigation.forEach(function (button, buttonIndex) {
                 const isActive = buttonIndex === index;
                 button.classList.toggle('is-active', isActive);
                 button.setAttribute('aria-current', isActive ? 'true' : 'false');
             });
+
+            revealGalleryNavigation(galleryNavigation[index] || null);
         };
 
         slider.on('mounted', function () {

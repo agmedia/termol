@@ -168,7 +168,11 @@
                 }
 
                 #products-carousel-{{ $block->id }} .splide__pagination {
-                    bottom: -1.1rem;
+                    display: none;
+                }
+
+                #products-carousel-swipe-hint-{{ $block->id }} {
+                    display: none;
                 }
 
                 @media (hover: none) {
@@ -186,6 +190,10 @@
                 }
 
                 @media (max-width: 640px) {
+                    #products-carousel-{{ $block->id }} .splide__arrow {
+                        display: none;
+                    }
+
                     #products-carousel-{{ $block->id }} .splide__list {
                         gap: {{ $carouselMobileGap }};
                     }
@@ -196,11 +204,54 @@
                             : '100%' }};
                     }
 
+                    #products-carousel-{{ $block->id }} .splide__pagination {
+                        position: static;
+                        display: flex;
+                        width: 100%;
+                        transform: none;
+                        gap: 0.5rem;
+                        padding: 1rem 0 0.1rem;
+                    }
+
+                    #products-carousel-{{ $block->id }} .splide__pagination__page {
+                        width: 0.5rem;
+                        height: 0.5rem;
+                        margin: 0;
+                        border: 0;
+                        background: #cbd5e1 !important;
+                        opacity: 1;
+                    }
+
+                    #products-carousel-{{ $block->id }} .splide__pagination__page.is-active {
+                        background: #0f172a !important;
+                        transform: scale(1.25);
+                    }
+
+                    #products-carousel-swipe-hint-{{ $block->id }} {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: #64748b;
+                    }
                 }
 
             </style>
 
             @include('front.partials.splide-assets')
+
+            @if ($products->count() > $mobileDefaultCols)
+                <div
+                    id="products-carousel-swipe-hint-{{ $block->id }}"
+                    class="product-carousel-swipe-hint"
+                    data-products-carousel-swipe-hint
+                    aria-hidden="true"
+                >
+                    <svg width="40" height="28" viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8.5 8.5 4 13l4.5 4.5M31.5 8.5 36 13l-4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 4.5v9m0 0V9.75a2 2 0 0 1 4 0V14m-4-.5v-6a2 2 0 0 0-4 0v8.25l-1.2-1.35a2 2 0 0 0-2.98 2.67l4.35 4.86A4 4 0 0 0 19.15 23.8H23a5 5 0 0 0 5-5V14a2 2 0 0 0-4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+            @endif
 
             <div
                 class="mt-4 {{ $categoryProductsMode ? 'relative left-1/2 -translate-x-1/2' : '' }}"
@@ -262,7 +313,12 @@
                                             1280: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 4), Math.max(1, count)) },
                                             1024: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 3), Math.max(1, count)) },
                                             860: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '{{ $categoryProductsMode ? '0rem' : '1rem' }}' },
-                                            640: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '{{ $carouselMobileGap }}' },
+                                            640: {
+                                                perPage: Math.min(mobilePerPage, Math.max(1, count)),
+                                                gap: '{{ $carouselMobileGap }}',
+                                                arrows: false,
+                                                pagination: count > mobilePerPage,
+                                            },
                                         },
                                     }).mount();
                                 });

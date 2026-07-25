@@ -211,6 +211,25 @@ class StoreSettingsService
             'email_sales' => trim((string) $this->settings->get('store_footer_email_sales', '')),
             'email_support' => trim((string) $this->settings->get('store_footer_email_support', '')),
             'hours' => trim((string) $this->localizedSetting('store_footer_hours', '', $locale, $fallbackLocale)),
+            'contact_title' => trim((string) $this->localizedSetting(
+                'store_footer_contact_title',
+                __('ui.front.desktop.footer.support'),
+                $locale,
+                $fallbackLocale
+            )),
+            'contact_intro' => trim((string) $this->localizedSetting(
+                'store_footer_contact_intro',
+                __('ui.front.desktop.footer.webshop_queries'),
+                $locale,
+                $fallbackLocale
+            )),
+            'address' => implode(', ', array_filter([
+                trim((string) $this->settings->get('store_schema_address_street', '')),
+                trim(implode(' ', array_filter([
+                    trim((string) $this->settings->get('store_schema_address_postal_code', '')),
+                    trim((string) $this->settings->get('store_schema_address_city', '')),
+                ]))),
+            ])),
             'link_columns' => $linkColumns,
             'bottom_links' => $bottomLinks,
             'bottom_copyright_text' => trim((string) $this->localizedSetting('store_footer_bottom_copyright_text', '', $locale, $fallbackLocale)),

@@ -1,9 +1,14 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('ui.checkout.keks.redirect_page_title'))
+@section('main_class', 'w-full px-0 py-8')
 
 @section('content')
-    <section class="border border-slate-200 bg-white p-4 sm:p-6 lg:p-8">
+    @push('styles')
+        <link rel="stylesheet" href="{{ asset('front-theme/styles/checkout.css') }}?v={{ filemtime(public_path('front-theme/styles/checkout.css')) }}">
+    @endpush
+
+    <section class="checkout-status-card">
         <div class="mx-auto max-w-4xl">
             <div class="flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center">
                 <div>
@@ -26,7 +31,7 @@
                     </ol>
 
                     <div class="mt-5 flex flex-wrap items-center gap-3">
-                        <a href="{{ (string) ($sellData['deeplink'] ?? '#') }}" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">
+                        <a href="{{ (string) ($sellData['deeplink'] ?? '#') }}" class="checkout-primary-button px-5 py-2.5">
                             {{ __('ui.checkout.keks.open_app_button') }}
                         </a>
                         <a href="{{ route('checkout.success', ['orderNumber' => $order->order_number]) }}" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">

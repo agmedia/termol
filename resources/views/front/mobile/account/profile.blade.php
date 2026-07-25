@@ -3,6 +3,11 @@
 @section('title', __('ui.account.profile.page_title'))
 @section('header_title', __('ui.front.desktop.account'))
 @section('page_title', __('ui.account.nav.edit_account'))
+@section('body_class', 'mobile-commerce-body mobile-account-commerce-body mobile-account-profile-commerce-body')
+
+@push('head')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
     <div data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>

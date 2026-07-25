@@ -196,6 +196,7 @@ return [
                 'shipping_returns' => 'Dostava i povrati',
                 'secure_checkout' => 'Sigurna naplata',
                 'copyright' => 'Sva prava pridržana.',
+                'web_by' => 'Web by:',
                 'agmedia' => 'Web by: AG media.',
             ],
             'social' => [
@@ -232,6 +233,7 @@ return [
         'color_variants' => 'Varijante u bojama',
         'product_images' => 'Slike proizvoda',
         'description' => 'Opis proizvoda',
+        'description_short' => 'Opis',
         'specifications' => 'Specifikacije',
         'detail_navigation' => 'Informacije o proizvodu',
         'size_guide_close' => 'Zatvori',
@@ -356,6 +358,7 @@ return [
             'unavailable' => 'Odabrana opcija nije dostupna ili nema zalihe.',
             'updated' => 'Košarica je ažurirana.',
             'adjusted' => 'Količina je prilagođena jer proizvod nije dostupan.',
+            'adjusted_with_stock' => 'Dostupno je najviše :stock kom. Količina u košarici je prilagođena.',
             'removed' => 'Stavka je uklonjena iz košarice.',
             'cleared' => 'Košarica je ispražnjena.',
             'coupon_applied' => 'Kupon je primijenjen.',

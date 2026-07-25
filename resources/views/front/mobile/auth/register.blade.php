@@ -3,6 +3,11 @@
 @section('title', __('ui.auth.register.page_title'))
 @section('header_title', __('ui.auth.register.heading'))
 @section('page_title', __('ui.auth.register.heading'))
+@section('body_class', 'mobile-commerce-body mobile-auth-commerce-body')
+
+@push('head')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/commerce-pages.css') }}?v={{ filemtime(public_path('front-theme/styles/commerce-pages.css')) }}">
+@endpush
 
 @section('content')
     @php
@@ -10,7 +15,7 @@
         $captchaEnabled = (bool) ($storeSettings['captcha']['recaptcha_v3_enabled'] ?? false) && $captchaSiteKey !== '';
     @endphp
 
-    <div class="card card-style rounded-0">
+    <div class="auth-mobile-form card card-style">
         <div class="content">
             <h3 class="mb-1">{{ __('ui.auth.register.form_title') }}</h3>
             <p class="opacity-60 mb-3">{{ __('ui.auth.register.subheading') }}</p>
@@ -62,7 +67,7 @@
                     <input type="password" name="password_confirmation" class="form-control rounded-0" required>
                 </div>
 
-                <button type="submit" class="btn btn-full rounded-0 font-600 bg-highlight">{{ __('ui.auth.register.submit') }}</button>
+                <button type="submit" class="commerce-primary-action btn btn-full font-600">{{ __('ui.auth.register.submit') }}</button>
                 @error('recaptcha_token')
                     <p class="mb-0 mt-2 font-600 font-12" style="color:#e11d48;">{{ $message }}</p>
                 @enderror

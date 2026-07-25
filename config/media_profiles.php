@@ -218,6 +218,21 @@ return [
                     'conversions' => ['thumb_100x100', 'card_360x240', 'card_320w', 'card_480w', 'card_720w', 'detail_960x960'],
                     'preview_conversion' => 'card_360x240',
                 ],
+                'product_documents' => [
+                    'label' => 'Documents',
+                    'single_file' => false,
+                    'max_upload_kb' => 8192,
+                    'accept_mime_types' => [
+                        'application/pdf',
+                        'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/vnd.ms-excel',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'application/zip',
+                    ],
+                    'conversions' => [],
+                    'preview_conversion' => null,
+                ],
             ],
         ],
         BlogPost::class => [

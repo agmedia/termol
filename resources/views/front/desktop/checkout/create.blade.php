@@ -1,6 +1,7 @@
 @extends('front.desktop.layouts.store')
 
 @section('title', __('ui.checkout.page_title'))
+@section('main_class', 'w-full px-0 py-8')
 
 @section('content')
     @php
@@ -42,37 +43,42 @@
         })->values()->all();
     @endphp
 
-    <section class="mb-8">
+    @push('styles')
+        <link rel="stylesheet" href="{{ asset('front-theme/styles/checkout.css') }}?v={{ filemtime(public_path('front-theme/styles/checkout.css')) }}">
+    @endpush
+
+    <div class="checkout-shell">
+    <section class="checkout-page-header">
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.checkout.title') }}</h1>
         <p class="mt-2 text-slate-600">{{ __('ui.checkout.subtitle') }}</p>
     </section>
 
     @guest
-        <section class="mb-6 border border-slate-200 bg-white p-6">
+        <section class="checkout-login-card">
             <label class="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" data-checkout-login-toggle @checked($showLoginForm)>
+                <input id="checkout-login-toggle" type="checkbox" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" data-checkout-login-toggle aria-controls="checkout-login-panel" aria-expanded="{{ $showLoginForm ? 'true' : 'false' }}" @checked($showLoginForm)>
                 {{ __('ui.checkout.login.toggle') }}
             </label>
 
-            <div class="overflow-hidden transition-all duration-300" data-checkout-login-panel style="{{ $showLoginForm ? '' : 'max-height:0;opacity:0;' }}">
+            <div id="checkout-login-panel" class="overflow-hidden transition-all duration-300" data-checkout-login-panel aria-hidden="{{ $showLoginForm ? 'false' : 'true' }}" @if (! $showLoginForm) inert @endif style="{{ $showLoginForm ? '' : 'max-height:0;opacity:0;' }}">
                 <div class="mt-4 border-t border-slate-200 pt-4">
                     <h2 class="text-lg font-semibold text-slate-900">{{ __('ui.checkout.login.title') }}</h2>
-                    <form method="POST" action="{{ route('checkout.login') }}" class="mt-3 grid gap-3 md:grid-cols-2" novalidate>
+                    <form method="POST" action="{{ route('checkout.login') }}" class="mt-3 grid gap-3 md:grid-cols-2">
                         @csrf
                         <input type="hidden" name="checkout_login" value="1">
                         <input type="hidden" name="intended" value="{{ route('checkout.create') }}">
                         <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.login.email') }}</label>
-                            <input type="email" name="email" value="{{ old('email') }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required>
+                            <label for="checkout-login-email" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.login.email') }}</label>
+                            <input id="checkout-login-email" type="email" name="email" value="{{ old('email') }}" autocomplete="email" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required @error('email') aria-invalid="true" aria-describedby="checkout-login-email-error" @enderror>
                             @error('email')
-                                <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                                <p id="checkout-login-email-error" class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                             @enderror
                         </div>
                         <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.login.password') }}</label>
-                            <input type="password" name="password" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required>
+                            <label for="checkout-login-password" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.login.password') }}</label>
+                            <input id="checkout-login-password" type="password" name="password" autocomplete="current-password" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required @error('password') aria-invalid="true" aria-describedby="checkout-login-password-error" @enderror>
                             @error('password')
-                                <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                                <p id="checkout-login-password-error" class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                             @enderror
                         </div>
                         <div class="md:col-span-2 flex items-center justify-between gap-3">
@@ -80,7 +86,7 @@
                                 <input type="checkbox" name="remember" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0">
                                 {{ __('ui.checkout.login.remember') }}
                             </label>
-                            <button type="submit" class="border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">{{ __('ui.checkout.login.submit') }}</button>
+                            <button type="submit" class="checkout-primary-button checkout-primary-button--compact px-5 py-2">{{ __('ui.checkout.login.submit') }}</button>
                         </div>
                     </form>
                 </div>
@@ -88,13 +94,13 @@
         </section>
     @endguest
 
-    <div class="mb-4 hidden border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700" data-checkout-top-error></div>
+    <div class="mb-4 hidden border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700" role="alert" aria-live="polite" data-checkout-top-error></div>
 
-    <form method="POST" action="{{ route('checkout.store') }}" class="grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(460px,1fr)]" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-form data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($checkoutTotals['grand_total'] ?? $summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-success-fallback="{{ route('checkout.success.latest') }}" novalidate>
+    <form method="POST" action="{{ route('checkout.store') }}" class="checkout-layout" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-form data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($checkoutTotals['grand_total'] ?? $summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-success-fallback="{{ route('checkout.success.latest') }}">
         @csrf
 
-        <div class="space-y-6">
-            <section class="border border-slate-200 bg-white p-6" data-address-scope="billing">
+        <div class="checkout-stack">
+            <section class="checkout-card" data-address-scope="billing">
                 <h2 class="text-xl font-bold text-slate-900">{{ __('ui.checkout.sections.customer') }} / {{ __('ui.checkout.sections.billing') }}</h2>
                 <p class="mt-1 text-sm text-slate-600">{{ __('ui.checkout.sections.basic_information') }}</p>
 
@@ -103,82 +109,82 @@
 
                 <div class="mt-4 grid gap-4 md:grid-cols-2">
                     <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.first_name') }}</label>
-                        <input type="text" name="billing_first_name" value="{{ old('billing_first_name', $prefill['billing']['first_name']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-billing-first required>
+                        <label for="billing-first-name" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.first_name') }}</label>
+                        <input id="billing-first-name" type="text" name="billing_first_name" value="{{ old('billing_first_name', $prefill['billing']['first_name']) }}" autocomplete="billing given-name" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-billing-first required @error('billing_first_name') aria-invalid="true" aria-describedby="billing-first-name-error" @enderror>
                         @error('billing_first_name')
-                            <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                            <p id="billing-first-name-error" class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                         @enderror
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.last_name') }}</label>
-                        <input type="text" name="billing_last_name" value="{{ old('billing_last_name', $prefill['billing']['last_name']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-billing-last required>
+                        <label for="billing-last-name" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.last_name') }}</label>
+                        <input id="billing-last-name" type="text" name="billing_last_name" value="{{ old('billing_last_name', $prefill['billing']['last_name']) }}" autocomplete="billing family-name" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-billing-last required @error('billing_last_name') aria-invalid="true" aria-describedby="billing-last-name-error" @enderror>
                         @error('billing_last_name')
-                            <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                            <p id="billing-last-name-error" class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                         @enderror
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.email') }}</label>
-                        <input type="email" name="customer_email" value="{{ old('customer_email', $prefill['email']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required>
+                        <label for="customer-email" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.email') }}</label>
+                        <input id="customer-email" type="email" name="customer_email" value="{{ old('customer_email', $prefill['email']) }}" autocomplete="email" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required @error('customer_email') aria-invalid="true" aria-describedby="customer-email-error" @enderror>
                         @error('customer_email')
-                            <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                            <p id="customer-email-error" class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                         @enderror
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.phone') }}</label>
-                        <input type="text" name="customer_phone" value="{{ old('customer_phone', $prefill['phone']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required>
+                        <label for="customer-phone" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.phone') }}</label>
+                        <input id="customer-phone" type="tel" name="customer_phone" value="{{ old('customer_phone', $prefill['phone']) }}" autocomplete="tel" inputmode="tel" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required @error('customer_phone') aria-invalid="true" aria-describedby="customer-phone-error" @enderror>
                         @error('customer_phone')
-                            <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                            <p id="customer-phone-error" class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                         @enderror
                     </div>
                     <div class="md:col-span-2">
-                        <label class="inline-flex items-center gap-2 text-sm text-slate-700">
-                            <input type="checkbox" name="want_r1_invoice" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" data-r1-toggle @checked($showR1Fields)>
+                        <label for="want-r1-invoice" class="inline-flex items-center gap-2 text-sm text-slate-700">
+                            <input id="want-r1-invoice" type="checkbox" name="want_r1_invoice" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" data-r1-toggle aria-controls="r1-fields" aria-expanded="{{ $showR1Fields ? 'true' : 'false' }}" @checked($showR1Fields)>
                             {{ __('ui.checkout.options.r1_invoice') }}
                         </label>
                     </div>
-                    <div class="md:col-span-2 overflow-hidden transition-all duration-300" data-r1-panel style="{{ $showR1Fields ? '' : 'max-height:0;opacity:0;' }}">
+                    <div id="r1-fields" class="md:col-span-2 overflow-hidden transition-all duration-300" data-r1-panel aria-hidden="{{ $showR1Fields ? 'false' : 'true' }}" style="{{ $showR1Fields ? '' : 'max-height:0;opacity:0;' }}">
                         <div class="grid gap-4 border-t border-slate-200 pt-4 md:grid-cols-2">
-                            <div><label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.company') }}</label><input type="text" name="billing_company" value="{{ old('billing_company', $prefill['billing']['company']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-r1-company></div>
-                            <div><label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.oib') }}</label><input type="text" name="billing_oib" value="{{ old('billing_oib', $prefill['billing']['oib']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-r1-oib></div>
+                            <div><label for="billing-company" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.company') }}</label><input id="billing-company" type="text" name="billing_company" value="{{ old('billing_company', $prefill['billing']['company']) }}" autocomplete="billing organization" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-r1-company></div>
+                            <div><label for="billing-oib" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.oib') }}</label><input id="billing-oib" type="text" name="billing_oib" value="{{ old('billing_oib', $prefill['billing']['oib']) }}" inputmode="numeric" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-r1-oib></div>
                         </div>
                     </div>
                     <div class="md:col-span-2">
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.address_line_1') }}</label>
-                        <input type="text" name="billing_address_line_1" value="{{ old('billing_address_line_1', $prefill['billing']['address_line_1']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required>
+                        <label for="billing-address" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.address_line_1') }}</label>
+                        <input id="billing-address" type="text" name="billing_address_line_1" value="{{ old('billing_address_line_1', $prefill['billing']['address_line_1']) }}" autocomplete="billing street-address" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" required @error('billing_address_line_1') aria-invalid="true" aria-describedby="billing-address-error" @enderror>
                         @error('billing_address_line_1')
-                            <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                            <p id="billing-address-error" class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                         @enderror
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.postal_code') }}</label>
-                        <input type="text" name="billing_postal_code" value="{{ old('billing_postal_code', $prefill['billing']['postal_code']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-postal required>
+                        <label for="billing-postal-code" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.postal_code') }}</label>
+                        <input id="billing-postal-code" type="text" name="billing_postal_code" value="{{ old('billing_postal_code', $prefill['billing']['postal_code']) }}" autocomplete="billing postal-code" inputmode="numeric" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-postal required @error('billing_postal_code') aria-invalid="true" aria-describedby="billing-postal-code-error" @enderror>
                         @error('billing_postal_code')
-                            <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                            <p id="billing-postal-code-error" class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                         @enderror
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.city') }}</label>
-                        <input type="text" name="billing_city" value="{{ old('billing_city', $prefill['billing']['city']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-city required>
+                        <label for="billing-city" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.city') }}</label>
+                        <input id="billing-city" type="text" name="billing_city" value="{{ old('billing_city', $prefill['billing']['city']) }}" autocomplete="billing address-level2" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-city required @error('billing_city') aria-invalid="true" aria-describedby="billing-city-error" @enderror>
                         @error('billing_city')
-                            <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                            <p id="billing-city-error" class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                         @enderror
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
-                        <select name="billing_state" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
+                        <label for="billing-state" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
+                        <select id="billing-state" name="billing_state" autocomplete="billing address-level1" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}" @error('billing_state') aria-invalid="true" aria-describedby="billing-state-error" @enderror>
                             <option value="">{{ __('ui.account.fields.select_county') }}</option>
                             @foreach ($countyOptions as $countyOption)
                                 <option value="{{ $countyOption }}" @selected(old('billing_state', $prefill['billing']['state']) === $countyOption)>{{ $countyOption }}</option>
                             @endforeach
                         </select>
-                        <input type="text" value="{{ old('billing_state', $prefill['billing']['state']) }}" class="hidden h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" />
+                        <input id="billing-state-input" type="text" value="{{ old('billing_state', $prefill['billing']['state']) }}" autocomplete="billing address-level1" class="hidden h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" @error('billing_state') aria-invalid="true" aria-describedby="billing-state-error" @enderror />
                         @error('billing_state')
-                            <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                            <p id="billing-state-error" class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                         @enderror
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.country_code') }}</label>
-                        <select name="billing_country_code" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-country required>
+                        <label for="billing-country" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.country_code') }}</label>
+                        <select id="billing-country" name="billing_country_code" autocomplete="billing country" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-country required>
                             @foreach ($countryOptions as $countryOption)
                                 <option value="{{ $countryOption['code'] }}" @selected(old('billing_country_code', $prefill['billing']['country_code']) === $countryOption['code'])>{{ $countryOption['label'] }}</option>
                             @endforeach
@@ -188,23 +194,23 @@
 
                 @guest
                     <div class="mt-4 border-t border-slate-200 pt-4">
-                        <label class="inline-flex items-center gap-2 text-sm text-slate-700">
-                            <input type="checkbox" name="register_account" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" data-register-account-toggle @checked($showRegisterPanel)>
+                        <label for="register-account" class="inline-flex items-center gap-2 text-sm text-slate-700">
+                            <input id="register-account" type="checkbox" name="register_account" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" data-register-account-toggle aria-controls="register-account-fields" aria-expanded="{{ $showRegisterPanel ? 'true' : 'false' }}" @checked($showRegisterPanel)>
                             {{ __('ui.checkout.options.register_account') }}
                         </label>
 
-                        <div class="overflow-hidden transition-all duration-300" data-register-account-panel style="{{ $showRegisterPanel ? '' : 'max-height:0;opacity:0;' }}">
+                        <div id="register-account-fields" class="overflow-hidden transition-all duration-300" data-register-account-panel aria-hidden="{{ $showRegisterPanel ? 'false' : 'true' }}" style="{{ $showRegisterPanel ? '' : 'max-height:0;opacity:0;' }}">
                             <div class="mt-4 grid gap-4 border-t border-slate-200 pt-4 md:grid-cols-2">
                                 <div>
-                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.register.password') }}</label>
-                                    <input type="password" name="register_password" autocomplete="new-password" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-register-password @disabled(! $showRegisterPanel)>
+                                    <label for="register-password" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.register.password') }}</label>
+                                    <input id="register-password" type="password" name="register_password" autocomplete="new-password" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-register-password @disabled(! $showRegisterPanel) @error('register_password') aria-invalid="true" aria-describedby="register-password-error" @enderror>
                                     @error('register_password')
-                                        <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                                        <p id="register-password-error" class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                                     @enderror
                                 </div>
                                 <div>
-                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.register.password_repeat') }}</label>
-                                    <input type="password" name="register_password_confirmation" autocomplete="new-password" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-register-password-confirmation @disabled(! $showRegisterPanel)>
+                                    <label for="register-password-confirmation" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.register.password_repeat') }}</label>
+                                    <input id="register-password-confirmation" type="password" name="register_password_confirmation" autocomplete="new-password" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-register-password-confirmation @disabled(! $showRegisterPanel)>
                                 </div>
                             </div>
                         </div>
@@ -212,39 +218,39 @@
                 @endguest
             </section>
 
-            <section class="border border-slate-200 bg-white p-6" data-address-scope="shipping">
+            <section class="checkout-card" data-address-scope="shipping">
                 <div class="flex items-center justify-between gap-4">
                     <h2 class="text-xl font-bold text-slate-900">{{ __('ui.checkout.sections.shipping') }}</h2>
-                    <label class="inline-flex items-center gap-2 text-sm text-slate-700">
-                        <input type="checkbox" name="ship_to_different_address" value="1" @checked($showShippingAddress) class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" data-ship-to-different>
+                    <label for="ship-to-different-address" class="inline-flex items-center gap-2 text-sm text-slate-700">
+                        <input id="ship-to-different-address" type="checkbox" name="ship_to_different_address" value="1" @checked($showShippingAddress) class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" data-ship-to-different aria-controls="shipping-address-fields" aria-expanded="{{ $showShippingAddress ? 'true' : 'false' }}">
                         {{ __('ui.checkout.options.ship_to_different_address') }}
                     </label>
                 </div>
 
                 <input type="hidden" name="use_billing_for_shipping" value="{{ $showShippingAddress ? '0' : '1' }}" data-use-billing-for-shipping>
 
-                <div class="overflow-hidden transition-all duration-300" data-shipping-fields style="{{ $showShippingAddress ? '' : 'max-height:0;opacity:0;' }}">
+                <div id="shipping-address-fields" class="overflow-hidden transition-all duration-300" data-shipping-fields aria-hidden="{{ $showShippingAddress ? 'false' : 'true' }}" @if (! $showShippingAddress) inert @endif style="{{ $showShippingAddress ? '' : 'max-height:0;opacity:0;' }}">
                     <div class="mt-4 grid gap-4 border-t border-slate-200 pt-4 md:grid-cols-2">
-                        <div><label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.first_name') }}</label><input type="text" name="shipping_first_name" value="{{ old('shipping_first_name', $prefill['shipping']['first_name']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0"></div>
-                        <div><label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.last_name') }}</label><input type="text" name="shipping_last_name" value="{{ old('shipping_last_name', $prefill['shipping']['last_name']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0"></div>
-                        <div><label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.company') }}</label><input type="text" name="shipping_company" value="{{ old('shipping_company', $prefill['shipping']['company']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0"></div>
-                        <div><label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.vat_id') }}</label><input type="text" name="shipping_vat_id" value="{{ old('shipping_vat_id', $prefill['shipping']['vat_id']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0"></div>
-                        <div class="md:col-span-2"><label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.address_line_1') }}</label><input type="text" name="shipping_address_line_1" value="{{ old('shipping_address_line_1', $prefill['shipping']['address_line_1']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0"></div>
-                        <div><label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.postal_code') }}</label><input type="text" name="shipping_postal_code" value="{{ old('shipping_postal_code', $prefill['shipping']['postal_code']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-postal></div>
-                        <div><label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.city') }}</label><input type="text" name="shipping_city" value="{{ old('shipping_city', $prefill['shipping']['city']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-city></div>
+                        <div><label for="shipping-first-name" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.first_name') }}</label><input id="shipping-first-name" type="text" name="shipping_first_name" value="{{ old('shipping_first_name', $prefill['shipping']['first_name']) }}" autocomplete="shipping given-name" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0"></div>
+                        <div><label for="shipping-last-name" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.last_name') }}</label><input id="shipping-last-name" type="text" name="shipping_last_name" value="{{ old('shipping_last_name', $prefill['shipping']['last_name']) }}" autocomplete="shipping family-name" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0"></div>
+                        <div><label for="shipping-company" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.company') }}</label><input id="shipping-company" type="text" name="shipping_company" value="{{ old('shipping_company', $prefill['shipping']['company']) }}" autocomplete="shipping organization" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0"></div>
+                        <div><label for="shipping-vat-id" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.vat_id') }}</label><input id="shipping-vat-id" type="text" name="shipping_vat_id" value="{{ old('shipping_vat_id', $prefill['shipping']['vat_id']) }}" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0"></div>
+                        <div class="md:col-span-2"><label for="shipping-address" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.address_line_1') }}</label><input id="shipping-address" type="text" name="shipping_address_line_1" value="{{ old('shipping_address_line_1', $prefill['shipping']['address_line_1']) }}" autocomplete="shipping street-address" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0"></div>
+                        <div><label for="shipping-postal-code" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.postal_code') }}</label><input id="shipping-postal-code" type="text" name="shipping_postal_code" value="{{ old('shipping_postal_code', $prefill['shipping']['postal_code']) }}" autocomplete="shipping postal-code" inputmode="numeric" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-postal></div>
+                        <div><label for="shipping-city" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.city') }}</label><input id="shipping-city" type="text" name="shipping_city" value="{{ old('shipping_city', $prefill['shipping']['city']) }}" autocomplete="shipping address-level2" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-city></div>
                         <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
-                            <select name="shipping_state" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
+                            <label for="shipping-state" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
+                            <select id="shipping-state" name="shipping_state" autocomplete="shipping address-level1" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
                                 <option value="">{{ __('ui.account.fields.select_county') }}</option>
                                 @foreach ($countyOptions as $countyOption)
                                     <option value="{{ $countyOption }}" @selected(old('shipping_state', $prefill['shipping']['state']) === $countyOption)>{{ $countyOption }}</option>
                                 @endforeach
                             </select>
-                            <input type="text" value="{{ old('shipping_state', $prefill['shipping']['state']) }}" class="hidden h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" />
+                            <input id="shipping-state-input" type="text" value="{{ old('shipping_state', $prefill['shipping']['state']) }}" autocomplete="shipping address-level1" class="hidden h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" />
                         </div>
                         <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.country_code') }}</label>
-                            <select name="shipping_country_code" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-country>
+                            <label for="shipping-country" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.country_code') }}</label>
+                            <select id="shipping-country" name="shipping_country_code" autocomplete="shipping country" class="h-11 w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0" data-address-country>
                                 @foreach ($countryOptions as $countryOption)
                                     <option value="{{ $countryOption['code'] }}" @selected(old('shipping_country_code', $prefill['shipping']['country_code']) === $countryOption['code'])>{{ $countryOption['label'] }}</option>
                                 @endforeach
@@ -254,15 +260,15 @@
                 </div>
             </section>
 
-            <section class="border border-slate-200 bg-white p-6">
+            <section class="checkout-card">
                 <h2 class="text-xl font-bold text-slate-900">{{ __('ui.checkout.sections.shipping_payment') }}</h2>
 
                 <div class="mt-4 space-y-5">
-                    <div>
-                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.labels.shipping_method') }}</p>
+                    <fieldset>
+                        <legend class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.labels.shipping_method') }}</legend>
                         <div class="grid gap-2" data-checkout-shipping-options>
                             @foreach ($shippingMethods as $method)
-                                <label class="flex cursor-pointer items-center justify-between gap-3 border border-slate-300 px-3 py-2.5 text-sm hover:border-slate-500">
+                                <label class="checkout-option-card flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-sm">
                                     <span class="inline-flex items-center gap-2">
                                         <input
                                             type="radio"
@@ -281,7 +287,7 @@
                             @endforeach
                         </div>
 
-                        <div class="mt-3 hidden border border-slate-200 bg-slate-50 p-3" data-boxnow-panel>
+                        <div class="checkout-inline-panel mt-3 hidden p-3" data-boxnow-panel>
                             <input type="hidden" name="shipping_boxnow_locker_id" value="{{ $selectedBoxNowLockerId }}" data-boxnow-locker-id>
                             <input type="hidden" name="shipping_boxnow_locker_name" value="{{ $selectedBoxNowLockerName }}" data-boxnow-locker-name>
                             <input type="hidden" name="shipping_boxnow_address_line_1" value="{{ $selectedBoxNowAddressLine1 }}" data-boxnow-address-line-1>
@@ -289,7 +295,7 @@
                             <input type="hidden" name="shipping_boxnow_city" value="{{ $selectedBoxNowCity }}" data-boxnow-city>
 
                             <div class="flex flex-wrap items-center gap-3">
-                                <button type="button" class="border border-slate-900 bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-slate-700" data-boxnow-open>
+                                <button type="button" class="checkout-primary-button checkout-primary-button--compact px-4 py-2 text-xs uppercase tracking-wide" data-boxnow-open>
                                     {{ __('ui.checkout.boxnow.select_locker') }}
                                 </button>
                                 <span class="text-sm text-slate-700" data-boxnow-selected>
@@ -303,13 +309,13 @@
                                 <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                             @enderror
                         </div>
-                    </div>
+                    </fieldset>
 
-                    <div>
-                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.labels.payment_method') }}</p>
+                    <fieldset>
+                        <legend class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.labels.payment_method') }}</legend>
                         <div class="grid gap-2" data-checkout-payment-options>
                             @foreach ($paymentMethods as $method)
-                                <label class="flex cursor-pointer items-center justify-between gap-3 border border-slate-300 px-3 py-2.5 text-sm hover:border-slate-500">
+                                <label class="checkout-option-card flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-sm">
                                     <span class="inline-flex items-center gap-2">
                                         <input type="radio" name="payment_method_code" value="{{ $method->code }}" @checked($selectedPaymentCode === (string) $method->code) class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" required>
                                         @if (in_array(strtolower((string) $method->code), ['keks', 'keks_pay', 'kekspay'], true))
@@ -324,30 +330,30 @@
                                 </label>
                             @endforeach
                         </div>
-                    </div>
+                    </fieldset>
                 </div>
 
                 <div class="mt-4">
-                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.fields.order_note') }}</label>
-                    <textarea name="customer_note" rows="3" class="w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0">{{ old('customer_note') }}</textarea>
+                    <label for="customer-note" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.checkout.fields.order_note') }}</label>
+                    <textarea id="customer-note" name="customer_note" rows="3" class="w-full border-slate-300 text-sm focus:border-slate-500 focus:ring-0">{{ old('customer_note') }}</textarea>
                 </div>
 
-                <label class="mt-4 inline-flex items-center gap-2 text-sm text-slate-700">
-                    <input type="checkbox" name="accept_terms" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" required @checked((bool) old('accept_terms'))>
+                <label for="accept-terms" class="mt-4 inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input id="accept-terms" type="checkbox" name="accept_terms" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" required @checked((bool) old('accept_terms')) @error('accept_terms') aria-invalid="true" aria-describedby="accept-terms-error" @enderror>
                     {{ __('ui.checkout.options.accept_terms') }}
                 </label>
                 @error('accept_terms')
-                    <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                    <p id="accept-terms-error" class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                 @enderror
 
-                <label class="mt-3 inline-flex items-center gap-2 text-sm text-slate-700">
-                    <input type="checkbox" name="newsletter_opt_in" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" @checked((bool) old('newsletter_opt_in', false))>
+                <label for="newsletter-opt-in" class="mt-3 inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input id="newsletter-opt-in" type="checkbox" name="newsletter_opt_in" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" @checked((bool) old('newsletter_opt_in', false))>
                     {{ __('ui.checkout.options.newsletter_opt_in') }}
                 </label>
             </section>
         </div>
 
-        <aside class="h-fit self-start border border-slate-200 bg-white p-6 shadow-sm xl:sticky xl:top-28">
+        <aside class="checkout-summary h-fit self-start">
             <h2 class="text-lg font-semibold text-slate-900">{{ __('ui.checkout.summary_title') }}</h2>
 
             <div class="mt-4 space-y-3">
@@ -360,7 +366,7 @@
                             ? ($productImage->hasGeneratedConversion('thumb_100x100') ? $productImage->getUrl('thumb_100x100') : $productImage->getUrl())
                             : null;
                     @endphp
-                    <div class="flex items-start gap-3 border border-slate-200 p-3">
+                    <div class="checkout-summary-line flex items-start gap-3">
                         <div class="w-16 shrink-0 border border-slate-200 bg-slate-50 p-1">
                             @if ($productImageUrl)
                                 <img
@@ -424,11 +430,12 @@
                 </div>
             </div>
 
-            <button type="submit" class="mt-5 w-full border border-slate-900 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">{{ __('ui.checkout.actions.place_order') }}</button>
+            <button type="submit" class="checkout-primary-button mt-5 w-full px-4 py-3">{{ __('ui.checkout.actions.place_order') }}</button>
         </aside>
     </form>
 
     <div id="boxnow-widget-root"></div>
+    </div>
 @endsection
 
 @push('scripts')
@@ -496,10 +503,16 @@
                     useBillingInput.value = '0';
                     shippingFields.style.maxHeight = shippingFields.scrollHeight + 'px';
                     shippingFields.style.opacity = '1';
+                    toggle.setAttribute('aria-expanded', 'true');
+                    shippingFields.setAttribute('aria-hidden', 'false');
+                    shippingFields.inert = false;
                 } else {
                     useBillingInput.value = '1';
                     shippingFields.style.maxHeight = '0';
                     shippingFields.style.opacity = '0';
+                    toggle.setAttribute('aria-expanded', 'false');
+                    shippingFields.setAttribute('aria-hidden', 'true');
+                    shippingFields.inert = true;
                 }
 
                 scheduleOptionsRefresh();
@@ -594,7 +607,7 @@
                         || (!selectedCode && currentlySelected === '' && index === 0);
                     const isBoxNow = method.is_boxnow ? '1' : '0';
                     const partnerId = escapeHtml(method.boxnow_partner_id || '');
-                    return '<label class="flex cursor-pointer items-center justify-between gap-3 border border-slate-300 px-3 py-2.5 text-sm hover:border-slate-500">'
+                    return '<label class="checkout-option-card flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-sm">'
                         + '<span class="inline-flex items-center gap-2">'
                         + '<input type="radio" name="shipping_method_code" value="' + escapeHtml(method.code) + '" data-is-boxnow="' + isBoxNow + '" data-boxnow-partner-id="' + partnerId + '" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" required ' + (checked ? 'checked' : '') + '>'
                         + '<span class="font-semibold text-slate-900">' + escapeHtml(method.name) + '</span>'
@@ -626,7 +639,7 @@
                     const methodLabel = isKeks
                         ? '<span class="inline-flex items-center gap-2"><img src="{{ asset('assets/payments/keks-logo.svg') }}" alt="KEKS Pay" class="h-5 w-auto max-w-[110px]"><span class="font-semibold text-slate-900">' + escapeHtml(method.name) + '</span></span>'
                         : '<span class="font-semibold text-slate-900">' + escapeHtml(method.name) + '</span>';
-                    return '<label class="flex cursor-pointer items-center justify-between gap-3 border border-slate-300 px-3 py-2.5 text-sm hover:border-slate-500">'
+                    return '<label class="checkout-option-card flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-sm">'
                         + '<span class="inline-flex items-center gap-2">'
                         + '<input type="radio" name="payment_method_code" value="' + escapeHtml(method.code) + '" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" required ' + (checked ? 'checked' : '') + '>'
                         + methodLabel
@@ -804,9 +817,15 @@
                 if (loginToggle.checked) {
                     loginPanel.style.maxHeight = loginPanel.scrollHeight + 'px';
                     loginPanel.style.opacity = '1';
+                    loginToggle.setAttribute('aria-expanded', 'true');
+                    loginPanel.setAttribute('aria-hidden', 'false');
+                    loginPanel.inert = false;
                 } else {
                     loginPanel.style.maxHeight = '0';
                     loginPanel.style.opacity = '0';
+                    loginToggle.setAttribute('aria-expanded', 'false');
+                    loginPanel.setAttribute('aria-hidden', 'true');
+                    loginPanel.inert = true;
                 }
             };
 
@@ -822,6 +841,8 @@
                     registerPasswordConfirmation.required = true;
                     registerPanel.style.maxHeight = registerPanel.scrollHeight + 'px';
                     registerPanel.style.opacity = '1';
+                    registerToggle.setAttribute('aria-expanded', 'true');
+                    registerPanel.setAttribute('aria-hidden', 'false');
                 } else {
                     registerPassword.required = false;
                     registerPasswordConfirmation.required = false;
@@ -831,6 +852,8 @@
                     registerPasswordConfirmation.value = '';
                     registerPanel.style.maxHeight = '0';
                     registerPanel.style.opacity = '0';
+                    registerToggle.setAttribute('aria-expanded', 'false');
+                    registerPanel.setAttribute('aria-hidden', 'true');
                 }
             };
 
@@ -844,15 +867,24 @@
                     r1Oib.disabled = false;
                     r1Panel.style.maxHeight = r1Panel.scrollHeight + 'px';
                     r1Panel.style.opacity = '1';
+                    r1Toggle.setAttribute('aria-expanded', 'true');
+                    r1Panel.setAttribute('aria-hidden', 'false');
                 } else {
                     r1Company.disabled = true;
                     r1Oib.disabled = true;
                     r1Panel.style.maxHeight = '0';
                     r1Panel.style.opacity = '0';
+                    r1Toggle.setAttribute('aria-expanded', 'false');
+                    r1Panel.setAttribute('aria-hidden', 'true');
                 }
             };
 
             const clearInlineErrors = function () {
+                document.querySelectorAll('[data-checkout-dynamic-invalid]').forEach(function (node) {
+                    node.removeAttribute('aria-invalid');
+                    node.removeAttribute('aria-describedby');
+                    node.removeAttribute('data-checkout-dynamic-invalid');
+                });
                 document.querySelectorAll('[data-checkout-error]').forEach(function (node) {
                     node.remove();
                 });
@@ -886,9 +918,14 @@
                 }
 
                 const errorNode = document.createElement('p');
+                const errorId = 'checkout-error-' + String(field).replace(/[^a-z0-9_-]+/gi, '-');
                 errorNode.className = 'mt-2 text-xs font-semibold text-rose-600';
                 errorNode.dataset.checkoutError = '1';
+                errorNode.id = errorId;
                 errorNode.textContent = message;
+                input.setAttribute('aria-invalid', 'true');
+                input.setAttribute('aria-describedby', errorId);
+                input.setAttribute('data-checkout-dynamic-invalid', '1');
 
                 if (input.type === 'checkbox' || input.type === 'radio') {
                     const label = input.closest('label');
@@ -935,6 +972,7 @@
             });
             billingFirst?.addEventListener('input', syncCustomerNames);
             billingLast?.addEventListener('input', syncCustomerNames);
+            checkoutForm?.addEventListener('submit', syncCustomerNames);
             checkoutForm?.querySelectorAll('[data-address-country], [data-state-input], [data-state-select], [name="billing_postal_code"], [name="shipping_postal_code"]').forEach(function (node) {
                 node.addEventListener('change', function () {
                     applyAllStateFieldModes();
@@ -969,6 +1007,7 @@
                 if (submitBtn) {
                     submitBtn.disabled = true;
                 }
+                checkoutForm.setAttribute('aria-busy', 'true');
 
                 try {
                     const formData = new FormData(checkoutForm);
@@ -1043,6 +1082,7 @@
                     if (submitBtn) {
                         submitBtn.disabled = false;
                     }
+                    checkoutForm.setAttribute('aria-busy', 'false');
                 }
             });
         });

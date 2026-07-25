@@ -220,7 +220,11 @@
                 </div>
 
                 @if ($displayGallery->count() > 1)
-                    <div class="product-gallery-thumbnails" aria-label="{{ __('ui.product.product_images') }}">
+                    <div
+                        class="product-gallery-thumbnails"
+                        data-product-gallery-thumbnails
+                        aria-label="{{ __('ui.product.product_images') }}"
+                    >
                         @foreach ($displayGallery as $index => $image)
                             <button
                                 type="button"
@@ -741,6 +745,9 @@
     @if ($related->isNotEmpty())
         <section class="product-products-widget">
             <h2 class="product-products-widget-heading">{{ __('ui.product.related') }}</h2>
+            @if ($related->count() > $mobileDefaultCols)
+                @include('front.partials.carousel-swipe-hint')
+            @endif
             <div
                 id="related-products-carousel-{{ $product->id }}"
                 class="splide"
@@ -770,6 +777,9 @@
     @if (($recentlyViewed ?? collect())->isNotEmpty())
         <section class="product-products-widget">
             <h2 class="product-products-widget-heading">{{ __('ui.product.recently_viewed') }}</h2>
+            @if ($recentlyViewed->count() > $mobileDefaultCols)
+                @include('front.partials.carousel-swipe-hint')
+            @endif
             <div
                 id="recently-viewed-products-carousel-{{ $product->id }}"
                 class="splide"

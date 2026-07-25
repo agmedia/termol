@@ -40,7 +40,7 @@
     }
 @endphp
 
-<aside class="min-w-0 h-fit self-start border border-slate-200 bg-white lg:sticky lg:top-28">
+<aside class="commerce-account-nav min-w-0 h-fit self-start border border-slate-200 bg-white lg:sticky lg:top-28">
     <div class="border-b border-slate-200 px-4 py-3">
         <h2 class="text-sm font-bold uppercase tracking-wide text-slate-900">{{ __('ui.account.nav.title') }}</h2>
     </div>
@@ -50,7 +50,8 @@
                 <li>
                     <a
                         href="{{ $item['url'] }}"
-                        class="flex items-center justify-between border px-4 py-3 text-sm font-semibold transition {{ $item['active'] ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 text-slate-800 hover:bg-slate-100' }}"
+                        class="commerce-account-nav-link flex items-center justify-between border px-4 py-3 text-sm font-semibold transition {{ $item['active'] ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 text-slate-800 hover:bg-slate-100' }}"
+                        @if ($item['active']) aria-current="page" @endif
                     >
                         <span class="min-w-0 break-words">{{ $item['label'] }}</span>
                         @if ($item['active'])
@@ -63,7 +64,7 @@
 
         <form method="POST" action="{{ route('logout') }}" class="mt-4">
             @csrf
-            <button type="submit" class="flex w-full items-center justify-between border border-rose-200 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-50">
+            <button type="submit" class="flex min-h-12 w-full items-center justify-between rounded-[3px] border border-rose-200 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-50">
                 <span>{{ __('ui.account.nav.logout') }}</span>
                 <span aria-hidden="true">↗</span>
             </button>

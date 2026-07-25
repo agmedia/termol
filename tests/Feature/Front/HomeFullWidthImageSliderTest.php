@@ -15,7 +15,7 @@ class HomeFullWidthImageSliderTest extends TestCase
     public function test_desktop_home_slider_uses_the_wide_storefront_frame(): void
     {
         $block = ContentBlock::query()->create([
-            'code' => 'home-wide-slider-test',
+            'code' => 'home-main-slider',
             'name' => 'Home Wide Slider Test',
             'type' => 'full_width_image_slider',
             'is_active' => true,
@@ -86,6 +86,8 @@ class HomeFullWidthImageSliderTest extends TestCase
             ->assertSee('class="hero-slide-cta"', false)
             ->assertSee('Pogledajte ponudu')
             ->assertSee('bottom: 6.75rem;', false)
+            ->assertSee('@media (min-width: 1440px) and (max-width: 1599px)', false)
+            ->assertSee('height: calc(100dvh - 223px);', false)
             ->assertSee('data-fullwidth-splide', false);
 
         app(SystemSettingsService::class)->put('catalog_use_mobile_view', true);
