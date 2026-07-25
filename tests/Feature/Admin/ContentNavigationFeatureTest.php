@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Front\NavigationMenuService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
@@ -257,6 +258,14 @@ class ContentNavigationFeatureTest extends TestCase
             'name' => 'Klimatizacija',
             'slug' => 'klimatizacija',
         ]);
+        $climateIcon = UploadedFile::fake()->image('klimatizacija.jpg', 320, 320);
+        $climate
+            ->addMedia($climateIcon->getPathname())
+            ->preservingOriginal()
+            ->withCustomProperties([
+                'alt' => ['hr' => 'Klima uređaj'],
+            ])
+            ->toMediaCollection('category_icon');
 
         $sets = Category::query()->create([
             'scope' => Category::SCOPE_CATALOG,
@@ -287,25 +296,36 @@ class ContentNavigationFeatureTest extends TestCase
             'slug' => 'kupaonica-i-kuhinja',
         ]);
 
-        app(SystemSettingsService::class)->put(NavigationMenuService::SETTINGS_KEY, [[
-            'type' => 'catalog',
-            'label_translations' => ['hr' => 'Proizvodi'],
-            'url_translations' => ['hr' => '/categories'],
-            'show_dropdown' => true,
-            'is_active' => true,
-            'sort_order' => 0,
-        ]]);
+        app(SystemSettingsService::class)->put(NavigationMenuService::SETTINGS_KEY, [
+            [
+                'type' => 'catalog',
+                'label_translations' => ['hr' => 'Proizvodi'],
+                'url_translations' => ['hr' => '/categories'],
+                'show_dropdown' => true,
+                'is_active' => true,
+                'sort_order' => 0,
+            ],
+            [
+                'type' => 'category',
+                'label_translations' => ['hr' => 'Kupaonica i kuhinja'],
+                'category_id' => $bathroom->id,
+                'show_dropdown' => true,
+                'is_active' => true,
+                'sort_order' => 30,
+            ],
+        ]);
 
         $menu = app(NavigationMenuService::class)->forLocale('hr');
 
-        $this->assertCount(1, $menu);
+        $this->assertCount(2, $menu);
         $this->assertSame('catalog', $menu[0]['type']);
         $this->assertSame('Proizvodi', $menu[0]['label']);
-        $this->assertSame(
-            ['Klimatizacija', 'Kupaonica i kuhinja'],
-            array_column($menu[0]['children'], 'label')
-        );
+        $this->assertSame(['Klimatizacija'], array_column($menu[0]['children'], 'label'));
+        $this->assertStringContainsString('/storage/', $menu[0]['children'][0]['image_url']);
+        $this->assertSame('Klima uređaj', $menu[0]['children'][0]['image_alt']);
         $this->assertSame('Setovi', $menu[0]['children'][0]['children'][0]['label']);
+        $this->assertSame('category', $menu[1]['type']);
+        $this->assertSame('Kupaonica i kuhinja', $menu[1]['label']);
 
         config(['app.locale' => $originalLocale]);
     }

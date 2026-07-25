@@ -17,6 +17,7 @@ use App\Services\Content\ContentBlockResolver;
 use App\Services\Front\ProductColorVariantService;
 use App\Services\Front\WishlistService;
 use App\Services\Pricing\ProductPricePresentationService;
+use App\Services\Pricing\TaxPricingService;
 use App\Support\ProductMaterialLabel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -391,6 +392,7 @@ class ProductController extends Controller
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+        $taxRate = app(TaxPricingService::class)->resolveRateForProduct($product);
 
         $response = response()->view($this->frontendView($request, 'products.show'), [
             'product' => $product,
@@ -406,6 +408,9 @@ class ProductController extends Controller
             'topBlocks' => $topBlocks,
             'bottomBlocks' => $bottomBlocks,
             'pricePresentation' => app(ProductPricePresentationService::class)->forProduct($product, auth()->user()),
+            'vatRate' => $taxRate && $taxRate->rate_type === 'percent'
+                ? max(0.0, (float) $taxRate->rate)
+                : null,
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
         ]);

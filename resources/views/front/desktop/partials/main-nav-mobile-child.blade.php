@@ -5,19 +5,30 @@
     $leafWeightClass = $level === 0 ? 'font-medium' : 'font-light';
     $target = !empty($child['open_in_new_tab']) ? '_blank' : null;
     $rel = !empty($child['open_in_new_tab']) ? 'noopener noreferrer' : null;
+    $imageUrl = trim((string) ($child['image_url'] ?? ''));
+    $categoryRowClass = $level === 0
+        ? 'desktop-mobile-menu-row--main-category'
+        : 'desktop-mobile-menu-row--nested-category';
 @endphp
 
 <li>
 @if ($children->isNotEmpty())
         <details class="group/subnav desktop-mobile-menu-group" data-mobile-menu-accordion>
-            <summary class="{{ $depthClass }} desktop-mobile-menu-row relative flex min-h-[52px] cursor-pointer list-none items-center py-3 pr-3 text-[13px] text-slate-700 hover:bg-slate-50 hover:text-slate-900">
+            <summary class="{{ $depthClass }} {{ $categoryRowClass }} desktop-mobile-menu-row relative flex min-h-[52px] cursor-pointer list-none items-center py-3 pr-3 text-slate-700 hover:bg-slate-50 hover:text-slate-900">
                 <a
                     href="{{ $child['url'] ?? '#' }}"
                     class="min-w-0 flex-1 truncate pr-11 {{ $labelWeightClass }}"
                     data-mobile-nav-link
                     @if($target) target="{{ $target }}" rel="{{ $rel }}" @endif
                 >
-                    {{ $child['label'] ?? '' }}
+                    <span class="desktop-mobile-menu-item-main">
+                        @if ($imageUrl !== '')
+                            <span class="desktop-mobile-menu-thumb" aria-hidden="true">
+                                <img src="{{ $imageUrl }}" alt="" loading="lazy" decoding="async">
+                            </span>
+                        @endif
+                        <span class="desktop-mobile-menu-label">{{ $child['label'] ?? '' }}</span>
+                    </span>
                 </a>
                 <span class="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center border border-slate-300 bg-white text-slate-500 group-open/subnav:hidden" aria-hidden="true">
                     <x-fa-icon name="plus" class="h-3.5 w-3.5" />
@@ -33,8 +44,15 @@
             </ul>
         </details>
     @else
-        <a href="{{ $child['url'] ?? '#' }}" class="{{ $depthClass }} desktop-mobile-menu-row flex min-h-[52px] items-center py-3 text-[13px] {{ $leafWeightClass }} text-slate-700 hover:bg-slate-100 hover:text-slate-900">
-            {{ $child['label'] ?? '' }}
+        <a href="{{ $child['url'] ?? '#' }}" class="{{ $depthClass }} {{ $categoryRowClass }} desktop-mobile-menu-row flex min-h-[52px] items-center py-3 {{ $leafWeightClass }} text-slate-700 hover:bg-slate-100 hover:text-slate-900">
+            <span class="desktop-mobile-menu-item-main">
+                @if ($imageUrl !== '')
+                    <span class="desktop-mobile-menu-thumb" aria-hidden="true">
+                        <img src="{{ $imageUrl }}" alt="" loading="lazy" decoding="async">
+                    </span>
+                @endif
+                <span class="desktop-mobile-menu-label">{{ $child['label'] ?? '' }}</span>
+            </span>
         </a>
     @endif
 </li>

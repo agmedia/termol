@@ -36,11 +36,16 @@ class ProductCard extends Component
         $mediaItems = $this->product->relationLoaded('media')
             ? $this->product->media->whereIn('collection_name', ['product_main', 'product_gallery'])->values()
             : collect();
+        $usableOriginalMediaItems = $mediaItems
+            ->filter(fn ($media) => MediaUrl::hasUsableOriginal($media))
+            ->values();
         $usableMediaItems = $mediaItems
             ->filter(fn ($media) => MediaUrl::hasUsableSource($media, ['card_720w', 'card_480w', 'card_320w']))
             ->values();
 
-        $mainMedia = $usableMediaItems->firstWhere('collection_name', 'product_main')
+        $mainMedia = $usableOriginalMediaItems->firstWhere('collection_name', 'product_main')
+            ?? $usableOriginalMediaItems->firstWhere('collection_name', 'product_gallery')
+            ?? $usableMediaItems->firstWhere('collection_name', 'product_main')
             ?? $usableMediaItems->firstWhere('collection_name', 'product_gallery')
             ?? $this->product->getMedia('*')
                 ->whereIn('collection_name', ['product_main', 'product_gallery'])
@@ -165,6 +170,7 @@ class ProductCard extends Component
             'productBrand' => $manufacturerName,
             'productCategory' => $categoryName,
             'imageUrl' => $imageUrl,
+            'cartImageUrl' => $imageOriginalUrl ?? $imageUrl,
             'imageUrl320' => $imageUrl320,
             'imageSrcset' => $imageSrcset,
             'hoverImageUrl' => $hoverImageUrl,

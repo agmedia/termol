@@ -50,6 +50,7 @@ return [
             'stock_high' => 'Stock availability',
             'grid' => 'Grid',
             'open' => 'Filters',
+            'apply' => 'Apply filters',
             'reset' => 'Reset',
         ],
         'empty' => 'No products found for current filters.',
@@ -61,6 +62,12 @@ return [
         'back_to_categories' => 'Back to categories',
         'default_description' => 'Products assigned to this category.',
         'empty' => 'No products in this category yet.',
+    ],
+    'category_index' => [
+        'page_title' => 'Product categories',
+        'subcategory_count' => '{1} :count subcategory|[2,*] :count subcategories',
+        'empty' => 'There are no categories available right now.',
+        'image_alt' => ':name – product category',
     ],
     'wishlist' => [
         'page_title' => 'Wishlist',
@@ -244,6 +251,7 @@ return [
         'to_cart' => 'To cart',
         'add' => 'Add',
         'unavailable' => 'Unavailable',
+        'vat_included' => 'VAT is included in the price (:rate%)',
         'lowest_price_30_days' => 'Lowest price in the last 30 days: :price',
         'comments_title' => 'Comments',
         'comments_empty' => 'There are no comments for this product yet.',

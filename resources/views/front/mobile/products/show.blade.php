@@ -225,6 +225,11 @@
                     </button>
                 </form>
             </div>
+            @if ($vatRate !== null)
+                <p class="product-detail-tax-note">
+                    {{ __('ui.product.vat_included', ['rate' => rtrim(rtrim(number_format($vatRate, 2, $locale === 'hr' ? ',' : '.', ''), '0'), $locale === 'hr' ? ',' : '.')]) }}
+                </p>
+            @endif
             <p class="font-12 opacity-60 mb-2">{{ __('ui.product.sku') }} <span data-product-sku-value>{{ $product->sku ?: $product->code ?: 'n/a' }}</span></p>
 
             @if ($manufacturerTranslation && $manufacturerEnabled)

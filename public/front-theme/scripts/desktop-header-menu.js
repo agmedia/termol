@@ -252,8 +252,10 @@
                 nodes.forEach((node, index) => {
                     const item = document.createElement('li');
                     const link = document.createElement('a');
+                    const itemMain = document.createElement('span');
                     const label = document.createElement('span');
                     const nodeHasChildren = hasChildren(node) && depth + 1 < maxColumns;
+                    const imageUrl = typeof node?.image_url === 'string' ? node.image_url.trim() : '';
 
                     link.href = typeof node?.url === 'string' && node.url !== '' ? node.url : '#';
                     link.className = 'catalog-mega-item';
@@ -264,8 +266,30 @@
                         link.setAttribute('aria-expanded', index === selectedIndex ? 'true' : 'false');
                     }
 
+                    itemMain.className = 'catalog-mega-item-main';
+                    if (imageUrl !== '') {
+                        const thumbnail = document.createElement('span');
+                        const image = document.createElement('img');
+
+                        link.classList.add('has-image');
+                        thumbnail.className = 'catalog-mega-item-thumb';
+                        thumbnail.setAttribute('aria-hidden', 'true');
+                        image.src = imageUrl;
+                        image.alt = '';
+                        image.loading = 'lazy';
+                        image.decoding = 'async';
+                        image.addEventListener('error', () => {
+                            thumbnail.remove();
+                            link.classList.remove('has-image');
+                        }, { once: true });
+                        thumbnail.append(image);
+                        itemMain.append(thumbnail);
+                    }
+
+                    label.className = 'catalog-mega-item-label';
                     label.textContent = typeof node?.label === 'string' ? node.label : '';
-                    link.append(label);
+                    itemMain.append(label);
+                    link.append(itemMain);
                     if (nodeHasChildren) {
                         link.append(renderChevron());
                     }

@@ -1,40 +1,31 @@
 @extends('front.desktop.layouts.store')
 
-@section('title', 'Categories')
+@section('title', __('ui.category_index.page_title'))
+@section('main_class', 'w-full px-0 pt-3 pb-4 sm:pt-3 sm:pb-6')
+@section('body_class', 'category-index-page')
+
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/category-index.css') }}?v={{ filemtime(public_path('front-theme/styles/category-index.css')) }}">
+@endpush
 
 @section('content')
-    <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-            <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">Categories</h1>
-            <p class="mt-2 text-slate-600">Browse catalog categories and jump into dedicated category pages.</p>
+    <section class="storefront-container px-3 sm:px-4 lg:px-6">
+        <div class="front-soft-hero px-4 py-4 text-center sm:px-6 sm:py-5">
+            <nav aria-label="Breadcrumb" class="mb-2">
+                <ol class="flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-500 sm:gap-2">
+                    <li>
+                        <a href="{{ route('home') }}" class="inline-flex items-center justify-center text-slate-500 hover:text-slate-700">{{ __('ui.front.desktop.footer.home') }}</a>
+                    </li>
+                    <li class="text-slate-400">/</li>
+                    <li class="text-slate-700">{{ __('ui.category_index.page_title') }}</li>
+                </ol>
+            </nav>
+            <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">{{ __('ui.category_index.page_title') }}</h1>
+            <p class="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{{ $categories->count() }} {{ __('ui.cart.summary.total') }}</p>
         </div>
-
-        <form method="GET" action="{{ route('categories.index') }}" class="flex items-center gap-2">
-            <input type="search" name="q" value="{{ $search }}" placeholder="Search category" class="w-64 rounded-lg border-slate-300 text-sm">
-            <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Search</button>
-        </form>
     </section>
 
-    @if ($categories->isEmpty())
-        <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">No categories found.</div>
-    @else
-        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            @foreach ($categories as $category)
-                @php
-                    $translation = $category->translations->firstWhere('locale', $locale)
-                        ?? $category->translations->firstWhere('locale', $fallbackLocale);
-                @endphp
-
-                <a href="{{ route('categories.show', ['slug' => $translation?->slug ?? $category->id]) }}" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                    <h2 class="text-lg font-semibold text-slate-900">{{ $translation?->name ?? $category->code }}</h2>
-                    <p class="mt-2 line-clamp-3 text-sm text-slate-600">{{ $translation?->clean_description ?: 'Category products and merchandising blocks.' }}</p>
-                    <p class="mt-4 text-sm font-semibold text-blue-700">{{ $category->products_count }} products</p>
-                </a>
-            @endforeach
-        </div>
-
-        <div class="mt-6">
-            {{ $categories->links() }}
-        </div>
-    @endif
+    <section class="storefront-container category-index-section px-3 sm:px-4 lg:px-6" aria-label="{{ __('ui.category_index.page_title') }}">
+        @include('front.categories.index-grid')
+    </section>
 @endsection

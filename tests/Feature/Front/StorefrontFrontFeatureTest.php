@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Front;
 
-use App\Mail\NewsletterCouponMail;
 use App\Http\Controllers\Front\CatalogController;
+use App\Mail\NewsletterCouponMail;
 use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Category\Category;
@@ -25,6 +25,7 @@ use App\Models\Settings\Local\Currency;
 use App\Models\Settings\Local\OrderStatus;
 use App\Models\Settings\Local\PaymentMethod;
 use App\Models\Settings\Local\ShippingMethod;
+use App\Models\Settings\Local\TaxRate;
 use App\Models\User;
 use App\Services\Front\NavigationMenuService;
 use App\Services\Settings\SystemSettingsService;
@@ -70,6 +71,43 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertNotNull($manufacturer);
         $this->assertNotNull($post);
         $this->assertNotNull($page);
+    }
+
+    public function test_manufacturer_page_uses_the_shared_catalog_header_filters_and_product_cards(): void
+    {
+        $this->useEnglishStorefrontLocale();
+
+        [$category] = $this->seedCategory();
+        [$manufacturer, $manufacturerSlug] = $this->seedManufacturer();
+        [$cheapProduct, $cheapSlug] = $this->seedProduct($category->id);
+        [$matchingProduct, $matchingSlug] = $this->seedProduct($category->id);
+        [$otherProduct, $otherSlug] = $this->seedProduct($category->id);
+
+        $cheapProduct->update([
+            'manufacturer_id' => $manufacturer->id,
+            'base_price' => 19.99,
+        ]);
+        $matchingProduct->update([
+            'manufacturer_id' => $manufacturer->id,
+            'base_price' => 89.99,
+        ]);
+        $otherProduct->update(['base_price' => 99.99]);
+
+        app(SystemSettingsService::class)->put('catalog_use_manufacturers', true);
+
+        $this->get('/manufacturer/'.$manufacturerSlug.'?price_min=50')
+            ->assertOk()
+            ->assertSee('class="front-soft-hero', false)
+            ->assertSee('href="'.route('manufacturers.index').'"', false)
+            ->assertSee('class="catalog-desktop-sidebar', false)
+            ->assertSee('data-desktop-filter-form', false)
+            ->assertSee('front-theme/styles/category-catalog.css', false)
+            ->assertSee('data-catalog-grid', false)
+            ->assertSee('data-product-card-lined', false)
+            ->assertSee($matchingSlug)
+            ->assertDontSee($cheapSlug)
+            ->assertDontSee($otherSlug)
+            ->assertDontSee('Back to manufacturers');
     }
 
     public function test_cart_coupon_applies_cart_discount_to_items_only(): void
@@ -246,7 +284,8 @@ class StorefrontFrontFeatureTest extends TestCase
                 \Mockery::on(static fn (string $body): bool => str_contains($body, 'R-1001')
                     && str_contains($body, 'T-shirt size M')),
                 \Mockery::on(static function (callable $callback): bool {
-                    $mail = new class {
+                    $mail = new class
+                    {
                         public array $calls = [];
 
                         public function to(string $email): self
@@ -683,6 +722,7 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->useEnglishStorefrontLocale();
 
         $parentId = null;
+        $rootCategory = null;
         foreach (range(1, 5) as $depth) {
             $category = Category::query()->create([
                 'scope' => Category::SCOPE_CATALOG,
@@ -702,8 +742,18 @@ class StorefrontFrontFeatureTest extends TestCase
                 'description' => '',
             ]);
 
+            if ($depth === 1) {
+                $rootCategory = $category;
+            }
+
             $parentId = $category->id;
         }
+
+        $rootIcon = UploadedFile::fake()->image('mega-category-icon.jpg', 320, 320);
+        $rootCategory
+            ->addMedia($rootIcon->getPathname())
+            ->preservingOriginal()
+            ->toMediaCollection('category_icon');
 
         app(SystemSettingsService::class)->put(NavigationMenuService::SETTINGS_KEY, [[
             'type' => 'catalog',
@@ -724,6 +774,9 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('data-catalog-mega-max-columns="5"', false)
             ->assertSee('class="catalog-mega-columns catalog-mega-columns-5"', false)
             ->assertSee('data-catalog-mega-column="4"', false)
+            ->assertSee('class="catalog-mega-item has-image"', false)
+            ->assertSee('class="catalog-mega-item-thumb"', false)
+            ->assertSee('class="desktop-mobile-menu-thumb"', false)
             ->assertSee('Mega category level 1')
             ->assertSee('Mega category level 5');
     }
@@ -1884,6 +1937,30 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('data-product-default-price-current="49.99 €"', false)
             ->assertSee('data-option-price-current="79.99 €"', false)
             ->assertSee('data-option-price-current-value="79.99"', false);
+    }
+
+    public function test_product_detail_shows_the_included_vat_rate_below_the_price(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$product, $slug] = $this->seedProduct($category->id);
+
+        $taxRate = TaxRate::query()->create([
+            'code' => 'vat-25-product-detail',
+            'name' => 'VAT 25%',
+            'rate_type' => 'percent',
+            'rate' => 25,
+            'priority' => 1,
+            'is_default' => true,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        $product->update(['tax_rate_id' => $taxRate->id]);
+
+        $this->get('/product/'.$slug)
+            ->assertOk()
+            ->assertSee('class="product-detail-tax-note"', false)
+            ->assertSee('VAT is included in the price (25%)');
     }
 
     public function test_shop_card_hides_out_of_stock_option_values(): void

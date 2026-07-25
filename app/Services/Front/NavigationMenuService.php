@@ -69,6 +69,7 @@ class NavigationMenuService
                 'translations' => fn ($q) => $q
                     ->where('scope', Category::SCOPE_CATALOG)
                     ->whereIn('locale', [$locale, $fallbackLocale]),
+                'media' => fn ($q) => $q->where('collection_name', 'category_icon'),
             ])
             ->orderBy('_lft')
             ->get();
@@ -105,7 +106,7 @@ class NavigationMenuService
                     'label' => $this->labelForItem($item, 'Proizvodi', $locale, $fallbackLocale),
                     'url' => $this->urlForItem($item, $locale, $fallbackLocale) ?: route('categories.index'),
                     'children' => (bool) ($item['show_dropdown'] ?? true)
-                        ? $this->buildCategoryChildren(0, $childrenByParentId, $locale, $fallbackLocale)
+                        ? $this->buildCategoryChildren(0, $childrenByParentId, $locale, $fallbackLocale, $categoryIds)
                         : [],
                     'open_in_new_tab' => false,
                     'mega_promo' => $this->resolveMegaPromo($item, $locale, $fallbackLocale),
@@ -390,7 +391,7 @@ class NavigationMenuService
             $children = $this->buildCategoryChildren($category->id, $childrenByParentId, $locale, $fallbackLocale);
         }
 
-        return [
+        return array_merge([
             'key' => 'category-'.$category->id,
             'type' => 'category',
             'label' => $this->labelForItem(
@@ -403,7 +404,7 @@ class NavigationMenuService
             'children' => $children,
             'open_in_new_tab' => false,
             'mega_promo' => $this->resolveMegaPromo($item, $locale, $fallbackLocale),
-        ];
+        ], $this->categoryImageData($category, $locale, $fallbackLocale));
     }
 
     /**
@@ -447,11 +448,17 @@ class NavigationMenuService
      * @param  \Illuminate\Support\Collection<int, \Illuminate\Support\Collection<int, Category>>  $childrenByParentId
      * @return array<int, array<string, mixed>>
      */
-    private function buildCategoryChildren(int $parentId, $childrenByParentId, string $locale, string $fallbackLocale): array
-    {
+    private function buildCategoryChildren(
+        int $parentId,
+        $childrenByParentId,
+        string $locale,
+        string $fallbackLocale,
+        array $excludedCategoryIds = []
+    ): array {
         $children = [];
         $childrenRows = $childrenByParentId->get($parentId, collect())
-            ->filter(fn (Category $category): bool => (bool) $category->show_in_menu)
+            ->filter(fn (Category $category): bool => (bool) $category->show_in_menu
+                && ! in_array((int) $category->id, $excludedCategoryIds, true))
             ->sortBy(fn (Category $category): array => [(int) $category->sort_order, (int) $category->id])
             ->values();
 
@@ -463,14 +470,48 @@ class NavigationMenuService
                 continue;
             }
 
-            $children[] = [
+            $children[] = array_merge([
                 'label' => (string) ($translation?->name ?? $child->code),
                 'url' => route('categories.show', ['slug' => $slug]),
-                'children' => $this->buildCategoryChildren((int) $child->id, $childrenByParentId, $locale, $fallbackLocale),
-            ];
+                'children' => $this->buildCategoryChildren(
+                    (int) $child->id,
+                    $childrenByParentId,
+                    $locale,
+                    $fallbackLocale,
+                    $excludedCategoryIds
+                ),
+            ], $this->categoryImageData($child, $locale, $fallbackLocale));
         }
 
         return $children;
+    }
+
+    /**
+     * @return array{image_url:string,image_alt:string}
+     */
+    private function categoryImageData(Category $category, string $locale, string $fallbackLocale): array
+    {
+        $media = $category->getFirstMedia('category_icon');
+        if (! $media) {
+            return [
+                'image_url' => '',
+                'image_alt' => '',
+            ];
+        }
+
+        $imageUrl = $media->hasGeneratedConversion('icon_96x96')
+            ? $media->getUrl('icon_96x96')
+            : $media->getUrl();
+
+        $imageAlt = trim((string) $media->getCustomProperty('alt.'.$locale));
+        if ($imageAlt === '') {
+            $imageAlt = trim((string) $media->getCustomProperty('alt.'.$fallbackLocale));
+        }
+
+        return [
+            'image_url' => $imageUrl,
+            'image_alt' => $imageAlt,
+        ];
     }
 
     /**

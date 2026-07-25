@@ -111,14 +111,22 @@
                                                 @foreach ($children as $category)
                                                     @php
                                                         $categoryChildren = collect($category['children'] ?? []);
+                                                        $categoryImageUrl = trim((string) ($category['image_url'] ?? ''));
                                                     @endphp
                                                     <li>
                                                         <a
                                                             href="{{ $category['url'] ?? '#' }}"
-                                                            class="catalog-mega-item"
+                                                            class="catalog-mega-item {{ $categoryImageUrl !== '' ? 'has-image' : '' }}"
                                                             @if ($categoryChildren->isNotEmpty()) aria-haspopup="true" aria-expanded="false" @endif
                                                         >
-                                                            <span>{{ $category['label'] ?? '' }}</span>
+                                                            <span class="catalog-mega-item-main">
+                                                                @if ($categoryImageUrl !== '')
+                                                                    <span class="catalog-mega-item-thumb" aria-hidden="true">
+                                                                        <img src="{{ $categoryImageUrl }}" alt="" loading="lazy" decoding="async">
+                                                                    </span>
+                                                                @endif
+                                                                <span class="catalog-mega-item-label">{{ $category['label'] ?? '' }}</span>
+                                                            </span>
                                                             @if ($categoryChildren->isNotEmpty())
                                                                 <x-fa-icon name="chevron-right" />
                                                             @endif

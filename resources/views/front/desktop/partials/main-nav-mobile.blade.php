@@ -8,7 +8,7 @@
 @endphp
 
 @if ($hasNavigation)
-    <div class="desktop-mobile-menu-list overflow-y-auto px-0 text-sm uppercase tracking-[0.03em] text-slate-900">
+    <div class="desktop-mobile-menu-list overflow-y-auto px-0 text-slate-900">
         @foreach ($mainNavigation as $item)
             @php
                 $children = collect($item['children'] ?? []);
@@ -19,10 +19,10 @@
 
             @if ($hasChildren)
                 <details class="group/nav desktop-mobile-menu-group" data-mobile-menu-accordion>
-                    <summary class="desktop-mobile-menu-row relative flex min-h-[56px] cursor-pointer list-none items-center px-4 py-3 hover:bg-slate-50">
+                    <summary class="desktop-mobile-menu-row relative flex min-h-[60px] cursor-pointer list-none items-center px-4 py-3 hover:bg-slate-50">
                         <a
                             href="{{ $item['url'] ?? '#' }}"
-                            class="min-w-0 flex-1 truncate pr-12 text-[14px] font-semibold"
+                            class="min-w-0 flex-1 truncate pr-12 text-[16px] font-bold tracking-[-0.01em]"
                             data-mobile-nav-link
                             @if($target) target="{{ $target }}" rel="{{ $rel }}" @endif
                         >
@@ -42,7 +42,7 @@
                     </ul>
                 </details>
             @else
-                <a href="{{ $item['url'] ?? '#' }}" class="desktop-mobile-menu-row flex min-h-[56px] items-center px-4 py-3 text-[14px] font-semibold hover:bg-slate-50" @if($target) target="{{ $target }}" rel="{{ $rel }}" @endif>{{ $item['label'] }}</a>
+                <a href="{{ $item['url'] ?? '#' }}" class="desktop-mobile-menu-row flex min-h-[60px] items-center px-4 py-3 text-[16px] font-bold tracking-[-0.01em] hover:bg-slate-50" @if($target) target="{{ $target }}" rel="{{ $rel }}" @endif>{{ $item['label'] }}</a>
             @endif
         @endforeach
     </div>

@@ -283,6 +283,11 @@
                             @endif
                         </span>
                     </div>
+                    @if ($vatRate !== null)
+                        <p class="product-detail-tax-note">
+                            {{ __('ui.product.vat_included', ['rate' => rtrim(rtrim(number_format($vatRate, 2, $locale === 'hr' ? ',' : '.', ''), '0'), $locale === 'hr' ? ',' : '.')]) }}
+                        </p>
+                    @endif
                     <p class="{{ $oldPrice ? '' : 'hidden' }} mt-1 text-sm text-slate-500 line-through" data-product-price-old>{{ $oldPrice ?: '' }}</p>
                     <p class="{{ $lowest30DaysPrice ? '' : 'hidden' }} mt-1 text-xs text-slate-600" data-product-price-lowest>{{ $lowest30DaysPrice ? __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) : '' }}</p>
                 </div>

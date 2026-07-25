@@ -50,6 +50,7 @@ return [
             'stock_high' => 'Dostupnost zalihe',
             'grid' => 'Mreža',
             'open' => 'Filteri',
+            'apply' => 'Primijeni filtre',
             'reset' => 'Resetiraj',
         ],
         'empty' => 'Nema proizvoda za trenutne filtere.',
@@ -61,6 +62,12 @@ return [
         'back_to_categories' => 'Natrag na kategorije',
         'default_description' => 'Proizvodi dodijeljeni ovoj kategoriji.',
         'empty' => 'Nema proizvoda u ovoj kategoriji.',
+    ],
+    'category_index' => [
+        'page_title' => 'Kategorije proizvoda',
+        'subcategory_count' => '{1} :count podkategorija|[2,4] :count podkategorije|[5,*] :count podkategorija',
+        'empty' => 'Trenutno nema dostupnih kategorija.',
+        'image_alt' => ':name – kategorija proizvoda',
     ],
     'wishlist' => [
         'page_title' => 'Favoriti',
@@ -245,6 +252,7 @@ return [
         'to_cart' => 'U košaricu',
         'add' => 'Dodaj',
         'unavailable' => 'Nedostupno',
+        'vat_included' => 'U cijenu je uključen PDV (:rate%)',
         'lowest_price_30_days' => 'Najniža cijena u prethodnih 30 dana: :price',
         'comments_title' => 'Komentari',
         'comments_empty' => 'Još nema komentara za ovaj artikl.',

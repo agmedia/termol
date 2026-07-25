@@ -184,15 +184,49 @@
         flex: 1 1 auto;
     }
     .mobile-nav-row--primary {
-        font-size: 1.1rem;
+        font-size: 1.15rem;
         font-weight: 700;
-        letter-spacing: 0.01em;
+        letter-spacing: -0.01em;
         text-transform: uppercase;
     }
     .mobile-nav-row--child {
-        font-size: 0.98rem;
+        font-size: 1rem;
         font-weight: 500;
         text-transform: none;
+    }
+    .mobile-nav-row--main-category {
+        min-height: 4.7rem;
+        font-size: 1.075rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+    }
+    .mobile-nav-row-content {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 0.8rem;
+    }
+    .mobile-nav-category-thumb {
+        display: grid;
+        width: 2.75rem;
+        height: 2.75rem;
+        flex: 0 0 2.75rem;
+        place-items: center;
+        overflow: hidden;
+        padding: 0.2rem;
+        border: 1px solid #d5dde7;
+        border-radius: 0.35rem;
+        background: #ffffff;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+    .mobile-nav-category-thumb img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+    .mobile-nav-row-label {
+        min-width: 0;
     }
     .mobile-nav-row--utility {
         font-size: 1rem;

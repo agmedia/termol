@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Front\Concerns\ResolvesFrontendView;
 use App\Http\Controllers\Front\Concerns\ResolvesGridColumns;
 use App\Models\Catalog\Action\CatalogAction;
+use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
-use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Option\Option;
 use App\Models\Catalog\Option\OptionValue;
 use App\Models\Catalog\Product\Product;
@@ -24,10 +24,10 @@ use App\Support\ProductMaterialLabel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Http\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -405,10 +405,20 @@ class CatalogController extends Controller
     {
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
+        $catalogManufacturer = $request->attributes->get('catalog_manufacturer');
+        $isManufacturerPage = $catalogManufacturer instanceof Manufacturer;
+        $catalogManufacturerTranslation = $isManufacturerPage
+            ? ($catalogManufacturer->translations->firstWhere('locale', $locale)
+                ?? $catalogManufacturer->translations->firstWhere('locale', $fallbackLocale)
+                ?? $catalogManufacturer->translations->first())
+            : null;
         $search = trim((string) $request->query('q', ''));
         $categorySlug = trim((string) $request->query('category', ''));
-        $manufacturerSlug = trim((string) $request->query('manufacturer', ''));
+        $manufacturerSlug = $isManufacturerPage
+            ? (string) ($catalogManufacturerTranslation?->slug ?? '')
+            : trim((string) $request->query('manufacturer', ''));
         $sort = (string) $request->query('sort', 'newest');
+        $availableOnly = $this->normalizeBooleanFilterValue($request->query('available_only'));
         $promoOnly = $this->normalizeBooleanFilterValue($request->query('promo_only'));
         [$priceMin, $priceMax] = $this->normalizedPriceRange(
             $request->query('price_min'),
@@ -526,9 +536,20 @@ class CatalogController extends Controller
             });
         }
 
+        if ($availableOnly) {
+            $query->visibleOnStorefront(true);
+        }
+
+        $promoAvailabilityQuery = clone $query;
+        $this->applyBasePriceFilter($promoAvailabilityQuery, $priceMin, $priceMax);
+        $this->applyPromotionFilter($promoAvailabilityQuery, $request->user());
+        $promoFilterAvailable = (clone $promoAvailabilityQuery)->exists();
+
         if ($promoOnly) {
             $this->applyPromotionFilter($query, $request->user());
         }
+
+        $priceBounds = $this->resolvePriceBounds($query, $priceMin, $priceMax);
 
         $this->applyBasePriceFilter($query, $priceMin, $priceMax);
 
@@ -544,60 +565,85 @@ class CatalogController extends Controller
             ->paginate($this->shopPerPage($request))
             ->withQueryString();
 
-        $categories = $this->cachedCatalogCategories($locale, $fallbackLocale);
+        $categories = $isManufacturerPage
+            ? $this->cachedManufacturerCatalogCategories(
+                $catalogManufacturer,
+                $locale,
+                $fallbackLocale
+            )
+            : $this->cachedShopCatalogCategories($locale, $fallbackLocale);
         $manufacturers = $this->cachedCatalogManufacturers($locale, $fallbackLocale);
-        $response = response()->view($this->frontendView($request, 'shop.index'), [
+        $view = $isManufacturerPage ? 'manufacturers.show' : 'shop.index';
+        $response = response()->view($this->frontendView($request, $view), [
+            'isShopPage' => ! $isManufacturerPage && $this->frontendVariant($request) === 'desktop',
+            'isManufacturerPage' => $isManufacturerPage,
+            'manufacturer' => $catalogManufacturer,
+            'category' => null,
             'products' => $products,
             'categories' => $categories,
             'manufacturers' => $manufacturers,
             'optionFilters' => $this->withSelectedFilters($optionFilters, $selectedOptionFilters),
             'attributeFilters' => $this->withSelectedFilters($attributeFilters, $selectedAttributeFilters),
+            'subcategories' => collect(),
+            'breadcrumbCategories' => collect(),
+            'topBlocks' => $isManufacturerPage
+                ? $request->attributes->get('catalog_top_blocks', collect())
+                : collect(),
+            'bottomBlocks' => $isManufacturerPage
+                ? $request->attributes->get('catalog_bottom_blocks', collect())
+                : collect(),
+            'showCategoryFilters' => true,
+            'showCategoryProducts' => true,
             'filters' => [
                 'q' => $search,
                 'category' => $categorySlug,
-                'manufacturer' => $manufacturerSlug,
+                'manufacturer' => $isManufacturerPage ? '' : $manufacturerSlug,
                 'price_min' => $priceMin,
                 'price_max' => $priceMax,
+                'available_only' => $availableOnly,
                 'promo_only' => $promoOnly,
                 'sort' => $sort,
                 'cols' => $gridCols,
             ],
+            'priceBounds' => $priceBounds,
+            'promoFilterAvailable' => $promoFilterAvailable,
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
         ]);
 
-        return $this->withDesktopCacheHeaders($request, $response, 'shop');
+        return $this->withDesktopCacheHeaders(
+            $request,
+            $response,
+            $isManufacturerPage ? 'manufacturer:'.$manufacturerSlug : 'shop'
+        );
     }
 
     public function categories(Request $request): View
     {
         $locale = app()->getLocale();
         $fallbackLocale = (string) config('app.locale');
-        $search = trim((string) $request->query('q', ''));
 
-        $categoriesQuery = Category::query()
+        $categories = Category::query()
             ->where('scope', Category::SCOPE_CATALOG)
+            ->whereNull('parent_id')
             ->currentlyVisible()
-            ->with(['translations' => fn ($q) => $q
-                ->where('scope', Category::SCOPE_CATALOG)
-                ->whereIn('locale', [$locale, $fallbackLocale])])
-            ->withCount(['products' => fn ($q) => $q->visibleOnStorefront($this->hideOutOfStockProducts())])
+            ->with([
+                'translations' => fn ($q) => $q
+                    ->where('scope', Category::SCOPE_CATALOG)
+                    ->whereIn('locale', [$locale, $fallbackLocale]),
+                'media' => fn ($q) => $q->whereIn('collection_name', ['category_icon', 'category_banner']),
+            ])
+            ->withCount([
+                'descendants as subcategories_count' => fn ($q) => $q
+                    ->where('scope', Category::SCOPE_CATALOG)
+                    ->currentlyVisible(),
+            ])
             ->orderBy('sort_order')
-            ->orderBy('id');
-
-        if ($search !== '') {
-            $categoriesQuery->whereHas('translations', function ($q) use ($locale, $fallbackLocale, $search): void {
-                $q->where('scope', Category::SCOPE_CATALOG)
-                    ->whereIn('locale', [$locale, $fallbackLocale])
-                    ->where('name', 'like', '%'.$search.'%');
-            });
-        }
-
-        $categories = $categoriesQuery->paginate(18)->withQueryString();
+            ->orderBy('id')
+            ->get();
 
         return view($this->frontendView($request, 'categories.index'), [
             'categories' => $categories,
-            'search' => $search,
             'locale' => $locale,
             'fallbackLocale' => $fallbackLocale,
         ]);
@@ -935,6 +981,52 @@ class CatalogController extends Controller
         });
     }
 
+    private function cachedShopCatalogCategories(string $locale, string $fallbackLocale)
+    {
+        $hideOutOfStock = $this->hideOutOfStockProducts();
+        $cacheKey = sprintf('front:catalog:shop-root-categories:%s:%s:%s', $locale, $fallbackLocale, $hideOutOfStock ? 'hide-oos' : 'all-stock');
+
+        return Cache::remember($cacheKey, now()->addMinutes(10), static function () use ($locale, $fallbackLocale, $hideOutOfStock) {
+            $categories = Category::query()
+                ->select(['id', 'code', 'parent_id', 'sort_order'])
+                ->where('scope', Category::SCOPE_CATALOG)
+                ->whereNull('parent_id')
+                ->currentlyVisible()
+                ->with(['translations' => fn ($q) => $q
+                    ->select(['id', 'category_id', 'scope', 'locale', 'name', 'slug'])
+                    ->where('scope', Category::SCOPE_CATALOG)
+                    ->whereIn('locale', [$locale, $fallbackLocale])])
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get();
+
+            return $categories->map(function (Category $category) use ($hideOutOfStock): Category {
+                $treeIds = Category::query()
+                    ->descendantsAndSelf($category->id)
+                    ->where('scope', Category::SCOPE_CATALOG)
+                    ->filter(fn (Category $treeCategory): bool => $treeCategory->isCurrentlyVisible())
+                    ->pluck('id');
+
+                $productCount = $treeIds->isEmpty()
+                    ? 0
+                    : Product::query()
+                        ->visibleOnStorefront($hideOutOfStock)
+                        ->whereHas('categories', function ($categoryQuery) use ($treeIds): void {
+                            $categoryQuery
+                                ->where('scope', Category::SCOPE_CATALOG)
+                                ->currentlyVisible()
+                                ->whereIn('categories.id', $treeIds);
+                        })
+                        ->distinct('products.id')
+                        ->count('products.id');
+
+                $category->setAttribute('products_count', $productCount);
+
+                return $category;
+            })->values();
+        });
+    }
+
     private function cachedCatalogManufacturers(string $locale, string $fallbackLocale)
     {
         $hideOutOfStock = $this->hideOutOfStockProducts();
@@ -951,6 +1043,58 @@ class CatalogController extends Controller
                 ->orderBy('sort_order')
                 ->orderBy('id')
                 ->get();
+        });
+    }
+
+    private function cachedManufacturerCatalogCategories(
+        Manufacturer $manufacturer,
+        string $locale,
+        string $fallbackLocale
+    ) {
+        $hideOutOfStock = $this->hideOutOfStockProducts();
+        $cacheKey = sprintf(
+            'front:catalog:manufacturer-root-categories:%d:%s:%s:%s',
+            (int) $manufacturer->id,
+            $locale,
+            $fallbackLocale,
+            $hideOutOfStock ? 'hide-oos' : 'all-stock'
+        );
+
+        return Cache::remember($cacheKey, now()->addMinutes(10), function () use (
+            $manufacturer,
+            $locale,
+            $fallbackLocale,
+            $hideOutOfStock
+        ) {
+            return $this->cachedShopCatalogCategories($locale, $fallbackLocale)
+                ->map(function (Category $category) use ($manufacturer, $hideOutOfStock): Category {
+                    $category = clone $category;
+                    $treeIds = Category::query()
+                        ->descendantsAndSelf($category->id)
+                        ->where('scope', Category::SCOPE_CATALOG)
+                        ->filter(fn (Category $treeCategory): bool => $treeCategory->isCurrentlyVisible())
+                        ->pluck('id');
+
+                    $productCount = $treeIds->isEmpty()
+                        ? 0
+                        : Product::query()
+                            ->visibleOnStorefront($hideOutOfStock)
+                            ->where('manufacturer_id', $manufacturer->id)
+                            ->whereHas('categories', function ($categoryQuery) use ($treeIds): void {
+                                $categoryQuery
+                                    ->where('scope', Category::SCOPE_CATALOG)
+                                    ->currentlyVisible()
+                                    ->whereIn('categories.id', $treeIds);
+                            })
+                            ->distinct('products.id')
+                            ->count('products.id');
+
+                    $category->setAttribute('products_count', $productCount);
+
+                    return $category;
+                })
+                ->filter(fn (Category $category): bool => (int) $category->products_count > 0)
+                ->values();
         });
     }
 
@@ -1083,7 +1227,7 @@ class CatalogController extends Controller
             foreach ($optionIds as $optionId) {
                 /** @var Option|null $option */
                 $option = $options->get($optionId);
-                if (!$option) {
+                if (! $option) {
                     continue;
                 }
 
@@ -1189,7 +1333,7 @@ class CatalogController extends Controller
             $filters = [];
             foreach ($groupCodes as $groupCode) {
                 $groupRows = $attributes->get($groupCode);
-                if (!$groupRows || $groupRows->isEmpty()) {
+                if (! $groupRows || $groupRows->isEmpty()) {
                     continue;
                 }
 
@@ -1390,6 +1534,7 @@ class CatalogController extends Controller
                 ->unique()
                 ->values()
                 ->all();
+
             return OptionValue::query()
                 ->select(['id', 'code', 'sort_order'])
                 ->where('is_active', true)
@@ -1956,7 +2101,23 @@ class CatalogController extends Controller
             $gridCols,
             $this->hideOutOfStockProducts() ? 'hide-oos' : 'all-stock',
             (string) $lastModifiedTs,
+            (string) $this->catalogPresentationVersion(),
             $wishlistHash,
         ])).'"';
+    }
+
+    private function catalogPresentationVersion(): int
+    {
+        return collect([
+            resource_path('views/front/desktop/catalog/index.blade.php'),
+            resource_path('views/front/desktop/partials/product-card.blade.php'),
+            resource_path('views/components/front/desktop/product-card.blade.php'),
+            app_path('View/Components/Front/Desktop/ProductCard.php'),
+            public_path('front-theme/styles/category-catalog.css'),
+            public_path('front-theme/scripts/category-catalog.js'),
+        ])->reduce(
+            static fn (int $latest, string $path): int => max($latest, is_file($path) ? (int) filemtime($path) : 0),
+            0
+        );
     }
 }

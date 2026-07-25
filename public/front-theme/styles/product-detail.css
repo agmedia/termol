@@ -468,6 +468,13 @@ html {
     color: #111827;
 }
 
+.product-detail-tax-note {
+    margin: .35rem 0 0;
+    color: #9ca3af;
+    font-size: .82rem;
+    line-height: 1.35;
+}
+
 .product-detail-action {
     border-color: #11896d;
     background: #11896d;
@@ -1478,6 +1485,10 @@ html {
 }
 
 @media (min-width: 1440px) and (max-width: 1599px) {
+    .product-detail-layout {
+        grid-template-columns: minmax(0, .98fr) minmax(360px, 1.02fr);
+    }
+
     .product-gallery-slide-button {
         height: 550px;
         aspect-ratio: auto;
