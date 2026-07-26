@@ -13,6 +13,20 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+        <script>
+            (() => {
+                try {
+                    if (
+                        window.matchMedia('(min-width: 768px)').matches
+                        && window.localStorage.getItem('termol.admin.sidebar.collapsed') === '1'
+                    ) {
+                        document.documentElement.classList.add('admin-sidebar-collapsed');
+                    }
+                } catch {
+                    // Render the default expanded layout when browser storage is unavailable.
+                }
+            })();
+        </script>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <style>
             summary::-webkit-details-marker { display: none; }
@@ -360,6 +374,7 @@
                 min-height: 100vh;
                 min-width: 0;
                 overflow-x: hidden;
+                transition: margin-left 180ms ease, width 180ms ease;
             }
             .admin-sidebar-rail {
                 height: 100dvh;
@@ -483,10 +498,17 @@
                     visibility: visible;
                     box-shadow: none;
                 }
+                html.admin-sidebar-collapsed .admin-sidebar {
+                    transform: translateX(-100%) !important;
+                    visibility: hidden !important;
+                }
+                html.admin-sidebar-collapsed .admin-main {
+                    margin-left: 0 !important;
+                    width: 100% !important;
+                }
                 .admin-sidebar-backdrop {
                     display: none !important;
                 }
-                .admin-mobile-menu-button,
                 .admin-mobile-close-button {
                     display: none;
                 }
@@ -1169,7 +1191,8 @@
                     $catalogOptionsActive = request()->routeIs('admin.options*');
                     $catalogManufacturersActive = request()->routeIs('admin.manufacturers*');
                     $catalogActionsActive = request()->routeIs('admin.actions*');
-                    $catalogOpen = $catalogCategoriesActive || $catalogProductsActive || $catalogAttributesActive || $catalogOptionsActive || $catalogManufacturersActive || $catalogActionsActive;
+                    $catalogB2bPricesActive = request()->routeIs('admin.b2b-prices*');
+                    $catalogOpen = $catalogCategoriesActive || $catalogProductsActive || $catalogAttributesActive || $catalogOptionsActive || $catalogManufacturersActive || $catalogActionsActive || $catalogB2bPricesActive;
                     $salesOrdersActive = request()->routeIs('admin.orders*');
                     $salesOpen = $salesOrdersActive;
                     $contentBlogActive = request()->routeIs('admin.content.blog.*');
@@ -1438,6 +1461,15 @@
                                     </span>
                                 </a>
                             @endif
+                            <a
+                                href="{{ route('admin.b2b-prices') }}"
+                                class="sidebar-dropdown-link block rounded-lg font-medium {{ $catalogB2bPricesActive ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
+                            >
+                                <span class="flex items-center gap-2">
+                                    <span class="sidebar-dot"></span>
+                                    <span>{{ __('admin.layout.menu.b2b_prices') }}</span>
+                                </span>
+                            </a>
                         </div>
                     </details>
 
@@ -1769,10 +1801,13 @@
                         <button
                             type="button"
                             id="admin-sidebar-open"
-                            class="admin-mobile-menu-button md:hidden"
+                            class="admin-mobile-menu-button"
                             aria-controls="admin-sidebar"
-                            aria-expanded="false"
-                            aria-label="{{ __('Open admin navigation') }}"
+                            aria-expanded="true"
+                            aria-label="{{ __('Sakrij lijevu navigaciju') }}"
+                            title="{{ __('Sakrij lijevu navigaciju') }}"
+                            data-label-open="{{ __('Prikaži lijevu navigaciju') }}"
+                            data-label-close="{{ __('Sakrij lijevu navigaciju') }}"
                         >
                             <span class="admin-mobile-menu-icon" aria-hidden="true"><span></span></span>
                         </button>

@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Models\Catalog\Action\CatalogAction;
 use App\Livewire\Admin\Catalog\Product\Manager as ProductManager;
+use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Product\Product;
 use App\Models\Content\Support\Comment;
@@ -119,6 +119,43 @@ class CatalogProductsListFeatureTest extends TestCase
             ->set('locale', 'en')
             ->set('sortBy', 'price_desc')
             ->assertSeeInOrder(['Price High', 'Price Mid', 'Price Low']);
+    }
+
+    public function test_product_list_shows_category_name_instead_of_product_slug(): void
+    {
+        $user = $this->makeAdminUser();
+        $category = new Category([
+            'scope' => Category::SCOPE_CATALOG,
+            'code' => 'heat-pumps',
+            'is_active' => true,
+            'show_in_menu' => true,
+            'sort_order' => 10,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $category->saveAsRoot();
+        $category->translations()->create([
+            'scope' => Category::SCOPE_CATALOG,
+            'locale' => 'en',
+            'name' => 'Toplinske pumpe',
+            'slug' => 'skriveni-slug-kategorije',
+        ]);
+
+        $product = $this->makeProduct($user, 'P-CATEGORY-NAME', 'Category Name Product', true, 8, 125);
+        $product->translations()->where('locale', 'en')->update([
+            'slug' => 'skriveni-slug-artikla',
+        ]);
+        $product->categories()->attach($category->id, [
+            'sort_order' => 0,
+            'is_primary' => true,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ProductManager::class)
+            ->set('locale', 'en')
+            ->assertSee('Toplinske pumpe')
+            ->assertDontSee('skriveni-slug-artikla')
+            ->assertDontSee('skriveni-slug-kategorije');
     }
 
     public function test_admin_can_delete_product_from_list_and_cleanup_related_records(): void

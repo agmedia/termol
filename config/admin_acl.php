@@ -46,6 +46,11 @@ return [
         ['name' => 'catalog.actions.update', 'title' => 'Update actions/discounts', 'group' => 'catalog.actions'],
         ['name' => 'catalog.actions.delete', 'title' => 'Delete actions/discounts', 'group' => 'catalog.actions'],
 
+        ['name' => 'catalog.b2b_prices.view', 'title' => 'View B2B price lists', 'group' => 'catalog.b2b_prices'],
+        ['name' => 'catalog.b2b_prices.create', 'title' => 'Create B2B price lists', 'group' => 'catalog.b2b_prices'],
+        ['name' => 'catalog.b2b_prices.update', 'title' => 'Update B2B price lists', 'group' => 'catalog.b2b_prices'],
+        ['name' => 'catalog.b2b_prices.delete', 'title' => 'Delete B2B price lists', 'group' => 'catalog.b2b_prices'],
+
         ['name' => 'sales.orders.view', 'title' => 'View orders', 'group' => 'sales.orders'],
         ['name' => 'sales.orders.update', 'title' => 'Update orders', 'group' => 'sales.orders'],
         ['name' => 'sales.orders.invoice.view', 'title' => 'View order invoices', 'group' => 'sales.orders'],
@@ -138,6 +143,10 @@ return [
             'catalog.actions.create',
             'catalog.actions.update',
             'catalog.actions.delete',
+            'catalog.b2b_prices.view',
+            'catalog.b2b_prices.create',
+            'catalog.b2b_prices.update',
+            'catalog.b2b_prices.delete',
             'sales.orders.view',
             'sales.orders.update',
             'sales.orders.invoice.view',

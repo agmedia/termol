@@ -20,11 +20,17 @@ class Manager extends Component
     use WithPagination;
 
     public string $search = '';
+
     public string $locale = 'en';
+
     public string $stateFilter = 'all';
+
     public string $stockFilter = 'all';
+
     public string $manufacturerFilter = 'all';
+
     public string $categoryFilter = 'all';
+
     public string $sortBy = 'newest';
 
     public function mount(): void
@@ -246,10 +252,17 @@ class Manager extends Component
                     ->where('locale', $this->locale)
                     ->limit(1),
             ])
-            ->withCount('categories')
-            ->withCount('options')
             ->with([
                 'translations' => fn ($q) => $q->where('locale', $this->locale),
+                'categories' => fn ($q) => $q
+                    ->with([
+                        'translations' => fn ($translationQuery) => $translationQuery
+                            ->where('scope', Category::SCOPE_CATALOG)
+                            ->where('locale', $this->locale),
+                    ])
+                    ->orderByDesc('category_product.is_primary')
+                    ->orderBy('category_product.sort_order')
+                    ->orderBy('categories.id'),
                 'media' => fn ($q) => $q
                     ->whereIn('collection_name', ['product_main', 'product_gallery'])
                     ->orderBy('order_column')
@@ -265,8 +278,13 @@ class Manager extends Component
                     $q->where('code', 'like', '%'.$search.'%')
                         ->orWhere('sku', 'like', '%'.$search.'%')
                         ->orWhereHas('translations', function ($tq) use ($search): void {
-                            $tq->where('name', 'like', '%'.$search.'%')
-                                ->orWhere('slug', 'like', '%'.$search.'%');
+                            $tq->where('name', 'like', '%'.$search.'%');
+                        })
+                        ->orWhereHas('categories.translations', function ($categoryTranslationQuery) use ($search): void {
+                            $categoryTranslationQuery
+                                ->where('scope', Category::SCOPE_CATALOG)
+                                ->where('locale', $this->locale)
+                                ->where('name', 'like', '%'.$search.'%');
                         });
 
                     if ($useManufacturers) {

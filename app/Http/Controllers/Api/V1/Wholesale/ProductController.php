@@ -37,6 +37,7 @@ class ProductController extends BaseWholesaleController
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', array_unique([$locale, $fallbackLocale])),
                 'categories' => fn ($q) => $q->orderBy('category_product.sort_order'),
                 'categories.translations' => fn ($q) => $q->whereIn('locale', array_unique([$locale, $fallbackLocale])),
+                'packages' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
             ]);
 
         if ($state === 'active') {
@@ -57,6 +58,7 @@ class ProductController extends BaseWholesaleController
             $query->where(function (Builder $q) use ($search): void {
                 $q->where('code', 'like', '%'.$search.'%')
                     ->orWhere('sku', 'like', '%'.$search.'%')
+                    ->orWhere('barcode', 'like', '%'.$search.'%')
                     ->orWhereHas('translations', function (Builder $translationQuery) use ($search): void {
                         $translationQuery->where('name', 'like', '%'.$search.'%')
                             ->orWhere('slug', 'like', '%'.$search.'%');
@@ -96,6 +98,7 @@ class ProductController extends BaseWholesaleController
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', array_unique([$locale, $fallbackLocale])),
                 'categories' => fn ($q) => $q->orderBy('category_product.sort_order'),
                 'categories.translations' => fn ($q) => $q->whereIn('locale', array_unique([$locale, $fallbackLocale])),
+                'packages' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
             ])
             ->where(function (Builder $q) use ($identifier): void {
                 $q->where('products.code', $identifier)

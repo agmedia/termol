@@ -9,9 +9,12 @@ use App\Models\Catalog\Manufacturer\ManufacturerTranslation;
 use App\Models\Catalog\Option\Option;
 use App\Models\Catalog\Option\OptionValue;
 use App\Models\Catalog\Product\Product;
+use App\Models\Catalog\Product\ProductGroupPrice;
 use App\Models\Catalog\Product\ProductOptionValue;
+use App\Models\Catalog\Product\ProductPackage;
 use App\Models\Catalog\Product\ProductTranslation;
 use App\Models\User;
+use App\Models\User\CustomerGroup;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -32,6 +35,27 @@ class WholesaleApiFeatureTest extends TestCase
         Sanctum::actingAs($user, ['products.read']);
 
         [$product] = $this->seedCatalogGraph();
+        $product->update([
+            'barcode' => '3850000000109',
+            'unit_of_measure' => 'pcs',
+            'minimum_order_quantity' => 5,
+            'order_quantity_step' => 5,
+            'weight_kg' => 2.5,
+            'length_cm' => 30,
+            'width_cm' => 20,
+            'height_cm' => 10,
+            'shipping_labels' => ['fragile'],
+        ]);
+        ProductPackage::query()->create([
+            'product_id' => $product->id,
+            'code' => 'BOX-5',
+            'name' => 'Box of five',
+            'package_type' => 'box',
+            'unit_of_measure' => 'pcs',
+            'quantity' => 5,
+            'is_default' => true,
+            'is_active' => true,
+        ]);
 
         $response = $this->getJson('/api/v1/wholesale/products?locale=en&per_page=10');
         $response->assertOk();
@@ -41,6 +65,10 @@ class WholesaleApiFeatureTest extends TestCase
         $response->assertJsonPath('data.0.name', 'Demo Product 100');
         $response->assertJsonPath('data.0.manufacturer.code', 'MAN-1');
         $response->assertJsonPath('data.0.categories.0.code', 'CAT-1');
+        $response->assertJsonPath('data.0.barcode', '3850000000109');
+        $response->assertJsonPath('data.0.minimum_order_quantity', 5);
+        $response->assertJsonPath('data.0.shipping_labels.0', 'fragile');
+        $response->assertJsonPath('data.0.packages.0.code', 'BOX-5');
     }
 
     public function test_product_prices_and_quantities_endpoints_return_sku_rows(): void
@@ -49,6 +77,22 @@ class WholesaleApiFeatureTest extends TestCase
         Sanctum::actingAs($user, ['products.read']);
 
         [$product, $optionValue] = $this->seedCatalogGraph();
+        $group = CustomerGroup::query()->create([
+            'code' => 'b2b-api',
+            'name' => 'B2B API',
+            'is_active' => true,
+            'is_default' => false,
+            'sort_order' => 1,
+        ]);
+        $user->customerGroups()->attach($group);
+        ProductGroupPrice::query()->create([
+            'product_id' => $product->id,
+            'customer_group_id' => $group->id,
+            'minimum_quantity' => 10,
+            'price' => 79.5,
+            'currency_code' => 'EUR',
+            'is_active' => true,
+        ]);
 
         ProductOptionValue::query()->create([
             'product_id' => $product->id,
@@ -66,10 +110,20 @@ class WholesaleApiFeatureTest extends TestCase
             'updated_by' => null,
         ]);
 
-        $prices = $this->getJson('/api/v1/wholesale/product_prices?include_option_values=1&sort=sku_asc');
+        $prices = $this->getJson('/api/v1/wholesale/product_prices?include_option_values=1&sort=sku_asc&quantity=10');
         $prices->assertOk();
-        $prices->assertJsonFragment(['sku' => 'SKU-100']);
-        $prices->assertJsonFragment(['sku' => 'SKU-100-RED']);
+        $prices->assertJsonFragment([
+            'sku' => 'SKU-100',
+            'price' => 79.5,
+            'retail_price' => 99.99,
+            'price_source' => 'b2b',
+        ]);
+        $prices->assertJsonFragment([
+            'sku' => 'SKU-100-RED',
+            'price' => 79.5,
+            'retail_price' => 123.45,
+            'price_source' => 'b2b',
+        ]);
 
         $quantities = $this->getJson('/api/v1/wholesale/product_quantities?include_option_values=1&sort=sku_asc');
         $quantities->assertOk();

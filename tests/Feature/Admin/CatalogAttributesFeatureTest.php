@@ -76,6 +76,8 @@ class CatalogAttributesFeatureTest extends TestCase
 
         $component = Livewire::actingAs($user)
             ->test(ProductForm::class)
+            ->call('setTab', 'attributes')
+            ->assertSet('activeTab', 'attributes')
             ->set('form.code', 'p-attribute-1')
             ->set('form.sku', 'SKU-ATTR-1')
             ->set('form.is_active', true)

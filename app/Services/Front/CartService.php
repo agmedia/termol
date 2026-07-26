@@ -3,9 +3,10 @@
 namespace App\Services\Front;
 
 use App\Models\Catalog\Action\CatalogAction;
-use App\Models\Catalog\Product\ProductOptionValue;
 use App\Models\Catalog\Product\Product;
+use App\Models\Catalog\Product\ProductOptionValue;
 use App\Services\Catalog\ActionResolverService;
+use App\Services\Pricing\ProductGroupPriceResolver;
 use App\Services\Pricing\TaxPricingService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Session;
@@ -13,13 +14,14 @@ use Illuminate\Support\Facades\Session;
 class CartService
 {
     private const SESSION_KEY = 'front.cart.items';
+
     private const COUPON_SESSION_KEY = 'front.cart.coupon_code';
 
     public function __construct(
         private readonly ActionResolverService $actionResolver,
-        private readonly TaxPricingService $taxPricing
-    ) {
-    }
+        private readonly TaxPricingService $taxPricing,
+        private readonly ProductGroupPriceResolver $groupPriceResolver,
+    ) {}
 
     /**
      * @return array<string, array{product_id:int,product_option_value_id:int|null,quantity:int}>
@@ -132,14 +134,25 @@ class CartService
                 continue;
             }
 
-            $qty = min(max(1, $quantity), $maxStock);
+            $qty = $this->normalizeOrderQuantity($product, $quantity, $maxStock);
+            if ($qty <= 0) {
+                continue;
+            }
+
             $storedBaseUnitPrice = $optionRow && $optionRow->price_override !== null
                 ? (float) $optionRow->price_override
                 : (float) $product->base_price;
+            $groupPrice = $this->groupPriceResolver->resolve(
+                $product,
+                $user,
+                $qty,
+                fallback: $storedBaseUnitPrice,
+            );
+            $storedAudienceUnitPrice = (float) ($groupPrice?->price ?? $storedBaseUnitPrice);
             $resolvedAction = $this->actionResolver->resolveProductAction($product, $user, $couponCode);
             $storedDiscountedUnitPrice = $resolvedAction
-                ? $this->actionResolver->applyToPrice($storedBaseUnitPrice, $resolvedAction)
-                : $storedBaseUnitPrice;
+                ? $this->actionResolver->applyToPrice($storedAudienceUnitPrice, $resolvedAction)
+                : $storedAudienceUnitPrice;
             $baseUnitPrice = $this->taxPricing->normalizeNetPrice($storedBaseUnitPrice, $product);
             $unitPrice = $this->taxPricing->normalizeNetPrice($storedDiscountedUnitPrice, $product);
             $unitDiscount = round(max(0, $baseUnitPrice - $unitPrice), 2);
@@ -177,6 +190,10 @@ class CartService
                 'line_tax_total' => $lineTaxTotal,
                 'tax_rate' => $taxRateValue,
                 'action_code' => $resolvedAction?->code,
+                'price_source' => $groupPrice ? 'b2b' : ($resolvedAction ? 'action' : 'base'),
+                'group_price_id' => $groupPrice?->group_price_id,
+                'b2b_rule_id' => $groupPrice?->rule_id,
+                'b2b_source_type' => $groupPrice?->source_type,
             ]);
         }
 
@@ -260,10 +277,15 @@ class CartService
             return false;
         }
 
+        $normalizedQuantity = $this->normalizeOrderQuantity($product, $target, $stock);
+        if ($normalizedQuantity <= 0) {
+            return false;
+        }
+
         $items[$lineKey] = [
             'product_id' => (int) $product->id,
             'product_option_value_id' => $optionRow?->id,
-            'quantity' => min($target, $stock),
+            'quantity' => $normalizedQuantity,
         ];
         Session::put(self::SESSION_KEY, $items);
 
@@ -295,10 +317,18 @@ class CartService
             return false;
         }
 
+        $normalizedQuantity = $this->normalizeOrderQuantity($product, $quantity, $stock);
+        if ($normalizedQuantity <= 0) {
+            unset($items[$lineKey]);
+            Session::put(self::SESSION_KEY, $items);
+
+            return false;
+        }
+
         $items[$lineKey] = [
             'product_id' => (int) $product->id,
             'product_option_value_id' => $optionRow?->id,
-            'quantity' => min(max(1, $quantity), $stock),
+            'quantity' => $normalizedQuantity,
         ];
         Session::put(self::SESSION_KEY, $items);
 
@@ -357,7 +387,7 @@ class CartService
     }
 
     /**
-     * @param array<int, array{product_id:int,product_option_value_id:int|null,quantity:int}> $lines
+     * @param  array<int, array{product_id:int,product_option_value_id:int|null,quantity:int}>  $lines
      */
     public function replaceRaw(array $lines, ?string $couponCode = null): void
     {
@@ -425,8 +455,25 @@ class CartService
         return $product->hasVisibleOptionRows();
     }
 
+    private function normalizeOrderQuantity(Product $product, int $quantity, int $stock): int
+    {
+        $minimum = max(1, (int) ($product->minimum_order_quantity ?? 1));
+        $step = max(1, (int) ($product->order_quantity_step ?? 1));
+        $available = min(999, max(0, $stock));
+
+        if ($available < $minimum) {
+            return 0;
+        }
+
+        $requested = max($minimum, min(999, $quantity));
+        $normalized = $minimum + (int) ceil(($requested - $minimum) / $step) * $step;
+        $maximumValid = $minimum + (int) floor(($available - $minimum) / $step) * $step;
+
+        return min($normalized, $maximumValid);
+    }
+
     /**
-     * @param Collection<int, array<string, mixed>> $lines
+     * @param  Collection<int, array<string, mixed>>  $lines
      * @return array{action:CatalogAction|null, amount:float, tax_discount:float}
      */
     private function resolveCartDiscount(Collection $lines, float $subtotalAfterLineDiscount, string $couponCode): array
@@ -490,7 +537,7 @@ class CartService
     }
 
     /**
-     * @param Collection<int, array<string, mixed>> $lines
+     * @param  Collection<int, array<string, mixed>>  $lines
      * @return Collection<int, array<string, mixed>>
      */
     private function eligibleCartDiscountLines(CatalogAction $action, Collection $lines): Collection
@@ -619,5 +666,4 @@ class CartService
             'label' => $parentLabel !== '' ? $parentLabel : null,
         ];
     }
-
 }

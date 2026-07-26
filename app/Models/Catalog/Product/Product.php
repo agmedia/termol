@@ -2,12 +2,12 @@
 
 namespace App\Models\Catalog\Product;
 
-use App\Models\Concerns\HasConfiguredMedia;
 use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Option\Option;
+use App\Models\Concerns\HasConfiguredMedia;
 use App\Models\Content\Support\Comment;
 use App\Models\Settings\Local\TaxRate;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,11 +30,20 @@ class Product extends Model implements HasMedia
     protected $fillable = [
         'code',
         'sku',
+        'barcode',
+        'unit_of_measure',
+        'minimum_order_quantity',
+        'order_quantity_step',
         'is_active',
         'manufacturer_id',
         'tax_rate_id',
         'base_price',
         'stock_qty',
+        'weight_kg',
+        'length_cm',
+        'width_cm',
+        'height_cm',
+        'shipping_labels',
         'payload',
         'created_by',
         'updated_by',
@@ -46,8 +55,45 @@ class Product extends Model implements HasMedia
         'tax_rate_id' => 'int',
         'base_price' => 'decimal:2',
         'stock_qty' => 'int',
+        'minimum_order_quantity' => 'int',
+        'order_quantity_step' => 'int',
+        'weight_kg' => 'decimal:3',
+        'length_cm' => 'decimal:2',
+        'width_cm' => 'decimal:2',
+        'height_cm' => 'decimal:2',
+        'shipping_labels' => 'array',
         'payload' => 'array',
     ];
+
+    public static function unitOptions(): array
+    {
+        return [
+            'pcs' => 'kom',
+            'kg' => 'kg',
+            'g' => 'g',
+            'l' => 'l',
+            'ml' => 'ml',
+            'm' => 'm',
+            'cm' => 'cm',
+            'm2' => 'm²',
+            'm3' => 'm³',
+            'pack' => 'paket',
+            'box' => 'kutija',
+            'pallet' => 'paleta',
+        ];
+    }
+
+    public static function shippingLabelOptions(): array
+    {
+        return [
+            'fragile' => 'Lomljivo',
+            'oversized' => 'Vanstandardne dimenzije',
+            'heavy' => 'Teški teret',
+            'refrigerated' => 'Hladni lanac',
+            'hazardous' => 'Opasna roba',
+            'ships_separately' => 'Šalje se odvojeno',
+        ];
+    }
 
     public function translations(): HasMany
     {
@@ -95,6 +141,25 @@ class Product extends Model implements HasMedia
         return $this->hasMany(ProductOptionValue::class, 'product_id')
             ->orderBy('sort_order')
             ->orderBy('id');
+    }
+
+    public function packages(): HasMany
+    {
+        return $this->hasMany(ProductPackage::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function groupPrices(): HasMany
+    {
+        return $this->hasMany(ProductGroupPrice::class);
+    }
+
+    public function priceHistory(): HasMany
+    {
+        return $this->hasMany(ProductPriceHistory::class)
+            ->latest('effective_at')
+            ->latest('id');
     }
 
     public function directActions(): BelongsToMany

@@ -58,6 +58,44 @@ const initAdminSidebar = () => {
     sidebar.dataset.adminSidebarReady = '1';
 
     const desktopQuery = window.matchMedia('(min-width: 768px)');
+    const desktopStorageKey = 'termol.admin.sidebar.collapsed';
+    const openLabel = openButton.dataset.labelOpen || 'Show navigation';
+    const closeLabel = openButton.dataset.labelClose || 'Hide navigation';
+
+    const updateToggleButton = () => {
+        const isExpanded = desktopQuery.matches
+            ? !document.documentElement.classList.contains('admin-sidebar-collapsed')
+            : sidebar.classList.contains('is-open');
+        const label = isExpanded ? closeLabel : openLabel;
+
+        openButton.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+        openButton.setAttribute('aria-label', label);
+        openButton.setAttribute('title', label);
+    };
+
+    const persistedDesktopState = () => {
+        try {
+            return window.localStorage.getItem(desktopStorageKey) === '1';
+        } catch {
+            return false;
+        }
+    };
+
+    const setDesktopCollapsed = (collapsed, persist = true) => {
+        const nextCollapsed = Boolean(collapsed) && desktopQuery.matches;
+
+        document.documentElement.classList.toggle('admin-sidebar-collapsed', nextCollapsed);
+
+        if (persist) {
+            try {
+                window.localStorage.setItem(desktopStorageKey, collapsed ? '1' : '0');
+            } catch {
+                // The toggle still works when browser storage is unavailable.
+            }
+        }
+
+        updateToggleButton();
+    };
 
     const setOpen = (open) => {
         const nextOpen = Boolean(open) && !desktopQuery.matches;
@@ -66,7 +104,7 @@ const initAdminSidebar = () => {
         backdrop.classList.toggle('is-open', nextOpen);
         backdrop.hidden = !nextOpen;
         document.body.classList.toggle('admin-sidebar-open', nextOpen);
-        openButton.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+        updateToggleButton();
 
         if (nextOpen) {
             sidebar.focus({ preventScroll: true });
@@ -74,6 +112,12 @@ const initAdminSidebar = () => {
     };
 
     openButton.addEventListener('click', () => {
+        if (desktopQuery.matches) {
+            setDesktopCollapsed(!document.documentElement.classList.contains('admin-sidebar-collapsed'));
+
+            return;
+        }
+
         setOpen(!sidebar.classList.contains('is-open'));
     });
 
@@ -96,8 +140,18 @@ const initAdminSidebar = () => {
     desktopQuery.addEventListener('change', () => {
         if (desktopQuery.matches) {
             setOpen(false);
+            setDesktopCollapsed(persistedDesktopState(), false);
+        } else {
+            document.documentElement.classList.remove('admin-sidebar-collapsed');
+            updateToggleButton();
         }
     });
+
+    if (desktopQuery.matches) {
+        setDesktopCollapsed(persistedDesktopState(), false);
+    } else {
+        updateToggleButton();
+    }
 };
 
 const initAceLauncher = () => {

@@ -106,6 +106,20 @@ return [
             'view' => ['catalog.actions.view'],
         ],
 
+        'admin.b2b-prices.create' => [
+            'view' => ['catalog.b2b_prices.create'],
+            'mutate' => ['catalog.b2b_prices.create'],
+        ],
+        'admin.b2b-prices.edit' => [
+            'view' => ['catalog.b2b_prices.update'],
+            'mutate' => ['catalog.b2b_prices.update'],
+            'delete' => ['catalog.b2b_prices.delete'],
+        ],
+        'admin.b2b-prices' => [
+            'view' => ['catalog.b2b_prices.view'],
+            'delete' => ['catalog.b2b_prices.delete'],
+        ],
+
         'admin.orders.invoice' => [
             'view' => ['sales.orders.invoice.view'],
         ],

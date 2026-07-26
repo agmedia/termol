@@ -29,6 +29,7 @@ return [
             'options' => 'Opcije',
             'manufacturers' => 'Brendovi',
             'actions_discounts' => 'Akcije i popusti',
+            'b2b_prices' => 'B2B cjenici',
             'sales' => 'Prodaja',
             'orders' => 'Narudžbe',
             'content' => 'Sadržaj',

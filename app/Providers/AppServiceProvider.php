@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Catalog\Product\Product;
+use App\Models\Catalog\Product\ProductGroupPrice;
+use App\Models\Catalog\Product\ProductOptionValue;
 use App\Models\Content\ContentBlock;
 use App\Models\Content\ContentBlockSlot;
 use App\Models\Content\ContentBlockTranslation;
@@ -13,6 +16,9 @@ use App\Models\Settings\Local\OrderStatus;
 use App\Models\Settings\Local\PaymentMethod;
 use App\Models\Settings\Local\ShippingMethod;
 use App\Models\Settings\Local\TaxRate;
+use App\Observers\Catalog\ProductGroupPriceObserver;
+use App\Observers\Catalog\ProductOptionValuePriceObserver;
+use App\Observers\Catalog\ProductPriceObserver;
 use App\Observers\Content\ContentCacheObserver;
 use App\Observers\Settings\LocalSettingObserver;
 use App\Services\Catalog\CatalogFeatureService;
@@ -273,6 +279,10 @@ class AppServiceProvider extends ServiceProvider
         ContentBlock::observe(ContentCacheObserver::class);
         ContentBlockTranslation::observe(ContentCacheObserver::class);
         ContentBlockSlot::observe(ContentCacheObserver::class);
+
+        Product::observe(ProductPriceObserver::class);
+        ProductGroupPrice::observe(ProductGroupPriceObserver::class);
+        ProductOptionValue::observe(ProductOptionValuePriceObserver::class);
     }
 
     private function syncAppLocaleFromLocalSettings(): void

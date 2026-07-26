@@ -53,13 +53,48 @@ class ProductResource extends JsonResource
                 ->all();
         }
 
+        $packages = [];
+        if ($this->relationLoaded('packages')) {
+            $packages = $this->packages
+                ->map(static fn ($package): array => [
+                    'id' => $package->id,
+                    'code' => $package->code,
+                    'name' => $package->name,
+                    'barcode' => $package->barcode,
+                    'package_type' => $package->package_type,
+                    'unit_of_measure' => $package->unit_of_measure,
+                    'quantity' => (float) $package->quantity,
+                    'weight_kg' => $package->weight_kg !== null ? (float) $package->weight_kg : null,
+                    'dimensions_cm' => [
+                        'length' => $package->length_cm !== null ? (float) $package->length_cm : null,
+                        'width' => $package->width_cm !== null ? (float) $package->width_cm : null,
+                        'height' => $package->height_cm !== null ? (float) $package->height_cm : null,
+                    ],
+                    'is_default' => (bool) $package->is_default,
+                    'is_active' => (bool) $package->is_active,
+                ])
+                ->all();
+        }
+
         return [
             'id' => $this->id,
             'code' => $this->code,
             'sku' => $this->sku,
+            'barcode' => $this->barcode,
             'is_active' => (bool) $this->is_active,
             'base_price' => (float) $this->base_price,
             'stock_qty' => (int) $this->stock_qty,
+            'unit_of_measure' => $this->unit_of_measure,
+            'minimum_order_quantity' => (int) $this->minimum_order_quantity,
+            'order_quantity_step' => (int) $this->order_quantity_step,
+            'weight_kg' => $this->weight_kg !== null ? (float) $this->weight_kg : null,
+            'dimensions_cm' => [
+                'length' => $this->length_cm !== null ? (float) $this->length_cm : null,
+                'width' => $this->width_cm !== null ? (float) $this->width_cm : null,
+                'height' => $this->height_cm !== null ? (float) $this->height_cm : null,
+            ],
+            'shipping_labels' => $this->shipping_labels ?? [],
+            'packages' => $packages,
             'locale' => $translation?->locale,
             'name' => $translation?->name,
             'slug' => $translation?->slug,

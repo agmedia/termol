@@ -1,63 +1,62 @@
 <div class="space-y-6">
     <div class="admin-panel admin-search-panel p-6">
-        <div class="flex items-end justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-semibold tracking-tight">{{ __('Actions & Discounts') }}</h1>
-                <p class="mt-1 text-sm text-slate-600">{{ __('Product actions and cart discounts with audience/target rules.') }}</p>
-                <p class="mt-2 text-xs text-slate-500">{{ __('Items per page') }}: <span class="admin-chip">{{ $perPage }}</span></p>
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div class="max-w-2xl">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{{ __('Katalog / Promocije') }}</p>
+                <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ __('Actions & Discounts') }}</h1>
+                <p class="mt-2 text-sm leading-6 text-slate-600">{{ __('Product actions and cart discounts with audience/target rules.') }}</p>
             </div>
+            <a href="{{ route('admin.actions.create', ['locale' => $locale]) }}" class="inline-flex shrink-0 items-center justify-center rounded-lg bg-cyan-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-800">
+                {{ __('Kreiraj akciju') }}
+            </a>
+        </div>
 
-            <div class="flex w-[72rem] max-w-full items-end justify-end gap-3">
-                <div class="grid w-full max-w-[64rem] items-end gap-3" style="grid-template-columns: minmax(22rem, 1.6fr) 9rem 11rem 9rem 8rem;">
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.common.search') }}</label>
-                        <input
-                            type="text"
-                            wire:model.live.debounce.300ms="search"
-                            placeholder="{{ __('Code, title, coupon...') }}"
-                            class="admin-search-input w-full rounded-xl border px-3 py-2 text-sm"
-                        />
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Scope') }}</label>
-                        <select wire:model.live="scopeFilter" data-tom-select data-tom-no-search="1" class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm">
-                            <option value="all">{{ __('All') }}</option>
-                            @foreach ($scopeLabels as $key => $label)
-                                <option value="{{ $key }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Type') }}</label>
-                        <select wire:model.live="typeFilter" data-tom-select data-tom-no-search="1" class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm">
-                            <option value="all">{{ __('All') }}</option>
-                            @foreach ($typeLabels as $key => $label)
-                                <option value="{{ $key }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.common.state') }}</label>
-                        <select wire:model.live="stateFilter" data-tom-select data-tom-no-search="1" class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm">
-                            @foreach ($stateLabels as $key => $label)
-                                <option value="{{ $key }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.common.locale') }}</label>
-                        <select wire:model.live="locale" data-tom-select data-tom-no-search="1" class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm lowercase">
-                            @foreach ($adminLocaleOptions as $localeOption)
-                                <option value="{{ $localeOption }}">{{ $localeOption }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-                <a href="{{ route('admin.actions.create', ['locale' => $locale]) }}" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">
-                    {{ __('admin.common.create') }}
-                </a>
+        <div class="mt-6 grid items-end gap-3 md:grid-cols-2 xl:grid-cols-[minmax(20rem,1fr)_11rem_13rem_11rem_8rem]">
+            <div>
+                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.common.search') }}</label>
+                <input
+                    type="search"
+                    wire:model.live.debounce.300ms="search"
+                    placeholder="{{ __('Code, title, coupon...') }}"
+                    class="admin-search-input w-full rounded-xl border px-3 py-2 text-sm"
+                />
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Scope') }}</label>
+                <select wire:model.live="scopeFilter" data-tom-select data-tom-no-search="1" class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm">
+                    <option value="all">{{ __('All') }}</option>
+                    @foreach ($scopeLabels as $key => $label)
+                        <option value="{{ $key }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Type') }}</label>
+                <select wire:model.live="typeFilter" data-tom-select data-tom-no-search="1" class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm">
+                    <option value="all">{{ __('All') }}</option>
+                    @foreach ($typeLabels as $key => $label)
+                        <option value="{{ $key }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.common.state') }}</label>
+                <select wire:model.live="stateFilter" data-tom-select data-tom-no-search="1" class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm">
+                    @foreach ($stateLabels as $key => $label)
+                        <option value="{{ $key }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.common.locale') }}</label>
+                <select wire:model.live="locale" data-tom-select data-tom-no-search="1" class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm lowercase">
+                    @foreach ($adminLocaleOptions as $localeOption)
+                        <option value="{{ $localeOption }}">{{ $localeOption }}</option>
+                    @endforeach
+                </select>
             </div>
         </div>
+        <p class="mt-3 text-xs text-slate-500">{{ __('Items per page') }}: <span class="admin-chip">{{ $perPage }}</span></p>
     </div>
 
     <div class="admin-panel admin-panel-soft p-5">
@@ -142,7 +141,10 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-3 py-8 text-center text-sm text-slate-500">{{ __('No actions or discounts yet.') }}</td>
+                            <td colspan="7" class="px-3 py-12 text-center">
+                                <p class="font-medium text-slate-700">{{ __('No actions or discounts yet.') }}</p>
+                                <a href="{{ route('admin.actions.create', ['locale' => $locale]) }}" class="mt-2 inline-flex text-sm font-semibold text-cyan-700 hover:text-cyan-900">{{ __('Kreiraj prvu akciju') }} →</a>
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>

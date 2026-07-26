@@ -6,6 +6,7 @@ use App\Models\Catalog\Option\Option;
 use App\Models\Catalog\Option\OptionValue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProductOptionValue extends Model
 {
@@ -58,6 +59,11 @@ class ProductOptionValue extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class, 'updated_by');
+    }
+
+    public function priceHistory(): HasMany
+    {
+        return $this->hasMany(ProductPriceHistory::class, 'product_option_value_id');
     }
 
     public function childOption(): ?Option

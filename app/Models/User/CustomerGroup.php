@@ -2,8 +2,11 @@
 
 namespace App\Models\User;
 
+use App\Models\Catalog\Pricing\B2BPriceRule;
+use App\Models\Catalog\Product\ProductGroupPrice;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CustomerGroup extends Model
 {
@@ -29,5 +32,14 @@ class CustomerGroup extends Model
         return $this->belongsToMany(\App\Models\User::class, 'customer_group_user')
             ->withTimestamps();
     }
-}
 
+    public function productPrices(): HasMany
+    {
+        return $this->hasMany(ProductGroupPrice::class);
+    }
+
+    public function b2bPriceRules(): HasMany
+    {
+        return $this->hasMany(B2BPriceRule::class);
+    }
+}

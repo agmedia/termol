@@ -23,6 +23,7 @@ use App\Models\Catalog\Attribute\Attribute as CatalogAttribute;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Option\Option;
+use App\Models\Catalog\Pricing\B2BPriceRule;
 use App\Models\Catalog\Product\Product;
 use App\Models\Content\Blog\BlogPost;
 use App\Models\Content\ContentBlock;
@@ -273,6 +274,11 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
                 return view('admin.actions.edit', compact('action'));
             })->name('actions.edit');
         });
+        Route::view('b2b-prices', 'admin.b2b-prices')->name('b2b-prices');
+        Route::view('b2b-prices/create', 'admin.b2b-prices.create')->name('b2b-prices.create');
+        Route::get('b2b-prices/{rule}/edit', function (B2BPriceRule $rule) {
+            return view('admin.b2b-prices.edit', compact('rule'));
+        })->name('b2b-prices.edit');
         Route::view('users', 'admin.users.index')->name('users');
         Route::view('users/newsletter', 'admin.users.newsletter')->name('users.newsletter');
         Route::view('users/groups', 'admin.users.groups')->name('users.groups');

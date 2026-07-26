@@ -26,7 +26,18 @@
                     {{ __('Media') }}
                 </button>
                 <button type="button" wire:click="setTab('catalog')" class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] {{ $activeTab === 'catalog' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}">
-                    {{ __('Katalog') }}
+                    {{ __('Kategorije') }}
+                </button>
+                @if ($useAttributes)
+                    <button type="button" wire:click="setTab('attributes')" class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] {{ $activeTab === 'attributes' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}">
+                        {{ __('Atributi') }}
+                    </button>
+                @endif
+                <button type="button" wire:click="setTab('logistics')" class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] {{ $activeTab === 'logistics' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}">
+                    {{ __('Logistika') }}
+                </button>
+                <button type="button" wire:click="setTab('b2b')" class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] {{ $activeTab === 'b2b' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}">
+                    {{ __('B2B cijene') }}
                 </button>
             </div>
         </div>
@@ -180,9 +191,277 @@
         />
         @endif
 
+        @if ($activeTab === 'logistics')
+        <div class="admin-panel admin-form-panel p-6">
+            <div class="flex items-center justify-between gap-3">
+                <div>
+                    <p class="admin-section-title">{{ __('Logistika i naručivanje') }}</p>
+                    <p class="mt-1 text-sm text-slate-600">{{ __('Barkod, mjerna jedinica, dimenzije, dostavne oznake i pakiranja proizvoda.') }}</p>
+                </div>
+                <button type="button" wire:click="addPackage" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                    {{ __('Dodaj pakiranje') }}
+                </button>
+            </div>
+
+            <div class="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                <div class="lg:col-span-2">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Barkod proizvoda') }}</label>
+                    <input type="text" wire:model="form.barcode" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono" />
+                    @error('form.barcode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Jedinica mjere') }}</label>
+                    <select wire:model="form.unit_of_measure" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                        @foreach ($unitOptions as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    @error('form.unit_of_measure') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Težina (kg)') }}</label>
+                    <input type="number" min="0" step="0.001" wire:model="form.weight_kg" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    @error('form.weight_kg') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Minimalna količina') }}</label>
+                    <input type="number" min="1" wire:model="form.minimum_order_quantity" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    @error('form.minimum_order_quantity') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Korak količine') }}</label>
+                    <input type="number" min="1" wire:model="form.order_quantity_step" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    @error('form.order_quantity_step') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                @foreach (['length_cm' => 'Duljina (cm)', 'width_cm' => 'Širina (cm)', 'height_cm' => 'Visina (cm)'] as $field => $label)
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __($label) }}</label>
+                        <input type="number" min="0" step="0.01" wire:model="form.{{ $field }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                        @error('form.'.$field) <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Dostavne oznake') }}</p>
+                <div class="mt-3 flex flex-wrap gap-3">
+                    @foreach ($shippingLabelOptions as $value => $label)
+                        <label class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                            <input type="checkbox" value="{{ $value }}" wire:model="form.shipping_labels" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-600">
+                            <span>{{ $label }}</span>
+                        </label>
+                    @endforeach
+                </div>
+                @error('form.shipping_labels.*') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="mt-6 space-y-4">
+                @forelse ($packages as $index => $package)
+                    <div wire:key="product-package-{{ $package['id'] ?? 'new-'.$index }}" class="rounded-xl border border-slate-200 bg-white p-4">
+                        <div class="mb-3 flex items-center justify-between gap-3">
+                            <p class="text-sm font-semibold text-slate-800">{{ __('Pakiranje #:number', ['number' => $index + 1]) }}</p>
+                            <button type="button" wire:click="removePackage({{ $index }})" class="text-xs font-semibold text-rose-600 hover:text-rose-700">{{ __('Ukloni') }}</button>
+                        </div>
+                        <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Šifra') }}</label>
+                                <input type="text" wire:model="packages.{{ $index }}.code" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono uppercase">
+                                @error('packages.'.$index.'.code') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Naziv') }}</label>
+                                <input type="text" wire:model="packages.{{ $index }}.name" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                @error('packages.'.$index.'.name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Barkod') }}</label>
+                                <input type="text" wire:model="packages.{{ $index }}.barcode" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono">
+                                @error('packages.'.$index.'.barcode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Vrsta') }}</label>
+                                <select wire:model="packages.{{ $index }}.package_type" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                    @foreach ($packageTypeOptions as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Količina u pakiranju') }}</label>
+                                <input type="number" min="0.001" step="0.001" wire:model="packages.{{ $index }}.quantity" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                @error('packages.'.$index.'.quantity') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Jedinica mjere') }}</label>
+                                <select wire:model="packages.{{ $index }}.unit_of_measure" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                    @foreach ($unitOptions as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Težina (kg)') }}</label>
+                                <input type="number" min="0" step="0.001" wire:model="packages.{{ $index }}.weight_kg" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                            </div>
+                            <div class="flex items-end gap-4 pb-2">
+                                <label class="flex items-center gap-2 text-sm text-slate-700">
+                                    <input type="checkbox" wire:model="packages.{{ $index }}.is_default" class="rounded border-slate-300 text-cyan-700">
+                                    {{ __('Zadano') }}
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-slate-700">
+                                    <input type="checkbox" wire:model="packages.{{ $index }}.is_active" class="rounded border-slate-300 text-cyan-700">
+                                    {{ __('Aktivno') }}
+                                </label>
+                            </div>
+                            @foreach (['length_cm' => 'Duljina (cm)', 'width_cm' => 'Širina (cm)', 'height_cm' => 'Visina (cm)'] as $field => $label)
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __($label) }}</label>
+                                    <input type="number" min="0" step="0.01" wire:model="packages.{{ $index }}.{{ $field }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @empty
+                    <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                        {{ __('Nema definiranih pakiranja. Proizvod se prodaje u osnovnoj jedinici mjere.') }}
+                    </div>
+                @endforelse
+            </div>
+        </div>
+        @endif
+
+        @if ($activeTab === 'b2b')
+        <div class="space-y-6">
+            <div class="admin-panel admin-form-panel p-6">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <p class="admin-section-title">{{ __('B2B cjenik') }}</p>
+                        <p class="mt-1 text-sm text-slate-600">{{ __('Cijene po grupi kupaca, pakiranju, količinskom pragu i razdoblju valjanosti.') }}</p>
+                    </div>
+                    <button type="button" wire:click="addGroupPrice" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                        {{ __('Dodaj B2B cijenu') }}
+                    </button>
+                </div>
+                <div class="mt-4 flex flex-col gap-2 rounded-xl border border-cyan-100 bg-cyan-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm text-cyan-950">{{ __('Ovdje se uređuju izravne cijene ovog artikla. Pravila za grupe, brendove i kategorije uređuju se u modulu B2B cjenici.') }}</p>
+                    <a href="{{ route('admin.b2b-prices') }}" class="shrink-0 text-sm font-semibold text-cyan-800 hover:text-cyan-950">{{ __('Otvori B2B cjenike') }} →</a>
+                </div>
+
+                <div class="mt-5 space-y-3">
+                    @forelse ($groupPrices as $index => $price)
+                        <div wire:key="product-group-price-{{ $price['id'] ?? 'new-'.$index }}" class="rounded-xl border border-slate-200 bg-white p-4">
+                            <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Grupa kupaca') }}</label>
+                                    <select wire:model="groupPrices.{{ $index }}.customer_group_id" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                        <option value="">{{ __('Odaberite grupu') }}</option>
+                                        @foreach ($this->customerGroupOptions as $group)
+                                            <option value="{{ $group->id }}">{{ $group->name }} ({{ $group->code }})</option>
+                                        @endforeach
+                                    </select>
+                                    @error('groupPrices.'.$index.'.customer_group_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Pakiranje') }}</label>
+                                    <select wire:model="groupPrices.{{ $index }}.package_code" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                        <option value="">{{ __('Osnovna jedinica') }}</option>
+                                        @foreach ($packages as $package)
+                                            @if (trim((string) ($package['code'] ?? '')) !== '')
+                                                <option value="{{ strtoupper(trim((string) $package['code'])) }}">{{ $package['name'] ?: $package['code'] }}</option>
+                                            @endif
+                                        @endforeach
+                                    </select>
+                                    @error('groupPrices.'.$index.'.package_code') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Minimalna količina') }}</label>
+                                    <input type="number" min="1" wire:model="groupPrices.{{ $index }}.minimum_quantity" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                    @error('groupPrices.'.$index.'.minimum_quantity') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="grid grid-cols-[1fr_5rem] gap-2">
+                                    <div>
+                                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Cijena') }}</label>
+                                        <input type="number" min="0" step="0.0001" wire:model="groupPrices.{{ $index }}.price" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Valuta') }}</label>
+                                        <input type="text" maxlength="3" wire:model="groupPrices.{{ $index }}.currency_code" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm uppercase">
+                                    </div>
+                                    @error('groupPrices.'.$index.'.price') <p class="col-span-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Vrijedi od') }}</label>
+                                    <input type="datetime-local" wire:model="groupPrices.{{ $index }}.starts_at" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Vrijedi do') }}</label>
+                                    <input type="datetime-local" wire:model="groupPrices.{{ $index }}.ends_at" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                    @error('groupPrices.'.$index.'.ends_at') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="flex items-end pb-2">
+                                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                                        <input type="checkbox" wire:model="groupPrices.{{ $index }}.is_active" class="rounded border-slate-300 text-cyan-700">
+                                        {{ __('Aktivno') }}
+                                    </label>
+                                </div>
+                                <div class="flex items-end justify-end pb-1">
+                                    <button type="button" wire:click="removeGroupPrice({{ $index }})" class="text-xs font-semibold text-rose-600 hover:text-rose-700">{{ __('Ukloni cijenu') }}</button>
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                            {{ __('Nema definiranih B2B cijena. Svim kupcima prikazuje se osnovna cijena proizvoda.') }}
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+
+            <div class="admin-panel admin-form-panel overflow-hidden">
+                <div class="border-b border-slate-200 p-6">
+                    <p class="admin-section-title">{{ __('Povijest cijena') }}</p>
+                    <p class="mt-1 text-sm text-slate-600">{{ __('Automatski zapis promjena osnovne, varijantne i B2B cijene. Prikazuje se zadnjih 50 zapisa.') }}</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                            <tr>
+                                <th class="px-4 py-3">{{ __('Vrijeme') }}</th>
+                                <th class="px-4 py-3">{{ __('Vrsta') }}</th>
+                                <th class="px-4 py-3">{{ __('Grupa / pakiranje') }}</th>
+                                <th class="px-4 py-3 text-right">{{ __('Stara cijena') }}</th>
+                                <th class="px-4 py-3 text-right">{{ __('Nova cijena') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white">
+                            @forelse ($this->priceHistoryRows as $history)
+                                <tr>
+                                    <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $history->effective_at?->format('d.m.Y. H:i') }}</td>
+                                    <td class="px-4 py-3 font-semibold text-slate-700">{{ strtoupper($history->price_type) }}</td>
+                                    <td class="px-4 py-3 text-slate-600">
+                                        {{ $history->customerGroup?->name ?? '—' }}
+                                        @if ($history->productPackage)
+                                            / {{ $history->productPackage->name }}
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-right tabular-nums text-slate-600">{{ $history->old_price !== null ? number_format((float) $history->old_price, 4, ',', '.') : '—' }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums font-semibold text-slate-800">{{ $history->new_price !== null ? number_format((float) $history->new_price, 4, ',', '.') : '—' }} {{ $history->currency_code }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-8 text-center text-slate-500">{{ __('Povijest cijena još nije zabilježena.') }}</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        @endif
+
         @if ($activeTab === 'catalog')
         <div class="admin-panel admin-form-panel p-6">
-            <p class="admin-section-title">{{ __('Categories & Attributes') }}</p>
+            <p class="admin-section-title">{{ __('Kategorije i opcije') }}</p>
             <div class="mt-4 rounded-xl border border-slate-200 p-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Categories (order defines primary)') }}</p>
                 <input type="text" wire:model.live.debounce.250ms="categorySearch" class="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="{{ __('Pretraga kategorija...') }}">
@@ -211,74 +490,6 @@
                 </div>
                 @error('form.category_ids.*') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
-
-            @if ($useAttributes)
-                <div class="mt-5">
-                    <div class="mb-1 flex items-center justify-between gap-2">
-                        <label class="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Attributes') }}</label>
-                        <a href="{{ route('admin.attributes', ['locale' => $form['locale']]) }}" class="text-xs font-semibold text-slate-600 hover:text-slate-900">{{ __('Manage') }}</a>
-                    </div>
-                    <div class="mb-3 grid gap-2 lg:grid-cols-[minmax(12rem,20rem)_auto]">
-                        <div>
-                            <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Visible Group') }}</label>
-                            <select wire:model.live="attributeGroupView" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                                <option value="all">{{ __('All groups') }}</option>
-                                @foreach ($this->attributeGroupOptions as $groupOption)
-                                    <option value="{{ $groupOption['group_code'] }}">
-                                        {{ $groupOption['group_name'] }} ({{ $groupOption['item_count'] }})
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="flex items-end">
-                            <button
-                                type="button"
-                                wire:click="$toggle('attributeShowAssignedOnly')"
-                                class="rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.1em] {{ $attributeShowAssignedOnly ? 'border-cyan-300 bg-cyan-50 text-cyan-800' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}"
-                            >
-                                {{ $attributeShowAssignedOnly ? __('Assigned Only: On') : __('Assigned Only: Off') }}
-                            </button>
-                        </div>
-                    </div>
-                    <div class="grid gap-3 lg:grid-cols-2">
-                        @forelse ($this->visibleAttributeGroups as $group)
-                            @php
-                                $groupCode = (string) $group['group_code'];
-                                $groupType = (string) $group['type'];
-                            @endphp
-                            <div class="rounded-xl border border-slate-200 bg-white p-3">
-                                <div class="mb-2 flex items-center justify-between gap-2">
-                                    <p class="text-sm font-semibold text-slate-800">{{ $group['group_name'] }}</p>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">{{ $groupType === 'multi' ? __('Multi') : __('Single') }}</span>
-                                </div>
-
-                                @if ($groupType === 'multi')
-                                    <select wire:model="attributeSelections.{{ $groupCode }}" multiple size="5" class="admin-multiselect w-full rounded-xl border border-slate-300 text-sm">
-                                        @foreach ($group['items'] as $item)
-                                            <option value="{{ $item['id'] }}">{{ $item['name'] }}</option>
-                                        @endforeach
-                                    </select>
-                                @else
-                                    <select wire:model="attributeSelections.{{ $groupCode }}" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                                        <option value="">{{ __('No value') }}</option>
-                                        @foreach ($group['items'] as $item)
-                                            <option value="{{ $item['id'] }}">{{ $item['name'] }}</option>
-                                        @endforeach
-                                    </select>
-                                @endif
-
-                                @error('attributeSelections.'.$groupCode) <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                            </div>
-                        @empty
-                            <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600 lg:col-span-2">
-                                {{ __('No attribute groups match current filter.') }}
-                            </div>
-                        @endforelse
-                    </div>
-                    @error('form.attribute_ids') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
-                    @error('form.attribute_ids.*') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
-                </div>
-            @endif
 
             @if ($useOptions)
                 <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
@@ -316,6 +527,79 @@
                 </div>
             @endif
 
+        </div>
+        @endif
+
+        @if ($activeTab === 'attributes' && $useAttributes)
+        <div class="admin-panel admin-form-panel p-6">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <p class="admin-section-title">{{ __('Atributi artikla') }}</p>
+                    <p class="mt-1 text-sm text-slate-600">{{ __('Odaberite tehničke i prodajne karakteristike ovog artikla po grupama atributa.') }}</p>
+                </div>
+                <a href="{{ route('admin.attributes', ['locale' => $form['locale']]) }}" class="text-sm font-semibold text-cyan-700 hover:text-cyan-800">{{ __('Upravljaj atributima') }}</a>
+            </div>
+
+            <div class="mt-5 grid gap-2 lg:grid-cols-[minmax(12rem,20rem)_auto]">
+                <div>
+                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Vidljiva grupa') }}</label>
+                    <select wire:model.live="attributeGroupView" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                        <option value="all">{{ __('Sve grupe') }}</option>
+                        @foreach ($this->attributeGroupOptions as $groupOption)
+                            <option value="{{ $groupOption['group_code'] }}">
+                                {{ $groupOption['group_name'] }} ({{ $groupOption['item_count'] }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button
+                        type="button"
+                        wire:click="$toggle('attributeShowAssignedOnly')"
+                        class="rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.1em] {{ $attributeShowAssignedOnly ? 'border-cyan-300 bg-cyan-50 text-cyan-800' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}"
+                    >
+                        {{ $attributeShowAssignedOnly ? __('Samo dodijeljeni: da') : __('Samo dodijeljeni: ne') }}
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-4 grid gap-3 lg:grid-cols-2">
+                @forelse ($this->visibleAttributeGroups as $group)
+                    @php
+                        $groupCode = (string) $group['group_code'];
+                        $groupType = (string) $group['type'];
+                    @endphp
+                    <div class="rounded-xl border border-slate-200 bg-white p-3">
+                        <div class="mb-2 flex items-center justify-between gap-2">
+                            <p class="text-sm font-semibold text-slate-800">{{ $group['group_name'] }}</p>
+                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">{{ $groupType === 'multi' ? __('Višestruki odabir') : __('Jedan odabir') }}</span>
+                        </div>
+
+                        @if ($groupType === 'multi')
+                            <select wire:model="attributeSelections.{{ $groupCode }}" multiple size="5" class="admin-multiselect w-full rounded-xl border border-slate-300 text-sm">
+                                @foreach ($group['items'] as $item)
+                                    <option value="{{ $item['id'] }}">{{ $item['name'] }}</option>
+                                @endforeach
+                            </select>
+                        @else
+                            <select wire:model="attributeSelections.{{ $groupCode }}" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                <option value="">{{ __('Nema vrijednosti') }}</option>
+                                @foreach ($group['items'] as $item)
+                                    <option value="{{ $item['id'] }}">{{ $item['name'] }}</option>
+                                @endforeach
+                            </select>
+                        @endif
+
+                        @error('attributeSelections.'.$groupCode) <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                @empty
+                    <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600 lg:col-span-2">
+                        {{ __('Nijedna grupa atributa ne odgovara trenutačnom filtru.') }}
+                    </div>
+                @endforelse
+            </div>
+            @error('form.attribute_ids') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+            @error('form.attribute_ids.*') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         @endif
 

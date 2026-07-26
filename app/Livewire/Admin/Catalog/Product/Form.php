@@ -6,9 +6,12 @@ use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Product\Product;
+use App\Models\Catalog\Product\ProductGroupPrice;
 use App\Models\Catalog\Product\ProductOptionValue;
+use App\Models\Catalog\Product\ProductPackage;
 use App\Models\Catalog\Product\ProductTranslation;
 use App\Models\Settings\Local\TaxRate;
+use App\Models\User\CustomerGroup;
 use App\Services\Catalog\CatalogFeatureService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -30,14 +33,27 @@ class Form extends Component
 
     public bool $attributeShowAssignedOnly = false;
 
+    public array $packages = [];
+
+    public array $groupPrices = [];
+
     public array $form = [
         'code' => '',
         'sku' => '',
+        'barcode' => '',
+        'unit_of_measure' => 'pcs',
+        'minimum_order_quantity' => 1,
+        'order_quantity_step' => 1,
         'is_active' => true,
         'manufacturer_id' => null,
         'tax_rate_id' => null,
         'base_price' => 0,
         'stock_qty' => 0,
+        'weight_kg' => null,
+        'length_cm' => null,
+        'width_cm' => null,
+        'height_cm' => null,
+        'shipping_labels' => [],
         'payload_text' => '',
         'locale' => 'en',
         'name' => '',
@@ -78,7 +94,7 @@ class Form extends Component
 
     public function setTab(string $tab): void
     {
-        if (! in_array($tab, ['content', 'seo', 'media', 'catalog'], true)) {
+        if (! in_array($tab, ['content', 'seo', 'media', 'catalog', 'attributes', 'logistics', 'b2b'], true)) {
             return;
         }
 
@@ -97,6 +113,10 @@ class Form extends Component
         }
 
         $validated = $this->validate($this->rules());
+        if (! $this->validateCommerceRows($validated)) {
+            return null;
+        }
+
         $wasEditing = (bool) $this->productId;
 
         $payload = $this->decodeJsonField('form.payload_text');
@@ -115,12 +135,21 @@ class Form extends Component
             $productData = [
                 'code' => trim((string) $validated['form']['code']),
                 'sku' => trim((string) $validated['form']['sku']) !== '' ? trim((string) $validated['form']['sku']) : null,
+                'barcode' => trim((string) ($validated['form']['barcode'] ?? '')) ?: null,
+                'unit_of_measure' => (string) $validated['form']['unit_of_measure'],
+                'minimum_order_quantity' => (int) $validated['form']['minimum_order_quantity'],
+                'order_quantity_step' => (int) $validated['form']['order_quantity_step'],
                 'is_active' => (bool) $validated['form']['is_active'],
                 'tax_rate_id' => ($validated['form']['tax_rate_id'] ?? null)
                     ? (int) $validated['form']['tax_rate_id']
                     : $this->defaultTaxRateId(),
                 'base_price' => (float) $validated['form']['base_price'],
                 'stock_qty' => (int) $validated['form']['stock_qty'],
+                'weight_kg' => $validated['form']['weight_kg'] ?? null,
+                'length_cm' => $validated['form']['length_cm'] ?? null,
+                'width_cm' => $validated['form']['width_cm'] ?? null,
+                'height_cm' => $validated['form']['height_cm'] ?? null,
+                'shipping_labels' => array_values($validated['form']['shipping_labels'] ?? []),
                 'payload' => $payload,
                 'updated_by' => $userId,
             ];
@@ -167,6 +196,18 @@ class Form extends Component
                 }
                 $product->attributes()->sync($attributeSyncPayload);
             }
+
+            $packageIdsByCode = $this->syncPackages(
+                $product,
+                $validated['packages'] ?? [],
+                $userId,
+            );
+            $this->syncGroupPrices(
+                $product,
+                $validated['groupPrices'] ?? [],
+                $packageIdsByCode,
+                $userId,
+            );
 
             activity('catalog_products')
                 ->performedOn($product)
@@ -366,6 +407,63 @@ class Form extends Component
             ->all();
     }
 
+    public function addPackage(): void
+    {
+        $this->packages[] = $this->blankPackageRow();
+    }
+
+    public function removePackage(int $index): void
+    {
+        unset($this->packages[$index]);
+        $this->packages = array_values($this->packages);
+    }
+
+    public function addGroupPrice(): void
+    {
+        $this->groupPrices[] = $this->blankGroupPriceRow();
+    }
+
+    public function removeGroupPrice(int $index): void
+    {
+        unset($this->groupPrices[$index]);
+        $this->groupPrices = array_values($this->groupPrices);
+    }
+
+    public function getCustomerGroupOptionsProperty(): Collection
+    {
+        return CustomerGroup::query()
+            ->where(function ($query): void {
+                $query->where('is_active', true);
+
+                $selectedIds = collect($this->groupPrices)
+                    ->pluck('customer_group_id')
+                    ->map(static fn ($id): int => (int) $id)
+                    ->filter()
+                    ->all();
+
+                if ($selectedIds !== []) {
+                    $query->orWhereIn('id', $selectedIds);
+                }
+            })
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function getPriceHistoryRowsProperty(): Collection
+    {
+        if (! $this->productId) {
+            return collect();
+        }
+
+        return Product::query()
+            ->findOrFail($this->productId)
+            ->priceHistory()
+            ->with(['customerGroup:id,name', 'productPackage:id,name,code'])
+            ->limit(50)
+            ->get();
+    }
+
     public function render()
     {
         return view('livewire.admin.catalog.product.form', [
@@ -373,6 +471,9 @@ class Form extends Component
             'useAttributes' => $this->useAttributes(),
             'useOptions' => $this->useOptions(),
             'useManufacturers' => $this->useManufacturers(),
+            'unitOptions' => Product::unitOptions(),
+            'shippingLabelOptions' => Product::shippingLabelOptions(),
+            'packageTypeOptions' => ProductPackage::typeOptions(),
         ]);
     }
 
@@ -394,10 +495,25 @@ class Form extends Component
                 'max:120',
                 Rule::unique('products', 'sku')->ignore($this->productId),
             ],
+            'form.barcode' => [
+                'nullable',
+                'string',
+                'max:80',
+                Rule::unique('products', 'barcode')->ignore($this->productId),
+            ],
+            'form.unit_of_measure' => ['required', Rule::in(array_keys(Product::unitOptions()))],
+            'form.minimum_order_quantity' => ['required', 'integer', 'min:1', 'max:999999'],
+            'form.order_quantity_step' => ['required', 'integer', 'min:1', 'max:999999'],
             'form.is_active' => ['boolean'],
             'form.tax_rate_id' => ['nullable', 'integer', Rule::exists('tax_rates', 'id')],
             'form.base_price' => ['required', 'numeric', 'min:0'],
             'form.stock_qty' => ['required', 'integer', 'min:0'],
+            'form.weight_kg' => ['nullable', 'numeric', 'min:0'],
+            'form.length_cm' => ['nullable', 'numeric', 'min:0'],
+            'form.width_cm' => ['nullable', 'numeric', 'min:0'],
+            'form.height_cm' => ['nullable', 'numeric', 'min:0'],
+            'form.shipping_labels' => ['nullable', 'array'],
+            'form.shipping_labels.*' => [Rule::in(array_keys(Product::shippingLabelOptions()))],
             'form.payload_text' => ['nullable', 'string'],
             'form.manufacturer_id' => ['nullable'],
 
@@ -424,6 +540,30 @@ class Form extends Component
                 Rule::exists('categories', 'id')->where(fn ($q) => $q->where('scope', Category::SCOPE_CATALOG)),
             ],
             'form.attribute_ids' => ['nullable', 'array'],
+            'packages' => ['array'],
+            'packages.*.id' => ['nullable', 'integer'],
+            'packages.*.code' => ['required', 'string', 'max:120'],
+            'packages.*.name' => ['required', 'string', 'max:120'],
+            'packages.*.barcode' => ['nullable', 'string', 'max:80'],
+            'packages.*.package_type' => ['required', Rule::in(array_keys(ProductPackage::typeOptions()))],
+            'packages.*.unit_of_measure' => ['required', Rule::in(array_keys(Product::unitOptions()))],
+            'packages.*.quantity' => ['required', 'numeric', 'gt:0'],
+            'packages.*.weight_kg' => ['nullable', 'numeric', 'min:0'],
+            'packages.*.length_cm' => ['nullable', 'numeric', 'min:0'],
+            'packages.*.width_cm' => ['nullable', 'numeric', 'min:0'],
+            'packages.*.height_cm' => ['nullable', 'numeric', 'min:0'],
+            'packages.*.is_default' => ['boolean'],
+            'packages.*.is_active' => ['boolean'],
+            'groupPrices' => ['array'],
+            'groupPrices.*.id' => ['nullable', 'integer'],
+            'groupPrices.*.customer_group_id' => ['required', 'integer', Rule::exists('customer_groups', 'id')],
+            'groupPrices.*.package_code' => ['nullable', 'string', 'max:120'],
+            'groupPrices.*.minimum_quantity' => ['required', 'integer', 'min:1'],
+            'groupPrices.*.price' => ['required', 'numeric', 'min:0'],
+            'groupPrices.*.currency_code' => ['required', 'string', 'size:3'],
+            'groupPrices.*.starts_at' => ['nullable', 'date'],
+            'groupPrices.*.ends_at' => ['nullable', 'date'],
+            'groupPrices.*.is_active' => ['boolean'],
         ];
 
         if ($this->useManufacturers()) {
@@ -452,6 +592,7 @@ class Form extends Component
 
         $productQuery = Product::query()
             ->with('translations')
+            ->with(['packages', 'groupPrices.productPackage'])
             ->with(['categories' => fn ($q) => $q->orderBy('category_product.sort_order')]);
 
         if ($this->useAttributes()) {
@@ -467,10 +608,19 @@ class Form extends Component
 
         $this->form['code'] = $product->code;
         $this->form['sku'] = $product->sku ?? '';
+        $this->form['barcode'] = $product->barcode ?? '';
+        $this->form['unit_of_measure'] = $product->unit_of_measure ?: 'pcs';
+        $this->form['minimum_order_quantity'] = max(1, (int) $product->minimum_order_quantity);
+        $this->form['order_quantity_step'] = max(1, (int) $product->order_quantity_step);
         $this->form['is_active'] = (bool) $product->is_active;
         $this->form['tax_rate_id'] = $product->tax_rate_id ? (int) $product->tax_rate_id : $this->defaultTaxRateId();
         $this->form['base_price'] = (float) $product->base_price;
         $this->form['stock_qty'] = (int) $product->stock_qty;
+        $this->form['weight_kg'] = $product->weight_kg;
+        $this->form['length_cm'] = $product->length_cm;
+        $this->form['width_cm'] = $product->width_cm;
+        $this->form['height_cm'] = $product->height_cm;
+        $this->form['shipping_labels'] = $product->shipping_labels ?? [];
         if ($this->useManufacturers()) {
             $this->form['manufacturer_id'] = $product->manufacturer_id ? (int) $product->manufacturer_id : null;
         }
@@ -495,6 +645,40 @@ class Form extends Component
                 ? json_encode($translation->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
                 : '';
         }
+
+        $this->packages = $product->packages
+            ->map(fn (ProductPackage $package): array => [
+                'id' => $package->id,
+                'code' => $package->code,
+                'name' => $package->name,
+                'barcode' => $package->barcode ?? '',
+                'package_type' => $package->package_type,
+                'unit_of_measure' => $package->unit_of_measure,
+                'quantity' => (float) $package->quantity,
+                'weight_kg' => $package->weight_kg,
+                'length_cm' => $package->length_cm,
+                'width_cm' => $package->width_cm,
+                'height_cm' => $package->height_cm,
+                'is_default' => (bool) $package->is_default,
+                'is_active' => (bool) $package->is_active,
+            ])
+            ->values()
+            ->all();
+
+        $this->groupPrices = $product->groupPrices
+            ->map(fn (ProductGroupPrice $price): array => [
+                'id' => $price->id,
+                'customer_group_id' => $price->customer_group_id,
+                'package_code' => $price->productPackage?->code ?? '',
+                'minimum_quantity' => (int) $price->minimum_quantity,
+                'price' => (float) $price->price,
+                'currency_code' => $price->currency_code,
+                'starts_at' => $price->starts_at?->format('Y-m-d\TH:i') ?? '',
+                'ends_at' => $price->ends_at?->format('Y-m-d\TH:i') ?? '',
+                'is_active' => (bool) $price->is_active,
+            ])
+            ->values()
+            ->all();
     }
 
     public function getManufacturerOptionsProperty(): Collection
@@ -663,6 +847,216 @@ class Form extends Component
         $this->form['meta_title'] = '';
         $this->form['meta_description'] = '';
         $this->form['translation_payload_text'] = '';
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function validateCommerceRows(array $validated): bool
+    {
+        $valid = true;
+        $packageCodes = [];
+        $barcodes = [];
+        $packageIds = [];
+
+        foreach ($validated['packages'] ?? [] as $index => $row) {
+            $code = Str::upper(trim((string) ($row['code'] ?? '')));
+            if (isset($packageCodes[$code])) {
+                $this->addError("packages.{$index}.code", __('Package code must be unique per product.'));
+                $valid = false;
+            }
+            $packageCodes[$code] = true;
+
+            $barcode = trim((string) ($row['barcode'] ?? ''));
+            if ($barcode !== '') {
+                if (isset($barcodes[$barcode])) {
+                    $this->addError("packages.{$index}.barcode", __('Package barcode must be unique.'));
+                    $valid = false;
+                }
+                $barcodes[$barcode] = $index;
+            }
+
+            $id = (int) ($row['id'] ?? 0);
+            if ($id > 0) {
+                $packageIds[] = $id;
+            }
+        }
+
+        if ($barcodes !== []) {
+            $usedBarcodes = ProductPackage::query()
+                ->whereIn('barcode', array_keys($barcodes))
+                ->when($packageIds !== [], fn ($query) => $query->whereNotIn('id', $packageIds))
+                ->pluck('barcode')
+                ->all();
+
+            foreach ($usedBarcodes as $barcode) {
+                $index = $barcodes[(string) $barcode] ?? null;
+                if ($index !== null) {
+                    $this->addError("packages.{$index}.barcode", __('Package barcode is already in use.'));
+                    $valid = false;
+                }
+            }
+        }
+
+        foreach ($validated['groupPrices'] ?? [] as $index => $row) {
+            $packageCode = Str::upper(trim((string) ($row['package_code'] ?? '')));
+            if ($packageCode !== '' && ! isset($packageCodes[$packageCode])) {
+                $this->addError("groupPrices.{$index}.package_code", __('Selected package does not exist.'));
+                $valid = false;
+            }
+
+            $startsAt = trim((string) ($row['starts_at'] ?? ''));
+            $endsAt = trim((string) ($row['ends_at'] ?? ''));
+            if ($startsAt !== '' && $endsAt !== '' && strtotime($endsAt) < strtotime($startsAt)) {
+                $this->addError("groupPrices.{$index}.ends_at", __('End date must be after start date.'));
+                $valid = false;
+            }
+        }
+
+        if (! $valid) {
+            $this->dispatch('notify', type: 'danger', message: __('Check logistics and B2B price data.'));
+        }
+
+        return $valid;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<string, int>
+     */
+    private function syncPackages(Product $product, array $rows, ?int $userId): array
+    {
+        $existing = $product->packages()->get()->keyBy('id');
+        $retainedIds = [];
+        $idsByCode = [];
+        $defaultIndex = collect($rows)->search(
+            static fn (array $row): bool => (bool) ($row['is_default'] ?? false),
+        );
+        $defaultIndex = $defaultIndex === false && $rows !== [] ? 0 : $defaultIndex;
+
+        foreach (array_values($rows) as $index => $row) {
+            $id = (int) ($row['id'] ?? 0);
+            $package = $existing->get($id) ?? new ProductPackage([
+                'product_id' => $product->getKey(),
+                'created_by' => $userId,
+            ]);
+            $code = Str::upper(trim((string) $row['code']));
+
+            $package->fill([
+                'product_id' => $product->getKey(),
+                'code' => $code,
+                'name' => trim((string) $row['name']),
+                'barcode' => trim((string) ($row['barcode'] ?? '')) ?: null,
+                'package_type' => (string) $row['package_type'],
+                'unit_of_measure' => (string) $row['unit_of_measure'],
+                'quantity' => (float) $row['quantity'],
+                'weight_kg' => $row['weight_kg'] ?? null,
+                'length_cm' => $row['length_cm'] ?? null,
+                'width_cm' => $row['width_cm'] ?? null,
+                'height_cm' => $row['height_cm'] ?? null,
+                'is_default' => $index === $defaultIndex,
+                'is_active' => (bool) ($row['is_active'] ?? false),
+                'sort_order' => $index,
+                'updated_by' => $userId,
+            ])->save();
+
+            $retainedIds[] = (int) $package->getKey();
+            $idsByCode[$code] = (int) $package->getKey();
+        }
+
+        $product->packages()
+            ->when($retainedIds !== [], fn ($query) => $query->whereNotIn('id', $retainedIds))
+            ->get()
+            ->each
+            ->delete();
+
+        return $idsByCode;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     * @param  array<string, int>  $packageIdsByCode
+     */
+    private function syncGroupPrices(
+        Product $product,
+        array $rows,
+        array $packageIdsByCode,
+        ?int $userId,
+    ): void {
+        $existing = $product->groupPrices()->get()->keyBy('id');
+        $retainedIds = [];
+
+        foreach ($rows as $row) {
+            $id = (int) ($row['id'] ?? 0);
+            $price = $existing->get($id) ?? new ProductGroupPrice([
+                'product_id' => $product->getKey(),
+                'created_by' => $userId,
+            ]);
+            $packageCode = Str::upper(trim((string) ($row['package_code'] ?? '')));
+
+            $price->fill([
+                'product_id' => $product->getKey(),
+                'customer_group_id' => (int) $row['customer_group_id'],
+                'product_package_id' => $packageCode !== ''
+                    ? ($packageIdsByCode[$packageCode] ?? null)
+                    : null,
+                'minimum_quantity' => (int) $row['minimum_quantity'],
+                'price' => (float) $row['price'],
+                'currency_code' => Str::upper((string) $row['currency_code']),
+                'starts_at' => trim((string) ($row['starts_at'] ?? '')) ?: null,
+                'ends_at' => trim((string) ($row['ends_at'] ?? '')) ?: null,
+                'is_active' => (bool) ($row['is_active'] ?? false),
+                'updated_by' => $userId,
+            ])->save();
+
+            $retainedIds[] = (int) $price->getKey();
+        }
+
+        $product->groupPrices()
+            ->when($retainedIds !== [], fn ($query) => $query->whereNotIn('id', $retainedIds))
+            ->get()
+            ->each
+            ->delete();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function blankPackageRow(): array
+    {
+        return [
+            'id' => null,
+            'code' => '',
+            'name' => '',
+            'barcode' => '',
+            'package_type' => 'box',
+            'unit_of_measure' => $this->form['unit_of_measure'] ?: 'pcs',
+            'quantity' => 1,
+            'weight_kg' => null,
+            'length_cm' => null,
+            'width_cm' => null,
+            'height_cm' => null,
+            'is_default' => $this->packages === [],
+            'is_active' => true,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function blankGroupPriceRow(): array
+    {
+        return [
+            'id' => null,
+            'customer_group_id' => null,
+            'package_code' => '',
+            'minimum_quantity' => 1,
+            'price' => 0,
+            'currency_code' => 'EUR',
+            'starts_at' => '',
+            'ends_at' => '',
+            'is_active' => true,
+        ];
     }
 
     private function localizedOptionLabel($option): string
