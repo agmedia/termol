@@ -1642,6 +1642,7 @@ class StorefrontFrontFeatureTest extends TestCase
 
     public function test_category_shows_only_option_filters_available_in_that_category_scope(): void
     {
+        $this->useEnglishStorefrontLocale();
         [$categoryA, $slugA] = $this->seedCategory();
         [$categoryB, $slugB] = $this->seedCategory();
         [$productA] = $this->seedProduct($categoryA->id);
@@ -1744,6 +1745,129 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Size Scope')
             ->assertDontSee('Color Scope');
+    }
+
+    public function test_catalog_hides_empty_category_and_manufacturer_filter_values(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$categoryWithProducts, $categoryWithProductsSlug] = $this->seedCategory();
+        [, $emptyCategorySlug] = $this->seedCategory();
+        [$manufacturerWithProducts, $manufacturerWithProductsSlug] = $this->seedManufacturer();
+        [, $emptyManufacturerSlug] = $this->seedManufacturer();
+        [$product] = $this->seedProduct($categoryWithProducts->id);
+
+        $product->update(['manufacturer_id' => $manufacturerWithProducts->id]);
+        app(SystemSettingsService::class)->put('catalog_use_manufacturers', true);
+
+        $this->get('/shop')
+            ->assertOk()
+            ->assertSee($categoryWithProductsSlug)
+            ->assertDontSee($emptyCategorySlug)
+            ->assertSee($manufacturerWithProductsSlug)
+            ->assertDontSee($emptyManufacturerSlug);
+    }
+
+    public function test_attribute_facets_only_offer_values_compatible_with_other_selected_groups(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category, $categorySlug] = $this->seedCategory();
+        [$blackProduct, $blackProductSlug] = $this->seedProduct($category->id);
+        [$steelProduct, $steelProductSlug] = $this->seedProduct($category->id);
+
+        $black = $this->attachProductAttribute($blackProduct, 'boja', 'Color', 'Facet Black', 1);
+        $this->attachProductAttribute($blackProduct, 'materijal', 'Material', 'Facet Plastic', 1);
+        $this->attachProductAttribute($steelProduct, 'boja', 'Color', 'Facet White', 2);
+        $this->attachProductAttribute($steelProduct, 'materijal', 'Material', 'Facet Stainless Steel', 2);
+
+        app(SystemSettingsService::class)->put(
+            'store_product_filter_attribute_group_codes',
+            ['boja', 'materijal']
+        );
+
+        $this->get('/category/'.$categorySlug.'?attr_boja='.$black->id)
+            ->assertOk()
+            ->assertSee($blackProductSlug)
+            ->assertDontSee($steelProductSlug)
+            ->assertSee('Facet Plastic')
+            ->assertDontSee('Facet Stainless Steel');
+    }
+
+    public function test_category_manufacturer_filter_is_limited_to_manufacturers_with_products_in_scope(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$categoryA, $categorySlugA] = $this->seedCategory();
+        [$categoryB] = $this->seedCategory();
+        [$manufacturerA, $manufacturerSlugA] = $this->seedManufacturer();
+        [$manufacturerB, $manufacturerSlugB] = $this->seedManufacturer();
+        [$productA] = $this->seedProduct($categoryA->id);
+        [$productB] = $this->seedProduct($categoryB->id);
+
+        $productA->update(['manufacturer_id' => $manufacturerA->id]);
+        $productB->update(['manufacturer_id' => $manufacturerB->id]);
+        app(SystemSettingsService::class)->put('catalog_use_manufacturers', true);
+
+        $this->get('/category/'.$categorySlugA)
+            ->assertOk()
+            ->assertSee($manufacturerSlugA)
+            ->assertDontSee($manufacturerSlugB);
+    }
+
+    public function test_manufacturer_page_only_shows_option_and_attribute_values_used_by_that_manufacturer(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category] = $this->seedCategory();
+        [$manufacturerA, $manufacturerSlugA] = $this->seedManufacturer();
+        [$manufacturerB] = $this->seedManufacturer();
+        [$productA] = $this->seedProduct($category->id);
+        [$productB] = $this->seedProduct($category->id);
+
+        $productA->update(['manufacturer_id' => $manufacturerA->id]);
+        $productB->update(['manufacturer_id' => $manufacturerB->id]);
+
+        $finishOption = $this->createProductOption('Scoped Finish');
+        $this->attachOptionValueToProduct($productA, $finishOption, 'Brand A Finish');
+        $this->attachOptionValueToProduct($productB, $finishOption, 'Brand B Finish', 2);
+        $this->attachProductAttribute($productA, 'scoped_material', 'Scoped Material', 'Brand A Material', 1);
+        $this->attachProductAttribute($productB, 'scoped_material', 'Scoped Material', 'Brand B Material', 2);
+
+        app(SystemSettingsService::class)->putMany([
+            'catalog_use_manufacturers' => true,
+            'store_product_filter_option_ids' => [$finishOption->id],
+            'store_product_filter_attribute_group_codes' => ['scoped_material'],
+        ]);
+
+        $this->get('/manufacturer/'.$manufacturerSlugA)
+            ->assertOk()
+            ->assertSee('Brand A Finish')
+            ->assertDontSee('Brand B Finish')
+            ->assertSee('Brand A Material')
+            ->assertDontSee('Brand B Material');
+    }
+
+    public function test_available_only_scope_hides_filter_values_used_only_by_out_of_stock_products(): void
+    {
+        $this->useEnglishStorefrontLocale();
+        [$category, $categorySlug] = $this->seedCategory();
+        [$availableProduct] = $this->seedProduct($category->id);
+        [$unavailableProduct] = $this->seedProduct($category->id);
+        $availabilityOption = $this->createProductOption('Availability Facet');
+
+        $availableValue = $this->attachOptionValueToProduct($availableProduct, $availabilityOption, 'Available Facet Value');
+        $unavailableValue = $this->attachOptionValueToProduct($unavailableProduct, $availabilityOption, 'Unavailable Facet Value', 2);
+        $unavailableProduct->update(['stock_qty' => 0]);
+        ProductOptionValue::query()
+            ->where('product_id', $unavailableProduct->id)
+            ->where('option_value_id', $unavailableValue->id)
+            ->update(['stock_qty' => 0]);
+
+        app(SystemSettingsService::class)->put('store_product_filter_option_ids', [$availabilityOption->id]);
+
+        $this->get('/category/'.$categorySlug.'?available_only=1')
+            ->assertOk()
+            ->assertSee('Available Facet Value')
+            ->assertDontSee('Unavailable Facet Value');
+
+        $this->assertNotNull($availableValue);
     }
 
     public function test_filter_only_option_is_hidden_on_product_page_but_stays_available_in_category_filter(): void
@@ -2505,7 +2629,7 @@ class StorefrontFrontFeatureTest extends TestCase
         return [$product, $slug];
     }
 
-    private function attachProductAttribute(Product $product, string $groupCode, string $groupName, string $name, int $sortOrder): void
+    private function attachProductAttribute(Product $product, string $groupCode, string $groupName, string $name, int $sortOrder): Attribute
     {
         $attribute = Attribute::query()->create([
             'code' => $groupCode.'-'.strtolower((string) str()->random(6)),
@@ -2529,6 +2653,8 @@ class StorefrontFrontFeatureTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        return $attribute;
     }
 
     /**
