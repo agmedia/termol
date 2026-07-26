@@ -23,6 +23,17 @@ class ProductGroupPriceResolver
             return null;
         }
 
+        if ($user->relationLoaded('b2bAccount')) {
+            $b2bAccount = $user->b2bAccount;
+        } else {
+            $b2bAccount = $user->b2bAccount()->first();
+            $user->setRelation('b2bAccount', $b2bAccount);
+        }
+
+        if ($b2bAccount && ! $b2bAccount->contractIsActive()) {
+            return null;
+        }
+
         $groupIds = $user->relationLoaded('customerGroups')
             ? $user->customerGroups
                 ->where('is_active', true)
@@ -35,55 +46,95 @@ class ProductGroupPriceResolver
                 ->map(static fn ($id): int => (int) $id)
                 ->all();
 
-        if ($groupIds === []) {
-            return null;
-        }
-
-        $query = ProductGroupPrice::query()
-            ->where('product_id', $product->getKey())
-            ->whereIn('customer_group_id', $groupIds)
-            ->activeAt()
-            ->forQuantity($quantity);
-
-        if ($package) {
-            $query
-                ->where(function (Builder $query) use ($package): void {
-                    $query
-                        ->where('product_package_id', $package->getKey())
-                        ->orWhereNull('product_package_id');
-                })
-                ->orderByRaw('CASE WHEN product_package_id = ? THEN 0 ELSE 1 END', [$package->getKey()]);
-        } else {
-            $query->whereNull('product_package_id');
-        }
-
-        $directPrice = $query
-            ->orderBy('price')
-            ->orderByDesc('minimum_quantity')
-            ->orderByDesc('id')
-            ->first();
-
-        if ($directPrice) {
-            return new ResolvedB2BPrice(
-                id: (int) $directPrice->getKey(),
-                price: (float) $directPrice->price,
-                source_type: 'product_group_price',
-                customer_group_id: (int) $directPrice->customer_group_id,
-                product_package_id: $directPrice->product_package_id
-                    ? (int) $directPrice->product_package_id
-                    : null,
-                group_price_id: (int) $directPrice->getKey(),
-            );
-        }
-
         $categoryIds = $product->relationLoaded('categories')
             ? $product->categories->pluck('id')->map(static fn ($id): int => (int) $id)->all()
             : $product->categories()->pluck('categories.id')->map(static fn ($id): int => (int) $id)->all();
         $manufacturerId = $product->manufacturer_id ? (int) $product->manufacturer_id : null;
         $storedBase = $fallback ?? (float) $product->base_price;
 
-        $candidate = B2BPriceRule::query()
-            ->whereIn('customer_group_id', $groupIds)
+        $individualRule = $b2bAccount
+            ? $this->bestRule(
+                B2BPriceRule::query()->where('user_id', $user->getKey()),
+                $product,
+                $categoryIds,
+                $manufacturerId,
+                $quantity,
+                $storedBase,
+            )
+            : null;
+
+        if ($individualRule) {
+            return $this->resolvedRule($individualRule, (int) $user->getKey());
+        }
+
+        if ($groupIds !== []) {
+            $query = ProductGroupPrice::query()
+                ->where('product_id', $product->getKey())
+                ->whereIn('customer_group_id', $groupIds)
+                ->activeAt()
+                ->forQuantity($quantity);
+
+            if ($package) {
+                $query
+                    ->where(function (Builder $query) use ($package): void {
+                        $query
+                            ->where('product_package_id', $package->getKey())
+                            ->orWhereNull('product_package_id');
+                    })
+                    ->orderByRaw('CASE WHEN product_package_id = ? THEN 0 ELSE 1 END', [$package->getKey()]);
+            } else {
+                $query->whereNull('product_package_id');
+            }
+
+            $directPrice = $query
+                ->orderBy('price')
+                ->orderByDesc('minimum_quantity')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($directPrice) {
+                return new ResolvedB2BPrice(
+                    id: (int) $directPrice->getKey(),
+                    price: (float) $directPrice->price,
+                    source_type: 'product_group_price',
+                    customer_group_id: (int) $directPrice->customer_group_id,
+                    product_package_id: $directPrice->product_package_id
+                        ? (int) $directPrice->product_package_id
+                        : null,
+                    group_price_id: (int) $directPrice->getKey(),
+                );
+            }
+        }
+
+        if ($groupIds === []) {
+            return null;
+        }
+
+        $groupRule = $this->bestRule(
+            B2BPriceRule::query()->whereNull('user_id')->whereIn('customer_group_id', $groupIds),
+            $product,
+            $categoryIds,
+            $manufacturerId,
+            $quantity,
+            $storedBase,
+        );
+
+        return $groupRule ? $this->resolvedRule($groupRule) : null;
+    }
+
+    /**
+     * @param  array<int, int>  $categoryIds
+     * @return array{rule:B2BPriceRule,price:float,specificity:int}|null
+     */
+    private function bestRule(
+        Builder $query,
+        Product $product,
+        array $categoryIds,
+        ?int $manufacturerId,
+        int $quantity,
+        float $storedBase,
+    ): ?array {
+        return $query
             ->activeAt()
             ->where('minimum_quantity', '<=', max(1, $quantity))
             ->with('targets:id,rule_id,target_type,target_id')
@@ -115,11 +166,13 @@ class ProductGroupPriceResolver
                 ];
             })
             ->first();
+    }
 
-        if (! $candidate) {
-            return null;
-        }
-
+    /**
+     * @param  array{rule:B2BPriceRule,price:float,specificity:int}  $candidate
+     */
+    private function resolvedRule(array $candidate, ?int $userId = null): ResolvedB2BPrice
+    {
         /** @var B2BPriceRule $rule */
         $rule = $candidate['rule'];
 
@@ -127,7 +180,8 @@ class ProductGroupPriceResolver
             id: (int) $rule->getKey(),
             price: (float) $candidate['price'],
             source_type: 'b2b_rule',
-            customer_group_id: (int) $rule->customer_group_id,
+            customer_group_id: $rule->customer_group_id ? (int) $rule->customer_group_id : null,
+            user_id: $userId ?? ($rule->user_id ? (int) $rule->user_id : null),
             rule_id: (int) $rule->getKey(),
         );
     }

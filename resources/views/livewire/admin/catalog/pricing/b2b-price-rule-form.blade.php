@@ -4,7 +4,7 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{{ __('Katalog / B2B cjenici') }}</p>
                 <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ $isEdit ? __('Uredi B2B pravilo') : __('Novo B2B pravilo') }}</h1>
-                <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{{ __('Odredite grupu kupaca, način izračuna i proizvode na koje se cijena primjenjuje.') }}</p>
+                <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{{ __('Odredite korisničku grupu ili pojedinog B2B kupca, način izračuna i proizvode na koje se cijena primjenjuje.') }}</p>
             </div>
             <button type="button" wire:click="backToList" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">{{ __('Natrag na popis') }}</button>
         </div>
@@ -27,14 +27,40 @@
                             @error('form.code') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Korisnička grupa') }}</label>
-                            <select wire:model="form.customer_group_id" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                                <option value="">{{ __('Odaberite grupu') }}</option>
-                                @foreach ($this->customerGroupOptions as $group)
-                                    <option value="{{ $group->id }}">{{ $group->name }} ({{ $group->code }})</option>
-                                @endforeach
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Cjenik za') }}</label>
+                            <select wire:model.live="form.audience_type" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                <option value="group">{{ __('Korisničku grupu') }}</option>
+                                <option value="customer">{{ __('Pojedinog B2B kupca') }}</option>
                             </select>
-                            @error('form.customer_group_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('form.audience_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        @if ($form['audience_type'] === 'customer')
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('B2B kupac') }}</label>
+                                <select wire:model="form.user_id" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                    <option value="">{{ __('Odaberite odobrenog kupca') }}</option>
+                                    @foreach ($this->customerOptions as $customer)
+                                        <option value="{{ $customer->id }}">{{ $customer->b2bAccount?->company_name }} — {{ $customer->name }} ({{ $customer->email }})</option>
+                                    @endforeach
+                                </select>
+                                @error('form.user_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                        @else
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Korisnička grupa') }}</label>
+                                <select wire:model="form.customer_group_id" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                    <option value="">{{ __('Odaberite grupu') }}</option>
+                                    @foreach ($this->customerGroupOptions as $group)
+                                        <option value="{{ $group->id }}">{{ $group->name }} ({{ $group->code }})</option>
+                                    @endforeach
+                                </select>
+                                @error('form.customer_group_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+                        @endif
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Broj ugovora') }}</label>
+                            <input type="text" wire:model="form.contract_number" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="{{ __('Opcionalno') }}">
+                            @error('form.contract_number') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Minimalna količina') }}</label>

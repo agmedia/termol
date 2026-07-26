@@ -6,6 +6,8 @@ use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Pricing\B2BPriceRule;
 use App\Models\Catalog\Product\Product;
+use App\Models\User;
+use App\Models\User\B2BAccount;
 use App\Models\User\CustomerGroup;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +24,10 @@ class B2BPriceRuleForm extends Component
     public array $form = [
         'code' => '',
         'name' => '',
+        'audience_type' => 'group',
         'customer_group_id' => null,
+        'user_id' => null,
+        'contract_number' => '',
         'calculation_type' => B2BPriceRule::TYPE_PERCENTAGE_DISCOUNT,
         'value' => 0,
         'target_type' => B2BPriceRule::TARGET_ALL,
@@ -48,6 +53,17 @@ class B2BPriceRuleForm extends Component
     {
         $this->form['target_ids'] = [];
         $this->targetSearch = '';
+    }
+
+    public function updatedFormAudienceType(): void
+    {
+        if ($this->form['audience_type'] === 'customer') {
+            $this->form['customer_group_id'] = null;
+
+            return;
+        }
+
+        $this->form['user_id'] = null;
     }
 
     public function save()
@@ -84,7 +100,13 @@ class B2BPriceRuleForm extends Component
             $ruleData = [
                 'code' => Str::upper(trim((string) $data['code'])),
                 'name' => trim((string) $data['name']),
-                'customer_group_id' => (int) $data['customer_group_id'],
+                'customer_group_id' => $data['audience_type'] === 'group'
+                    ? (int) $data['customer_group_id']
+                    : null,
+                'user_id' => $data['audience_type'] === 'customer'
+                    ? (int) $data['user_id']
+                    : null,
+                'contract_number' => trim((string) ($data['contract_number'] ?? '')) ?: null,
                 'calculation_type' => (string) $data['calculation_type'],
                 'value' => (float) $data['value'],
                 'target_type' => (string) $data['target_type'],
@@ -121,6 +143,7 @@ class B2BPriceRuleForm extends Component
                 ->event($rule->wasRecentlyCreated ? 'created' : 'updated')
                 ->withProperties([
                     'customer_group_id' => $rule->customer_group_id,
+                    'user_id' => $rule->user_id,
                     'target_type' => $rule->target_type,
                     'target_count' => count($targetIds),
                 ])
@@ -155,6 +178,23 @@ class B2BPriceRuleForm extends Component
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get(['id', 'code', 'name', 'is_active']);
+    }
+
+    public function getCustomerOptionsProperty(): Collection
+    {
+        return User::query()
+            ->select(['users.id', 'users.name', 'users.email'])
+            ->whereHas('b2bAccount', function ($query): void {
+                $query->where('status', B2BAccount::STATUS_APPROVED);
+
+                if ($this->form['user_id']) {
+                    $query->orWhere('user_id', (int) $this->form['user_id']);
+                }
+            })
+            ->with('b2bAccount:id,user_id,company_name,oib,contract_number')
+            ->orderBy('users.name')
+            ->limit(500)
+            ->get();
     }
 
     public function getTargetOptionsProperty(): Collection
@@ -242,7 +282,22 @@ class B2BPriceRuleForm extends Component
                 Rule::unique('catalog_b2b_price_rules', 'code')->ignore($this->ruleId),
             ],
             'form.name' => ['required', 'string', 'max:191'],
-            'form.customer_group_id' => ['required', 'integer', Rule::exists('customer_groups', 'id')],
+            'form.audience_type' => ['required', Rule::in(['group', 'customer'])],
+            'form.customer_group_id' => [
+                Rule::requiredIf($this->form['audience_type'] === 'group'),
+                'nullable',
+                'integer',
+                Rule::exists('customer_groups', 'id'),
+            ],
+            'form.user_id' => [
+                Rule::requiredIf($this->form['audience_type'] === 'customer'),
+                'nullable',
+                'integer',
+                Rule::exists('b2b_accounts', 'user_id')->where(
+                    fn ($query) => $query->where('status', B2BAccount::STATUS_APPROVED),
+                ),
+            ],
+            'form.contract_number' => ['nullable', 'string', 'max:120'],
             'form.calculation_type' => ['required', Rule::in(array_keys(B2BPriceRule::calculationTypeOptions()))],
             'form.value' => ['required', 'numeric', 'min:0'],
             'form.target_type' => ['required', Rule::in(array_keys(B2BPriceRule::targetTypeOptions()))],
@@ -281,7 +336,10 @@ class B2BPriceRuleForm extends Component
         $this->form = [
             'code' => $rule->code,
             'name' => $rule->name,
-            'customer_group_id' => (int) $rule->customer_group_id,
+            'audience_type' => $rule->user_id ? 'customer' : 'group',
+            'customer_group_id' => $rule->customer_group_id ? (int) $rule->customer_group_id : null,
+            'user_id' => $rule->user_id ? (int) $rule->user_id : null,
+            'contract_number' => $rule->contract_number ?? '',
             'calculation_type' => $rule->calculation_type,
             'value' => (float) $rule->value,
             'target_type' => $rule->target_type,

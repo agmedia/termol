@@ -38,9 +38,17 @@
                                 <td class="px-4 py-3">{{ $order->status?->name ?? __('ui.account.orders.status_new') }}</td>
                                 <td class="px-4 py-3 font-semibold">{{ \App\Support\Currency::format((float) $order->grand_total, $order->currency_code) }}</td>
                                 <td class="px-4 py-3">
-                                    <a href="{{ route('account.orders.show', ['orderNumber' => $order->order_number]) }}" class="commerce-secondary-action px-3 text-xs uppercase tracking-wide">
-                                        {{ __('ui.account.orders.table.details') }}
-                                    </a>
+                                    <div class="inline-flex items-center gap-2">
+                                        <a href="{{ route('account.orders.show', ['orderNumber' => $order->order_number]) }}" class="commerce-secondary-action px-3 text-xs uppercase tracking-wide">
+                                            {{ __('ui.account.orders.table.details') }}
+                                        </a>
+                                        @if ($b2bAccount?->contractIsActive())
+                                            <form method="POST" action="{{ route('account.orders.reorder', ['orderNumber' => $order->order_number]) }}">
+                                                @csrf
+                                                <button type="submit" class="commerce-secondary-action px-3 text-xs uppercase tracking-wide">{{ __('Ponovi') }}</button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty

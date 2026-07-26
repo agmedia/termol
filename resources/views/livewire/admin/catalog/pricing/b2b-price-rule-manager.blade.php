@@ -5,7 +5,7 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{{ __('Katalog / B2B') }}</p>
                 <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ __('B2B cjenici') }}</h1>
                 <p class="mt-2 text-sm leading-6 text-slate-600">
-                    {{ __('Pravila cijena po korisničkoj grupi za sve proizvode, brendove, kategorije ili odabrane proizvode.') }}
+                    {{ __('Ugovorene cijene po korisničkoj grupi ili pojedinom B2B kupcu za sve proizvode, brendove, kategorije ili odabrane proizvode.') }}
                 </p>
             </div>
             <a href="{{ route('admin.b2b-prices.create') }}" class="inline-flex shrink-0 items-center justify-center rounded-lg bg-cyan-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-800">
@@ -13,10 +13,18 @@
             </a>
         </div>
 
-        <div class="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(18rem,1fr)_14rem_13rem_11rem]">
+        <div class="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(16rem,1fr)_11rem_13rem_13rem_10rem]">
             <div>
                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Pretraga') }}</label>
                 <input type="search" wire:model.live.debounce.300ms="search" placeholder="{{ __('Naziv ili šifra pravila...') }}" class="admin-search-input w-full rounded-xl border px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Publika') }}</label>
+                <select wire:model.live="audienceFilter" class="admin-search-input admin-select w-full rounded-xl border px-3 py-2 text-sm">
+                    <option value="all">{{ __('Sve') }}</option>
+                    <option value="group">{{ __('Grupe') }}</option>
+                    <option value="customer">{{ __('Pojedini kupci') }}</option>
+                </select>
             </div>
             <div>
                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Korisnička grupa') }}</label>
@@ -57,7 +65,7 @@
                 <thead class="text-slate-600">
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold">{{ __('Pravilo') }}</th>
-                        <th class="px-4 py-3 text-left font-semibold">{{ __('Grupa') }}</th>
+                        <th class="px-4 py-3 text-left font-semibold">{{ __('Publika') }}</th>
                         <th class="px-4 py-3 text-left font-semibold">{{ __('Cijena') }}</th>
                         <th class="px-4 py-3 text-left font-semibold">{{ __('Primjena') }}</th>
                         <th class="px-4 py-3 text-center font-semibold">{{ __('Min. količina') }}</th>
@@ -74,8 +82,16 @@
                                 <div class="mt-0.5 font-mono text-xs text-slate-500">{{ $row->code }}</div>
                             </td>
                             <td class="px-4 py-3 text-slate-700">
-                                <div class="font-medium">{{ $row->customerGroup?->name ?? '—' }}</div>
-                                <div class="text-xs text-slate-500">{{ $row->customerGroup?->code }}</div>
+                                @if ($row->user_id)
+                                    <div class="font-medium">{{ $row->user?->b2bAccount?->company_name ?? $row->user?->name }}</div>
+                                    <div class="text-xs text-slate-500">{{ $row->user?->email }}</div>
+                                @else
+                                    <div class="font-medium">{{ $row->customerGroup?->name ?? '—' }}</div>
+                                    <div class="text-xs text-slate-500">{{ $row->customerGroup?->code }}</div>
+                                @endif
+                                @if ($row->contract_number)
+                                    <div class="mt-1 text-xs text-slate-500">{{ __('Ugovor') }}: {{ $row->contract_number }}</div>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-slate-700">
                                 <div class="font-semibold">

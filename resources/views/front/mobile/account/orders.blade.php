@@ -21,16 +21,24 @@
     </div>
 
     @forelse ($orders as $order)
-        <a href="{{ route('account.orders.show', ['orderNumber' => $order->order_number]) }}" class="card card-style d-block mb-2">
+        <div class="card card-style mb-2">
             <div class="content">
-                <div class="d-flex mb-1">
-                    <h5 class="mb-0">{{ $order->order_number }}</h5>
-                    <p class="ms-auto mb-0 font-13">{{ \App\Support\Currency::format((float) $order->grand_total, $order->currency_code) }}</p>
-                </div>
-                <p class="mb-1 opacity-70 font-12">{{ optional($order->placed_at ?? $order->created_at)->format('Y-m-d H:i') }}</p>
-                <span class="badge bg-highlight">{{ $order->status?->name ?? __('ui.account.orders.status_new') }}</span>
+                <a href="{{ route('account.orders.show', ['orderNumber' => $order->order_number]) }}" class="d-block">
+                    <div class="d-flex mb-1">
+                        <h5 class="mb-0">{{ $order->order_number }}</h5>
+                        <p class="ms-auto mb-0 font-13">{{ \App\Support\Currency::format((float) $order->grand_total, $order->currency_code) }}</p>
+                    </div>
+                    <p class="mb-1 opacity-70 font-12">{{ optional($order->placed_at ?? $order->created_at)->format('Y-m-d H:i') }}</p>
+                    <span class="badge bg-highlight">{{ $order->status?->name ?? __('ui.account.orders.status_new') }}</span>
+                </a>
+                @if ($b2bAccount?->contractIsActive())
+                    <form method="POST" action="{{ route('account.orders.reorder', ['orderNumber' => $order->order_number]) }}" class="mt-2">
+                        @csrf
+                        <button type="submit" class="btn btn-xxs rounded-0 border border-gray-dark color-theme bg-white">{{ __('Ponovi narudžbu') }}</button>
+                    </form>
+                @endif
             </div>
-        </a>
+        </div>
     @empty
         <div class="card card-style"><div class="content"><p class="mb-0">{{ __('ui.account.orders.empty') }}</p></div></div>
     @endforelse

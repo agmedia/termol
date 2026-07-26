@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminAiController;
 use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Front\AccountController;
 use App\Http\Controllers\Front\AuthController;
+use App\Http\Controllers\Front\B2BController;
 use App\Http\Controllers\Front\BlogController;
 use App\Http\Controllers\Front\CartController;
 use App\Http\Controllers\Front\CatalogController;
@@ -173,6 +174,8 @@ Route::middleware(['front.locale', 'front.device'])
             Route::post('login', [AuthController::class, 'login'])->name('login.store');
             Route::get('register', [AuthController::class, 'showRegister'])->name('register');
             Route::post('register', [AuthController::class, 'register'])->name('register.store');
+            Route::get('b2b-register', [AuthController::class, 'showB2BRegister'])->name('b2b-register');
+            Route::post('b2b-register', [AuthController::class, 'registerB2B'])->name('b2b-register.store');
         });
 
         Route::middleware(['auth', 'verified'])
@@ -184,6 +187,11 @@ Route::middleware(['front.locale', 'front.device'])
                 Route::get('orders/{orderNumber}', [AccountController::class, 'showOrder'])
                     ->where('orderNumber', '[A-Za-z0-9\-]+')
                     ->name('orders.show');
+                Route::post('orders/{orderNumber}/reorder', [B2BController::class, 'reorder'])
+                    ->where('orderNumber', '[A-Za-z0-9\-]+')
+                    ->name('orders.reorder');
+                Route::get('b2b/quick-order', [B2BController::class, 'quickOrder'])->name('b2b.quick-order');
+                Route::post('b2b/quick-order', [B2BController::class, 'storeQuickOrder'])->name('b2b.quick-order.store');
                 Route::get('loyalty', [AccountController::class, 'loyalty'])->name('loyalty');
 
                 Route::get('profile', [AccountController::class, 'profile'])->name('profile');
@@ -280,6 +288,7 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
             return view('admin.b2b-prices.edit', compact('rule'));
         })->name('b2b-prices.edit');
         Route::view('users', 'admin.users.index')->name('users');
+        Route::view('users/b2b', 'admin.users.b2b')->name('users.b2b');
         Route::view('users/newsletter', 'admin.users.newsletter')->name('users.newsletter');
         Route::view('users/groups', 'admin.users.groups')->name('users.groups');
         Route::view('users/access', 'admin.users.access')->name('users.access');
@@ -291,7 +300,13 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
             $current = auth()->user();
             abort_unless($current && ($current->isA('superadmin') || $current->can('users.list.view')), 403);
 
-            $user->load(['roles:id,name,title', 'profile', 'addresses', 'customerGroups:id,name']);
+            $user->load([
+                'roles:id,name,title',
+                'profile',
+                'addresses',
+                'customerGroups:id,name',
+                'b2bAccount.customerGroup:id,name,code',
+            ]);
             $adminActivity = Activity::query()
                 ->where('subject_type', User::class)
                 ->where('subject_id', $user->id)

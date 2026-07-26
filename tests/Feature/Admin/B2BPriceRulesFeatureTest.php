@@ -9,6 +9,7 @@ use App\Models\Catalog\Pricing\B2BPriceRule;
 use App\Models\Catalog\Product\Product;
 use App\Models\Catalog\Product\ProductGroupPrice;
 use App\Models\User;
+use App\Models\User\B2BAccount;
 use App\Models\User\CustomerGroup;
 use App\Services\Pricing\ProductGroupPriceResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -129,6 +130,51 @@ class B2BPriceRulesFeatureTest extends TestCase
         $this->assertSame('b2b_rule', $belowThreshold?->source_type);
         $this->assertSame(80.0, $atThreshold?->price);
         $this->assertSame($productRule->id, $atThreshold?->rule_id);
+    }
+
+    public function test_admin_can_create_an_individual_contract_price_for_approved_b2b_customer(): void
+    {
+        $admin = $this->makeAdminUser();
+        $customer = User::factory()->create();
+        B2BAccount::query()->create([
+            'user_id' => $customer->id,
+            'status' => B2BAccount::STATUS_APPROVED,
+            'company_name' => 'Individualni kupac d.o.o.',
+            'oib' => '12345678901',
+            'country_code' => 'HR',
+            'requested_at' => now(),
+            'reviewed_at' => now(),
+        ]);
+        $product = Product::query()->create([
+            'code' => 'individual-price-product',
+            'sku' => 'INDIVIDUAL-PRICE-PRODUCT',
+            'is_active' => true,
+            'base_price' => 100,
+            'stock_qty' => 100,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(B2BPriceRuleForm::class)
+            ->set('form.code', 'individual-fixed-price')
+            ->set('form.name', 'Individualna ugovorena cijena')
+            ->set('form.audience_type', 'customer')
+            ->set('form.user_id', $customer->id)
+            ->set('form.contract_number', 'UG-IND-2026')
+            ->set('form.calculation_type', B2BPriceRule::TYPE_FIXED_PRICE)
+            ->set('form.value', 62.5)
+            ->set('form.target_type', B2BPriceRule::TARGET_PRODUCT)
+            ->set('form.target_ids', [$product->id])
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('admin.b2b-prices'));
+
+        $this->assertDatabaseHas('catalog_b2b_price_rules', [
+            'code' => 'INDIVIDUAL-FIXED-PRICE',
+            'user_id' => $customer->id,
+            'customer_group_id' => null,
+            'contract_number' => 'UG-IND-2026',
+            'value' => 62.5,
+        ]);
     }
 
     public function test_direct_product_group_price_has_priority_over_inherited_rules(): void

@@ -22,6 +22,12 @@
             </div>
             <p class="font-12 opacity-70 mb-1">{{ optional($order->placed_at ?? $order->created_at)->format('Y-m-d H:i') }}</p>
             <span class="badge bg-highlight">{{ $order->status?->name ?? __('ui.account.orders.status_new') }}</span>
+            @if ($b2bAccount?->contractIsActive())
+                <form method="POST" action="{{ route('account.orders.reorder', ['orderNumber' => $order->order_number]) }}" class="mt-3">
+                    @csrf
+                    <button type="submit" class="btn btn-full rounded-0 bg-highlight color-white font-600">{{ __('Ponovi cijelu narudžbu') }}</button>
+                </form>
+            @endif
         </div>
     </div>
 

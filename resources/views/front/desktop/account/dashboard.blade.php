@@ -20,6 +20,32 @@
         @include('front.desktop.account.partials.nav', ['current' => 'dashboard'])
 
         <div class="min-w-0 space-y-8">
+            @if ($b2bAccount)
+                @php
+                    $b2bStatus = \App\Models\User\B2BAccount::statusOptions()[$b2bAccount->status] ?? $b2bAccount->status;
+                    $b2bApproved = $b2bAccount->contractIsActive();
+                @endphp
+                <section class="border {{ $b2bApproved ? 'border-cyan-200 bg-cyan-50' : 'border-amber-200 bg-amber-50' }} p-5">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-[0.16em] {{ $b2bApproved ? 'text-cyan-800' : 'text-amber-800' }}">{{ __('B2B račun') }} · {{ __($b2bStatus) }}</p>
+                            <h2 class="mt-2 text-xl font-bold text-slate-900">{{ $b2bAccount->company_name }}</h2>
+                            @if ($b2bApproved)
+                                <p class="mt-1 text-sm text-slate-700">
+                                    {{ __('Cjenovna grupa') }}: <strong>{{ $b2bAccount->customerGroup?->name ?? '—' }}</strong>
+                                    @if ($b2bAccount->contract_number) · {{ __('Ugovor') }}: <strong>{{ $b2bAccount->contract_number }}</strong> @endif
+                                </p>
+                            @else
+                                <p class="mt-1 text-sm text-slate-700">{{ $b2bAccount->status_reason ?: __('Zahtjev je zaprimljen i čeka provjeru administratora.') }}</p>
+                            @endif
+                        </div>
+                        @if ($b2bApproved)
+                            <a href="{{ route('account.b2b.quick-order') }}" class="commerce-primary-action shrink-0 px-4 py-2.5 text-sm font-semibold">{{ __('Brza kupnja') }}</a>
+                        @endif
+                    </div>
+                </section>
+            @endif
+
             <div class="{{ $loyaltyEnabled ? 'grid gap-5 md:grid-cols-2 xl:grid-cols-3' : 'grid gap-5 md:grid-cols-2' }}">
                 <article class="border border-slate-200 bg-white p-5">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.dashboard.cards.user') }}</p>

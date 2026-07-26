@@ -81,6 +81,10 @@
             <h4 class="mb-2">{{ __('ui.auth.register.have_account_title') }}</h4>
             <p class="mb-3">{{ __('ui.auth.register.have_account_text') }}</p>
             <a href="{{ route('front.auth.login', ['intended' => (string) request('intended', route('account.dashboard'))]) }}" class="btn btn-full btn-border border-dark color-dark rounded-0 font-600">{{ __('ui.auth.register.go_to_login') }}</a>
+            <div class="divider mt-4 mb-3"></div>
+            <h5 class="mb-2">{{ __('Kupujete za tvrtku?') }}</h5>
+            <p class="mb-3">{{ __('Zatražite B2B račun za ugovorene cijene i brzu kupnju.') }}</p>
+            <a href="{{ route('front.auth.b2b-register') }}" class="btn btn-full btn-border border-highlight color-highlight rounded-0 font-600">{{ __('B2B registracija') }}</a>
         </div>
     </div>
 

@@ -1223,6 +1223,7 @@
                     );
                     $showSettingsApiMenu = $canManageApiSettings && $catalogUseApi;
                     $usersListActive = request()->routeIs('admin.users') || request()->routeIs('admin.users.edit') || request()->routeIs('admin.users.show');
+                    $usersB2BActive = request()->routeIs('admin.users.b2b');
                     $usersGroupsActive = request()->routeIs('admin.users.groups');
                     $usersAccessActive = $canManageUsersAccess && request()->routeIs('admin.users.access');
                     $usersActivityActive = request()->routeIs('admin.users.activity');
@@ -1233,7 +1234,7 @@
                     $canViewUserActivity = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.activity.view'));
                     $canViewNewsletterSignups = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.newsletter.view'));
                     $canViewUserLoyalty = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.loyalty.view'));
-                    $usersOpen = $usersListActive || $usersGroupsActive || $usersAccessActive || $usersActivityActive || $usersNewsletterActive || $usersLoyaltyActive;
+                    $usersOpen = $usersListActive || $usersB2BActive || $usersGroupsActive || $usersAccessActive || $usersActivityActive || $usersNewsletterActive || $usersLoyaltyActive;
                     $settingsResource = request()->route('resource');
                     $helpRoute = request()->route()?->getName() ?? '';
                     $helpConfig = config('admin_help', []);
@@ -1723,6 +1724,15 @@
                                         <span class="flex items-center gap-2">
                                             <span class="sidebar-dot"></span>
                                             <span>{{ __('admin.layout.menu.users_list') }}</span>
+                                        </span>
+                                    </a>
+                                    <a
+                                        href="{{ route('admin.users.b2b') }}"
+                                        class="sidebar-dropdown-link block rounded-lg font-medium {{ $usersB2BActive ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
+                                    >
+                                        <span class="flex items-center gap-2">
+                                            <span class="sidebar-dot"></span>
+                                            <span>{{ __('B2B zahtjevi') }}</span>
                                         </span>
                                     </a>
                                 @endif

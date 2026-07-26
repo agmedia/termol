@@ -17,6 +17,12 @@
         <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.account.order_show.title', ['number' => $order->order_number]) }}</h1>
         <p class="mt-2 text-slate-600">{{ __('ui.account.order_show.status') }}: <span class="font-semibold">{{ $order->status?->name ?? __('ui.account.orders.status_new') }}</span></p>
         <p class="mt-1 text-sm text-slate-500">{{ __('ui.account.order_show.placed_at') }}: {{ optional($order->placed_at ?? $order->created_at)->format('Y-m-d H:i') }}</p>
+        @if ($b2bAccount?->contractIsActive())
+            <form method="POST" action="{{ route('account.orders.reorder', ['orderNumber' => $order->order_number]) }}" class="mt-4">
+                @csrf
+                <button type="submit" class="commerce-primary-action px-4 py-2.5 text-sm font-semibold">{{ __('Ponovi cijelu narudžbu') }}</button>
+            </form>
+        @endif
     </section>
 
     <div class="account-layout">

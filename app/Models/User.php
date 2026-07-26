@@ -16,12 +16,14 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class User extends Authenticatable implements HasMedia
 {
+    use HasApiTokens;
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory;
-    use HasApiTokens;
+
+    use HasRolesAndAbilities;
     use InteractsWithMedia;
     use Notifiable;
-    use HasRolesAndAbilities;
 
     /**
      * The attributes that are mass assignable.
@@ -81,6 +83,11 @@ class User extends Authenticatable implements HasMedia
     {
         return $this->belongsToMany(\App\Models\User\CustomerGroup::class, 'customer_group_user')
             ->withTimestamps();
+    }
+
+    public function b2bAccount(): HasOne
+    {
+        return $this->hasOne(\App\Models\User\B2BAccount::class);
     }
 
     public function trackingEvents(): HasMany

@@ -19,6 +19,23 @@
         <div class="card-overlay bg-black opacity-70"></div>
     </div>
 
+    @if ($b2bAccount)
+        @php
+            $b2bStatus = \App\Models\User\B2BAccount::statusOptions()[$b2bAccount->status] ?? $b2bAccount->status;
+            $b2bApproved = $b2bAccount->contractIsActive();
+        @endphp
+        <div class="card card-style {{ $b2bApproved ? 'bg-blue-light' : 'bg-yellow-light' }}">
+            <div class="content">
+                <p class="font-11 font-700 text-uppercase opacity-70 mb-1">{{ __('B2B račun') }} · {{ __($b2bStatus) }}</p>
+                <h4 class="mb-1">{{ $b2bAccount->company_name }}</h4>
+                <p class="font-12 mb-3">{{ $b2bApproved ? ($b2bAccount->customerGroup?->name ?? __('Odobreno')) : ($b2bAccount->status_reason ?: __('Zahtjev čeka provjeru administratora.')) }}</p>
+                @if ($b2bApproved)
+                    <a href="{{ route('account.b2b.quick-order') }}" class="btn btn-s rounded-0 bg-highlight color-white font-600">{{ __('Brza kupnja') }}</a>
+                @endif
+            </div>
+        </div>
+    @endif
+
     <div class="content mt-0 mb-1">
         <div class="row mb-0">
             <div class="col-6 pe-1">

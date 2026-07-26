@@ -25,6 +25,29 @@
             </div>
         </div>
 
+        @if ($user->b2bAccount)
+            @php
+                $b2b = $user->b2bAccount;
+                $b2bStatusLabel = \App\Models\User\B2BAccount::statusOptions()[$b2b->status] ?? $b2b->status;
+            @endphp
+            <div class="admin-panel admin-form-panel border-cyan-200 p-6">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <p class="admin-section-title">{{ __('B2B račun') }}</p>
+                        <h2 class="mt-3 text-xl font-semibold text-slate-900">{{ $b2b->company_name }}</h2>
+                        <p class="mt-1 text-sm text-slate-600">OIB {{ $b2b->oib }} · {{ __($b2bStatusLabel) }}</p>
+                    </div>
+                    <a href="{{ route('admin.users.b2b', ['account' => $b2b->id]) }}" class="rounded-xl border border-cyan-300 bg-white px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-50">{{ __('Otvori B2B postavke') }}</a>
+                </div>
+                <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div><span class="text-xs uppercase tracking-[0.12em] text-slate-500">{{ __('Cjenovna grupa') }}</span><div class="mt-1 text-sm font-medium text-slate-800">{{ $b2b->customerGroup?->name ?: '—' }}</div></div>
+                    <div><span class="text-xs uppercase tracking-[0.12em] text-slate-500">{{ __('Broj ugovora') }}</span><div class="mt-1 text-sm font-medium text-slate-800">{{ $b2b->contract_number ?: '—' }}</div></div>
+                    <div><span class="text-xs uppercase tracking-[0.12em] text-slate-500">{{ __('ERP kupac ID') }}</span><div class="mt-1 font-mono text-sm text-slate-800">{{ $b2b->erp_customer_id ?: '—' }}</div></div>
+                    <div><span class="text-xs uppercase tracking-[0.12em] text-slate-500">{{ __('Rok plaćanja') }}</span><div class="mt-1 text-sm font-medium text-slate-800">{{ $b2b->payment_terms_days !== null ? $b2b->payment_terms_days.' '.__('dana') : '—' }}</div></div>
+                </div>
+            </div>
+        @endif
+
         <div class="admin-panel admin-form-panel p-6">
             <p class="admin-section-title">{{ __('Core') }}</p>
             <div class="mt-4 grid gap-4" style="grid-template-columns: 7rem repeat(12, minmax(0, 1fr));">

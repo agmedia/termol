@@ -30,6 +30,17 @@
         ],
     ];
 
+    $accountUser = auth()->user();
+    $accountUser?->loadMissing('b2bAccount');
+    if ($accountUser?->b2bAccount?->contractIsActive()) {
+        array_splice($items, 2, 0, [[
+            'key' => 'b2b_quick_order',
+            'label' => __('B2B brza kupnja'),
+            'url' => route('account.b2b.quick-order'),
+            'active' => $current === 'b2b_quick_order',
+        ]]);
+    }
+
     if ($loyaltyEnabled) {
         $items[] = [
             'key' => 'loyalty',

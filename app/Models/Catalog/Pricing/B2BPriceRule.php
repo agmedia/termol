@@ -32,6 +32,8 @@ class B2BPriceRule extends Model
         'code',
         'name',
         'customer_group_id',
+        'user_id',
+        'contract_number',
         'calculation_type',
         'value',
         'target_type',
@@ -95,6 +97,11 @@ class B2BPriceRule extends Model
     public function customerGroup(): BelongsTo
     {
         return $this->belongsTo(CustomerGroup::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function targets(): HasMany

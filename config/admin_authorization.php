@@ -246,6 +246,10 @@ return [
         'admin.users.show' => [
             'view' => ['users.list.view'],
         ],
+        'admin.users.b2b' => [
+            'view' => ['users.list.view'],
+            'mutate' => ['users.profile.update'],
+        ],
         'admin.users.groups' => [
             'view' => ['users.groups.manage'],
             'mutate' => ['users.groups.manage'],

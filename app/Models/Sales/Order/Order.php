@@ -3,8 +3,8 @@
 namespace App\Models\Sales\Order;
 
 use App\Models\Settings\Local\OrderStatus;
-use App\Models\User\LoyaltyTransaction;
 use App\Models\User;
+use App\Models\User\LoyaltyTransaction;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,6 +13,7 @@ class Order extends Model
 {
     protected $fillable = [
         'order_number',
+        'erp_order_id',
         'status_id',
         'user_id',
         'source',

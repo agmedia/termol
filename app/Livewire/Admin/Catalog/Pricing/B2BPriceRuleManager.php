@@ -15,6 +15,8 @@ class B2BPriceRuleManager extends Component
 
     public string $groupFilter = 'all';
 
+    public string $audienceFilter = 'all';
+
     public string $targetFilter = 'all';
 
     public string $stateFilter = 'active';
@@ -30,6 +32,11 @@ class B2BPriceRuleManager extends Component
     }
 
     public function updatedTargetFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedAudienceFilter(): void
     {
         $this->resetPage();
     }
@@ -75,16 +82,29 @@ class B2BPriceRuleManager extends Component
         );
 
         $rows = B2BPriceRule::query()
-            ->with('customerGroup:id,name,code')
+            ->with([
+                'customerGroup:id,name,code',
+                'user:id,name,email',
+                'user.b2bAccount:id,user_id,company_name,oib',
+            ])
             ->withCount('targets')
             ->when($this->search !== '', function ($query): void {
                 $query->where(function ($query): void {
                     $query
                         ->where('code', 'like', '%'.$this->search.'%')
-                        ->orWhere('name', 'like', '%'.$this->search.'%');
+                        ->orWhere('name', 'like', '%'.$this->search.'%')
+                        ->orWhereHas('user', fn ($userQuery) => $userQuery
+                            ->where('name', 'like', '%'.$this->search.'%')
+                            ->orWhere('email', 'like', '%'.$this->search.'%'))
+                        ->orWhereHas('user.b2bAccount', fn ($accountQuery) => $accountQuery
+                            ->where('company_name', 'like', '%'.$this->search.'%')
+                            ->orWhere('oib', 'like', '%'.$this->search.'%'));
                 });
             })
+            ->when($this->audienceFilter === 'group', fn ($query) => $query->whereNull('user_id'))
+            ->when($this->audienceFilter === 'customer', fn ($query) => $query->whereNotNull('user_id'))
             ->when($this->groupFilter !== 'all', fn ($query) => $query
+                ->whereNull('user_id')
                 ->where('customer_group_id', (int) $this->groupFilter))
             ->when($this->targetFilter !== 'all', fn ($query) => $query
                 ->where('target_type', $this->targetFilter))

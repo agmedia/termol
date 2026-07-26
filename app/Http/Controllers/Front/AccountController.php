@@ -24,7 +24,7 @@ class AccountController extends Controller
     public function dashboard(Request $request): View
     {
         $user = $request->user();
-        $user->loadMissing(['profile', 'addresses']);
+        $user->loadMissing(['profile', 'addresses', 'b2bAccount.customerGroup']);
 
         $orders = Order::query()
             ->where('user_id', $user->id)
@@ -56,11 +56,14 @@ class AccountController extends Controller
             'loyaltyEnabled' => $loyaltyEnabled,
             'loyaltyBalance' => $loyaltyBalance,
             'loyaltyRecent' => $loyaltyRecent,
+            'b2bAccount' => $user->b2bAccount,
         ]);
     }
 
     public function orders(Request $request): View
     {
+        $request->user()->loadMissing('b2bAccount');
+
         $orders = Order::query()
             ->where('user_id', $request->user()->id)
             ->with('status:id,name,color')
@@ -69,6 +72,7 @@ class AccountController extends Controller
 
         return view($this->frontendView($request, 'account.orders'), [
             'orders' => $orders,
+            'b2bAccount' => $request->user()->b2bAccount,
         ]);
     }
 
@@ -102,6 +106,7 @@ class AccountController extends Controller
         return view($this->frontendView($request, 'account.order-show'), [
             'order' => $order,
             'statusSteps' => $statusSteps,
+            'b2bAccount' => $request->user()->loadMissing('b2bAccount')->b2bAccount,
         ]);
     }
 
