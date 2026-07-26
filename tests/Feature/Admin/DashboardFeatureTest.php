@@ -23,7 +23,7 @@ class DashboardFeatureTest extends TestCase
             ->assertSee(__('Order Pipeline'))
             ->assertSee(__('Sales Trend (:days Days)', ['days' => 7]))
             ->assertSee(__('Recent Orders'))
-            ->assertSee(__('Feature Flags'));
+            ->assertSee(__('Catalog & Content Snapshot'));
     }
 
     public function test_dashboard_hides_loyalty_and_tracking_sections_when_disabled(): void

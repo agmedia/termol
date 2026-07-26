@@ -22,7 +22,7 @@ class UserAccessFeatureTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/users/access')
             ->assertOk()
-            ->assertSee('Roles & Abilities')
+            ->assertSee(__('Roles & Abilities'))
             ->assertSee('Super Administrator is not shown in the matrix')
             ->assertDontSee('SUPER ADMINISTRATOR');
     }

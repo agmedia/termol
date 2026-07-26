@@ -162,7 +162,8 @@ class UserLoyaltyFeatureTest extends TestCase
             ->test(LoyaltyManager::class)
             ->assertSet('userId', (string) $target->id)
             ->assertSet('adjustment.user_id', $target->id)
-            ->assertSee('Scoped User');
+            ->assertSee(__('Scoped User:'))
+            ->assertSee($target->name);
     }
 
     private function makeUserWithRole(string $role): User

@@ -21,7 +21,7 @@ class UserSettingsFeatureTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/settings/user')
             ->assertOk()
-            ->assertSee('User Settings');
+            ->assertSee(__('User Settings'));
     }
 
     public function test_editor_cannot_open_user_settings_page(): void

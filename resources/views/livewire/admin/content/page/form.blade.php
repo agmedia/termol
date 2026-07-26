@@ -74,6 +74,19 @@
                         <span class="admin-switch-track"><span class="admin-switch-thumb"></span></span>
                         <span class="admin-switch-label">{{ $form['is_active'] ? __('Active') : __('Inactive') }}</span>
                     </button>
+
+                    <button
+                        type="button"
+                        wire:click="$toggle('form.show_in_footer')"
+                        class="admin-switch"
+                        data-state="{{ $form['show_in_footer'] ? 'on' : 'off' }}"
+                        role="switch"
+                        aria-checked="{{ $form['show_in_footer'] ? 'true' : 'false' }}"
+                        aria-label="{{ __('Toggle info page footer visibility') }}"
+                    >
+                        <span class="admin-switch-track"><span class="admin-switch-thumb"></span></span>
+                        <span class="admin-switch-label">{{ $form['show_in_footer'] ? __('Shown in footer') : __('Hidden from footer') }}</span>
+                    </button>
                 </div>
 
                 <div class="mt-4 grid gap-3 md:grid-cols-2">

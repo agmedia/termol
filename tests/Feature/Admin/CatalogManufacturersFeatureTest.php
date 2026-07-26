@@ -63,7 +63,7 @@ class CatalogManufacturersFeatureTest extends TestCase
             ->set('form.name', 'Manufacturer Product')
             ->set('form.slug', 'manufacturer-product')
             ->call('save')
-            ->assertRedirect(route('admin.products', ['locale' => 'en']));
+            ->assertRedirect(route('admin.products.edit', ['product' => 1, 'locale' => 'en']));
 
         $product = Product::query()->where('code', 'p-manufacturer-1')->first();
 

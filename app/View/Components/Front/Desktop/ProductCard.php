@@ -13,8 +13,8 @@ use Illuminate\View\View;
 
 class ProductCard extends Component
 {
-    /** @var array<string, array{current_gross:float,current_price:string, old_price:?string, discount_percent:?int, lowest_30_days_price:?string}> */
-    private static array $priceCache = [];
+    /** @var array{current_gross:float,current_price:string, old_price:?string, discount_percent:?int, lowest_30_days_price:?string}|null */
+    private ?array $priceData = null;
 
     public function __construct(
         public Product $product,
@@ -22,8 +22,7 @@ class ProductCard extends Component
         public ?string $fallbackLocale = null,
         public bool $flat = false,
         public bool $lined = false,
-    ) {
-    }
+    ) {}
 
     public function render(): View
     {
@@ -129,11 +128,10 @@ class ProductCard extends Component
             ->all();
 
         $authUser = auth()->user();
-        $priceCacheKey = (string) $this->product->id.'|'.(string) ($authUser?->id ?? 0);
-        if (! isset(self::$priceCache[$priceCacheKey])) {
+        if ($this->priceData === null) {
             $priceData = app(ProductPricePresentationService::class)->forProduct($this->product, $authUser);
 
-            self::$priceCache[$priceCacheKey] = [
+            $this->priceData = [
                 'current_gross' => (float) $priceData['current_gross'],
                 'current_price' => number_format((float) $priceData['current_gross'], 2).' €',
                 'old_price' => $priceData['old_gross'] !== null ? number_format((float) $priceData['old_gross'], 2).' €' : null,
@@ -144,7 +142,7 @@ class ProductCard extends Component
             ];
         }
 
-        $priceData = self::$priceCache[$priceCacheKey];
+        $priceData = $this->priceData;
         $manufacturerName = '';
         if ($this->product->relationLoaded('manufacturer')) {
             $manufacturerName = (string) ($this->product->manufacturer?->translations?->firstWhere('locale', $locale)?->name

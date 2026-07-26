@@ -14,12 +14,14 @@ use Livewire\Component;
 class Form extends Component
 {
     public ?int $pageId = null;
+
     public string $activeTab = 'content';
 
     public array $form = [
         'code' => '',
         'layout' => 'default',
         'is_active' => true,
+        'show_in_footer' => false,
         'published_at' => '',
         'sort_order' => 0,
         'payload_text' => '',
@@ -59,7 +61,7 @@ class Form extends Component
 
     public function setTab(string $tab): void
     {
-        if (!in_array($tab, ['content', 'seo'], true)) {
+        if (! in_array($tab, ['content', 'seo'], true)) {
             return;
         }
 
@@ -88,6 +90,7 @@ class Form extends Component
                 'code' => trim((string) $validated['form']['code']),
                 'layout' => trim((string) $validated['form']['layout']) !== '' ? trim((string) $validated['form']['layout']) : 'default',
                 'is_active' => (bool) $validated['form']['is_active'],
+                'show_in_footer' => (bool) $validated['form']['show_in_footer'],
                 'published_at' => $validated['form']['published_at'] ?: null,
                 'sort_order' => (int) $validated['form']['sort_order'],
                 'payload' => $payload,
@@ -216,6 +219,7 @@ class Form extends Component
             'form.code' => ['required', 'string', 'max:120', Rule::unique('content_info_pages', 'code')->ignore($this->pageId)],
             'form.layout' => ['nullable', 'string', 'max:80'],
             'form.is_active' => ['boolean'],
+            'form.show_in_footer' => ['boolean'],
             'form.published_at' => ['nullable', 'date'],
             'form.sort_order' => ['nullable', 'integer', 'min:0'],
             'form.payload_text' => ['nullable', 'string'],
@@ -246,7 +250,7 @@ class Form extends Component
 
     private function loadPage(): void
     {
-        if (!$this->pageId) {
+        if (! $this->pageId) {
             return;
         }
 
@@ -263,6 +267,7 @@ class Form extends Component
         $this->form['code'] = $page->code;
         $this->form['layout'] = $page->layout;
         $this->form['is_active'] = (bool) $page->is_active;
+        $this->form['show_in_footer'] = (bool) $page->show_in_footer;
         $this->form['published_at'] = $page->published_at?->format('Y-m-d\TH:i') ?? '';
         $this->form['sort_order'] = (int) $page->sort_order;
         $this->form['payload_text'] = $page->payload
@@ -286,8 +291,9 @@ class Form extends Component
 
     private function loadTranslationForLocale(): void
     {
-        if (!$this->pageId) {
+        if (! $this->pageId) {
             $this->clearTranslationFields();
+
             return;
         }
 
@@ -296,8 +302,9 @@ class Form extends Component
             ->where('locale', $this->form['locale'])
             ->first();
 
-        if (!$translation) {
+        if (! $translation) {
             $this->clearTranslationFields();
+
             return;
         }
 
@@ -338,12 +345,14 @@ class Form extends Component
         if (json_last_error() !== JSON_ERROR_NONE) {
             $this->addError($field, (string) __('Invalid JSON payload.'));
             $this->dispatch('notify', type: 'danger', message: __('Invalid JSON payload.'));
+
             return false;
         }
 
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             $this->addError($field, (string) __('JSON payload must decode to object/array.'));
             $this->dispatch('notify', type: 'danger', message: __('JSON payload must decode to object/array.'));
+
             return false;
         }
 

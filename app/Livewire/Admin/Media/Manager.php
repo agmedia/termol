@@ -23,7 +23,9 @@ class Manager extends Component
     use WithFileUploads;
 
     public string $modelClass = '';
+
     public ?int $modelId = null;
+
     public string $locale = '';
 
     /**
@@ -70,12 +72,14 @@ class Manager extends Component
         $record = $this->record;
         if (! $record) {
             $this->dispatch('notify', type: 'warning', message: __('Save record first, then upload images.'));
+
             return;
         }
 
         $collectionConfig = (array) ($this->collections[$collectionName] ?? []);
         if ($collectionConfig === []) {
             $this->dispatch('notify', type: 'danger', message: __('Unknown media collection.'));
+
             return;
         }
 
@@ -100,6 +104,7 @@ class Manager extends Component
 
         if ($files === []) {
             $this->dispatch('notify', type: 'warning', message: __('Choose at least one image first.'));
+
             return;
         }
 
@@ -134,21 +139,28 @@ class Manager extends Component
         $record = $this->record;
         if (! $record instanceof ContentBlock) {
             $this->dispatch('notify', type: 'warning', message: __('Save record first, then add Instagram posts.'));
+
             return;
         }
 
         if ((string) $record->type !== 'instagram_curated_grid' || $collectionName !== 'block_slides') {
             $this->dispatch('notify', type: 'warning', message: __('Instagram posts can only be added to the Instagram widget slides.'));
+
             return;
         }
 
-        $placeholderPath = public_path('front-theme/images/demo_img.png');
-        if (! is_file($placeholderPath)) {
+        $placeholderPath = collect([
+            public_path('front-theme/images/demo_img.png'),
+            public_path('front-theme/images/ad.png'),
+        ])->first(static fn (string $path): bool => is_file($path));
+
+        if (! is_string($placeholderPath) || ! is_file($placeholderPath)) {
             $this->dispatch('notify', type: 'danger', message: __('Could not find the Instagram slide placeholder image.'));
+
             return;
         }
 
-        $record->addMedia($placeholderPath)
+        $record->copyMedia($placeholderPath)
             ->usingName('Instagram post')
             ->usingFileName('instagram-post-'.Str::lower(Str::random(6)).'.png')
             ->withCustomProperties([
@@ -171,6 +183,7 @@ class Manager extends Component
         $media = $this->findMedia($mediaId);
         if (! $media) {
             $this->dispatch('notify', type: 'warning', message: __('Image not found.'));
+
             return;
         }
 
@@ -204,6 +217,7 @@ class Manager extends Component
         $media = $this->findMedia($mediaId);
         if (! $media) {
             $this->dispatch('notify', type: 'warning', message: __('Image not found.'));
+
             return;
         }
 
@@ -403,6 +417,7 @@ class Manager extends Component
         $media = $this->findMedia($mediaId);
         if (! $media) {
             $this->dispatch('notify', type: 'warning', message: __('Image not found.'));
+
             return;
         }
 
@@ -477,6 +492,7 @@ class Manager extends Component
         foreach ($this->collections as $collectionName => $_config) {
             if (! $record) {
                 $result[$collectionName] = collect();
+
                 continue;
             }
 
@@ -676,6 +692,7 @@ class Manager extends Component
         $media = $this->findMedia($mediaId);
         if (! $media) {
             $this->dispatch('notify', type: 'warning', message: __('Image not found.'));
+
             return;
         }
 
@@ -709,7 +726,6 @@ class Manager extends Component
     }
 
     /**
-     * @param  mixed  $value
      * @return array<int, TemporaryUploadedFile>
      */
     private function normalizeFiles(mixed $value, bool $singleFile): array

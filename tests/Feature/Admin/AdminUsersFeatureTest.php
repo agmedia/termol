@@ -272,7 +272,7 @@ class AdminUsersFeatureTest extends TestCase
             ->get('/admin/users')
             ->assertOk()
             ->assertSee('Loyalty')
-            ->assertSee('125 pts')
+            ->assertSee('125 '.__('pts'))
             ->assertSee('/admin/users/loyalty?user_id='.$target->id, false);
 
         $this->actingAs($admin)

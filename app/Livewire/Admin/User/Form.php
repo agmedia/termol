@@ -5,8 +5,8 @@ namespace App\Livewire\Admin\User;
 use App\Models\User;
 use App\Models\User\CustomerGroup;
 use App\Models\User\UserAddress;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -254,6 +254,10 @@ class Form extends Component
      */
     private function resolvePrimaryRoleName(Collection $roles): string
     {
+        if ($roles->contains(static fn (Role $role): bool => $role->name === 'superadmin')) {
+            return 'superadmin';
+        }
+
         return (string) ($roles->sortBy('id')->first()?->name ?: 'customer');
     }
 

@@ -116,14 +116,15 @@ class ContentBlocksFeatureTest extends TestCase
     public function test_type_switch_auto_sets_surface_for_mobile_and_desktop_hero_types(): void
     {
         $user = $this->makeAdminUser();
+        $emptyStateLabel = __('No items selected.');
 
         Livewire::actingAs($user)
             ->test(BlockForm::class)
             ->assertSet('form.slot_frontend_variant', 'all')
-            ->assertDontSee('No items selected.')
+            ->assertDontSee($emptyStateLabel)
             ->set('form.type', 'mobile_hero_banner')
             ->assertSet('form.slot_frontend_variant', 'mobile')
-            ->assertSee('No items selected.')
+            ->assertSee($emptyStateLabel)
             ->set('form.type', 'desktop_hero_banner')
             ->assertSet('form.slot_frontend_variant', 'desktop');
     }
@@ -256,6 +257,9 @@ class ContentBlocksFeatureTest extends TestCase
     public function test_admin_can_add_new_instagram_post_slot_without_uploading_a_file(): void
     {
         $user = $this->makeAdminUser();
+        $fallbackPlaceholder = public_path('front-theme/images/ad.png');
+
+        $this->assertFileExists($fallbackPlaceholder);
 
         $block = ContentBlock::query()->create([
             'code' => 'home-instagram-add-post-test',
@@ -290,6 +294,7 @@ class ContentBlocksFeatureTest extends TestCase
         $this->assertCount(1, $media);
         $this->assertSame('Instagram post', $media->first()?->name);
         $this->assertSame('image/png', (string) $media->first()?->mime_type);
+        $this->assertFileExists($fallbackPlaceholder);
     }
 
     private function makeAdminUser(): User

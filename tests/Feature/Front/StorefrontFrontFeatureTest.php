@@ -44,6 +44,8 @@ class StorefrontFrontFeatureTest extends TestCase
 
     public function test_pretty_storefront_routes_are_available(): void
     {
+        $this->useEnglishStorefrontLocale();
+
         [$category, $categorySlug] = $this->seedCategory();
         [$product, $productSlug] = $this->seedProduct($category->id);
         [$manufacturer, $manufacturerSlug] = $this->seedManufacturer();
@@ -1320,25 +1322,26 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertDontSee($linenName);
     }
 
-    public function test_product_cards_render_material_attribute_between_name_and_price(): void
+    public function test_product_cards_render_dominant_material_between_name_and_price(): void
     {
         $this->useEnglishStorefrontLocale();
 
         [$category] = $this->seedCategory();
         [$product, $productSlug] = $this->seedProduct($category->id);
-        $material = '95% Micromodal, 5% Elastane';
+        $composition = '95% Micromodal, 5% Elastane';
+        $materialLabel = 'Micromodal';
 
-        $this->attachProductAttribute($product, 'material', 'Material', $material, 1);
+        $this->attachProductAttribute($product, 'material', 'Material', $composition, 1);
 
         $response = $this->get('/shop')
             ->assertOk()
-            ->assertSee($material);
+            ->assertSee($materialLabel);
 
         $html = $response->getContent();
         $this->assertIsString($html);
 
         $namePosition = strpos($html, 'Product '.$productSlug);
-        $materialPosition = strpos($html, $material);
+        $materialPosition = strpos($html, $materialLabel);
         $pricePosition = strpos($html, '49.99 €');
 
         $this->assertNotFalse($namePosition);
@@ -1346,6 +1349,24 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertNotFalse($pricePosition);
         $this->assertLessThan($materialPosition, $namePosition);
         $this->assertLessThan($pricePosition, $materialPosition);
+    }
+
+    public function test_product_card_price_is_refreshed_between_requests(): void
+    {
+        $this->useEnglishStorefrontLocale();
+
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $this->get('/shop')
+            ->assertOk()
+            ->assertSee('49.99 €');
+
+        $product->update(['base_price' => 79.99]);
+
+        $this->get('/shop')
+            ->assertOk()
+            ->assertSee('79.99 €');
     }
 
     public function test_mobile_home_renders_instagram_curated_grid_assets_and_slider_init(): void
