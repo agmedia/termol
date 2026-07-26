@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminAiController;
+use App\Http\Controllers\Admin\OrderGlsController;
 use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Front\AccountController;
 use App\Http\Controllers\Front\AuthController;
@@ -172,6 +173,14 @@ Route::middleware(['front.locale', 'front.device'])
         Route::middleware('guest')->prefix('auth')->as('front.auth.')->group(function (): void {
             Route::get('login', [AuthController::class, 'showLogin'])->name('login');
             Route::post('login', [AuthController::class, 'login'])->name('login.store');
+            Route::get('forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
+            Route::post('forgot-password', [AuthController::class, 'sendPasswordResetLink'])
+                ->middleware('throttle:5,1')
+                ->name('password.email');
+            Route::get('reset-password/{token}', [AuthController::class, 'showResetPassword'])->name('password.reset');
+            Route::post('reset-password', [AuthController::class, 'resetPassword'])
+                ->middleware('throttle:10,1')
+                ->name('password.update');
             Route::get('register', [AuthController::class, 'showRegister'])->name('register');
             Route::post('register', [AuthController::class, 'register'])->name('register.store');
             Route::get('b2b-register', [AuthController::class, 'showB2BRegister'])->name('b2b-register');
@@ -191,6 +200,9 @@ Route::middleware(['front.locale', 'front.device'])
                     ->where('orderNumber', '[A-Za-z0-9\-]+')
                     ->name('orders.reorder');
                 Route::get('b2b/quick-order', [B2BController::class, 'quickOrder'])->name('b2b.quick-order');
+                Route::get('b2b/quick-order/search', [B2BController::class, 'searchQuickOrder'])
+                    ->middleware('throttle:60,1')
+                    ->name('b2b.quick-order.search');
                 Route::post('b2b/quick-order', [B2BController::class, 'storeQuickOrder'])->name('b2b.quick-order.store');
                 Route::get('loyalty', [AccountController::class, 'loyalty'])->name('loyalty');
 
@@ -205,6 +217,10 @@ Route::middleware(['front.locale', 'front.device'])
 
 Route::get('dashboard', function (Request $request) {
     $user = $request->user();
+
+    if ($user && $user->b2bAccount()->exists()) {
+        return redirect()->route('account.dashboard');
+    }
 
     if ($user && $user->isA('customer')) {
         return redirect('/');
@@ -234,6 +250,9 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
             return view('admin.products.edit', compact('product'));
         })->name('products.edit');
         Route::view('orders', 'admin.orders.index')->name('orders');
+        Route::view('shipping', 'admin.shipping.index')->name('shipping.index');
+        Route::post('orders/{order}/gls/send', [OrderGlsController::class, 'send'])->name('orders.gls.send');
+        Route::get('orders/{order}/gls/label', [OrderGlsController::class, 'label'])->name('orders.gls.label');
         Route::get('orders/{order}/show', function (SalesOrder $order) {
             return view('admin.orders.show', compact('order'));
         })->name('orders.show');
@@ -410,6 +429,7 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
             ->as('settings.')
             ->group(function (): void {
                 Route::redirect('/', '/admin/settings/local/payment-methods')->name('index');
+                Route::redirect('local/shipping-methods', '/admin/shipping')->name('local.shipping-redirect');
 
                 Route::get('local/{resource}', function (string $resource) {
                     return view('admin.settings.local.resource', compact('resource'));

@@ -18,10 +18,16 @@ class Category extends Model implements HasMedia
     use NodeTrait;
 
     public const SCOPE_CATALOG = 'catalog';
+
     public const SCOPE_BLOG = 'blog';
+
     public const SCOPE_PAGE = 'page';
+
     public const PAYLOAD_SHOW_FILTERS = 'show_filters';
+
     public const PAYLOAD_SHOW_PRODUCTS = 'show_products';
+
+    public const PAYLOAD_SHIPPING_LABELS = 'shipping_labels';
 
     /**
      * @return array<int, string>
@@ -105,6 +111,17 @@ class Category extends Model implements HasMedia
 
         return $this->catalogPageShowsProducts()
             && (bool) ($payload[self::PAYLOAD_SHOW_FILTERS] ?? true);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function shippingLabels(): array
+    {
+        $payload = is_array($this->payload) ? $this->payload : [];
+        $labels = $payload[self::PAYLOAD_SHIPPING_LABELS] ?? [];
+
+        return is_array($labels) ? array_values($labels) : [];
     }
 
     public function translations(): HasMany

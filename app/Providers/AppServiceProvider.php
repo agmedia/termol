@@ -30,6 +30,7 @@ use App\Services\Loyalty\LoyaltyService;
 use App\Services\Settings\LocalSettingsService;
 use App\Services\Settings\SystemSettingsService;
 use App\Services\UserTracking\UserTrackingService;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
@@ -73,6 +74,13 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         $this->applyDynamicStoreMailSettings();
+
+        ResetPassword::createUrlUsing(static function (object $notifiable, string $token): string {
+            return route('front.auth.password.reset', [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ]);
+        });
 
         RateLimiter::for('wholesale-api', static function (Request $request) {
             $perMinute = max(30, (int) env('WHOLESALE_API_RATE_LIMIT', 240));

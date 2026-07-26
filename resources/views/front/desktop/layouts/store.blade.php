@@ -142,6 +142,7 @@
                     data-autocomplete-categories-label="{{ __('ui.shop.search_autocomplete.groups.categories') }}"
                     data-autocomplete-manufacturers-label="{{ __('ui.shop.search_autocomplete.groups.manufacturers') }}"
                     data-autocomplete-blog-label="{{ __('ui.shop.search_autocomplete.groups.blog') }}"
+                    data-autocomplete-b2b-label="{{ __('ui.product.b2b_contract_price') }}"
                 >
                     @foreach (['category', 'manufacturer', 'size', 'sort', 'cols'] as $queryKey)
                         @if (request()->routeIs('shop.index') && request()->filled($queryKey))

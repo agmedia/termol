@@ -547,6 +547,22 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertSame(2, $products->lastPage());
     }
 
+    public function test_category_grid_controls_render_responsive_column_sync_hooks(): void
+    {
+        $this->useEnglishStorefrontLocale();
+
+        [$category, $categorySlug] = $this->seedCategory();
+        $this->seedProduct($category->id);
+
+        $this->get('/category/'.$categorySlug.'?cols=5')
+            ->assertOk()
+            ->assertSee('data-catalog-grid-cols="3"', false)
+            ->assertSee('data-catalog-grid-cols="4"', false)
+            ->assertSee('data-catalog-grid-cols="5"', false)
+            ->assertSee('catalog-grid-toggle--five', false)
+            ->assertDontSee('hidden 2xl:inline-flex', false);
+    }
+
     public function test_search_autocomplete_is_not_available_when_disabled(): void
     {
         app(SystemSettingsService::class)->put('store_search_autocomplete_enabled', false);
@@ -1641,7 +1657,7 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('front-theme/styles/checkout.css', false)
             ->assertSee('class="checkout-shell"', false)
-            ->assertSee('class="checkout-layout"', false)
+            ->assertSee('class="checkout-layout" novalidate', false)
             ->assertSee('checkout-primary-button', false)
             ->assertSee('autocomplete="billing given-name"', false)
             ->assertSee('aria-controls="shipping-address-fields"', false);
@@ -1655,7 +1671,7 @@ class StorefrontFrontFeatureTest extends TestCase
             ->get('/checkout')
             ->assertOk()
             ->assertSee('front-theme/styles/checkout.css', false)
-            ->assertSee('class="mobile-checkout"', false)
+            ->assertSee('class="mobile-checkout" novalidate', false)
             ->assertSee('data-customer-first-hidden', false)
             ->assertSee('data-billing-first', false)
             ->assertDontSee('id="customer-first"', false);
@@ -2080,7 +2096,9 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->get('/product/'.$slug)
             ->assertOk()
             ->assertSee('data-product-default-price-current="49.99 €"', false)
+            ->assertSee('data-product-default-price-net="49.99 €"', false)
             ->assertSee('data-option-price-current="79.99 €"', false)
+            ->assertSee('data-option-price-net="79.99 €"', false)
             ->assertSee('data-option-price-current-value="79.99"', false);
     }
 
@@ -2105,7 +2123,12 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->get('/product/'.$slug)
             ->assertOk()
             ->assertSee('class="product-detail-tax-note"', false)
-            ->assertSee('VAT is included in the price (25%)');
+            ->assertSee('Price excluding VAT: <span data-product-price-net>49.99 €</span>', false)
+            ->assertSee('VAT is included in the price (25%)')
+            ->assertSeeInOrder([
+                'VAT is included in the price (25%)',
+                'Price excluding VAT',
+            ]);
     }
 
     public function test_shop_card_hides_out_of_stock_option_values(): void

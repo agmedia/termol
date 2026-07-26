@@ -12,6 +12,7 @@
 @section('content')
     @php
         $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
+        $glsPoint = is_array($order->payload['shipping']['gls_dpm'] ?? null) ? $order->payload['shipping']['gls_dpm'] : null;
     @endphp
 
     <div class="card card-style">
@@ -37,6 +38,16 @@
                 <h4 class="mb-2">{{ __('ui.account.order_show.boxnow.title') }}</h4>
                 <p class="mb-1 font-13"><strong>{{ __('ui.account.order_show.boxnow.locker') }}:</strong> {{ $boxNow['locker_name'] ?: '-' }} ({{ $boxNow['locker_id'] }})</p>
                 <p class="mb-0 font-13"><strong>{{ __('ui.account.order_show.boxnow.address') }}:</strong> {{ trim(($boxNow['address_line_1'] ?? '').', '.($boxNow['postal_code'] ?? '').' '.($boxNow['city'] ?? ''), ', ') ?: '-' }}</p>
+            </div>
+        </div>
+    @endif
+
+    @if (!empty($glsPoint['id']))
+        <div class="card card-style">
+            <div class="content">
+                <h4 class="mb-2">{{ __('GLS paketomat / ParcelShop') }}</h4>
+                <p class="mb-1 font-13"><strong>{{ __('Lokacija') }}:</strong> {{ $glsPoint['name'] ?: '-' }} ({{ $glsPoint['id'] }})</p>
+                <p class="mb-0 font-13"><strong>{{ __('Adresa') }}:</strong> {{ trim(($glsPoint['address_line_1'] ?? '').', '.($glsPoint['postal_code'] ?? '').' '.($glsPoint['city'] ?? ''), ', ') ?: '-' }}</p>
             </div>
         </div>
     @endif

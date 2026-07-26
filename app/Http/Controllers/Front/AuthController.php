@@ -8,7 +8,9 @@ use App\Models\User;
 use App\Models\User\B2BAccount;
 use App\Models\User\UserAddress;
 use App\Models\User\UserProfile;
+use App\Services\Front\AddressDirectoryService;
 use App\Services\Front\StoreSettingsService;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,6 +18,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Password as PasswordBroker;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -30,7 +34,8 @@ class AuthController extends Controller
     private const REGISTER_RECAPTCHA_ACTION = 'register_form';
 
     public function __construct(
-        private readonly StoreSettingsService $storeSettings
+        private readonly StoreSettingsService $storeSettings,
+        private readonly AddressDirectoryService $addressDirectory,
     ) {}
 
     public function showLogin(Request $request): View
@@ -90,9 +95,94 @@ class AuthController extends Controller
         return view($this->frontendView($request, 'auth.register'));
     }
 
+    public function showForgotPassword(Request $request): View
+    {
+        return view($this->frontendView($request, 'auth.forgot-password'));
+    }
+
+    public function sendPasswordResetLink(Request $request): RedirectResponse
+    {
+        $validated = $request->validate(
+            [
+                'email' => ['required', 'email', 'max:191'],
+            ],
+            [
+                'email.required' => __('ui.auth.validation.email_required'),
+                'email.email' => __('ui.auth.validation.email_invalid'),
+            ]
+        );
+
+        $status = PasswordBroker::sendResetLink([
+            'email' => strtolower(trim((string) $validated['email'])),
+        ]);
+
+        if ($status === PasswordBroker::RESET_THROTTLED) {
+            throw ValidationException::withMessages([
+                'email' => __('ui.auth.forgot.throttled'),
+            ]);
+        }
+
+        return back()->with('status', __('ui.auth.forgot.status'));
+    }
+
+    public function showResetPassword(Request $request, string $token): View
+    {
+        return view($this->frontendView($request, 'auth.reset-password'), [
+            'token' => $token,
+            'email' => (string) $request->query('email', ''),
+        ]);
+    }
+
+    public function resetPassword(Request $request): RedirectResponse
+    {
+        $validated = $request->validate(
+            [
+                'token' => ['required', 'string'],
+                'email' => ['required', 'email', 'max:191'],
+                'password' => ['required', 'string', 'confirmed', Password::defaults()],
+            ],
+            [
+                'email.required' => __('ui.auth.validation.email_required'),
+                'email.email' => __('ui.auth.validation.email_invalid'),
+                'password.required' => __('ui.auth.validation.password_required'),
+                'password.confirmed' => __('ui.auth.validation.password_confirmed'),
+            ]
+        );
+
+        $status = PasswordBroker::reset(
+            [
+                'email' => strtolower(trim((string) $validated['email'])),
+                'password' => (string) $validated['password'],
+                'password_confirmation' => (string) $request->input('password_confirmation'),
+                'token' => (string) $validated['token'],
+            ],
+            static function (User $user, string $password): void {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
+
+                event(new PasswordReset($user));
+            }
+        );
+
+        if ($status !== PasswordBroker::PASSWORD_RESET) {
+            throw ValidationException::withMessages([
+                'email' => __('ui.auth.reset.invalid'),
+            ]);
+        }
+
+        return redirect()
+            ->route('front.auth.login')
+            ->with('status', __('ui.auth.reset.status'));
+    }
+
     public function showB2BRegister(Request $request): View
     {
-        return view($this->frontendView($request, 'auth.b2b-register'));
+        return view($this->frontendView($request, 'auth.b2b-register'), [
+            'countryOptions' => $this->addressDirectory->countries((string) app()->getLocale()),
+            'placesAssetUrl' => $this->addressDirectory->placesAssetUrl(),
+        ]);
     }
 
     public function registerB2B(Request $request): RedirectResponse
@@ -100,28 +190,51 @@ class AuthController extends Controller
         $captchaSettings = $this->storeSettings->captcha();
         $captchaEnabled = $this->recaptchaIsEnabled($captchaSettings);
 
-        $validated = $request->validate([
-            'first_name' => ['required', 'string', 'max:120'],
-            'last_name' => ['required', 'string', 'max:120'],
-            'email' => ['required', 'email', 'max:191', 'unique:users,email'],
-            'phone' => ['required', 'string', 'max:80'],
-            'company_name' => ['required', 'string', 'max:191'],
-            'oib' => ['required', 'regex:/^\d{11}$/', 'unique:b2b_accounts,oib'],
-            'vat_id' => ['nullable', 'string', 'max:60'],
-            'address_line_1' => ['required', 'string', 'max:191'],
-            'address_line_2' => ['nullable', 'string', 'max:191'],
-            'postal_code' => ['required', 'string', 'max:32'],
-            'city' => ['required', 'string', 'max:120'],
-            'country_code' => ['required', 'string', 'size:2'],
-            'password' => ['required', 'string', 'confirmed', Password::defaults()],
-            'terms_accepted' => ['accepted'],
-            'recaptcha_token' => [$captchaEnabled ? 'required' : 'nullable', 'string', 'max:4096'],
-        ], [
-            'oib.regex' => __('OIB mora sadržavati točno 11 znamenki.'),
-            'oib.unique' => __('Za ovaj OIB već postoji B2B zahtjev.'),
-            'terms_accepted.accepted' => __('Za nastavak morate prihvatiti uvjete B2B registracije.'),
-            'recaptcha_token.required' => __('ui.auth.captcha_failed'),
-        ]);
+        $validated = $request->validate(
+            [
+                'first_name' => ['required', 'string', 'max:120'],
+                'last_name' => ['required', 'string', 'max:120'],
+                'email' => ['required', 'email', 'max:191', 'unique:users,email'],
+                'phone' => ['required', 'string', 'max:80'],
+                'company_name' => ['required', 'string', 'max:191'],
+                'oib' => ['required', 'regex:/^\d{11}$/', 'unique:b2b_accounts,oib'],
+                'vat_id' => ['nullable', 'string', 'max:60'],
+                'address_line_1' => ['required', 'string', 'max:191'],
+                'address_line_2' => ['nullable', 'string', 'max:191'],
+                'postal_code' => ['required', 'string', 'max:32'],
+                'city' => ['required', 'string', 'max:120'],
+                'country_code' => ['required', 'string', 'size:2'],
+                'password' => ['required', 'string', Password::defaults()],
+                'password_confirmation' => ['required', 'string', 'same:password'],
+                'terms_accepted' => ['accepted'],
+                'recaptcha_token' => [$captchaEnabled ? 'required' : 'nullable', 'string', 'max:4096'],
+            ],
+            [
+                'oib.regex' => __('OIB mora sadržavati točno 11 znamenki.'),
+                'oib.unique' => __('Za ovaj OIB već postoji B2B zahtjev.'),
+                'password_confirmation.same' => __('Potvrda lozinke ne podudara se s lozinkom.'),
+                'terms_accepted.accepted' => __('Za nastavak morate prihvatiti uvjete B2B registracije.'),
+                'recaptcha_token.required' => __('ui.auth.captcha_failed'),
+            ],
+            [
+                'first_name' => __('ime'),
+                'last_name' => __('prezime'),
+                'email' => __('e-mail'),
+                'phone' => __('telefon'),
+                'company_name' => __('naziv tvrtke'),
+                'oib' => __('OIB'),
+                'vat_id' => __('PDV ID'),
+                'address_line_1' => __('adresa'),
+                'address_line_2' => __('dodatak adresi'),
+                'postal_code' => __('poštanski broj'),
+                'city' => __('grad'),
+                'country_code' => __('država'),
+                'password' => __('lozinka'),
+                'password_confirmation' => __('potvrda lozinke'),
+                'terms_accepted' => __('uvjeti B2B registracije'),
+                'recaptcha_token' => __('sigurnosna provjera'),
+            ]
+        );
 
         if ($captchaEnabled) {
             $this->assertRecaptchaIsValid(

@@ -13,7 +13,7 @@ use Illuminate\View\View;
 
 class ProductCard extends Component
 {
-    /** @var array{current_gross:float,current_price:string, old_price:?string, discount_percent:?int, lowest_30_days_price:?string}|null */
+    /** @var array{current_gross:float,current_price:string,old_price:?string,discount_percent:?int,lowest_30_days_price:?string,is_b2b_price:bool}|null */
     private ?array $priceData = null;
 
     public function __construct(
@@ -139,6 +139,7 @@ class ProductCard extends Component
                 'lowest_30_days_price' => $priceData['lowest_30_days_gross'] !== null
                     ? number_format((float) $priceData['lowest_30_days_gross'], 2).' €'
                     : null,
+                'is_b2b_price' => (bool) ($priceData['is_b2b_price'] ?? false),
             ];
         }
 
@@ -187,6 +188,7 @@ class ProductCard extends Component
             'oldPrice' => $priceData['old_price'],
             'discountPercent' => $priceData['discount_percent'],
             'lowest30DaysPrice' => $priceData['lowest_30_days_price'],
+            'isB2BPrice' => $priceData['is_b2b_price'],
             'reviewSummary' => $this->product->approvedCommentSummary([$locale, $fallbackLocale]),
             'flat' => $this->flat,
             'lined' => $this->lined,

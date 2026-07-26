@@ -157,6 +157,20 @@
                             <span class="admin-switch-label">{{ $form['catalog_show_products'] ? __('Show Products') : __('Hide Products') }}</span>
                         </button>
                     </div>
+
+                    <div class="mt-5 border-t border-slate-200 pt-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{{ __('Pravila dostave kategorije') }}</p>
+                        <p class="mt-1 text-sm text-slate-600">{{ __('Oznake se primjenjuju na sve artikle u ovoj kategoriji i kombiniraju s oznakama pojedinog artikla.') }}</p>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            @foreach ($shippingLabelOptions as $value => $label)
+                                <label class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                                    <input type="checkbox" value="{{ $value }}" wire:model="form.shipping_labels" class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-600">
+                                    <span>{{ $label }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        @error('form.shipping_labels.*') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
                 </div>
             @endif
         </div>

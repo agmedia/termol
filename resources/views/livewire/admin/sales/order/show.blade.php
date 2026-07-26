@@ -26,6 +26,11 @@
         ? $order->totals
         : $order->totals->reject(fn ($total) => $total->code === 'loyalty_redemption');
     $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
+    $glsPoint = is_array($order->payload['shipping']['gls_dpm'] ?? null) ? $order->payload['shipping']['gls_dpm'] : null;
+    $glsState = is_array($order->payload['gls'] ?? null) ? $order->payload['gls'] : [];
+    $glsShipment = is_array($glsState['shipment'] ?? null) ? $glsState['shipment'] : [];
+    $glsLastError = is_array($glsState['last_error'] ?? null) ? $glsState['last_error'] : [];
+    $isGls = \App\Support\GlsShipping::isGlsShippingMethod((string) $order->shipping_method_code);
 @endphp
 
 <div class="space-y-6">
@@ -95,6 +100,12 @@
                             <p class="text-xs text-slate-600">{{ trim(($boxNow['address_line_1'] ?? '').', '.($boxNow['postal_code'] ?? '').' '.($boxNow['city'] ?? ''), ', ') }}</p>
                         @endif
                     @endif
+                    @if (!empty($glsPoint['id']))
+                        <p class="mt-1 text-xs text-slate-700"><strong>GLS lokacija:</strong> {{ $glsPoint['name'] ?: '-' }} ({{ $glsPoint['id'] }})</p>
+                        @if (!empty($glsPoint['address_line_1']) || !empty($glsPoint['postal_code']) || !empty($glsPoint['city']))
+                            <p class="text-xs text-slate-600">{{ trim(($glsPoint['address_line_1'] ?? '').', '.($glsPoint['postal_code'] ?? '').' '.($glsPoint['city'] ?? ''), ', ') }}</p>
+                        @endif
+                    @endif
                 </div>
             </div>
 
@@ -129,6 +140,48 @@
                     <div class="mt-2 text-sm text-slate-800">
                         <p><strong>{{ __('Locker') }}:</strong> {{ $boxNow['locker_name'] ?: '-' }} ({{ $boxNow['locker_id'] }})</p>
                         <p><strong>{{ __('Address') }}:</strong> {{ trim(($boxNow['address_line_1'] ?? '').', '.($boxNow['postal_code'] ?? '').' '.($boxNow['city'] ?? ''), ', ') ?: '-' }}</p>
+                    </div>
+                </div>
+            @endif
+
+            @if ($isGls)
+                <div class="mt-4 rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-800">GLS pošiljka</p>
+                            @if (!empty($glsPoint['id']))
+                                <p class="mt-2 text-sm text-slate-800"><strong>Lokacija:</strong> {{ $glsPoint['name'] ?: '-' }} ({{ $glsPoint['id'] }})</p>
+                                <p class="text-xs text-slate-600">{{ trim(($glsPoint['address_line_1'] ?? '').', '.($glsPoint['postal_code'] ?? '').' '.($glsPoint['city'] ?? ''), ', ') }}</p>
+                            @endif
+                            @if (!empty($glsShipment['parcel_number']))
+                                <p class="mt-2 text-sm text-slate-800"><strong>Broj paketa:</strong> {{ $glsShipment['parcel_number'] }}</p>
+                                <p class="text-xs text-slate-600">
+                                    {{ strtoupper((string) ($glsShipment['mode'] ?? 'test')) }}
+                                    @if (!empty($glsShipment['sent_at']))
+                                        · {{ \Illuminate\Support\Carbon::parse($glsShipment['sent_at'])->format('d.m.Y. H:i') }}
+                                    @endif
+                                </p>
+                            @else
+                                <p class="mt-2 text-sm text-slate-700">Pošiljka još nije poslana u GLS.</p>
+                            @endif
+                            @if (!empty($glsLastError['message']))
+                                <p class="mt-2 text-xs font-semibold text-rose-700">{{ $glsLastError['message'] }}</p>
+                            @endif
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <form method="POST" action="{{ route('admin.orders.gls.send', $order) }}">
+                                @csrf
+                                <button type="submit" class="rounded-lg bg-cyan-700 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-800">
+                                    {{ !empty($glsShipment['parcel_number']) ? __('Ponovno generiraj naljepnicu') : __('Pošalji u GLS') }}
+                                </button>
+                            </form>
+                            @if (!empty($glsShipment['label_path']))
+                                <a href="{{ route('admin.orders.gls.label', $order) }}" class="rounded-lg border border-cyan-300 bg-white px-3 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100">
+                                    {{ __('Preuzmi PDF naljepnicu') }}
+                                </a>
+                            @endif
+                        </div>
                     </div>
                 </div>
             @endif

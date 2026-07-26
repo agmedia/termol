@@ -14,6 +14,8 @@ use App\Models\Settings\Local\OrderStatus;
 use App\Models\Settings\Local\PaymentMethod;
 use App\Models\Settings\Local\ShippingMethod;
 use App\Models\User;
+use App\Services\Shipping\ShippingCalculator;
+use App\Support\GlsShipping;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -21,9 +23,9 @@ use Illuminate\Validation\ValidationException;
 class CheckoutService
 {
     public function __construct(
-        private readonly CartService $cart
-    ) {
-    }
+        private readonly CartService $cart,
+        private readonly ShippingCalculator $shippingCalculator,
+    ) {}
 
     /**
      * @return Collection<int, PaymentMethod>
@@ -33,8 +35,7 @@ class CheckoutService
         ?string $countryCode = null,
         ?string $regionCode = null,
         ?string $postalCode = null
-    ): Collection
-    {
+    ): Collection {
         $zoneIds = $this->resolveGeoZoneIdsForAddress($countryCode, $regionCode, $postalCode);
 
         return PaymentMethod::query()
@@ -55,22 +56,34 @@ class CheckoutService
         ?string $countryCode = null,
         ?string $regionCode = null,
         ?string $postalCode = null
-    ): Collection
-    {
+    ): Collection {
         $zoneIds = $this->resolveGeoZoneIdsForAddress($countryCode, $regionCode, $postalCode);
+        $lines = $this->cart->lines();
 
         return ShippingMethod::query()
             ->where('is_active', true)
+            ->with('rates')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
             ->filter(fn (ShippingMethod $method) => $this->methodMatchesGeoZones($method->geo_zone_id, $zoneIds))
             ->filter(fn (ShippingMethod $method) => $this->subtotalFits($subtotal, $method->min_subtotal, $method->max_subtotal))
+            ->filter(function (ShippingMethod $method) use ($lines, $subtotal): bool {
+                $quote = $this->shippingCalculator->quote($method, $lines, $subtotal);
+                if ($quote === null) {
+                    return false;
+                }
+
+                $method->setAttribute('resolved_price', (float) $quote['price']);
+                $method->setAttribute('shipping_quote', $quote);
+
+                return true;
+            })
             ->values();
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function placeOrder(array $payload, ?User $user = null): Order
     {
@@ -132,6 +145,15 @@ class CheckoutService
             if ($lockerId === '') {
                 throw ValidationException::withMessages([
                     'shipping_boxnow_locker_id' => __('ui.checkout.validation.boxnow_locker_required'),
+                ]);
+            }
+        }
+
+        if (GlsShipping::isGlsDpmShippingMethod($shippingMethod)) {
+            $glsDpmId = trim((string) ($payload['shipping_gls_dpm_id'] ?? ''));
+            if ($glsDpmId === '') {
+                throw ValidationException::withMessages([
+                    'shipping_gls_dpm_id' => __('Odaberite GLS paketomat ili ParcelShop lokaciju.'),
                 ]);
             }
         }
@@ -229,6 +251,9 @@ class CheckoutService
                     'placed_from' => 'frontend_checkout',
                     'coupon_code' => (string) ($summary['coupon_code'] ?? ''),
                     'shipping' => [
+                        'calculation' => is_array($shippingMethod->getAttribute('shipping_quote'))
+                            ? $shippingMethod->getAttribute('shipping_quote')
+                            : null,
                         'boxnow' => $this->isBoxNowCode((string) $shippingMethod->code)
                             ? [
                                 'locker_id' => trim((string) ($payload['shipping_boxnow_locker_id'] ?? '')),
@@ -236,6 +261,18 @@ class CheckoutService
                                 'address_line_1' => trim((string) ($payload['shipping_boxnow_address_line_1'] ?? '')),
                                 'postal_code' => trim((string) ($payload['shipping_boxnow_postal_code'] ?? '')),
                                 'city' => trim((string) ($payload['shipping_boxnow_city'] ?? '')),
+                            ]
+                            : null,
+                        'gls_dpm' => GlsShipping::isGlsDpmShippingMethod($shippingMethod)
+                            ? [
+                                'id' => trim((string) ($payload['shipping_gls_dpm_id'] ?? '')),
+                                'external_id' => trim((string) ($payload['shipping_gls_dpm_external_id'] ?? '')),
+                                'name' => trim((string) ($payload['shipping_gls_dpm_name'] ?? '')),
+                                'type' => trim((string) ($payload['shipping_gls_dpm_type'] ?? '')),
+                                'address_line_1' => trim((string) ($payload['shipping_gls_dpm_address_line_1'] ?? '')),
+                                'postal_code' => trim((string) ($payload['shipping_gls_dpm_postal_code'] ?? '')),
+                                'city' => trim((string) ($payload['shipping_gls_dpm_city'] ?? '')),
+                                'filter_type' => GlsShipping::glsDpmFilterType($shippingMethod),
                             ]
                             : null,
                     ],
@@ -376,6 +413,10 @@ class CheckoutService
 
     private function resolveShippingTotal(ShippingMethod $shippingMethod, float $subtotal): float
     {
+        if (is_numeric($shippingMethod->getAttribute('resolved_price'))) {
+            return round(max(0, (float) $shippingMethod->getAttribute('resolved_price')), 2);
+        }
+
         $price = (float) $shippingMethod->price;
         $freeOver = is_numeric($shippingMethod->free_over) ? (float) $shippingMethod->free_over : null;
 
@@ -512,7 +553,6 @@ class CheckoutService
     }
 
     /**
-     * @param  int|string|null  $methodGeoZoneId
      * @param  array<int, int>  $zoneIds
      */
     private function methodMatchesGeoZones(int|string|null $methodGeoZoneId, array $zoneIds): bool
@@ -522,6 +562,7 @@ class CheckoutService
         }
 
         $zoneId = (int) $methodGeoZoneId;
+
         return in_array($zoneId, $zoneIds, true);
     }
 

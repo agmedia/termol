@@ -94,7 +94,8 @@ class CartService
             ->with([
                 'media',
                 'taxRate',
-                'categories:id',
+                'categories:id,payload',
+                'packages',
                 'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
                 'manufacturer.translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
             ])
@@ -153,7 +154,8 @@ class CartService
             $storedDiscountedUnitPrice = $resolvedAction
                 ? $this->actionResolver->applyToPrice($storedAudienceUnitPrice, $resolvedAction)
                 : $storedAudienceUnitPrice;
-            $baseUnitPrice = $this->taxPricing->normalizeNetPrice($storedBaseUnitPrice, $product);
+            $catalogUnitPrice = $this->taxPricing->normalizeNetPrice($storedBaseUnitPrice, $product);
+            $baseUnitPrice = $this->taxPricing->normalizeNetPrice($storedAudienceUnitPrice, $product);
             $unitPrice = $this->taxPricing->normalizeNetPrice($storedDiscountedUnitPrice, $product);
             $unitDiscount = round(max(0, $baseUnitPrice - $unitPrice), 2);
             $lineDiscountTotal = round($unitDiscount * $qty, 2);
@@ -163,6 +165,7 @@ class CartService
             $lineTaxTotal = round($unitTaxAmount * $qty, 2);
             $displayUnitPrice = round($unitPrice + $unitTaxAmount, 2);
             $displayBaseUnitPrice = round($baseUnitPrice + $baseUnitTaxAmount, 2);
+            $displayCatalogUnitPrice = (float) $this->taxPricing->grossFromStored($storedBaseUnitPrice, $product);
             $displayLineTotal = round($lineTotal + $lineTaxTotal, 2);
             $taxRateValue = (float) ($this->taxPricing->resolveRateForProduct($product)?->rate ?? 0);
             $translation = $product->translations->firstWhere('locale', $locale)
@@ -179,10 +182,12 @@ class CartService
                 'option_value_label' => $optionMeta['value'],
                 'sku' => (string) ($optionRow?->sku ?: $product->sku ?: ''),
                 'quantity' => $qty,
+                'catalog_unit_price' => $catalogUnitPrice,
                 'base_unit_price' => $baseUnitPrice,
                 'unit_price' => $unitPrice,
                 'display_unit_price' => $displayUnitPrice,
                 'display_base_unit_price' => $displayBaseUnitPrice,
+                'display_catalog_unit_price' => $displayCatalogUnitPrice,
                 'unit_discount' => $unitDiscount,
                 'line_discount_total' => $lineDiscountTotal,
                 'line_total' => $lineTotal,
@@ -190,7 +195,14 @@ class CartService
                 'line_tax_total' => $lineTaxTotal,
                 'tax_rate' => $taxRateValue,
                 'action_code' => $resolvedAction?->code,
-                'price_source' => $groupPrice ? 'b2b' : ($resolvedAction ? 'action' : 'base'),
+                'price_source' => match (true) {
+                    $groupPrice !== null && $resolvedAction !== null => 'b2b_action',
+                    $groupPrice !== null => 'b2b',
+                    $resolvedAction !== null => 'action',
+                    default => 'base',
+                },
+                'is_b2b_price' => $groupPrice !== null,
+                'has_promotional_discount' => $resolvedAction !== null && $unitDiscount > 0,
                 'group_price_id' => $groupPrice?->group_price_id,
                 'b2b_rule_id' => $groupPrice?->rule_id,
                 'b2b_source_type' => $groupPrice?->source_type,

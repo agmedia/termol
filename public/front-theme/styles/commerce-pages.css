@@ -1,10 +1,14 @@
 .commerce-body {
-    --commerce-accent: #11896d;
-    --commerce-accent-hover: #0d6f59;
-    --commerce-accent-soft: #f0faf7;
-    --commerce-border: #d7dee7;
-    --commerce-border-strong: #aab7c6;
+    --commerce-accent: var(--store-announcement-background-color, #0057c8);
+    --commerce-accent-hover: color-mix(in srgb, var(--commerce-accent) 84%, #000);
+    --commerce-accent-soft: color-mix(in srgb, var(--commerce-accent) 7%, #fff);
+    --commerce-orange: var(--navigation-background-color, #e65100);
+    --commerce-border: #dbe4ee;
+    --commerce-border-strong: #b5c4d6;
     --commerce-muted: #64748b;
+    --commerce-ink: #0f172a;
+    --commerce-surface: #f8fafc;
+    --commerce-form-surface: #f3f6fa;
 }
 
 .commerce-main {
@@ -27,6 +31,21 @@
 .commerce-main .commerce-hero p,
 .commerce-main .front-soft-hero p {
     max-width: 48rem;
+}
+
+.commerce-main .commerce-hero h1,
+.commerce-main .front-soft-hero h1 {
+    color: var(--commerce-ink);
+}
+
+.commerce-main .commerce-hero::before,
+.commerce-main .front-soft-hero::before {
+    display: block;
+    width: 44px;
+    height: 4px;
+    margin-bottom: .9rem;
+    background: var(--commerce-orange);
+    content: "";
 }
 
 .commerce-main > nav[aria-label="Breadcrumb"] ol {
@@ -56,28 +75,57 @@
 .commerce-main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
 .commerce-main select,
 .commerce-main textarea {
-    min-height: 48px;
+    min-height: 50px;
     border: 1px solid var(--commerce-border-strong);
-    border-radius: 3px;
+    border-radius: 0;
     background: #fff;
-    color: #111827;
+    color: var(--commerce-ink);
     transition:
         border-color .18s ease,
-        box-shadow .18s ease;
+        background-color .18s ease;
 }
 
 .commerce-main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):hover,
 .commerce-main select:hover,
 .commerce-main textarea:hover {
-    border-color: #7c8b9c;
+    border-color: #8294aa;
+    background: #fcfdff;
 }
 
 .commerce-main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus,
 .commerce-main select:focus,
 .commerce-main textarea:focus {
     border-color: var(--commerce-accent);
-    outline: none;
-    box-shadow: 0 0 0 3px rgb(17 137 109 / 14%);
+    outline: 3px solid color-mix(in srgb, var(--commerce-accent) 16%, transparent);
+    outline-offset: 1px;
+}
+
+.commerce-main input::placeholder,
+.commerce-main textarea::placeholder {
+    color: #8a99aa;
+    opacity: 1;
+}
+
+.commerce-main form label.block,
+.commerce-main form legend {
+    color: #41526a;
+}
+
+.commerce-main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])[aria-invalid="true"],
+.commerce-main select[aria-invalid="true"],
+.commerce-main textarea[aria-invalid="true"],
+.mobile-commerce-body input[aria-invalid="true"],
+.mobile-commerce-body select[aria-invalid="true"],
+.mobile-commerce-body textarea[aria-invalid="true"] {
+    border-color: #e11d48;
+}
+
+.commerce-main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])[aria-invalid="true"]:focus,
+.commerce-main select[aria-invalid="true"]:focus,
+.commerce-main textarea[aria-invalid="true"]:focus {
+    border-color: #e11d48;
+    outline: 3px solid rgb(225 29 72 / 14%);
+    outline-offset: 1px;
 }
 
 .commerce-main input[type="checkbox"],
@@ -89,11 +137,11 @@
 .commerce-primary-action,
 .commerce-body .commerce-primary-action {
     display: inline-flex;
-    min-height: 48px;
+    min-height: 52px;
     align-items: center;
     justify-content: center;
     border: 1px solid var(--commerce-accent);
-    border-radius: 3px;
+    border-radius: 0;
     background: var(--commerce-accent);
     color: #fff;
     font-size: .875rem;
@@ -102,7 +150,6 @@
     transition:
         border-color .18s ease,
         background-color .18s ease,
-        box-shadow .18s ease,
         transform .18s ease;
 }
 
@@ -114,8 +161,8 @@
 }
 
 .commerce-primary-action:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 4px rgb(17 137 109 / 18%);
+    outline: 3px solid color-mix(in srgb, var(--commerce-accent) 24%, transparent);
+    outline-offset: 2px;
 }
 
 .commerce-primary-action:active {
@@ -124,30 +171,46 @@
 
 .commerce-secondary-action {
     display: inline-flex;
-    min-height: 44px;
+    min-height: 50px;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--commerce-border-strong);
-    border-radius: 3px;
+    border: 1px solid var(--commerce-accent);
+    border-radius: 0;
     background: #fff;
-    color: #334155;
-    font-weight: 650;
+    color: var(--commerce-accent);
+    font-weight: 700;
     transition:
         border-color .18s ease,
         background-color .18s ease,
-        color .18s ease,
-        box-shadow .18s ease;
+        color .18s ease;
 }
 
 .commerce-secondary-action:hover {
     border-color: var(--commerce-accent);
     background: var(--commerce-accent-soft);
-    color: var(--commerce-accent-hover);
+    color: var(--commerce-accent);
 }
 
 .commerce-secondary-action:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 4px rgb(17 137 109 / 14%);
+    outline: 3px solid color-mix(in srgb, var(--commerce-accent) 20%, transparent);
+    outline-offset: 2px;
+}
+
+.auth-inline-link {
+    color: var(--commerce-accent);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--commerce-accent) 35%, transparent);
+    text-underline-offset: 3px;
+}
+
+.auth-inline-link:hover {
+    color: var(--commerce-accent-hover);
+    text-decoration-color: currentColor;
+}
+
+.auth-inline-link:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--commerce-accent) 20%, transparent);
+    outline-offset: 3px;
 }
 
 .cart-layout {
@@ -333,6 +396,7 @@
 
 .commerce-account-nav-link[aria-current="page"] {
     border-color: var(--commerce-accent);
+    border-left: 4px solid var(--commerce-orange);
     background: var(--commerce-accent);
     color: #fff;
 }
@@ -345,7 +409,7 @@
 .account-commerce-body .commerce-main a:not(.commerce-primary-action):not(.commerce-secondary-action):focus-visible,
 .cart-commerce-body .commerce-main a:not(.commerce-primary-action):not(.commerce-secondary-action):focus-visible {
     border-radius: 2px;
-    outline: 3px solid rgb(17 137 109 / 22%);
+    outline: 3px solid color-mix(in srgb, var(--commerce-accent) 22%, transparent);
     outline-offset: 3px;
 }
 
@@ -357,16 +421,20 @@
 
 .account-commerce-body .commerce-main article a:hover,
 .account-commerce-body .commerce-main td a:not(.commerce-secondary-action):hover {
-    color: #075c49;
+    color: var(--commerce-accent-hover);
 }
 
 .account-commerce-body .commerce-main fieldset {
     border-color: var(--commerce-border);
-    border-radius: 3px;
+    border-radius: 0;
+    background: var(--commerce-surface);
 }
 
 .account-profile-commerce-body .commerce-main form.border-slate-200.bg-white {
-    background: #f4f7fb;
+    border-color: var(--commerce-border);
+    border-top: 3px solid var(--commerce-accent);
+    border-radius: 3px;
+    background: var(--commerce-form-surface);
 }
 
 .returns-layout {
@@ -379,7 +447,8 @@
 .returns-form-card {
     border-color: var(--commerce-border);
     border-radius: 4px;
-    background: #f4f7fb;
+    border-top: 4px solid var(--commerce-orange);
+    background: var(--commerce-form-surface);
 }
 
 .returns-form-card textarea {
@@ -392,6 +461,7 @@
     top: 7rem;
     border-color: var(--commerce-border);
     border-radius: 4px;
+    background: var(--commerce-surface);
 }
 
 .auth-layout {
@@ -408,7 +478,19 @@
 }
 
 .auth-form-card {
-    background: #f4f7fb;
+    border-top: 4px solid var(--commerce-orange);
+    background: var(--commerce-form-surface);
+}
+
+.auth-form-card > h2,
+.auth-side-card h2,
+.returns-form-card > h2,
+.contact-form-card > h2 {
+    color: var(--commerce-ink);
+}
+
+.auth-side-card {
+    background: var(--commerce-surface);
 }
 
 .contact-layout {
@@ -421,7 +503,8 @@
 .contact-form-card {
     border-color: var(--commerce-border);
     border-radius: 4px;
-    background: #f4f7fb;
+    border-top: 4px solid var(--commerce-orange);
+    background: var(--commerce-form-surface);
 }
 
 .contact-form-card textarea {
@@ -430,21 +513,27 @@
 }
 
 .mobile-commerce-body {
-    --commerce-accent: #11896d;
-    --commerce-accent-hover: #0d6f59;
-    --commerce-border: #d7dee7;
-    --commerce-border-strong: #aab7c6;
+    --commerce-accent: var(--store-announcement-background-color, #0057c8);
+    --commerce-accent-hover: color-mix(in srgb, var(--commerce-accent) 84%, #000);
+    --commerce-accent-soft: color-mix(in srgb, var(--commerce-accent) 7%, #fff);
+    --commerce-orange: var(--navigation-background-color, #e65100);
+    --commerce-border: #dbe4ee;
+    --commerce-border-strong: #b5c4d6;
+    --commerce-ink: #0f172a;
+    --commerce-surface: #f8fafc;
+    --commerce-form-surface: #f3f6fa;
 }
 
 .mobile-commerce-body .card.card-style {
     border: 1px solid var(--commerce-border);
-    border-radius: 6px;
+    border-radius: 3px;
+    background: #fff;
     box-shadow: none;
 }
 
 .mobile-commerce-body .account-mobile-identity {
     min-height: 150px;
-    background: #f0faf7 !important;
+    background: var(--commerce-accent-soft) !important;
 }
 
 .mobile-commerce-body .account-mobile-identity .card-overlay {
@@ -463,18 +552,33 @@
 .mobile-commerce-body .input-style.has-borders input,
 .mobile-commerce-body .input-style.has-borders select,
 .mobile-commerce-body .input-style.has-borders textarea,
+.mobile-commerce-body input.form-control,
+.mobile-commerce-body select.form-select,
+.mobile-commerce-body textarea.form-control,
 .mobile-cart-commerce-body input.form-control {
-    min-height: 48px;
+    min-height: 50px;
     border-color: var(--commerce-border-strong) !important;
-    border-radius: 3px !important;
+    border-radius: 0 !important;
+    background: #fff !important;
 }
 
 .mobile-commerce-body .input-style.has-borders input:focus,
 .mobile-commerce-body .input-style.has-borders select:focus,
 .mobile-commerce-body .input-style.has-borders textarea:focus,
+.mobile-commerce-body input.form-control:focus,
+.mobile-commerce-body select.form-select:focus,
+.mobile-commerce-body textarea.form-control:focus,
 .mobile-cart-commerce-body input.form-control:focus {
     border-color: var(--commerce-accent) !important;
-    box-shadow: 0 0 0 3px rgb(17 137 109 / 14%) !important;
+    outline: 3px solid color-mix(in srgb, var(--commerce-accent) 16%, transparent) !important;
+    outline-offset: 1px;
+    box-shadow: none !important;
+}
+
+.mobile-commerce-body input::placeholder,
+.mobile-commerce-body textarea::placeholder {
+    color: #8a99aa;
+    opacity: 1;
 }
 
 .mobile-commerce-body .input-style label.color-highlight,
@@ -490,9 +594,9 @@
 
 .mobile-commerce-body .commerce-primary-action,
 .mobile-commerce-body .gradient-blue {
-    min-height: 48px;
+    min-height: 52px;
     border: 1px solid var(--commerce-accent) !important;
-    border-radius: 3px !important;
+    border-radius: 0 !important;
     background: var(--commerce-accent) !important;
     background-image: none !important;
     color: #fff !important;
@@ -539,7 +643,8 @@
 }
 
 .mobile-account-profile-commerce-body .card.card-style {
-    background: #f4f7fb;
+    border-top: 3px solid var(--commerce-accent);
+    background: var(--commerce-form-surface);
 }
 
 .mobile-account-profile-commerce-body .input-style.has-borders input,
@@ -554,7 +659,8 @@
 }
 
 .mobile-returns-commerce-body .returns-mobile-form {
-    background: #f4f7fb;
+    border-top: 4px solid var(--commerce-orange);
+    background: var(--commerce-form-surface);
 }
 
 .mobile-returns-commerce-body .returns-mobile-form input,
@@ -563,23 +669,49 @@
 }
 
 .mobile-auth-commerce-body .auth-mobile-form {
-    background: #f4f7fb;
+    border-top: 4px solid var(--commerce-orange);
+    background: var(--commerce-form-surface);
 }
 
 .mobile-auth-commerce-body .auth-mobile-form input {
-    min-height: 48px;
+    min-height: 50px;
     border-color: var(--commerce-border-strong) !important;
-    border-radius: 3px !important;
+    border-radius: 0 !important;
     background: #fff !important;
 }
 
 .mobile-contact-commerce-body .contact-mobile-form {
-    background: #f4f7fb;
+    border-top: 4px solid var(--commerce-orange);
+    background: var(--commerce-form-surface);
 }
 
 .mobile-contact-commerce-body .contact-mobile-form input,
 .mobile-contact-commerce-body .contact-mobile-form textarea {
     background: #fff !important;
+}
+
+.mobile-commerce-body .card.card-style:has(> .content > form) {
+    background: var(--commerce-form-surface);
+}
+
+.mobile-commerce-body .btn-border {
+    min-height: 50px;
+    border-color: var(--commerce-accent) !important;
+    border-radius: 0 !important;
+    color: var(--commerce-accent) !important;
+    font-weight: 700;
+}
+
+.mobile-commerce-body .btn-border:hover,
+.mobile-commerce-body .btn-border:focus {
+    background: var(--commerce-accent-soft) !important;
+    color: var(--commerce-accent) !important;
+}
+
+.mobile-commerce-body .auth-mobile-form h3,
+.mobile-commerce-body .returns-mobile-form h3,
+.mobile-commerce-body .contact-mobile-form h3 {
+    color: var(--commerce-ink);
 }
 
 @media (max-width: 1023px) {

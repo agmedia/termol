@@ -99,6 +99,7 @@
                             <option value="{{ $targetTypeKey }}" @selected((string) ($form['slot_target_type'] ?? '') === (string) $targetTypeKey)>{{ $targetTypeLabel }}</option>
                         @endforeach
                     </select>
+                    @error('form.slot_target_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
@@ -116,10 +117,12 @@
                 <div>
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Starts At') }}</label>
                     <input type="datetime-local" wire:model="form.slot_starts_at" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    @error('form.slot_starts_at') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Ends At') }}</label>
                     <input type="datetime-local" wire:model="form.slot_ends_at" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    @error('form.slot_ends_at') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex items-end">
                     <button
@@ -164,13 +167,11 @@
                     </div>
                 </div>
 
-                @if (in_array(($form['type'] ?? ''), ['five_star_reviews_carousel', 'blogs_carousel', 'category_products_carousel'], true))
+                @if (in_array(($form['type'] ?? ''), ['five_star_reviews_carousel', 'blogs_carousel'], true))
                     <div class="mt-3">
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                             @if (($form['type'] ?? '') === 'blogs_carousel')
                                 {{ __('Number of blog posts to show') }}
-                            @elseif (($form['type'] ?? '') === 'category_products_carousel')
-                                {{ __('Number of products to show') }}
                             @else
                                 {{ __('Number of comments to show') }}
                             @endif
@@ -271,13 +272,100 @@
             </div>
         </div>
 
+        @if (($form['type'] ?? '') === 'category_products_carousel')
+            <div class="admin-panel admin-form-panel p-6">
+                <p class="admin-section-title">{{ __('Product display settings') }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ __('Control how many products are loaded, which brands are included, and how products are sorted.') }}</p>
+
+                <div class="mt-4 grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Number of products to show') }}</label>
+                        <input type="number" min="1" max="50" wire:model="form.items_limit" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                        @error('form.items_limit') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Product sorting') }}</label>
+                        <select wire:model.live="form.product_sort" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                            @foreach ($this->categoryProductSortOptions as $sortKey => $sortLabel)
+                                <option value="{{ $sortKey }}" @selected(($form['product_sort'] ?? 'category_order') === $sortKey)>{{ $sortLabel }}</option>
+                            @endforeach
+                        </select>
+                        @error('form.product_sort') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <div class="mt-5">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Brand filter') }}</label>
+                            <p class="mt-1 text-xs text-slate-500">{{ __('Leave all brands unchecked to include products from every brand.') }}</p>
+                        </div>
+                        @if (count((array) ($form['manufacturer_ids'] ?? [])) > 0)
+                            <button type="button" wire:click="clearManufacturerFilters" class="text-xs font-semibold text-cyan-700 hover:text-cyan-900">
+                                {{ __('Clear brand filter') }} ({{ count((array) ($form['manufacturer_ids'] ?? [])) }})
+                            </button>
+                        @endif
+                    </div>
+
+                    <input
+                        type="text"
+                        wire:model.live.debounce.300ms="manufacturerFilterSearch"
+                        class="mt-3 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                        placeholder="{{ __('Search brands...') }}"
+                    />
+
+                    <div class="mt-2 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                            @forelse ($this->manufacturerFilterOptions as $manufacturer)
+                                <label wire:key="category-product-manufacturer-{{ $manufacturer['id'] }}" class="flex cursor-pointer items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow-sm ring-1 ring-slate-200">
+                                    <input
+                                        type="checkbox"
+                                        value="{{ $manufacturer['id'] }}"
+                                        wire:model="form.manufacturer_ids"
+                                        class="rounded border-slate-300 text-cyan-700 focus:ring-cyan-500"
+                                    />
+                                    <span>
+                                        {{ $manufacturer['label'] }}
+                                        @if (! $manufacturer['is_active'])
+                                            <span class="text-xs text-slate-400">({{ __('inactive') }})</span>
+                                        @endif
+                                    </span>
+                                </label>
+                            @empty
+                                <p class="text-sm text-slate-500 sm:col-span-2 xl:col-span-3">{{ __('No brands found.') }}</p>
+                            @endforelse
+                        </div>
+                    </div>
+                    @error('form.manufacturer_ids') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    @error('form.manufacturer_ids.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+            </div>
+        @endif
+
         @if ($this->isItemBlock)
             <div class="admin-panel admin-form-panel p-6">
                 <p class="admin-section-title">
-                    {{ ($form['type'] ?? '') === 'category_products_carousel' ? __('Source category') : __('Selected Items') }}
+                    @if (($form['type'] ?? '') === 'category_products_carousel')
+                        {{ __('Source category') }}
+                    @elseif (($form['type'] ?? '') === 'featured_categories')
+                        {{ __('Featured Categories') }}
+                    @elseif (($form['type'] ?? '') === 'popular_brands')
+                        {{ __('Popular Brands') }}
+                    @else
+                        {{ __('Selected Items') }}
+                    @endif
                 </p>
                 <p class="mt-1 text-xs text-slate-500">
-                    {{ ($form['type'] ?? '') === 'category_products_carousel' ? __('Choose one category. Products are loaded automatically from it and its subcategories.') : __('Choose items and order them. No JSON IDs needed.') }}
+                    @if (($form['type'] ?? '') === 'category_products_carousel')
+                        {{ __('Choose one category. Products are loaded automatically from it and its subcategories.') }}
+                    @elseif (($form['type'] ?? '') === 'featured_categories')
+                        {{ __('Choose and order the categories shown in this module.') }}
+                    @elseif (($form['type'] ?? '') === 'popular_brands')
+                        {{ __('Choose and order the brands shown in this module.') }}
+                    @else
+                        {{ __('Choose items and order them. No JSON IDs needed.') }}
+                    @endif
                 </p>
 
                 <div class="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">

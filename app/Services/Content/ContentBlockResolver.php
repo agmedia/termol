@@ -46,8 +46,10 @@ class ContentBlockResolver
                     ->with([
                         'block',
                         'block.items',
+                        'block.media',
                         'block.translations' => fn ($q) => $q->whereIn('locale', [$locale, config('app.locale')]),
                     ])
+                    ->whereHas('block', fn ($query) => $query->where('is_active', true))
                     ->where('placement', $placement)
                     ->currentlyActive()
                     ->when($targetType !== null, function ($query) use ($targetType, $targetRef): void {

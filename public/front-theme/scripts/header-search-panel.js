@@ -25,6 +25,7 @@
         const emptyState = form.querySelector('[data-header-search-empty]');
         const footer = form.querySelector('[data-header-search-footer]');
         const viewAllLink = form.querySelector('[data-header-search-view-all]');
+        const b2bPriceLabel = String(form.dataset.autocompleteB2bLabel || 'B2B').trim();
 
         const autocompleteEnabled = form.dataset.autocompleteEnabled === '1'
             && !!form.dataset.autocompleteEndpoint
@@ -183,6 +184,13 @@
                 currentPrice.className = 'header-search-suggestion-price';
                 currentPrice.textContent = item.price;
                 prices.appendChild(currentPrice);
+
+                if (item.is_b2b_price) {
+                    const b2bLabel = document.createElement('span');
+                    b2bLabel.className = 'header-search-suggestion-b2b';
+                    b2bLabel.textContent = b2bPriceLabel;
+                    prices.appendChild(b2bLabel);
+                }
 
                 if (item.has_discount && item.old_price) {
                     const oldPrice = document.createElement('span');

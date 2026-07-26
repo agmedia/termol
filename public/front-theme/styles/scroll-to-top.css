@@ -35,7 +35,7 @@
 
 .scroll-to-top-button:hover {
     background: var(--navigation-highlight-color, #0057c8);
-    color: #fff;
+    color: var(--navigation-background-color, #e65100);
     transform: translateY(-2px) scale(1.05);
     box-shadow: 0 16px 34px rgba(15, 23, 42, 0.28);
 }

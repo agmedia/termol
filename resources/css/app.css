@@ -895,6 +895,363 @@
     margin-left: auto;
 }
 
+.storefront-widget-wide {
+    position: relative;
+    left: 50%;
+    width: calc(100vw - 2rem);
+    max-width: var(--storefront-container-width, 1860px);
+    transform: translateX(-50%);
+}
+
+.storefront-widget-heading--split {
+    text-align: left;
+}
+
+.storefront-widget-heading-title {
+    color: var(--reading-slate-900);
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -.025em;
+}
+
+.storefront-widget-heading-meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: .75rem;
+    margin-top: .25rem;
+    color: var(--reading-slate-700);
+    font-size: .875rem;
+    line-height: 1.5;
+}
+
+.storefront-widget-heading-link {
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    transition: color .15s ease;
+}
+
+.storefront-widget-heading-link:hover,
+.storefront-widget-heading-link:focus-visible {
+    color: var(--reading-slate-500);
+}
+
+.home-news-heading {
+    margin-bottom: 1.5rem;
+}
+
+.home-news-carousel .splide__arrow {
+    width: 46px;
+    height: 46px;
+    border: 1px solid rgba(255, 255, 255, .75);
+    border-radius: 9999px;
+    opacity: 0;
+    background: rgba(15, 23, 42, .35);
+    backdrop-filter: blur(6px);
+    transform: translateY(-50%) scale(.92);
+    transition: opacity .25s ease, transform .25s ease, background-color .25s ease;
+}
+
+.home-news-carousel:hover .splide__arrow,
+.home-news-carousel:focus-within .splide__arrow {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+}
+
+.home-news-carousel .splide__arrow:hover {
+    background: rgba(15, 23, 42, .55);
+}
+
+.home-news-carousel .splide__arrow svg {
+    fill: #fff;
+}
+
+.home-news-carousel .splide__pagination {
+    bottom: -1.1rem;
+    gap: .4rem;
+}
+
+.home-news-carousel .splide__pagination__page {
+    width: 10px;
+    height: 10px;
+    margin: 0;
+    border: 2px solid transparent;
+    opacity: .95;
+    background: #fff !important;
+    transition: transform .2s linear, background-color .2s linear, border-color .2s linear;
+}
+
+.home-news-carousel .splide__pagination__page.is-active {
+    border-color: #fff;
+    background: #0f172a !important;
+    transform: none;
+}
+
+@media (hover: none) {
+    .home-news-carousel .splide__arrow {
+        opacity: 1;
+        transform: translateY(-50%) scale(1);
+    }
+}
+
+.featured-categories {
+    --featured-category-line: #e2e8f0;
+    --featured-category-ink: #18212f;
+    --featured-category-muted: #667085;
+}
+
+.featured-categories-heading {
+    margin-bottom: 1.5rem;
+}
+
+.featured-categories-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-top: 1px solid var(--featured-category-line);
+    border-left: 1px solid var(--featured-category-line);
+}
+
+.featured-category-card {
+    display: flex;
+    min-width: 0;
+    min-height: 100%;
+    border-right: 1px solid var(--featured-category-line);
+    border-bottom: 1px solid var(--featured-category-line);
+    background: #fff;
+    color: var(--featured-category-ink);
+    flex-direction: column;
+    text-decoration: none;
+    transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.featured-category-card:hover {
+    background: #fafbfc;
+    color: var(--featured-category-ink);
+    box-shadow: inset 0 -2px 0 #2859bd;
+    text-decoration: none;
+}
+
+.featured-category-card:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 2px solid #2859bd;
+    outline-offset: -2px;
+}
+
+.featured-category-thumb {
+    display: flex;
+    aspect-ratio: 4 / 3;
+    min-height: 0;
+    overflow: hidden;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: #f8fafc;
+}
+
+.featured-category-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    mix-blend-mode: multiply;
+    transition: transform 200ms ease;
+}
+
+.featured-category-card:hover .featured-category-thumb img {
+    transform: scale(1.025);
+}
+
+.featured-category-placeholder {
+    display: grid;
+    width: 4rem;
+    height: 4rem;
+    color: #94a3b8;
+    place-items: center;
+}
+
+.featured-category-placeholder svg {
+    width: 2.75rem;
+    height: 2.75rem;
+}
+
+.featured-category-content {
+    display: block;
+    min-width: 0;
+    padding: .875rem 1rem 1rem;
+}
+
+.featured-category-name {
+    display: block;
+    overflow: hidden;
+    color: var(--featured-category-ink);
+    font-size: .875rem;
+    font-weight: 700;
+    letter-spacing: -.015em;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.featured-category-meta {
+    display: flex;
+    margin-top: .4rem;
+    color: var(--featured-category-muted);
+    flex-wrap: wrap;
+    gap: .25rem;
+    font-size: .625rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    line-height: 1.45;
+    text-transform: uppercase;
+}
+
+.featured-categories-empty {
+    padding: 3rem 1.5rem;
+    border: 1px dashed var(--featured-category-line);
+    background: #f8fafc;
+    color: var(--featured-category-muted);
+    text-align: center;
+}
+
+@media (min-width: 640px) {
+    .featured-categories-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .featured-categories-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+.popular-brands {
+    --popular-brand-line: #e4e7eb;
+    padding-top: 1.5rem;
+    padding-bottom: 3.5rem;
+}
+
+.popular-brands-heading {
+    margin-bottom: 2.5rem;
+}
+
+.popular-brands-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    overflow: hidden;
+    background: var(--popular-brand-line);
+}
+
+.popular-brand-card {
+    display: flex;
+    min-width: 0;
+    min-height: 8.5rem;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: #fff;
+    color: #222;
+    text-decoration: none;
+    transition: background-color 160ms ease;
+}
+
+.popular-brand-card:hover {
+    background: #fafafa;
+    color: #222;
+    text-decoration: none;
+}
+
+.popular-brand-card:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 2px solid #222;
+    outline-offset: -2px;
+}
+
+.popular-brand-logo {
+    display: grid;
+    width: 100%;
+    min-height: 5.5rem;
+    place-items: center;
+}
+
+.popular-brand-logo img {
+    display: block;
+    width: auto;
+    max-width: min(84%, 13.75rem);
+    height: auto;
+    max-height: 5.625rem;
+    object-fit: contain;
+    transition: transform 180ms ease;
+}
+
+.popular-brand-card:hover .popular-brand-logo img {
+    transform: scale(1.025);
+}
+
+.popular-brand-fallback {
+    color: #252525;
+    font-size: clamp(1.25rem, 2.5vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -.04em;
+}
+
+.popular-brands-empty {
+    padding: 3rem 1.5rem;
+    border: 1px dashed var(--popular-brand-line);
+    background: #f8fafc;
+    color: #667085;
+    text-align: center;
+}
+
+@media (min-width: 640px) {
+    .popular-brands-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .popular-brands-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .popular-brand-card {
+        min-height: 10.5rem;
+        padding: 2rem;
+    }
+}
+
+@media (min-width: 641px) {
+    .storefront-widget-heading--split {
+        position: relative;
+        left: 50%;
+        display: flex;
+        width: calc(100vw - 2rem);
+        max-width: var(--storefront-container-width, 1860px);
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1.5rem;
+        text-align: left;
+        transform: translateX(-50%);
+    }
+
+    .storefront-widget-heading-title {
+        font-size: clamp(1.75rem, 2.4vw, 2rem);
+    }
+
+    .storefront-widget-heading-meta {
+        justify-content: flex-end;
+        margin-top: 0;
+        margin-left: auto;
+        font-size: 1rem;
+        text-align: right;
+    }
+}
+
 .storefront-header-container {
     width: calc(100% - 2rem);
     max-width: var(--header-content-width, 1400px);

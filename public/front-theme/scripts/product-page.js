@@ -341,25 +341,11 @@
         return true;
     };
 
-    const initWithRetry = function (initializer) {
-        if (initializer()) {
-            return;
-        }
-
-        let attempts = 0;
-        const timer = window.setInterval(function () {
-            attempts += 1;
-            if (initializer() || attempts > 40) {
-                window.clearInterval(timer);
-            }
-        }, 120);
-    };
-
     ready(function () {
         bindSwatches();
         bindDetailNavigation();
         bindComments();
         bindSizeGuide();
-        initWithRetry(initProductCarousels);
+        initProductCarousels();
     });
 })();

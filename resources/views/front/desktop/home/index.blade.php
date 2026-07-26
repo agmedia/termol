@@ -77,15 +77,15 @@
         </section>
     @endif
 
-    @if ($homeBeforeProductsBlocks->isNotEmpty())
-        <section class="mt-8">
-            @include('components.content-placement', ['items' => $homeBeforeProductsBlocks])
-        </section>
-    @endif
-
     @if ($homeCategoriesBlocks->isNotEmpty())
         <section class="mt-8">
             @include('components.content-placement', ['items' => $homeCategoriesBlocks])
+        </section>
+    @endif
+
+    @if ($homeBeforeProductsBlocks->isNotEmpty())
+        <section class="mt-8">
+            @include('components.content-placement', ['items' => $homeBeforeProductsBlocks])
         </section>
     @endif
 

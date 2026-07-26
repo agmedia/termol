@@ -1322,8 +1322,27 @@ const initAceInline = () => {
         if (!(textarea instanceof HTMLTextAreaElement)) {
             return;
         }
-        if (textarea.dataset.aceInlineBound === '1') {
+
+        const existingMount = textarea.nextElementSibling;
+        const existingState = existingMount instanceof HTMLElement
+            && existingMount.classList.contains('admin-ace-inline')
+            ? existingMount.__adminAceInlineState
+            : null;
+
+        if (existingState?.textarea === textarea) {
+            textarea.dataset.aceInlineBound = '1';
+            textarea.__adminAceInlineState = existingState;
+            textarea.style.display = 'none';
+            textarea.setAttribute('aria-hidden', 'true');
+            textarea.tabIndex = -1;
+            setTimeout(existingState.syncEditorFromTextarea, 0);
+
             return;
+        }
+
+        if (existingMount instanceof HTMLElement && existingMount.classList.contains('admin-ace-inline')) {
+            existingState?.destroy?.();
+            existingMount.remove();
         }
 
         textarea.dataset.aceInlineBound = '1';
@@ -1342,6 +1361,7 @@ const initAceInline = () => {
         let syncTimer = null;
         let syncingFromEditor = false;
         let syncingFromTextarea = false;
+        let valueObserver = null;
 
         const syncTextareaFromEditor = () => {
             if (!editor || syncingFromTextarea) {
@@ -1367,12 +1387,14 @@ const initAceInline = () => {
             syncTimer = setTimeout(syncTextareaFromEditor, 120);
         };
 
-        const syncEditorFromTextarea = () => {
+        const syncEditorFromTextarea = (explicitValue = null) => {
             if (!editor || syncingFromEditor) {
                 return;
             }
 
-            const value = readTextareaValue(textarea);
+            const value = typeof explicitValue === 'string'
+                ? explicitValue
+                : readTextareaValue(textarea);
             if (editor.getValue() === value) {
                 return;
             }
@@ -1382,10 +1404,24 @@ const initAceInline = () => {
             syncingFromTextarea = false;
         };
 
+        const destroy = () => {
+            if (syncTimer) {
+                clearTimeout(syncTimer);
+            }
+            valueObserver?.disconnect();
+            editor?.destroy();
+            delete textarea.__adminAceInlineState;
+            delete mount.__adminAceInlineState;
+        };
+
+        const state = { textarea, syncEditorFromTextarea, destroy };
+        textarea.__adminAceInlineState = state;
+        mount.__adminAceInlineState = state;
+
         textarea.addEventListener('input', syncEditorFromTextarea);
         textarea.addEventListener('change', syncEditorFromTextarea);
 
-        const valueObserver = new MutationObserver(() => {
+        valueObserver = new MutationObserver(() => {
             syncEditorFromTextarea();
         });
         valueObserver.observe(textarea, {
@@ -1420,6 +1456,8 @@ const initAceInline = () => {
             })
             .catch((error) => {
                 console.error('Failed to initialize inline Ace editor', error);
+                delete textarea.__adminAceInlineState;
+                delete mount.__adminAceInlineState;
                 mount.remove();
                 textarea.style.display = '';
                 textarea.removeAttribute('aria-hidden');
@@ -1460,6 +1498,66 @@ const initAceInline = () => {
         childList: true,
         subtree: true,
     });
+
+    if (window.__adminAceInlineTemplateEventBound !== '1') {
+        window.__adminAceInlineTemplateEventBound = '1';
+        window.addEventListener('content-block-template-loaded', (event) => {
+            const template = typeof event.detail?.template === 'string'
+                ? event.detail.template
+                : '';
+
+            document.querySelectorAll(selector).forEach((textarea) => {
+                textarea.value = template;
+                bindElement(textarea);
+                textarea.__adminAceInlineState?.syncEditorFromTextarea(template);
+            });
+        });
+    }
+
+    if (window.__adminAceInlineLivewireHookBound !== '1') {
+        const registerMorphHook = () => {
+            if (window.__adminAceInlineLivewireHookBound === '1') {
+                return;
+            }
+            if (!window.Livewire || typeof window.Livewire.hook !== 'function') {
+                return;
+            }
+
+            const syncEditors = (root) => {
+                const textareas = [];
+
+                if (root instanceof HTMLTextAreaElement && root.matches(selector)) {
+                    textareas.push(root);
+                }
+                root?.querySelectorAll?.(selector).forEach((textarea) => textareas.push(textarea));
+
+                textareas.forEach((textarea) => {
+                    bindElement(textarea);
+
+                    const mount = textarea.nextElementSibling;
+                    const state = textarea.__adminAceInlineState
+                        ?? (mount instanceof HTMLElement ? mount.__adminAceInlineState : null);
+
+                    if (typeof state?.syncEditorFromTextarea === 'function') {
+                        setTimeout(state.syncEditorFromTextarea, 0);
+                    }
+                });
+            };
+
+            window.__adminAceInlineLivewireHookBound = '1';
+            window.Livewire.hook('morphed', ({ el }) => {
+                if (el instanceof HTMLElement || el instanceof HTMLTextAreaElement) {
+                    syncEditors(el);
+                }
+            });
+        };
+
+        if (window.Livewire && typeof window.Livewire.hook === 'function') {
+            registerMorphHook();
+        } else {
+            document.addEventListener('livewire:init', registerMorphHook, { once: true });
+        }
+    }
 };
 
 const initDashboardCharts = () => {

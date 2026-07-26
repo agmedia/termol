@@ -40,6 +40,9 @@
         @if ($cardBrand)
             <p class="product-widget-card-brand">{{ $cardBrand->name }}</p>
         @endif
+        @if (!empty($cardPrice['is_b2b_price']))
+            <p class="font-11 font-600 color-highlight mb-1">{{ __('ui.product.b2b_contract_price') }}</p>
+        @endif
         <div class="product-widget-card-price">
             @if (($cardPrice['old_gross'] ?? null) !== null)
                 <del>{{ number_format((float) $cardPrice['old_gross'], 2) }} €</del>

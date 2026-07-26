@@ -178,7 +178,7 @@
     $gridClass = match ($currentCols) {
         1 => 'grid grid-cols-1',
         2 => 'grid grid-cols-2',
-        3 => 'grid '.($mobileDefaultCols === 2 ? 'grid-cols-2 ' : '').'sm:grid-cols-2 xl:grid-cols-3',
+        3 => 'grid '.($mobileDefaultCols === 2 ? 'grid-cols-2 ' : '').'sm:grid-cols-2 lg:grid-cols-3',
         5 => 'grid '.($mobileDefaultCols === 2 ? 'grid-cols-2 ' : '').'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5',
         default => 'grid '.($mobileDefaultCols === 2 ? 'grid-cols-2 ' : '').'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
     };
@@ -553,7 +553,8 @@
                     @foreach ([3, 4, 5] as $cols)
                         <a
                             href="{{ $catalogUrl(['cols' => $cols]) }}"
-                            class="catalog-grid-toggle {{ $cols === 5 ? 'hidden 2xl:inline-flex' : 'inline-flex' }} {{ $currentCols === $cols ? 'is-active' : '' }}"
+                            class="catalog-grid-toggle {{ $cols === 5 ? 'catalog-grid-toggle--five' : '' }} {{ $currentCols === $cols ? 'is-active' : '' }}"
+                            data-catalog-grid-cols="{{ $cols }}"
                             aria-label="{{ __('ui.shop.filters.grid') }} {{ $cols }}"
                         >
                             <x-fa-icon name="{{ $desktopGridIcons[$cols] }}" class="h-4 w-4" />

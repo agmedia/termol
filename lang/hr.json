@@ -1188,5 +1188,21 @@
     "Source category": "Izvorna kategorija",
     "Choose one category. Products are loaded automatically from it and its subcategories.": "Odaberite jednu kategoriju. Artikli se automatski učitavaju iz nje i svih podkategorija.",
     "Select exactly one source category.": "Odaberite točno jednu izvornu kategoriju.",
-    "from category": "iz kategorije"
+    "from category": "iz kategorije",
+    "Featured Categories": "Izdvojene kategorije",
+    "Choose and order the categories shown in this module.": "Odaberite i poredajte kategorije koje će se prikazati u ovom modulu.",
+    "Popular Brands": "Popularni brendovi",
+    "Choose and order the brands shown in this module.": "Odaberite i poredajte brendove koji će se prikazati u ovom modulu.",
+    "End date must be after or equal to start date.": "Datum završetka mora biti nakon ili jednak datumu početka.",
+    "Product display settings": "Postavke prikaza artikala",
+    "Control how many products are loaded, which brands are included, and how products are sorted.": "Odredite broj artikala, uključene brendove i način sortiranja.",
+    "Product sorting": "Sortiranje artikala",
+    "Category order": "Redoslijed kategorije",
+    "Publication date: newest first": "Datum objave: najnovije prvo",
+    "Publication date: oldest first": "Datum objave: najstarije prvo",
+    "Brand filter": "Filter brendova",
+    "Leave all brands unchecked to include products from every brand.": "Ako nije označen nijedan brend, prikazuju se artikli svih brendova.",
+    "Clear brand filter": "Očisti filter brendova",
+    "Search brands...": "Pretraži brendove...",
+    "No brands found.": "Nema pronađenih brendova."
 }

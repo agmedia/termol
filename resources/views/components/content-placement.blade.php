@@ -8,6 +8,11 @@
         $translationPayload = is_array($translation?->payload ?? null) ? $translation->payload : [];
         $wrapperClasses = trim((string) ($translationPayload['custom_classes'] ?? ''));
         $wrapperStyle = trim((string) ($translationPayload['bg_css'] ?? ''));
+        $backgroundUrl = trim((string) $block->getFirstMediaUrl('block_background'));
+        if ($backgroundUrl !== '') {
+            $backgroundStyle = "background-image:url('{$backgroundUrl}');background-size:cover;background-position:center;";
+            $wrapperStyle = trim($backgroundStyle.' '.$wrapperStyle);
+        }
         $hideOutOfStockProducts = app(\App\Services\Catalog\CatalogFeatureService::class)->hideOutOfStockProducts();
 
         $overridePrefix = (string) config('content_blocks.view_overrides.prefix', 'front.content-blocks.instances.');
@@ -55,13 +60,65 @@
 
         $categories = collect();
         if ($categoryIds !== []) {
-            $categories = \App\Models\Catalog\Category\Category::query()
+            $isFeaturedCategories = (string) $block->type === 'featured_categories';
+            $categoryRelations = [
+                'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+            ];
+
+            if ($isFeaturedCategories) {
+                $categoryRelations['media'] = fn ($q) => $q
+                    ->whereIn('collection_name', ['category_icon', 'category_banner'])
+                    ->orderBy('order_column')
+                    ->orderBy('id');
+            }
+
+            $categoryQuery = \App\Models\Catalog\Category\Category::query()
                 ->currentlyVisible()
                 ->whereIn('id', $categoryIds)
-                ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
-                ->get()
+                ->when(
+                    $isFeaturedCategories,
+                    fn ($q) => $q->where('scope', \App\Models\Catalog\Category\Category::SCOPE_CATALOG)
+                )
+                ->with($categoryRelations);
+
+            if ($isFeaturedCategories) {
+                $categoryQuery->withCount([
+                    'descendants as subcategories_count' => fn ($q) => $q
+                        ->where('scope', \App\Models\Catalog\Category\Category::SCOPE_CATALOG)
+                        ->currentlyVisible(),
+                ]);
+            }
+
+            $categories = $categoryQuery->get()
                 ->sortBy(fn ($row) => array_search((int) $row->id, $categoryIds, true))
                 ->values();
+
+            if ($isFeaturedCategories) {
+                $categories->each(function ($category) use ($hideOutOfStockProducts): void {
+                    $categoryScopeIds = \App\Models\Catalog\Category\Category::query()
+                        ->descendantsAndSelf((int) $category->id)
+                        ->filter(static fn ($scopeCategory): bool => (string) $scopeCategory->scope === \App\Models\Catalog\Category\Category::SCOPE_CATALOG
+                            && $scopeCategory->isCurrentlyVisible())
+                        ->pluck('id')
+                        ->map(static fn ($id): int => (int) $id)
+                        ->values();
+
+                    $productsCount = $categoryScopeIds->isEmpty()
+                        ? 0
+                        : \App\Models\Catalog\Product\Product::query()
+                            ->visibleOnStorefront($hideOutOfStockProducts)
+                            ->whereHas('categories', function ($categoryQuery) use ($categoryScopeIds): void {
+                                $categoryQuery
+                                    ->where('scope', \App\Models\Catalog\Category\Category::SCOPE_CATALOG)
+                                    ->currentlyVisible()
+                                    ->whereIn('categories.id', $categoryScopeIds);
+                            })
+                            ->distinct()
+                            ->count('products.id');
+
+                    $category->setAttribute('products_count', $productsCount);
+                });
+            }
         }
 
         if ((string) $block->type === 'category_products_carousel' && $categories->isNotEmpty()) {
@@ -79,6 +136,20 @@
                 is_array($translation?->payload ?? null) ? $translation->payload : [],
             );
             $itemsLimit = max(1, min(50, (int) ($mergedPayload['items_limit'] ?? 12)));
+            $productManufacturerIds = collect((array) ($mergedPayload['manufacturer_ids'] ?? []))
+                ->map(static fn ($id): int => (int) $id)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            $requestedProductSort = (string) ($mergedPayload['product_sort'] ?? 'category_order');
+            $productSort = in_array(
+                $requestedProductSort,
+                ['category_order', 'price_asc', 'price_desc', 'date_desc', 'date_asc'],
+                true
+            )
+                ? $requestedProductSort
+                : 'category_order';
 
             if ($categoryScopeIds !== []) {
                 $categorySortSubquery = \Illuminate\Support\Facades\DB::table('category_product')
@@ -86,7 +157,7 @@
                     ->whereIn('category_id', $categoryScopeIds)
                     ->groupBy('product_id');
 
-                $products = \App\Models\Catalog\Product\Product::query()
+                $productQuery = \App\Models\Catalog\Product\Product::query()
                     ->visibleOnStorefront($hideOutOfStockProducts)
                     ->whereHas('categories', function ($categoryQuery) use ($categoryScopeIds): void {
                         $categoryQuery
@@ -94,6 +165,10 @@
                             ->currentlyVisible()
                             ->whereIn('categories.id', $categoryScopeIds);
                     })
+                    ->when(
+                        $productManufacturerIds !== [],
+                        fn ($query) => $query->whereIn('products.manufacturer_id', $productManufacturerIds)
+                    )
                     ->whereHas('media', fn ($mediaQuery) => $mediaQuery->whereIn('collection_name', ['product_main', 'product_gallery']))
                     ->leftJoinSub($categorySortSubquery, 'category_product_sort', function ($join): void {
                         $join->on('category_product_sort.product_id', '=', 'products.id');
@@ -122,9 +197,27 @@
                                 'parentOptionValue.translations' => fn ($translationQuery) => $translationQuery
                                     ->whereIn('locale', [$locale, $fallbackLocale]),
                             ]),
-                    ])
-                    ->orderByRaw('COALESCE(category_product_sort.category_sort_order, 999999) ASC')
-                    ->orderByDesc('products.id')
+                    ]);
+
+                match ($productSort) {
+                    'price_asc' => $productQuery
+                        ->orderBy('products.base_price')
+                        ->orderByDesc('products.id'),
+                    'price_desc' => $productQuery
+                        ->orderByDesc('products.base_price')
+                        ->orderByDesc('products.id'),
+                    'date_desc' => $productQuery
+                        ->orderByDesc('products.created_at')
+                        ->orderByDesc('products.id'),
+                    'date_asc' => $productQuery
+                        ->orderBy('products.created_at')
+                        ->orderBy('products.id'),
+                    default => $productQuery
+                        ->orderByRaw('COALESCE(category_product_sort.category_sort_order, 999999) ASC')
+                        ->orderByDesc('products.id'),
+                };
+
+                $products = $productQuery
                     ->limit($itemsLimit)
                     ->get()
                     ->filter(function ($product): bool {
@@ -137,9 +230,22 @@
 
         $manufacturers = collect();
         if ($manufacturerIds !== []) {
+            $isPopularBrands = (string) $block->type === 'popular_brands';
+            $manufacturerRelations = [
+                'translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale]),
+            ];
+
+            if ($isPopularBrands) {
+                $manufacturerRelations['media'] = fn ($q) => $q
+                    ->where('collection_name', 'manufacturer_logo')
+                    ->orderBy('order_column')
+                    ->orderBy('id');
+            }
+
             $manufacturers = \App\Models\Catalog\Manufacturer\Manufacturer::query()
                 ->whereIn('id', $manufacturerIds)
-                ->with(['translations' => fn ($q) => $q->whereIn('locale', [$locale, $fallbackLocale])])
+                ->when($isPopularBrands, fn ($q) => $q->where('is_active', true))
+                ->with($manufacturerRelations)
                 ->get()
                 ->sortBy(fn ($row) => array_search((int) $row->id, $manufacturerIds, true))
                 ->values();

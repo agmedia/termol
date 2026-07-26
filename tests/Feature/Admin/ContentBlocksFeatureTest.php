@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Livewire\Admin\Content\Block\Form as BlockForm;
 use App\Livewire\Admin\Media\Manager as MediaManager;
 use App\Models\Catalog\Category\Category;
+use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Content\ContentBlock;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -127,6 +128,161 @@ class ContentBlocksFeatureTest extends TestCase
             ->assertSee($emptyStateLabel)
             ->set('form.type', 'desktop_hero_banner')
             ->assertSet('form.slot_frontend_variant', 'desktop');
+    }
+
+    public function test_category_picker_search_filters_category_options(): void
+    {
+        $user = $this->makeAdminUser();
+
+        foreach ([
+            ['code' => 'searched-category', 'name' => 'Tražena kategorija'],
+            ['code' => 'unrelated-category', 'name' => 'Nepovezana kategorija'],
+        ] as $row) {
+            $category = Category::query()->create([
+                'scope' => Category::SCOPE_CATALOG,
+                'code' => $row['code'],
+                'is_active' => true,
+                'show_in_menu' => true,
+                'sort_order' => 0,
+                'payload' => null,
+                'created_by' => $user->id,
+                'updated_by' => $user->id,
+            ]);
+            $category->translations()->create([
+                'scope' => Category::SCOPE_CATALOG,
+                'locale' => 'hr',
+                'name' => $row['name'],
+                'slug' => $row['code'],
+            ]);
+        }
+
+        Livewire::actingAs($user)
+            ->test(BlockForm::class)
+            ->set('form.type', 'category_products_carousel')
+            ->set('pickerSearch', 'Tražena')
+            ->assertSee('Tražena kategorija')
+            ->assertDontSee('Nepovezana kategorija');
+    }
+
+    public function test_category_products_carousel_saves_and_loads_product_display_settings(): void
+    {
+        $user = $this->makeAdminUser();
+        $category = Category::query()->create([
+            'scope' => Category::SCOPE_CATALOG,
+            'code' => 'carousel-settings-category',
+            'is_active' => true,
+            'show_in_menu' => true,
+            'sort_order' => 0,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $manufacturer = Manufacturer::query()->create([
+            'code' => 'carousel-settings-brand',
+            'is_active' => true,
+            'sort_order' => 0,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $manufacturer->translations()->create([
+            'locale' => 'hr',
+            'name' => 'Testni brend',
+            'slug' => 'testni-brend',
+        ]);
+        $code = 'category-carousel-product-settings-test';
+
+        try {
+            Livewire::actingAs($user)
+                ->test(BlockForm::class)
+                ->set('form.type', 'category_products_carousel')
+                ->assertSee(__('Product display settings'))
+                ->assertSee('Testni brend')
+                ->set('form.code', $code)
+                ->set('form.name', 'Category Carousel Product Settings Test')
+                ->set('form.title', 'Preporučujemo')
+                ->set('form.selected_item_ids', [$category->id])
+                ->set('form.items_limit', 8)
+                ->set('form.manufacturer_ids', [$manufacturer->id])
+                ->set('form.product_sort', 'price_desc')
+                ->call('save')
+                ->assertRedirect(route('admin.content.blocks'));
+
+            $block = ContentBlock::query()
+                ->where('code', $code)
+                ->with('translations')
+                ->firstOrFail();
+            $payload = $block->translations->firstWhere('locale', 'hr')?->payload;
+
+            $this->assertSame(8, data_get($payload, 'items_limit'));
+            $this->assertSame([$manufacturer->id], data_get($payload, 'manufacturer_ids'));
+            $this->assertSame('price_desc', data_get($payload, 'product_sort'));
+
+            Livewire::actingAs($user)
+                ->test(BlockForm::class, ['blockId' => $block->id])
+                ->assertSet('form.items_limit', 8)
+                ->assertSet('form.manufacturer_ids', [$manufacturer->id])
+                ->assertSet('form.product_sort', 'price_desc')
+                ->assertSee('value="price_desc" selected', false);
+        } finally {
+            File::delete(resource_path("views/front/content-blocks/instances/{$code}.blade.php"));
+        }
+    }
+
+    public function test_target_and_date_validation_errors_are_visible(): void
+    {
+        $user = $this->makeAdminUser();
+        $category = Category::query()->create([
+            'scope' => Category::SCOPE_CATALOG,
+            'code' => 'validation-category',
+            'is_active' => true,
+            'show_in_menu' => true,
+            'sort_order' => 0,
+            'payload' => null,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+
+        $targetComponent = Livewire::actingAs($user)
+            ->test(BlockForm::class)
+            ->set('form.type', 'category_products_carousel')
+            ->set('form.code', 'target-validation-block')
+            ->set('form.name', 'Target Validation Block')
+            ->set('form.selected_item_ids', [$category->id])
+            ->set('form.slot_target_ref', 'missing-type')
+            ->call('save')
+            ->assertHasErrors(['form.slot_target_type'])
+            ->assertSee(__('Target type is required when target ref is set.'));
+
+        $targetComponent
+            ->set('form.slot_target_ref', '')
+            ->set('form.slot_starts_at', '2026-12-31T23:00')
+            ->set('form.slot_ends_at', '2026-01-01T10:00')
+            ->call('save')
+            ->assertHasErrors(['form.slot_ends_at' => 'after_or_equal'])
+            ->assertSee(__('End date must be after or equal to start date.'))
+            ->assertSee('text-rose-600', false);
+    }
+
+    public function test_category_products_carousel_hides_irrelevant_slide_collection(): void
+    {
+        $user = $this->makeAdminUser();
+        $block = ContentBlock::query()->create([
+            'code' => 'category-carousel-media-test',
+            'name' => 'Category Carousel Media Test',
+            'type' => 'category_products_carousel',
+            'is_active' => true,
+            'payload' => null,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(MediaManager::class, [
+                'modelClass' => ContentBlock::class,
+                'modelId' => $block->id,
+                'locale' => 'hr',
+            ])
+            ->assertSee('block_background')
+            ->assertDontSee('block_slides');
     }
 
     public function test_material_craftsmanship_text_fields_are_saved_to_translation_payload(): void

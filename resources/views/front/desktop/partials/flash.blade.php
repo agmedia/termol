@@ -25,29 +25,3 @@
         </div>
     </div>
 @endif
-
-@php
-    $globalErrorMessages = collect($errors->getBag('default')->getMessages())
-        ->except(['product_option_value_id'])
-        ->flatten();
-@endphp
-
-@if ($globalErrorMessages->isNotEmpty())
-    <div class="mb-6 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" data-flash-message>
-        <div class="flex items-start gap-3">
-            <span class="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center text-rose-700" aria-hidden="true">
-                <x-fa-icon name="triangle-exclamation" class="h-5 w-5" />
-            </span>
-            <div class="flex-1">
-                <ul class="list-disc space-y-1 pl-5">
-                    @foreach ($globalErrorMessages as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-            <button type="button" class="inline-flex h-6 w-6 items-center justify-center text-rose-700 hover:text-rose-900" aria-label="{{ __('ui.notifications.close') }}" data-flash-dismiss>
-                <x-fa-icon name="xmark" class="h-4 w-4" />
-            </button>
-        </div>
-    </div>
-@endif

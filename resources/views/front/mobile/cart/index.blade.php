@@ -38,6 +38,9 @@
                             @if (!empty($line['option_label']))
                                 <p class="font-11 opacity-60 mb-1">{{ $line['option_label'] }}</p>
                             @endif
+                            @if (!empty($line['is_b2b_price']))
+                                <p class="font-11 font-600 color-highlight mb-1">{{ __('ui.product.b2b_contract_price') }}</p>
+                            @endif
                             <h4 class="font-700 mb-1">{{ number_format((float) ($line['display_line_total'] ?? $line['line_total']), 2) }} €</h4>
                             <p class="font-11 opacity-60 mb-0">{{ __('ui.cart.table.price') }}: {{ number_format((float) ($line['display_unit_price'] ?? $line['unit_price']), 2) }} €</p>
                         </div>

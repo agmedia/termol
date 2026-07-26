@@ -50,10 +50,15 @@
                     @enderror
                 </div>
 
-                <label class="inline-flex items-center gap-2 text-sm text-slate-700">
-                    <input type="checkbox" name="remember" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" @checked(old('remember'))>
-                    {{ __('ui.auth.login.remember') }}
-                </label>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" name="remember" value="1" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" @checked(old('remember'))>
+                        {{ __('ui.auth.login.remember') }}
+                    </label>
+                    <a href="{{ route('front.auth.password.request') }}" class="auth-inline-link text-sm font-semibold">
+                        {{ __('ui.auth.login.forgot_password') }}
+                    </a>
+                </div>
 
                 <button type="submit" class="commerce-primary-action w-full px-6 py-3">
                     {{ __('ui.auth.login.submit') }}

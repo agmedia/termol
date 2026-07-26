@@ -313,6 +313,7 @@ return [
                 'block_slides' => [
                     'label' => 'Block Slides',
                     'single_file' => false,
+                    'excluded_content_block_types' => ['category_products_carousel'],
                     'only_keep_latest' => 30,
                     'max_upload_kb' => 12288,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],

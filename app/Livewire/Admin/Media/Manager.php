@@ -475,8 +475,10 @@ class Manager extends Component
             $collections,
             static function (array $collectionConfig) use ($record): bool {
                 $blockTypes = array_values(array_filter((array) ($collectionConfig['content_block_types'] ?? [])));
+                $excludedBlockTypes = array_values(array_filter((array) ($collectionConfig['excluded_content_block_types'] ?? [])));
 
-                return $blockTypes === [] || in_array((string) $record->type, $blockTypes, true);
+                return ! in_array((string) $record->type, $excludedBlockTypes, true)
+                    && ($blockTypes === [] || in_array((string) $record->type, $blockTypes, true));
             }
         );
     }

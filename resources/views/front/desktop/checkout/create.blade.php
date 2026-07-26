@@ -13,6 +13,13 @@
         $selectedBoxNowAddressLine1 = (string) old('shipping_boxnow_address_line_1', '');
         $selectedBoxNowPostalCode = (string) old('shipping_boxnow_postal_code', '');
         $selectedBoxNowCity = (string) old('shipping_boxnow_city', '');
+        $selectedGlsDpmId = (string) old('shipping_gls_dpm_id', '');
+        $selectedGlsDpmExternalId = (string) old('shipping_gls_dpm_external_id', '');
+        $selectedGlsDpmName = (string) old('shipping_gls_dpm_name', '');
+        $selectedGlsDpmType = (string) old('shipping_gls_dpm_type', '');
+        $selectedGlsDpmAddressLine1 = (string) old('shipping_gls_dpm_address_line_1', '');
+        $selectedGlsDpmPostalCode = (string) old('shipping_gls_dpm_postal_code', '');
+        $selectedGlsDpmCity = (string) old('shipping_gls_dpm_city', '');
         $showLoginForm = old('checkout_login') === '1';
         $showRegisterPanel = old('register_account') === '1';
         $showR1Fields = old('want_r1_invoice') === '1'
@@ -63,7 +70,7 @@
             <div id="checkout-login-panel" class="overflow-hidden transition-all duration-300" data-checkout-login-panel aria-hidden="{{ $showLoginForm ? 'false' : 'true' }}" @if (! $showLoginForm) inert @endif style="{{ $showLoginForm ? '' : 'max-height:0;opacity:0;' }}">
                 <div class="mt-4 border-t border-slate-200 pt-4">
                     <h2 class="text-lg font-semibold text-slate-900">{{ __('ui.checkout.login.title') }}</h2>
-                    <form method="POST" action="{{ route('checkout.login') }}" class="mt-3 grid gap-3 md:grid-cols-2">
+                    <form method="POST" action="{{ route('checkout.login') }}" class="mt-3 grid gap-3 md:grid-cols-2" novalidate>
                         @csrf
                         <input type="hidden" name="checkout_login" value="1">
                         <input type="hidden" name="intended" value="{{ route('checkout.create') }}">
@@ -82,10 +89,15 @@
                             @enderror
                         </div>
                         <div class="md:col-span-2 flex items-center justify-between gap-3">
-                            <label class="inline-flex items-center gap-2 text-sm text-slate-700">
-                                <input type="checkbox" name="remember" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0">
-                                {{ __('ui.checkout.login.remember') }}
-                            </label>
+                            <div class="flex flex-wrap items-center gap-4">
+                                <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                                    <input type="checkbox" name="remember" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0">
+                                    {{ __('ui.checkout.login.remember') }}
+                                </label>
+                                <a href="{{ route('front.auth.password.request') }}" class="checkout-inline-link text-sm font-semibold">
+                                    {{ __('ui.auth.login.forgot_password') }}
+                                </a>
+                            </div>
                             <button type="submit" class="checkout-primary-button checkout-primary-button--compact px-5 py-2">{{ __('ui.checkout.login.submit') }}</button>
                         </div>
                     </form>
@@ -96,7 +108,7 @@
 
     <div class="mb-4 hidden border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700" role="alert" aria-live="polite" data-checkout-top-error></div>
 
-    <form method="POST" action="{{ route('checkout.store') }}" class="checkout-layout" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-form data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($checkoutTotals['grand_total'] ?? $summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-success-fallback="{{ route('checkout.success.latest') }}">
+    <form method="POST" action="{{ route('checkout.store') }}" class="checkout-layout" novalidate data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-form data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($checkoutTotals['grand_total'] ?? $summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-success-fallback="{{ route('checkout.success.latest') }}">
         @csrf
 
         <div class="checkout-stack">
@@ -276,13 +288,19 @@
                                             value="{{ $method->code }}"
                                             data-is-boxnow="{{ in_array(strtolower((string) $method->code), ['boxnow', 'box_now'], true) ? '1' : '0' }}"
                                             data-boxnow-partner-id="{{ (string) ((is_array($method->settings ?? null) ? ($method->settings['boxnow_partner_id'] ?? '') : '') ?: '') }}"
+                                            data-is-gls-dpm="{{ \App\Support\GlsShipping::isGlsDpmShippingMethod($method) ? '1' : '0' }}"
+                                            data-gls-dpm-filter-type="{{ \App\Support\GlsShipping::glsDpmFilterType($method) ?? '' }}"
                                             @checked($selectedShippingCode === (string) $method->code)
                                             class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0"
                                             required
                                         >
                                         <span class="font-semibold text-slate-900">{{ $method->name }}</span>
                                     </span>
-                                    <span class="text-slate-600">{{ \App\Support\Currency::format((float) $method->price) }}</span>
+                                    <span class="text-slate-600">
+                                        {{ (string) $method->pricing_type === 'quote'
+                                            ? __('Cijena na upit')
+                                            : \App\Support\Currency::format((float) ($method->resolved_price ?? $method->price)) }}
+                                    </span>
                                 </label>
                             @endforeach
                         </div>
@@ -306,6 +324,31 @@
                                 {{ trim($selectedBoxNowAddressLine1.', '.$selectedBoxNowPostalCode.' '.$selectedBoxNowCity, ', ') }}
                             </p>
                             @error('shipping_boxnow_locker_id')
+                                <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="checkout-inline-panel mt-3 hidden p-3" data-gls-dpm-panel>
+                            <input type="hidden" name="shipping_gls_dpm_id" value="{{ $selectedGlsDpmId }}" data-gls-dpm-id>
+                            <input type="hidden" name="shipping_gls_dpm_external_id" value="{{ $selectedGlsDpmExternalId }}" data-gls-dpm-external-id>
+                            <input type="hidden" name="shipping_gls_dpm_name" value="{{ $selectedGlsDpmName }}" data-gls-dpm-name>
+                            <input type="hidden" name="shipping_gls_dpm_type" value="{{ $selectedGlsDpmType }}" data-gls-dpm-type>
+                            <input type="hidden" name="shipping_gls_dpm_address_line_1" value="{{ $selectedGlsDpmAddressLine1 }}" data-gls-dpm-address-line-1>
+                            <input type="hidden" name="shipping_gls_dpm_postal_code" value="{{ $selectedGlsDpmPostalCode }}" data-gls-dpm-postal-code>
+                            <input type="hidden" name="shipping_gls_dpm_city" value="{{ $selectedGlsDpmCity }}" data-gls-dpm-city>
+
+                            <div class="flex flex-wrap items-center gap-3">
+                                <button type="button" class="checkout-primary-button checkout-primary-button--compact px-4 py-2 text-xs uppercase tracking-wide" data-gls-dpm-open>
+                                    {{ __('Odaberi GLS paketomat / ParcelShop') }}
+                                </button>
+                                <span class="text-sm text-slate-700" data-gls-dpm-selected>
+                                    {{ $selectedGlsDpmId !== '' ? $selectedGlsDpmName.' ('.$selectedGlsDpmId.')' : __('GLS lokacija nije odabrana.') }}
+                                </span>
+                            </div>
+                            <p class="mt-2 text-sm text-slate-600" data-gls-dpm-selected-address>
+                                {{ trim($selectedGlsDpmAddressLine1.', '.$selectedGlsDpmPostalCode.' '.$selectedGlsDpmCity, ', ') }}
+                            </p>
+                            @error('shipping_gls_dpm_id')
                                 <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                             @enderror
                         </div>
@@ -388,6 +431,9 @@
                             @if (!empty($line['option_label']))
                                 <div class="mt-0.5 text-xs text-slate-500">{{ $line['option_label'] }}</div>
                             @endif
+                            @if (!empty($line['is_b2b_price']))
+                                <div class="mt-0.5 text-[11px] font-semibold text-cyan-800">{{ __('ui.product.b2b_contract_price') }}</div>
+                            @endif
                             <div class="mt-1 flex items-center justify-between text-sm">
                                 <span class="text-slate-600">{{ __('ui.checkout.labels.qty') }} {{ $line['quantity'] }}</span>
                                 <span class="font-semibold text-slate-900">{{ \App\Support\Currency::format((float) ($line['display_line_total'] ?? $line['line_total'])) }}</span>
@@ -435,6 +481,7 @@
     </form>
 
     <div id="boxnow-widget-root"></div>
+    <gls-dpm-dialog id="gls-dpm-dialog" country="hr" language="hr"></gls-dpm-dialog>
     </div>
 @endsection
 
@@ -474,6 +521,18 @@
             const boxNowAddressLine1 = checkoutForm?.querySelector('[data-boxnow-address-line-1]');
             const boxNowPostalCode = checkoutForm?.querySelector('[data-boxnow-postal-code]');
             const boxNowCity = checkoutForm?.querySelector('[data-boxnow-city]');
+            const glsDpmPanel = checkoutForm?.querySelector('[data-gls-dpm-panel]');
+            const glsDpmOpenButton = checkoutForm?.querySelector('[data-gls-dpm-open]');
+            const glsDpmSelectedLabel = checkoutForm?.querySelector('[data-gls-dpm-selected]');
+            const glsDpmSelectedAddress = checkoutForm?.querySelector('[data-gls-dpm-selected-address]');
+            const glsDpmId = checkoutForm?.querySelector('[data-gls-dpm-id]');
+            const glsDpmExternalId = checkoutForm?.querySelector('[data-gls-dpm-external-id]');
+            const glsDpmName = checkoutForm?.querySelector('[data-gls-dpm-name]');
+            const glsDpmType = checkoutForm?.querySelector('[data-gls-dpm-type]');
+            const glsDpmAddressLine1 = checkoutForm?.querySelector('[data-gls-dpm-address-line-1]');
+            const glsDpmPostalCode = checkoutForm?.querySelector('[data-gls-dpm-postal-code]');
+            const glsDpmCity = checkoutForm?.querySelector('[data-gls-dpm-city]');
+            const glsDpmDialog = document.getElementById('gls-dpm-dialog');
             const summaryTax = checkoutForm?.querySelector('[data-summary-tax]');
             const summaryShipping = checkoutForm?.querySelector('[data-summary-shipping]');
             const summaryPaymentFee = checkoutForm?.querySelector('[data-summary-payment-fee]');
@@ -484,6 +543,7 @@
             let optionsAbortController = null;
             let optionsRefreshTimer = null;
             let boxNowScriptLoaded = false;
+            let glsWidgetPromise = null;
 
             const syncCustomerNames = function () {
                 if (!billingFirst || !billingLast || !customerFirstHidden || !customerLastHidden) {
@@ -607,9 +667,11 @@
                         || (!selectedCode && currentlySelected === '' && index === 0);
                     const isBoxNow = method.is_boxnow ? '1' : '0';
                     const partnerId = escapeHtml(method.boxnow_partner_id || '');
+                    const isGlsDpm = method.is_gls_dpm ? '1' : '0';
+                    const glsDpmFilterType = escapeHtml(method.gls_dpm_filter_type || '');
                     return '<label class="checkout-option-card flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-sm">'
                         + '<span class="inline-flex items-center gap-2">'
-                        + '<input type="radio" name="shipping_method_code" value="' + escapeHtml(method.code) + '" data-is-boxnow="' + isBoxNow + '" data-boxnow-partner-id="' + partnerId + '" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" required ' + (checked ? 'checked' : '') + '>'
+                        + '<input type="radio" name="shipping_method_code" value="' + escapeHtml(method.code) + '" data-is-boxnow="' + isBoxNow + '" data-boxnow-partner-id="' + partnerId + '" data-is-gls-dpm="' + isGlsDpm + '" data-gls-dpm-filter-type="' + glsDpmFilterType + '" class="h-4 w-4 border-slate-300 text-slate-900 focus:ring-0" required ' + (checked ? 'checked' : '') + '>'
                         + '<span class="font-semibold text-slate-900">' + escapeHtml(method.name) + '</span>'
                         + '</span>'
                         + '<span class="text-slate-600">' + escapeHtml(method.price_formatted || '') + '</span>'
@@ -617,6 +679,7 @@
                 }).join('');
 
                 toggleBoxNowPanel();
+                toggleGlsDpmPanel();
             };
 
             const renderPaymentOptions = function (methods, selectedCode) {
@@ -685,6 +748,28 @@
                 boxNowPanel.classList.toggle('hidden', !isBoxNow);
             };
 
+            const toggleGlsDpmPanel = function () {
+                if (!glsDpmPanel) {
+                    return;
+                }
+
+                const selected = selectedShippingInput();
+                const isGlsDpm = selected?.dataset?.isGlsDpm === '1' || selected?.dataset?.isGlsDpm === 'true';
+                const filterType = String(selected?.dataset?.glsDpmFilterType || '').trim();
+
+                glsDpmPanel.classList.toggle('hidden', !isGlsDpm);
+
+                if (!glsDpmDialog) {
+                    return;
+                }
+
+                if (filterType !== '') {
+                    glsDpmDialog.setAttribute('filter-type', filterType);
+                } else {
+                    glsDpmDialog.removeAttribute('filter-type');
+                }
+            };
+
             const initBoxNowWidget = function () {
                 if (boxNowScriptLoaded) {
                     return;
@@ -717,6 +802,30 @@
                 boxNowScriptLoaded = true;
             };
 
+            const ensureGlsWidgetLoaded = function () {
+                if (window.customElements?.get('gls-dpm-dialog')) {
+                    return Promise.resolve();
+                }
+
+                if (glsWidgetPromise) {
+                    return glsWidgetPromise;
+                }
+
+                glsWidgetPromise = new Promise(function (resolve, reject) {
+                    const script = document.createElement('script');
+                    script.type = 'module';
+                    script.src = 'https://map.gls-hungary.com/widget/gls-dpm.js';
+                    script.onload = resolve;
+                    script.onerror = function () {
+                        glsWidgetPromise = null;
+                        reject(new Error('GLS widget load failed.'));
+                    };
+                    document.head.appendChild(script);
+                });
+
+                return glsWidgetPromise;
+            };
+
             const updateBoxNowSelection = function (selection) {
                 const lockerId = String(selection?.boxnowLockerId || selection?.id || '');
                 const lockerAddress = String(selection?.boxnowLockerAddressLine1 || selection?.addressLine1 || '');
@@ -738,6 +847,36 @@
                 if (boxNowSelectedAddress) {
                     boxNowSelectedAddress.textContent = lockerId !== ''
                         ? [lockerAddress, (lockerPostal + ' ' + lockerCity).trim()].filter(Boolean).join(', ')
+                        : '';
+                }
+            };
+
+            const updateGlsDpmSelection = function (selection) {
+                const locationId = String(selection?.id || '');
+                const externalId = String(selection?.externalId || '');
+                const locationName = String(selection?.name || '');
+                const locationType = String(selection?.type || '');
+                const address = String(selection?.contact?.address || '');
+                const postalCode = String(selection?.contact?.postalCode || '');
+                const city = String(selection?.contact?.city || '');
+
+                if (glsDpmId) glsDpmId.value = locationId;
+                if (glsDpmExternalId) glsDpmExternalId.value = externalId;
+                if (glsDpmName) glsDpmName.value = locationName;
+                if (glsDpmType) glsDpmType.value = locationType;
+                if (glsDpmAddressLine1) glsDpmAddressLine1.value = address;
+                if (glsDpmPostalCode) glsDpmPostalCode.value = postalCode;
+                if (glsDpmCity) glsDpmCity.value = city;
+
+                if (glsDpmSelectedLabel) {
+                    glsDpmSelectedLabel.textContent = locationId !== ''
+                        ? [locationName, locationId].filter(Boolean).join(' / ')
+                        : @json(__('GLS lokacija nije odabrana.'));
+                }
+
+                if (glsDpmSelectedAddress) {
+                    glsDpmSelectedAddress.textContent = locationId !== ''
+                        ? [address, (postalCode + ' ' + city).trim()].filter(Boolean).join(', ')
                         : '';
                 }
             };
@@ -946,6 +1085,7 @@
             applyAllStateFieldModes();
             scheduleOptionsRefresh();
             toggleBoxNowPanel();
+            toggleGlsDpmPanel();
             initBoxNowWidget();
 
             toggle?.addEventListener('change', setShippingState);
@@ -955,6 +1095,7 @@
             shippingOptionsRoot?.addEventListener('change', function (event) {
                 if (event.target && event.target.name === 'shipping_method_code') {
                     toggleBoxNowPanel();
+                    toggleGlsDpmPanel();
                     scheduleOptionsRefresh();
                 }
             });
@@ -969,6 +1110,25 @@
                 if (partnerId === '') {
                     alert(@json(__('ui.checkout.boxnow.partner_missing')));
                 }
+            });
+            glsDpmOpenButton?.addEventListener('click', async function () {
+                const selected = selectedShippingInput();
+                const isGlsDpm = selected?.dataset?.isGlsDpm === '1' || selected?.dataset?.isGlsDpm === 'true';
+
+                if (!isGlsDpm) {
+                    return;
+                }
+
+                try {
+                    await ensureGlsWidgetLoaded();
+                    toggleGlsDpmPanel();
+                    glsDpmDialog?.showModal?.();
+                } catch (error) {
+                    alert(@json(__('GLS widget trenutno nije dostupan.')));
+                }
+            });
+            glsDpmDialog?.addEventListener('change', function (event) {
+                updateGlsDpmSelection(event.detail || {});
             });
             billingFirst?.addEventListener('input', syncCustomerNames);
             billingLast?.addEventListener('input', syncCustomerNames);

@@ -9,11 +9,14 @@ use App\Models\Catalog\Product\ProductOptionValue;
 use App\Models\Sales\Order\Order;
 use App\Models\Sales\Order\OrderItem;
 use App\Models\User\B2BAccount;
+use App\Services\Front\B2BQuickOrderSearchService;
 use App\Services\Front\CartService;
 use App\Services\Pricing\ProductPricePresentationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class B2BController extends Controller
@@ -23,6 +26,7 @@ class B2BController extends Controller
     public function __construct(
         private readonly CartService $cart,
         private readonly ProductPricePresentationService $prices,
+        private readonly B2BQuickOrderSearchService $quickOrderSearch,
     ) {}
 
     public function quickOrder(Request $request): View
@@ -49,10 +53,72 @@ class B2BController extends Controller
             ->map(static fn ($id): int => (int) $id)
             ->all();
 
+        $initialItems = collect((array) $request->old('items', []));
+        $requestedCode = trim((string) $request->query('code', ''));
+        if ($initialItems->isEmpty() && $requestedCode !== '') {
+            $initialItems->push([
+                'identifier' => $requestedCode,
+                'quantity' => 1,
+            ]);
+        }
+
+        $initialQuickOrderItems = $initialItems
+            ->map(function (array $item) use ($user): ?array {
+                $product = null;
+                $option = null;
+                $productId = (int) ($item['product_id'] ?? 0);
+                $optionId = (int) ($item['product_option_value_id'] ?? 0);
+
+                if ($productId > 0) {
+                    $product = Product::query()->where('is_active', true)->find($productId);
+                    $option = $optionId > 0
+                        ? ProductOptionValue::query()
+                            ->where('product_id', $productId)
+                            ->where('is_active', true)
+                            ->find($optionId)
+                        : null;
+                } else {
+                    [$product, $resolvedOptionId] = $this->resolveIdentifier((string) ($item['identifier'] ?? ''));
+                    $option = $resolvedOptionId
+                        ? ProductOptionValue::query()->find($resolvedOptionId)
+                        : null;
+                }
+
+                if (! $product) {
+                    return null;
+                }
+
+                return $this->quickOrderSearch->present(
+                    $product,
+                    $option,
+                    $user,
+                    max(1, (int) ($item['quantity'] ?? 1)),
+                );
+            })
+            ->filter()
+            ->values();
+
         return view($this->frontendView($request, 'account.b2b-quick-order'), [
             'b2bAccount' => $account,
             'frequentProducts' => $this->productSuggestions($frequentIds, $user),
             'favoriteProducts' => $this->productSuggestions($favoriteIds, $user),
+            'initialQuickOrderItems' => $initialQuickOrderItems,
+        ]);
+    }
+
+    public function searchQuickOrder(Request $request): JsonResponse
+    {
+        $this->approvedAccount($request);
+
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+        $search = trim((string) ($validated['q'] ?? ''));
+        $items = $this->quickOrderSearch->search($search, $request->user());
+
+        return response()->json([
+            'query' => $search,
+            'items' => $items->all(),
         ]);
     }
 
@@ -62,16 +128,20 @@ class B2BController extends Controller
 
         $validated = $request->validate([
             'items' => ['required', 'array', 'max:100'],
+            'items.*.product_id' => ['nullable', 'integer', Rule::exists('products', 'id')],
+            'items.*.product_option_value_id' => ['nullable', 'integer', Rule::exists('catalog_product_option_values', 'id')],
             'items.*.identifier' => ['nullable', 'string', 'max:191'],
             'items.*.quantity' => ['nullable', 'integer', 'min:1', 'max:999'],
         ]);
 
         $items = collect($validated['items'])
             ->map(static fn (array $item): array => [
+                'product_id' => (int) ($item['product_id'] ?? 0),
+                'product_option_value_id' => (int) ($item['product_option_value_id'] ?? 0),
                 'identifier' => trim((string) ($item['identifier'] ?? '')),
                 'quantity' => max(1, (int) ($item['quantity'] ?? 1)),
             ])
-            ->filter(static fn (array $item): bool => $item['identifier'] !== '')
+            ->filter(static fn (array $item): bool => $item['product_id'] > 0 || $item['identifier'] !== '')
             ->values();
 
         if ($items->isEmpty()) {
@@ -84,16 +154,37 @@ class B2BController extends Controller
         $skipped = [];
 
         foreach ($items as $item) {
-            [$product, $optionValueId] = $this->resolveIdentifier($item['identifier']);
+            if ($item['product_id'] > 0) {
+                $product = Product::query()
+                    ->where('is_active', true)
+                    ->find($item['product_id']);
+                $optionValueId = $item['product_option_value_id'] > 0
+                    ? $item['product_option_value_id']
+                    : null;
+
+                if ($optionValueId !== null) {
+                    $validOption = ProductOptionValue::query()
+                        ->where('id', $optionValueId)
+                        ->where('product_id', $item['product_id'])
+                        ->where('is_active', true)
+                        ->exists();
+
+                    if (! $validOption) {
+                        $product = null;
+                    }
+                }
+            } else {
+                [$product, $optionValueId] = $this->resolveIdentifier($item['identifier']);
+            }
 
             if (! $product) {
-                $skipped[] = $item['identifier'].' — '.__('artikl nije pronađen');
+                $skipped[] = ($item['identifier'] ?: '#'.$item['product_id']).' — '.__('artikl nije pronađen');
 
                 continue;
             }
 
             if (! $this->cart->add($product, $item['quantity'], $optionValueId)) {
-                $skipped[] = $item['identifier'].' — '.__('nije dostupan ili zahtijeva odabir varijante');
+                $skipped[] = ($item['identifier'] ?: $product->code).' — '.__('nije dostupan ili zahtijeva odabir varijante');
 
                 continue;
             }

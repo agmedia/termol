@@ -468,6 +468,13 @@ html {
     color: #111827;
 }
 
+.product-detail-net-price {
+    margin: .35rem 0 0;
+    color: #475569;
+    font-size: .82rem;
+    line-height: 1.35;
+}
+
 .product-detail-tax-note {
     margin: .35rem 0 0;
     color: #9ca3af;
@@ -1106,7 +1113,7 @@ html {
     width: 118px;
     min-width: 118px;
     height: 46px;
-    grid-template-columns: 30px 58px 30px;
+    grid-template-columns: 30px minmax(0, 1fr) 30px;
 }
 
 .product-products-widget .product-card-lined-cart {

@@ -6,6 +6,7 @@
 @section('content')
     @php
         $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
+        $glsPoint = is_array($order->payload['shipping']['gls_dpm'] ?? null) ? $order->payload['shipping']['gls_dpm'] : null;
     @endphp
 
     @push('styles')
@@ -59,6 +60,14 @@
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">{{ __('ui.checkout.success.boxnow_title') }}</h2>
                 <p class="mt-2 text-sm text-slate-700"><strong>{{ __('ui.checkout.success.boxnow_locker') }}:</strong> {{ $boxNow['locker_name'] ?: '-' }} ({{ $boxNow['locker_id'] }})</p>
                 <p class="mt-1 text-sm text-slate-700"><strong>{{ __('ui.checkout.success.boxnow_address') }}:</strong> {{ trim(($boxNow['address_line_1'] ?? '').', '.($boxNow['postal_code'] ?? '').' '.($boxNow['city'] ?? ''), ', ') ?: '-' }}</p>
+            </section>
+        @endif
+
+        @if (!empty($glsPoint['id']))
+            <section class="mt-6 border border-cyan-200 bg-cyan-50 p-4">
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">{{ __('GLS paketomat / ParcelShop') }}</h2>
+                <p class="mt-2 text-sm text-slate-700"><strong>{{ __('Lokacija') }}:</strong> {{ $glsPoint['name'] ?: '-' }} ({{ $glsPoint['id'] }})</p>
+                <p class="mt-1 text-sm text-slate-700"><strong>{{ __('Adresa') }}:</strong> {{ trim(($glsPoint['address_line_1'] ?? '').', '.($glsPoint['postal_code'] ?? '').' '.($glsPoint['city'] ?? ''), ', ') ?: '-' }}</p>
             </section>
         @endif
 

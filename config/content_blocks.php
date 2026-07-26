@@ -20,6 +20,8 @@ return [
         'hero_slider' => 'Hero Slider (multi banner)',
         'products_carousel' => 'Products Carousel',
         'category_products_carousel' => 'Category Products Carousel',
+        'featured_categories' => 'Featured Categories',
+        'popular_brands' => 'Popular Brands',
         'blogs_carousel' => 'Blogs Carousel',
         'five_star_reviews_carousel' => '5 Star Reviews Carousel',
         'blog_grid_3' => 'Blog Grid (3)',

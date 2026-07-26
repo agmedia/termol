@@ -92,6 +92,10 @@ class Product extends Model implements HasMedia
             'refrigerated' => 'Hladni lanac',
             'hazardous' => 'Opasna roba',
             'ships_separately' => 'Šalje se odvojeno',
+            'free_shipping' => 'Besplatna dostava',
+            'exclude_shipping_calculation' => 'Ne ulazi u obračun dostave',
+            'no_parcel_locker' => 'Nije dopušten paketomat',
+            'quote_shipping' => 'Individualni obračun dostave',
         ];
     }
 

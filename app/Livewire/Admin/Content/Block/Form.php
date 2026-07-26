@@ -16,6 +16,14 @@ use Livewire\Component;
 
 class Form extends Component
 {
+    private const CATEGORY_PRODUCT_SORTS = [
+        'category_order',
+        'price_asc',
+        'price_desc',
+        'date_desc',
+        'date_asc',
+    ];
+
     private const MATERIAL_CRAFTSMANSHIP_MATERIAL_KEYS = [
         'micromodal',
         'giza',
@@ -35,8 +43,10 @@ class Form extends Component
         'products' => 'product',
         'products_carousel' => 'product',
         'category_products_carousel' => 'category',
+        'featured_categories' => 'category',
         'categories' => 'category',
         'mobile_hero_banner' => 'category',
+        'popular_brands' => 'manufacturer',
         'manufacturers' => 'manufacturer',
         'blogs' => 'blog',
     ];
@@ -77,7 +87,11 @@ class Form extends Component
     ];
 
     public ?int $pickerItemId = null;
+
     public string $pickerSearch = '';
+
+    public string $manufacturerFilterSearch = '';
+
     public string $lastType = '';
 
     public function mount(?int $blockId = null): void
@@ -147,6 +161,83 @@ class Form extends Component
             });
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function getCategoryProductSortOptionsProperty(): array
+    {
+        return [
+            'category_order' => __('Category order'),
+            'price_asc' => __('Price Low-High'),
+            'price_desc' => __('Price High-Low'),
+            'date_desc' => __('Publication date: newest first'),
+            'date_asc' => __('Publication date: oldest first'),
+        ];
+    }
+
+    public function getManufacturerFilterOptionsProperty(): Collection
+    {
+        if ((string) ($this->form['type'] ?? '') !== 'category_products_carousel') {
+            return collect();
+        }
+
+        $locale = (string) ($this->form['locale'] ?? config('app.locale'));
+        $fallbackLocale = (string) config('app.locale');
+        $search = trim($this->manufacturerFilterSearch);
+        $like = '%'.$search.'%';
+        $selectedIds = collect((array) ($this->form['manufacturer_ids'] ?? []))
+            ->map(static fn ($id): int => (int) $id)
+            ->filter()
+            ->values()
+            ->all();
+
+        return Manufacturer::query()
+            ->where(function ($query) use ($selectedIds): void {
+                $query->where('is_active', true);
+
+                if ($selectedIds !== []) {
+                    $query->orWhereIn('id', $selectedIds);
+                }
+            })
+            ->when($search !== '', function ($query) use ($search, $like): void {
+                $query->where(function ($manufacturerQuery) use ($search, $like): void {
+                    if (ctype_digit($search)) {
+                        $manufacturerQuery->orWhereKey((int) $search);
+                    }
+
+                    $manufacturerQuery
+                        ->orWhere('code', 'like', $like)
+                        ->orWhereHas('translations', fn ($translationQuery) => $translationQuery->where('name', 'like', $like));
+                });
+            })
+            ->with('translations')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->limit(300)
+            ->get()
+            ->map(function (Manufacturer $manufacturer) use ($locale, $fallbackLocale): array {
+                $translation = $this->resolveBestTranslation(
+                    $manufacturer->translations,
+                    $locale,
+                    $fallbackLocale,
+                    ['name']
+                );
+
+                return [
+                    'id' => (int) $manufacturer->id,
+                    'label' => (string) ($translation?->name ?: $manufacturer->code),
+                    'is_active' => (bool) $manufacturer->is_active,
+                ];
+            })
+            ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+    }
+
+    public function clearManufacturerFilters(): void
+    {
+        $this->form['manufacturer_ids'] = [];
+    }
+
     public function updatedFormLocale(): void
     {
         $this->loadTranslationForLocale();
@@ -154,7 +245,7 @@ class Form extends Component
 
     public function updatedFormType(string $type): void
     {
-        if (!array_key_exists($type, $this->types)) {
+        if (! array_key_exists($type, $this->types)) {
             return;
         }
 
@@ -165,6 +256,29 @@ class Form extends Component
 
         if ($type === 'category_products_carousel' && $this->lastType !== $type) {
             $this->form['items_limit'] = 12;
+            $this->form['manufacturer_ids'] = [];
+            $this->form['product_sort'] = 'category_order';
+            $this->manufacturerFilterSearch = '';
+        }
+
+        if ($type === 'featured_categories' && $this->lastType !== $type) {
+            if (array_key_exists('home.categories', $this->placements)) {
+                $this->form['slot_placement'] = 'home.categories';
+            }
+        }
+
+        if ($type === 'popular_brands' && $this->lastType !== $type) {
+            if (array_key_exists('home.after_products', $this->placements)) {
+                $this->form['slot_placement'] = 'home.after_products';
+            }
+        }
+
+        if ($type === 'blogs_carousel' && $this->lastType !== $type) {
+            $this->form['items_limit'] = 3;
+
+            if (array_key_exists('home.bottom', $this->placements)) {
+                $this->form['slot_placement'] = 'home.bottom';
+            }
         }
 
         $currentItemType = $this->itemTypeForBlockType($type);
@@ -186,6 +300,7 @@ class Form extends Component
 
         if ($shouldLoadDefault) {
             $this->form['template_body'] = $this->defaultTemplateForType($type);
+            $this->dispatch('content-block-template-loaded', template: $this->form['template_body']);
         }
 
         $this->lastType = $type;
@@ -195,6 +310,7 @@ class Form extends Component
     {
         $type = (string) ($this->form['type'] ?? 'banner');
         $this->form['template_body'] = $this->defaultTemplateForType($type);
+        $this->dispatch('content-block-template-loaded', template: $this->form['template_body']);
     }
 
     public function addSelectedItem(): void
@@ -259,7 +375,9 @@ class Form extends Component
 
     public function save()
     {
-        $validated = $this->validate($this->rules());
+        $validated = $this->validate($this->rules(), [
+            'form.slot_ends_at.after_or_equal' => __('End date must be after or equal to start date.'),
+        ]);
         $userId = auth()->id();
         $isEdit = $this->blockId !== null;
         $existingBlockPayload = null;
@@ -293,6 +411,28 @@ class Form extends Component
             $translationPayload['items_limit'] = $itemsLimit;
         } else {
             unset($translationPayload['items_limit']);
+        }
+
+        if ((string) $validated['form']['type'] === 'category_products_carousel') {
+            $manufacturerIds = collect((array) ($validated['form']['manufacturer_ids'] ?? []))
+                ->map(static fn ($id): int => (int) $id)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            $productSort = (string) ($validated['form']['product_sort'] ?? 'category_order');
+
+            if ($manufacturerIds !== []) {
+                $translationPayload['manufacturer_ids'] = $manufacturerIds;
+            } else {
+                unset($translationPayload['manufacturer_ids']);
+            }
+
+            $translationPayload['product_sort'] = in_array($productSort, self::CATEGORY_PRODUCT_SORTS, true)
+                ? $productSort
+                : 'category_order';
+        } else {
+            unset($translationPayload['manufacturer_ids'], $translationPayload['product_sort']);
         }
 
         $reviewsFeaturedOnly = (bool) ($validated['form']['reviews_featured_only'] ?? false);
@@ -467,6 +607,9 @@ class Form extends Component
             'form.bg_css' => ['nullable', 'string', 'max:6000'],
             'form.custom_classes' => ['nullable', 'string', 'max:1000'],
             'form.items_limit' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'form.manufacturer_ids' => ['nullable', 'array'],
+            'form.manufacturer_ids.*' => ['integer', Rule::exists('catalog_manufacturers', 'id')],
+            'form.product_sort' => ['nullable', Rule::in(self::CATEGORY_PRODUCT_SORTS)],
             'form.reviews_featured_only' => ['boolean'],
             'form.blog_source' => ['nullable', Rule::in(['latest', 'featured'])],
             'form.material_craftsmanship' => ['nullable', 'array'],
@@ -515,6 +658,8 @@ class Form extends Component
             'bg_css' => '',
             'custom_classes' => '',
             'items_limit' => 6,
+            'manufacturer_ids' => [],
+            'product_sort' => 'category_order',
             'reviews_featured_only' => false,
             'blog_source' => 'latest',
             'material_craftsmanship' => $this->materialCraftsmanshipFormValues(null),
@@ -571,6 +716,8 @@ class Form extends Component
         $this->form['bg_css'] = (string) ($translationPayload['bg_css'] ?? '');
         $this->form['custom_classes'] = (string) ($translationPayload['custom_classes'] ?? '');
         $this->form['items_limit'] = (int) ($translationPayload['items_limit'] ?? 6);
+        $this->form['manufacturer_ids'] = $this->manufacturerIdsFromPayload($translationPayload);
+        $this->form['product_sort'] = $this->categoryProductSortFromPayload($translationPayload);
         $this->form['reviews_featured_only'] = (bool) ($translationPayload['reviews_featured_only'] ?? false);
         $blogSource = (string) ($translationPayload['blog_source'] ?? 'latest');
         $this->form['blog_source'] = in_array($blogSource, ['latest', 'featured'], true)
@@ -641,6 +788,8 @@ class Form extends Component
         $this->form['bg_css'] = (string) ($translationPayload['bg_css'] ?? '');
         $this->form['custom_classes'] = (string) ($translationPayload['custom_classes'] ?? '');
         $this->form['items_limit'] = (int) ($translationPayload['items_limit'] ?? 6);
+        $this->form['manufacturer_ids'] = $this->manufacturerIdsFromPayload($translationPayload);
+        $this->form['product_sort'] = $this->categoryProductSortFromPayload($translationPayload);
         $this->form['reviews_featured_only'] = (bool) ($translationPayload['reviews_featured_only'] ?? false);
         $blogSource = (string) ($translationPayload['blog_source'] ?? 'latest');
         $this->form['blog_source'] = in_array($blogSource, ['latest', 'featured'], true)
@@ -658,9 +807,33 @@ class Form extends Component
         $this->form['bg_css'] = '';
         $this->form['custom_classes'] = '';
         $this->form['items_limit'] = 6;
+        $this->form['manufacturer_ids'] = [];
+        $this->form['product_sort'] = 'category_order';
         $this->form['reviews_featured_only'] = false;
         $this->form['blog_source'] = 'latest';
         $this->form['material_craftsmanship'] = $this->materialCraftsmanshipFormValues(null);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function manufacturerIdsFromPayload(array $translationPayload): array
+    {
+        return collect((array) ($translationPayload['manufacturer_ids'] ?? []))
+            ->map(static fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function categoryProductSortFromPayload(array $translationPayload): string
+    {
+        $sort = (string) ($translationPayload['product_sort'] ?? 'category_order');
+
+        return in_array($sort, self::CATEGORY_PRODUCT_SORTS, true)
+            ? $sort
+            : 'category_order';
     }
 
     private function materialCraftsmanshipFormValues(?array $translationPayload): array
@@ -791,10 +964,32 @@ class Form extends Component
         }
 
         if ($itemType === 'category') {
-            return Category::query()
+            $query = Category::query()
                 ->with(['translations'])
                 ->orderByDesc('id')
-                ->limit(300)
+                ->limit(300);
+
+            if ($search !== '') {
+                $query->where(function ($categoryQuery) use ($search, $like): void {
+                    if (ctype_digit($search)) {
+                        $categoryQuery->orWhereKey((int) $search);
+                    }
+
+                    $categoryQuery
+                        ->orWhere('code', 'like', $like)
+                        ->orWhereHas('translations', function ($translationQuery) use ($like): void {
+                            $translationQuery
+                                ->where('name', 'like', $like)
+                                ->orWhere('slug', 'like', $like);
+                        });
+                });
+            }
+
+            if ((string) ($this->form['type'] ?? '') === 'featured_categories') {
+                $query->where('scope', Category::SCOPE_CATALOG);
+            }
+
+            return $query
                 ->get()
                 ->map(function (Category $row) use ($locale, $fallbackLocale): array {
                     $translation = $this->resolveBestTranslation($row->translations, $locale, $fallbackLocale, ['name']);
@@ -972,7 +1167,13 @@ class Form extends Component
         }
 
         if ($itemType === 'category') {
-            return Category::query()->whereIn('id', $ids)->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $query = Category::query()->whereIn('id', $ids);
+
+            if ((string) ($this->form['type'] ?? '') === 'featured_categories') {
+                $query->where('scope', Category::SCOPE_CATALOG);
+            }
+
+            return $query->pluck('id')->map(fn ($id) => (int) $id)->all();
         }
 
         if ($itemType === 'manufacturer') {
@@ -1091,6 +1292,8 @@ class Form extends Component
             'products',
             'products_carousel',
             'category_products_carousel',
+            'featured_categories',
+            'popular_brands',
             'blogs_carousel',
             'categories',
             'manufacturers',
@@ -1119,6 +1322,8 @@ class Form extends Component
             'desktop_hero_banner',
             'full_width_image_slider',
             'category_products_carousel',
+            'featured_categories',
+            'popular_brands',
             'dual_image_cta',
             'material_craftsmanship',
             'instagram_curated_grid',
@@ -1196,6 +1401,22 @@ BLADE,
     'slot' => $slot ?? null,
     'products' => $products,
     'categories' => $categories,
+])
+BLADE,
+            'featured_categories' => <<<'BLADE'
+@include('front.content-blocks.types.featured_categories', [
+    'block' => $block,
+    'translation' => $translation,
+    'slot' => $slot ?? null,
+    'categories' => $categories,
+])
+BLADE,
+            'popular_brands' => <<<'BLADE'
+@include('front.content-blocks.types.popular_brands', [
+    'block' => $block,
+    'translation' => $translation,
+    'slot' => $slot ?? null,
+    'manufacturers' => $manufacturers,
 ])
 BLADE,
             'products_carousel' => <<<'BLADE'

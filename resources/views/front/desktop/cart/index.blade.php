@@ -73,7 +73,9 @@
 
                             <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
                                 <div>
-                                    <p class="text-xs uppercase tracking-wide text-slate-500">{{ __('ui.cart.table.price') }}</p>
+                                    <p class="text-xs uppercase tracking-wide {{ !empty($line['is_b2b_price']) ? 'font-semibold text-cyan-800' : 'text-slate-500' }}">
+                                        {{ !empty($line['is_b2b_price']) ? __('ui.product.b2b_contract_price') : __('ui.cart.table.price') }}
+                                    </p>
                                     <div class="mt-0.5 flex flex-col gap-0.5">
                                         @if ($displayBase > ($displayCurrent + 0.0001))
                                             <span class="text-xs text-slate-500 line-through">{{ number_format($displayBase, 2) }} €</span>
@@ -205,6 +207,9 @@
                                     $displayBase = (float) ($line['display_base_unit_price'] ?? $line['base_unit_price'] ?? $displayCurrent);
                                 @endphp
                                 <div class="flex flex-col gap-0.5">
+                                    @if (!empty($line['is_b2b_price']))
+                                        <span class="text-[10px] font-semibold leading-tight text-cyan-800">{{ __('ui.product.b2b_contract_price') }}</span>
+                                    @endif
                                     @if ($displayBase > ($displayCurrent + 0.0001))
                                         <span class="text-xs text-slate-500 line-through">{{ number_format($displayBase, 2) }} €</span>
                                     @endif

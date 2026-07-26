@@ -22,9 +22,13 @@ class ProductPricePresentationService
     /**
      * @return array{
      *   current_gross: float,
+     *   current_net: float,
      *   base_gross: float,
+     *   catalog_gross: float,
      *   old_gross: float|null,
      *   has_discount: bool,
+     *   has_promotional_discount: bool,
+     *   is_b2b_price: bool,
      *   discount_percent: int|null,
      *   lowest_30_days_gross: float|null
      * }
@@ -47,9 +51,13 @@ class ProductPricePresentationService
     /**
      * @return array{
      *   current_gross: float,
+     *   current_net: float,
      *   base_gross: float,
+     *   catalog_gross: float,
      *   old_gross: float|null,
      *   has_discount: bool,
+     *   has_promotional_discount: bool,
+     *   is_b2b_price: bool,
      *   discount_percent: int|null,
      *   lowest_30_days_gross: float|null
      * }
@@ -73,12 +81,14 @@ class ProductPricePresentationService
         $storedCurrent = $resolvedAction
             ? $this->actionResolver->applyToPrice($audienceStoredBase, $resolvedAction)
             : $audienceStoredBase;
-        $baseGross = (float) $this->taxPricing->grossFromStored($storedBase, $product);
+        $catalogGross = (float) $this->taxPricing->grossFromStored($storedBase, $product);
+        $audienceBaseGross = (float) $this->taxPricing->grossFromStored($audienceStoredBase, $product);
         $currentGross = (float) $this->taxPricing->grossFromStored($storedCurrent, $product);
-        $hasDiscount = $currentGross < ($baseGross - 0.0001);
+        $hasPromotionalDiscount = $resolvedAction !== null
+            && $currentGross < ($audienceBaseGross - 0.0001);
 
         $lowest30DaysGross = null;
-        if ($hasDiscount) {
+        if ($hasPromotionalDiscount) {
             $lowest30DaysStored = $this->lowestStoredPriceInLast30Days(
                 $product,
                 $audienceStoredBase,
@@ -90,14 +100,23 @@ class ProductPricePresentationService
 
         return [
             'current_gross' => $currentGross,
-            'base_gross' => $baseGross,
-            'old_gross' => $hasDiscount ? $baseGross : null,
-            'has_discount' => $hasDiscount,
-            'discount_percent' => $hasDiscount && $baseGross > 0
-                ? (int) round((($baseGross - $currentGross) / $baseGross) * 100)
+            'current_net' => (float) $this->taxPricing->netFromGross($currentGross, $product),
+            'base_gross' => $audienceBaseGross,
+            'catalog_gross' => $catalogGross,
+            'old_gross' => $hasPromotionalDiscount ? $audienceBaseGross : null,
+            'has_discount' => $hasPromotionalDiscount,
+            'has_promotional_discount' => $hasPromotionalDiscount,
+            'is_b2b_price' => $groupPrice !== null,
+            'discount_percent' => $hasPromotionalDiscount && $audienceBaseGross > 0
+                ? (int) round((($audienceBaseGross - $currentGross) / $audienceBaseGross) * 100)
                 : null,
             'lowest_30_days_gross' => $lowest30DaysGross,
-            'price_source' => $groupPrice ? 'b2b' : ($resolvedAction ? 'action' : 'base'),
+            'price_source' => match (true) {
+                $groupPrice !== null && $resolvedAction !== null => 'b2b_action',
+                $groupPrice !== null => 'b2b',
+                $resolvedAction !== null => 'action',
+                default => 'base',
+            },
             'group_price_id' => $groupPrice?->group_price_id,
             'b2b_rule_id' => $groupPrice?->rule_id,
             'b2b_source_type' => $groupPrice?->source_type,

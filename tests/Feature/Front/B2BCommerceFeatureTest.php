@@ -74,6 +74,80 @@ class B2BCommerceFeatureTest extends TestCase
         $this->assertCount(0, $user->customerGroups);
     }
 
+    public function test_logged_in_b2b_user_is_redirected_from_registration_to_their_account(): void
+    {
+        $customer = User::factory()->create();
+        $this->makeB2BAccount($customer, B2BAccount::STATUS_PENDING);
+
+        $this->actingAs($customer)
+            ->get(route('front.auth.b2b-register'))
+            ->assertRedirect(route('account.dashboard'));
+
+        $this->actingAs($customer)
+            ->get(route('dashboard'))
+            ->assertRedirect(route('account.dashboard'));
+    }
+
+    public function test_business_registration_validation_is_translated_and_rendered_beside_each_field(): void
+    {
+        $this->from(route('front.auth.b2b-register'))
+            ->post(route('front.auth.b2b-register.store'), [
+                'country_code' => '',
+            ])
+            ->assertRedirect(route('front.auth.b2b-register'))
+            ->assertSessionHasErrors([
+                'first_name',
+                'last_name',
+                'email',
+                'phone',
+                'company_name',
+                'oib',
+                'address_line_1',
+                'postal_code',
+                'city',
+                'country_code',
+                'password',
+                'password_confirmation',
+                'terms_accepted',
+            ]);
+
+        $this->get(route('front.auth.b2b-register'))
+            ->assertOk()
+            ->assertSeeInOrder([
+                'id="b2b-first_name"',
+                'id="b2b-first_name-error"',
+                'Polje ime je obavezno.',
+            ], false)
+            ->assertSeeInOrder([
+                'id="b2b-password-confirmation"',
+                'id="b2b-password-confirmation-error"',
+                'Polje potvrda lozinke je obavezno.',
+            ], false)
+            ->assertSeeInOrder([
+                'name="terms_accepted"',
+                'id="b2b-terms-error"',
+                'Za nastavak morate prihvatiti uvjete B2B registracije.',
+            ], false)
+            ->assertDontSee('validation.required')
+            ->assertDontSee('<ul class="list-disc space-y-1 pl-5">', false);
+    }
+
+    public function test_business_registration_uses_the_checkout_postal_code_autofill_contract(): void
+    {
+        $this->get(route('front.auth.b2b-register'))
+            ->assertOk()
+            ->assertSee('data-address-autofill', false)
+            ->assertSee('data-address-source="'.asset('front-theme/data/hr-places.json').'"', false)
+            ->assertSee('data-address-scope="billing"', false)
+            ->assertSee('name="postal_code"', false)
+            ->assertSee('data-address-postal', false)
+            ->assertSee('name="city"', false)
+            ->assertSee('data-address-city', false)
+            ->assertSee('name="country_code"', false)
+            ->assertSee('data-address-country', false)
+            ->assertSee('front-theme/scripts/address-autofill.js', false);
+    }
+
     public function test_admin_can_approve_request_assign_group_and_store_future_erp_link(): void
     {
         $admin = $this->makeAdmin();
@@ -191,6 +265,66 @@ class B2BCommerceFeatureTest extends TestCase
         $response->assertRedirect(route('cart.index'));
         $response->assertSessionHas('front.cart.items.'.$productByCode->id.':0.quantity', 2);
         $response->assertSessionHas('front.cart.items.'.$productByBarcode->id.':0.quantity', 3);
+    }
+
+    public function test_quick_order_uses_one_ajax_search_and_finds_products_by_name_or_identifier(): void
+    {
+        $pending = User::factory()->create();
+        $this->makeB2BAccount($pending, B2BAccount::STATUS_PENDING);
+
+        $customer = User::factory()->create();
+        $group = $this->makeGroup('quick-search');
+        $this->makeB2BAccount($customer, B2BAccount::STATUS_APPROVED, $group);
+        $product = $this->makeProduct('VENT-550', 125, 'SKU-VENT-550', '3850000550001');
+        $product->translations()->where('locale', 'hr')->update([
+            'name' => 'Stropni ventilator s rasvjetom',
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('account.b2b.quick-order'))
+            ->assertOk()
+            ->assertSee('data-quick-order-search', false)
+            ->assertSee('data-quick-order-lines', false)
+            ->assertSee('Pretražujte po nazivu, šifri, SKU-u ili barkodu.')
+            ->assertDontSee('data-quick-order-identifier', false);
+
+        $this->actingAs($pending)
+            ->getJson(route('account.b2b.quick-order.search', ['q' => 'ventilator']))
+            ->assertForbidden();
+
+        $this->actingAs($customer)
+            ->getJson(route('account.b2b.quick-order.search', ['q' => 'ventilator']))
+            ->assertOk()
+            ->assertJsonPath('items.0.product_id', $product->id)
+            ->assertJsonPath('items.0.name', 'Stropni ventilator s rasvjetom')
+            ->assertJsonPath('items.0.code', 'VENT-550')
+            ->assertJsonPath('items.0.sku', 'SKU-VENT-550');
+
+        $this->actingAs($customer)
+            ->getJson(route('account.b2b.quick-order.search', ['q' => '3850000550001']))
+            ->assertOk()
+            ->assertJsonPath('items.0.product_id', $product->id);
+    }
+
+    public function test_quick_order_accepts_ajax_selected_product_ids(): void
+    {
+        $customer = User::factory()->create();
+        $group = $this->makeGroup('quick-selected');
+        $this->makeB2BAccount($customer, B2BAccount::STATUS_APPROVED, $group);
+        $product = $this->makeProduct('SELECTED-100', 42);
+
+        $response = $this->actingAs($customer)
+            ->post(route('account.b2b.quick-order.store'), [
+                'items' => [[
+                    'product_id' => $product->id,
+                    'product_option_value_id' => null,
+                    'identifier' => $product->sku,
+                    'quantity' => 4,
+                ]],
+            ]);
+
+        $response->assertRedirect(route('cart.index'));
+        $response->assertSessionHas('front.cart.items.'.$product->id.':0.quantity', 4);
     }
 
     public function test_approved_customer_can_repeat_a_previous_order(): void

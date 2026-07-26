@@ -82,18 +82,17 @@
     <div class="mx-auto w-full {{ $categoryProductsMode ? '' : 'px-3 sm:px-4 lg:px-6' }}">
         <div class="max-[540px]:mb-5 mb-8 text-center">
             @if ($categoryProductsMode)
-                <h2
-                    class="font-extrabold tracking-tight text-slate-900"
-                    style="font-size: clamp(1.75rem, 3vw, 2.25rem); line-height: 1.08;"
-                >{{ $displayTitle }}</h2>
-                @if ($sourceCategoryName !== '' && $sourceCategoryUrl !== '')
-                    <p class="mt-1 text-sm text-slate-700 sm:text-base">
-                        {{ __('from category') }}
-                        <a href="{{ $sourceCategoryUrl }}" class="font-bold underline decoration-1 underline-offset-2 hover:text-slate-500">
-                            {{ $sourceCategoryName }}
-                        </a>
-                    </p>
-                @endif
+                <div class="storefront-widget-heading--split">
+                    <h2 class="storefront-widget-heading-title">{{ $displayTitle }}</h2>
+                    @if ($sourceCategoryName !== '' && $sourceCategoryUrl !== '')
+                        <p class="storefront-widget-heading-meta">
+                            {{ __('from category') }}
+                            <a href="{{ $sourceCategoryUrl }}" class="storefront-widget-heading-link">
+                                {{ $sourceCategoryName }}
+                            </a>
+                        </p>
+                    @endif
+                </div>
             @else
                 <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
                     @include('front.partials.section-heading-line', ['side' => 'left'])
@@ -101,7 +100,7 @@
                     @include('front.partials.section-heading-line', ['side' => 'right'])
                 </div>
             @endif
-            @if (! $categoryProductsMode && $displaySubtitle !== '')
+            @if ($displaySubtitle !== '')
                 <p class="mx-auto mt-2 max-w-2xl text-sm text-slate-600 md:text-base">{{ $displaySubtitle }}</p>
             @endif
 
@@ -254,10 +253,7 @@
             @endif
 
             <div
-                class="mt-4 {{ $categoryProductsMode ? 'relative left-1/2 -translate-x-1/2' : '' }}"
-                @if ($categoryProductsMode)
-                    style="width: min(calc(100vw - 2rem), var(--storefront-container-width, 1860px));"
-                @endif
+                class="mt-4 {{ $categoryProductsMode ? 'storefront-widget-wide' : '' }}"
             >
                 <div id="products-carousel-{{ $block->id }}" class="splide" data-products-carousel-splide>
                     <div class="splide__track">

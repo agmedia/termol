@@ -741,9 +741,28 @@ class ProductController extends Controller
             $gridCols,
             $this->hideOutOfStockProducts() ? 'hide-oos' : 'all-stock',
             (string) $lastModifiedTs,
+            (string) $this->productPresentationVersion(),
             $wishlistHash,
             $fitFinderHash,
         ])).'"';
+    }
+
+    private function productPresentationVersion(): int
+    {
+        return collect([
+            resource_path('views/front/desktop/products/show.blade.php'),
+            resource_path('views/components/front/desktop/product-card.blade.php'),
+            resource_path('views/front/partials/cart-modal-script.blade.php'),
+            public_path('front-theme/styles/product-detail.css'),
+            public_path('front-theme/styles/termol-overrides.css'),
+            public_path('front-theme/scripts/cart-modal.js'),
+            public_path('front-theme/scripts/product-detail.js'),
+            public_path('front-theme/scripts/product-card-cart-modal.js'),
+            public_path('front-theme/scripts/product-page.js'),
+        ])->reduce(
+            static fn (int $latest, string $path): int => max($latest, is_file($path) ? (int) filemtime($path) : 0),
+            0
+        );
     }
 
     private function fitFinderEtagFragment(Request $request): string

@@ -56,8 +56,8 @@
         }
     };
 
-    $ctaLabel = trim((string) ($translation?->cta_label ?? ''));
-    $ctaFallbackUrl = (string) ($translation?->cta_url ?? '#');
+    $ctaLabel = trim((string) ($translation?->cta_label ?: __('ui.blog.view_all')));
+    $ctaFallbackUrl = (string) ($translation?->cta_url ?: route('blog.index'));
     $ctaRoute = (string) ($mergedPayload['cta_route'] ?? '');
     $ctaRouteParams = $mergedPayload['cta_route_params'] ?? [];
     $ctaUrl = $resolveRouteUrl($ctaRoute, $ctaRouteParams, $ctaFallbackUrl);
@@ -81,86 +81,26 @@
     $posts = $postsQuery->limit($limit)->get();
 @endphp
 
-<section class="relative left-1/2 w-screen -translate-x-1/2 bg-white max-[540px]:pt-5 max-[540px]:pb-[2.75rem] pt-8 pb-16">
-    <div class="w-full px-3 sm:px-4 lg:px-6">
-        <div class="max-[540px]:mb-5 mb-8 text-center">
-            <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
-                @include('front.partials.section-heading-line', ['side' => 'left'])
-                <h2 class="max-[540px]:text-[1.18rem] max-[540px]:leading-[1.65rem] text-[1.35rem] leading-[1.95rem] sm:text-[1.7rem] sm:leading-[2.5rem] uppercase font-semibold text-slate-900">{{ $displayTitle }}</h2>
-                @include('front.partials.section-heading-line', ['side' => 'right'])
+<section class="home-news storefront-widget-wide pb-16" data-latest-news>
+    <header class="home-news-heading storefront-widget-heading--split">
+        <h2 class="storefront-widget-heading-title">{{ $displayTitle }}</h2>
+        @if ($displaySubtitle !== '' || ($ctaLabel !== '' && $ctaUrl !== ''))
+            <div class="storefront-widget-heading-meta">
+                @if ($displaySubtitle !== '')
+                    <span>{{ $displaySubtitle }}</span>
+                @endif
+                @if ($ctaLabel !== '' && $ctaUrl !== '')
+                    <a href="{{ $ctaUrl }}" class="storefront-widget-heading-link">{{ $ctaLabel }}</a>
+                @endif
             </div>
-            @if ($displaySubtitle !== '')
-                <p class="mx-auto mt-2 max-w-2xl text-sm text-slate-600 md:text-base">{{ $displaySubtitle }}</p>
-            @endif
+        @endif
+    </header>
 
-            @if ($ctaLabel !== '' && $ctaUrl !== '')
-                <a href="{{ $ctaUrl }}" class="mt-4 inline-flex h-10 items-center bg-slate-100 px-5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-200">
-                    {{ $ctaLabel }}
-                </a>
-            @endif
-        </div>
+    @if ($posts->isNotEmpty())
+        @include('front.partials.splide-assets')
 
-        @if ($posts->isNotEmpty())
-            <style>
-                #blogs-carousel-{{ $block->id }} .splide__arrow {
-                    opacity: 0;
-                    width: 46px;
-                    height: 46px;
-                    border-radius: 9999px;
-                    border: 1px solid rgba(255, 255, 255, 0.75);
-                    background: rgba(15, 23, 42, 0.35);
-                    backdrop-filter: blur(6px);
-                    transform: translateY(-50%) scale(0.92);
-                    transition: opacity .25s ease, transform .25s ease, background-color .25s ease;
-                }
-
-                #blogs-carousel-{{ $block->id }}:hover .splide__arrow,
-                #blogs-carousel-{{ $block->id }}:focus-within .splide__arrow {
-                    opacity: 1;
-                    transform: translateY(-50%) scale(1);
-                }
-
-                #blogs-carousel-{{ $block->id }} .splide__arrow:hover {
-                    background: rgba(15, 23, 42, 0.55);
-                }
-
-                #blogs-carousel-{{ $block->id }} .splide__arrow svg {
-                    fill: #fff;
-                }
-
-                #blogs-carousel-{{ $block->id }} .splide__pagination {
-                    bottom: -1.1rem;
-                    gap: 0.4rem;
-                }
-
-                #blogs-carousel-{{ $block->id }} .splide__pagination__page {
-                    width: 10px;
-                    height: 10px;
-                    margin: 0;
-                    opacity: 0.95;
-                    background: #ffffff !important;
-                    border: 2px solid transparent;
-                    transition: transform 0.2s linear, background-color 0.2s linear, border-color 0.2s linear;
-                }
-
-                #blogs-carousel-{{ $block->id }} .splide__pagination__page.is-active {
-                    transform: none;
-                    background: #0f172a !important;
-                    border-color: #ffffff;
-                }
-
-                @media (hover: none) {
-                    #blogs-carousel-{{ $block->id }} .splide__arrow {
-                        opacity: 1;
-                        transform: translateY(-50%) scale(1);
-                    }
-                }
-            </style>
-
-            @include('front.partials.splide-assets')
-
-            <div class="mt-4">
-                <div id="blogs-carousel-{{ $block->id }}" class="splide" data-blogs-carousel-splide>
+        <div>
+            <div id="blogs-carousel-{{ $block->id }}" class="splide home-news-carousel" data-blogs-carousel-splide>
                     <div class="splide__track">
                         <ul class="splide__list">
                             @foreach ($posts as $post)
@@ -201,14 +141,14 @@
                                 <li class="splide__slide">
                                     <article class="group h-full bg-white">
                                         <a href="{{ $postUrl }}" class="block">
-                                            <div class="overflow-hidden bg-slate-100">
+                                            <div class="aspect-[4/3] overflow-hidden bg-slate-100">
                                                 @if ($postCoverUrl)
                                                     <img
                                                         src="{{ $postCoverUrl }}"
                                                         @if ($postCoverSrcset !== '') srcset="{{ $postCoverSrcset }}" @endif
                                                         sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, (max-width: 1279px) 50vw, 33vw"
-                                                        alt=""
-                                                        class="h-auto w-full object-contain transition duration-300 group-hover:scale-[1.01]"
+                                                        alt="{{ $postTitle }}"
+                                                        class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
                                                         width="{{ $postCoverWidth }}"
                                                         height="{{ $postCoverHeight }}"
                                                         loading="lazy"
@@ -219,7 +159,12 @@
                                                 @endif
                                             </div>
                                             <div class="p-4">
-                                                <h3 class=" text-[1.02rem] leading-[1.4rem] font-semibold text-slate-900 min-[541px]:text-lg min-[541px]:leading-snug lg:text-xl">{{ $postTitle }}</h3>
+                                                @if ($post->published_at)
+                                                    <time datetime="{{ $post->published_at->toDateString() }}" class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                        {{ $post->published_at->format('d.m.Y.') }}
+                                                    </time>
+                                                @endif
+                                                <h3 class="mt-2 text-[1.02rem] leading-[1.4rem] font-semibold text-slate-900 min-[541px]:text-lg min-[541px]:leading-snug lg:text-xl">{{ $postTitle }}</h3>
                                                 @if ($postExcerpt !== '')
                                                     <p class="mt-2 text-sm text-slate-600">{{ \Illuminate\Support\Str::limit($postExcerpt, 120, '...') }}</p>
                                                 @endif
@@ -250,25 +195,42 @@
                                     el.dataset.splideReady = '1';
 
                                     const count = el.querySelectorAll('.splide__slide').length;
+                                    const desktopPerPage = Math.min(3, Math.max(1, count));
+                                    const tabletPerPage = Math.min(2, Math.max(1, count));
+                                    const mobilePerPage = 1;
+                                    const canSlideDesktop = count > desktopPerPage;
+                                    const canSlideTablet = count > tabletPerPage;
+                                    const canSlideMobile = count > mobilePerPage;
                                     const mobilePaddingRight = count > 1 ? '18%' : '0';
+
                                     new window.Splide(el, {
-                                        type: count > 1 ? 'loop' : 'slide',
-                                        perPage: Math.min(4, Math.max(1, count)),
+                                        type: 'slide',
+                                        rewind: canSlideDesktop,
+                                        perPage: desktopPerPage,
                                         perMove: 1,
                                         gap: '1.25rem',
-                                        drag: count > 1,
+                                        drag: canSlideDesktop,
                                         snap: true,
-                                        pagination: count > 1,
-                                        arrows: count > 1,
+                                        pagination: canSlideDesktop,
+                                        arrows: canSlideDesktop,
                                         updateOnMove: true,
                                         speed: 520,
                                         breakpoints: {
-                                            1280: { perPage: Math.min(3, Math.max(1, count)) },
-                                            1024: { perPage: Math.min(2, Math.max(1, count)) },
-                                            860: { perPage: Math.min(2, Math.max(1, count)), gap: '1rem' },
+                                            1024: {
+                                                rewind: canSlideTablet,
+                                                perPage: tabletPerPage,
+                                                gap: '1rem',
+                                                drag: canSlideTablet,
+                                                pagination: canSlideTablet,
+                                                arrows: canSlideTablet,
+                                            },
                                             640: {
-                                                perPage: 1,
+                                                rewind: canSlideMobile,
+                                                perPage: mobilePerPage,
                                                 gap: '0.8rem',
+                                                drag: canSlideMobile,
+                                                pagination: canSlideMobile,
+                                                arrows: canSlideMobile,
                                                 padding: { left: '0', right: mobilePaddingRight },
                                             },
                                         },
@@ -293,10 +255,9 @@
                     </script>
                 @endpush
             @endonce
-        @else
-            <div class="bg-slate-50 p-4 text-xs text-slate-500">
-                No blog posts available for selected source.
-            </div>
-        @endif
-    </div>
+    @else
+        <div class="bg-slate-50 p-4 text-xs text-slate-500">
+            {{ __('ui.blog.empty') }}
+        </div>
+    @endif
 </section>

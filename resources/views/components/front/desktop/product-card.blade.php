@@ -83,6 +83,8 @@
                 data-product-name="{{ $productName }}"
                 data-product-image="{{ (string) ($cartImageUrl ?? $imageUrl ?? '') }}"
                 data-cart-url="{{ route('cart.index') }}"
+                data-modal-title="{{ __('ui.cart.modal.title') }}"
+                data-modal-close="{{ __('Close') }}"
                 data-modal-continue="{{ __('ui.cart.modal.continue') }}"
                 data-modal-go-cart="{{ __('ui.cart.modal.go_to_cart') }}"
                 data-modal-option="{{ __('ui.cart.modal.option') }}"
@@ -160,7 +162,9 @@
                 <p class="mt-1 text-[10px] leading-tight text-slate-500 sm:text-[11px]">{{ $materialLabel }}</p>
             @endif
             <div class="product-card-lined-price mt-auto pt-4">
-                <p class="text-[11px] leading-none text-slate-700">{{ __('ui.shop.filters.price') }}</p>
+                <p class="text-[11px] leading-none {{ $isB2BPrice ? 'font-semibold text-cyan-800' : 'text-slate-700' }}">
+                    {{ $isB2BPrice ? __('ui.product.b2b_contract_price') : __('ui.shop.filters.price') }}
+                </p>
                 <div class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                     @if (! empty($oldPrice))
                         <p class="text-[11px] leading-none text-slate-500 line-through sm:text-[12px]">{{ $oldPrice }}</p>
@@ -189,6 +193,8 @@
                     data-product-name="{{ $productName }}"
                     data-product-image="{{ (string) ($cartImageUrl ?? $imageUrl ?? '') }}"
                     data-cart-url="{{ route('cart.index') }}"
+                    data-modal-title="{{ __('ui.cart.modal.title') }}"
+                    data-modal-close="{{ __('Close') }}"
                     data-modal-continue="{{ __('ui.cart.modal.continue') }}"
                     data-modal-go-cart="{{ __('ui.cart.modal.go_to_cart') }}"
                     data-modal-option="{{ __('ui.cart.modal.option') }}"
@@ -276,6 +282,9 @@
                 </span>
             @endif
             <div class="mt-1.5 flex flex-col gap-1">
+                @if ($isB2BPrice)
+                    <p class="text-[10px] font-semibold leading-tight text-cyan-800 sm:text-[11px]">{{ __('ui.product.b2b_contract_price') }}</p>
+                @endif
                 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                     @if (! empty($oldPrice))
                         <p class="text-[11px] leading-none text-slate-500 line-through sm:text-[13px]">{{ $oldPrice }}</p>
@@ -306,6 +315,9 @@
         @endif
         <div class="mt-2 flex items-end justify-between">
             <div class="flex flex-col gap-1">
+                @if ($isB2BPrice)
+                    <p class="text-[10px] font-semibold leading-tight text-cyan-800 sm:text-[11px]">{{ __('ui.product.b2b_contract_price') }}</p>
+                @endif
                 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                     @if (! empty($oldPrice))
                         <p class="text-[11px] leading-none text-slate-500 line-through sm:text-[13px]">{{ $oldPrice }}</p>
@@ -341,9 +353,7 @@
         <link rel="stylesheet" href="{{ asset('front-theme/styles/product-card.css') }}?v={{ filemtime(public_path('front-theme/styles/product-card.css')) }}">
     @endpush
     @push('scripts')
-        <script defer src="{{ asset('front-theme/scripts/product-card-options.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-options.js')) }}"></script>
-        <script defer src="{{ asset('front-theme/scripts/product-card-quantity.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-quantity.js')) }}"></script>
+        @include('front.partials.cart-modal-script')
         <script defer src="{{ asset('front-theme/scripts/product-card-cart-modal.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-cart-modal.js')) }}"></script>
-        <script defer src="{{ asset('front-theme/scripts/product-card-overlay-cart.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-overlay-cart.js')) }}"></script>
     @endpush
 @endonce

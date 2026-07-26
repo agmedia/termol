@@ -179,6 +179,7 @@ class CatalogController extends Controller
                     'has_discount' => $price !== null
                         && $oldGross !== null
                         && (float) $oldGross > (float) ($price['current_gross'] ?? 0),
+                    'is_b2b_price' => (bool) ($price['is_b2b_price'] ?? false),
                 ];
             })
             ->values()

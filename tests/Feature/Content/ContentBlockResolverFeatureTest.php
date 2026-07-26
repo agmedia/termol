@@ -12,6 +12,42 @@ class ContentBlockResolverFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_inactive_blocks_are_excluded_even_when_their_slot_is_active(): void
+    {
+        $active = ContentBlock::query()->create([
+            'code' => 'active-home-block',
+            'name' => 'Active Home Block',
+            'type' => 'banner',
+            'is_active' => true,
+            'payload' => null,
+        ]);
+
+        $inactive = ContentBlock::query()->create([
+            'code' => 'inactive-home-block',
+            'name' => 'Inactive Home Block',
+            'type' => 'banner',
+            'is_active' => false,
+            'payload' => null,
+        ]);
+
+        foreach ([$active, $inactive] as $block) {
+            $block->slots()->create([
+                'placement' => 'home.hero',
+                'frontend_variant' => 'all',
+                'target_type' => null,
+                'target_ref' => null,
+                'sort_order' => 0,
+                'is_active' => true,
+            ]);
+        }
+
+        Cache::flush();
+
+        $rows = app(ContentBlockResolver::class)->forPlacement('home.hero', 'en');
+
+        $this->assertSame(['active-home-block'], $rows->pluck('block.code')->all());
+    }
+
     public function test_mobile_variant_prefers_mobile_slots_over_all_slots(): void
     {
         $fallback = ContentBlock::query()->create([

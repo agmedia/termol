@@ -32,7 +32,7 @@
                 </div>
             @endfor
         </div>
-    @elseif ($typeKey === 'categories' || $typeKey === 'manufacturers' || $typeKey === 'blogs' || $typeKey === 'blog_grid_3')
+    @elseif ($typeKey === 'categories' || $typeKey === 'featured_categories' || $typeKey === 'manufacturers' || $typeKey === 'popular_brands' || $typeKey === 'blogs' || $typeKey === 'blog_grid_3')
         <div class="cb-cards3">
             @for ($i = 0; $i < 3; $i++)
                 <div class="cb-card-mini">

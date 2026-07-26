@@ -123,12 +123,21 @@ return [
         'admin.orders.invoice' => [
             'view' => ['sales.orders.invoice.view'],
         ],
+        'admin.orders.gls.*' => [
+            'view' => ['sales.orders.view'],
+            'mutate' => ['sales.orders.update'],
+        ],
         'admin.orders.show' => [
             'view' => ['sales.orders.view'],
             'mutate' => ['sales.orders.update'],
         ],
         'admin.orders' => [
             'view' => ['sales.orders.view'],
+        ],
+        'admin.shipping.*' => [
+            'view' => ['settings.local.manage'],
+            'mutate' => ['settings.local.manage'],
+            'delete' => ['settings.local.manage'],
         ],
 
         'admin.content.blog.create' => [

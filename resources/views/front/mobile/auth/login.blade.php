@@ -46,10 +46,15 @@
                     @enderror
                 </div>
 
-                <label class="d-flex align-items-center gap-2 mb-3">
-                    <input type="checkbox" name="remember" value="1" @checked(old('remember'))>
-                    <span>{{ __('ui.auth.login.remember') }}</span>
-                </label>
+                <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                    <label class="d-flex align-items-center gap-2 mb-0">
+                        <input type="checkbox" name="remember" value="1" @checked(old('remember'))>
+                        <span>{{ __('ui.auth.login.remember') }}</span>
+                    </label>
+                    <a href="{{ route('front.auth.password.request') }}" class="auth-inline-link font-12 font-600">
+                        {{ __('ui.auth.login.forgot_password') }}
+                    </a>
+                </div>
 
                 <button type="submit" class="commerce-primary-action btn btn-full font-600">{{ __('ui.auth.login.submit') }}</button>
                 @error('recaptcha_token')

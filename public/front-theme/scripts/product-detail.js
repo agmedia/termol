@@ -454,7 +454,7 @@ document.addEventListener('DOMContentLoaded', function () {
         updateDots();
     }
 
-    const qtyControls = document.querySelectorAll('[data-qty-control]');
+    const qtyControls = document.querySelectorAll('[data-product-detail-form] [data-qty-control]');
     qtyControls.forEach(function (control) {
         const input = control.querySelector('[data-qty-input]');
         const dec = control.querySelector('[data-qty-dec]');
@@ -551,9 +551,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return {
             current: String(form.dataset.productDefaultPriceCurrent || '').trim(),
             currentValue: String(form.dataset.productDefaultPriceCurrentValue || '').trim(),
+            net: String(form.dataset.productDefaultPriceNet || '').trim(),
             old: String(form.dataset.productDefaultPriceOld || '').trim(),
             discount: String(form.dataset.productDefaultPriceDiscount || '').trim(),
             lowest: String(form.dataset.productDefaultPriceLowest || '').trim(),
+            isB2B: String(form.dataset.productDefaultPriceB2b || '').trim(),
         };
     };
 
@@ -573,9 +575,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return {
             current: datasetValue(node.dataset, 'optionPriceCurrent', fallback.current),
             currentValue: datasetValue(node.dataset, 'optionPriceCurrentValue', fallback.currentValue),
+            net: datasetValue(node.dataset, 'optionPriceNet', fallback.net),
             old: datasetValue(node.dataset, 'optionPriceOld', fallback.old),
             discount: datasetValue(node.dataset, 'optionPriceDiscount', fallback.discount),
             lowest: datasetValue(node.dataset, 'optionPriceLowest', fallback.lowest),
+            isB2B: datasetValue(node.dataset, 'optionPriceB2b', fallback.isB2B),
         };
     };
 
@@ -616,6 +620,12 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        if (priceData.net !== '') {
+            document.querySelectorAll('[data-product-price-net]').forEach(function (node) {
+                node.textContent = priceData.net;
+            });
+        }
+
         document.querySelectorAll('[data-product-price-old]').forEach(function (node) {
             const hasOldPrice = priceData.old !== '';
             if (hasOldPrice) {
@@ -641,57 +651,22 @@ document.addEventListener('DOMContentLoaded', function () {
             setNodeVisibility(node, hasDiscount, 'inline-flex');
         });
 
+        document.querySelectorAll('[data-product-price-b2b]').forEach(function (node) {
+            setNodeVisibility(node, priceData.isB2B === '1');
+        });
+
         if (priceData.currentValue !== '') {
             form.dataset.ga4ItemPrice = priceData.currentValue;
         }
     };
 
     const cartCountNodes = document.querySelectorAll('[data-cart-count]');
-    let modal = null;
 
     const setCartCount = function (count) {
         const safeCount = Number.isFinite(count) ? Math.max(0, count) : 0;
         cartCountNodes.forEach(function (node) {
             node.textContent = String(safeCount);
         });
-    };
-
-    const ensureModal = function () {
-        if (modal) {
-            return modal;
-        }
-
-        const wrapper = document.createElement('div');
-        wrapper.className = 'product-cart-modal fixed inset-0 hidden items-center justify-center p-4';
-        wrapper.innerHTML = [
-            '<div class="product-cart-modal-backdrop fixed inset-0"></div>',
-            '<div class="product-cart-modal-panel relative w-full border border-slate-300 bg-white p-4 shadow-2xl">',
-            '  <div class="flex gap-4">',
-            '    <img src="" alt="" class="h-28 w-20 border border-slate-200 object-cover" data-cart-modal-image>',
-            '    <div class="min-w-0 flex-1">',
-            '      <h3 class="text-lg font-semibold text-slate-900" data-cart-modal-name></h3>',
-            '      <p class="mt-2 text-sm text-slate-600" data-cart-modal-option-wrap><span class="font-semibold text-slate-800" data-cart-modal-option-label></span>: <span data-cart-modal-option></span></p>',
-            '      <p class="mt-1 text-sm text-slate-600"><span class="font-semibold text-slate-800" data-cart-modal-qty-label></span>: <span data-cart-modal-qty></span></p>',
-            '    </div>',
-            '  </div>',
-            '  <div class="mt-5 grid grid-cols-2 gap-2">',
-            '    <button type="button" class="h-11 border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100" data-cart-modal-continue></button>',
-            '    <a href="#" class="inline-flex h-11 items-center justify-center border border-slate-900 bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-700" data-cart-modal-cart></a>',
-            '  </div>',
-            '</div>',
-        ].join('');
-
-        document.body.appendChild(wrapper);
-        modal = wrapper;
-
-        const continueBtn = modal.querySelector('[data-cart-modal-continue]');
-        continueBtn.addEventListener('click', function () {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            document.body.classList.remove('overflow-hidden');
-        });
-
-        return modal;
     };
 
     const selectedOptionLabel = function (form) {
@@ -763,44 +738,9 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const showModal = function (form) {
-        const popup = ensureModal();
-        const image = popup.querySelector('[data-cart-modal-image]');
-        const name = popup.querySelector('[data-cart-modal-name]');
-        const optionWrap = popup.querySelector('[data-cart-modal-option-wrap]');
-        const optionLabel = popup.querySelector('[data-cart-modal-option-label]');
-        const optionValue = popup.querySelector('[data-cart-modal-option]');
-        const qtyLabel = popup.querySelector('[data-cart-modal-qty-label]');
-        const qtyValue = popup.querySelector('[data-cart-modal-qty]');
-        const continueBtn = popup.querySelector('[data-cart-modal-continue]');
-        const cartBtn = popup.querySelector('[data-cart-modal-cart]');
-
-        const imageUrl = String(form.dataset.productImage || '').trim();
-        const productName = String(form.dataset.productName || '').trim();
-        const optionText = selectedOptionLabel(form);
-        const qty = currentQty(form);
-
-        image.src = imageUrl;
-        image.alt = productName;
-        name.textContent = productName;
-
-        if (optionText !== '') {
-            optionWrap.classList.remove('hidden');
-            optionLabel.textContent = String(form.dataset.modalOption || 'Option');
-            optionValue.textContent = optionText;
-        } else {
-            optionWrap.classList.add('hidden');
+        if (window.TermolCartModal) {
+            window.TermolCartModal.show(form, selectedOptionLabel(form), currentQty(form));
         }
-
-        qtyLabel.textContent = String(form.dataset.modalQuantity || 'Quantity');
-        qtyValue.textContent = String(qty);
-
-        continueBtn.textContent = String(form.dataset.modalContinue || 'Continue shopping');
-        cartBtn.textContent = String(form.dataset.modalGoCart || 'Go to cart');
-        cartBtn.setAttribute('href', String(form.dataset.cartUrl || '/cart'));
-
-        popup.classList.remove('hidden');
-        popup.classList.add('flex');
-        document.body.classList.add('overflow-hidden');
     };
 
     forms.forEach(function (form) {

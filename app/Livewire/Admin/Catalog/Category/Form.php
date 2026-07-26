@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\Catalog\Category;
 
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Category\CategoryTranslation;
+use App\Models\Catalog\Product\Product;
 use App\Models\Settings\Local\Language;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ class Form extends Component
         'show_in_menu' => true,
         'catalog_show_filters' => true,
         'catalog_show_products' => true,
+        'shipping_labels' => [],
         'sort_order' => 0,
         'starts_at' => '',
         'ends_at' => '',
@@ -119,10 +121,17 @@ class Form extends Component
             if ($scope === Category::SCOPE_CATALOG) {
                 $payload[Category::PAYLOAD_SHOW_FILTERS] = (bool) $validated['form']['catalog_show_filters'];
                 $payload[Category::PAYLOAD_SHOW_PRODUCTS] = (bool) $validated['form']['catalog_show_products'];
+                $shippingLabels = array_values($validated['form']['shipping_labels'] ?? []);
+                if ($shippingLabels !== []) {
+                    $payload[Category::PAYLOAD_SHIPPING_LABELS] = $shippingLabels;
+                } else {
+                    unset($payload[Category::PAYLOAD_SHIPPING_LABELS]);
+                }
             } else {
                 unset(
                     $payload[Category::PAYLOAD_SHOW_FILTERS],
-                    $payload[Category::PAYLOAD_SHOW_PRODUCTS]
+                    $payload[Category::PAYLOAD_SHOW_PRODUCTS],
+                    $payload[Category::PAYLOAD_SHIPPING_LABELS]
                 );
             }
 
@@ -288,6 +297,7 @@ class Form extends Component
     {
         return view('livewire.admin.catalog.category.form', [
             'isEdit' => (bool) $this->categoryId,
+            'shippingLabelOptions' => Product::shippingLabelOptions(),
         ]);
     }
 
@@ -314,6 +324,8 @@ class Form extends Component
             'form.show_in_menu' => ['boolean'],
             'form.catalog_show_filters' => ['boolean'],
             'form.catalog_show_products' => ['boolean'],
+            'form.shipping_labels' => ['nullable', 'array'],
+            'form.shipping_labels.*' => [Rule::in(array_keys(Product::shippingLabelOptions()))],
             'form.sort_order' => ['nullable', 'integer', 'min:0'],
             'form.starts_at' => ['nullable', 'date'],
             'form.ends_at' => ['nullable', 'date', 'after_or_equal:form.starts_at'],
@@ -365,9 +377,13 @@ class Form extends Component
         $payload = is_array($category->payload) ? $category->payload : [];
         $this->form['catalog_show_filters'] = (bool) ($payload[Category::PAYLOAD_SHOW_FILTERS] ?? true);
         $this->form['catalog_show_products'] = (bool) ($payload[Category::PAYLOAD_SHOW_PRODUCTS] ?? true);
+        $this->form['shipping_labels'] = is_array($payload[Category::PAYLOAD_SHIPPING_LABELS] ?? null)
+            ? array_values($payload[Category::PAYLOAD_SHIPPING_LABELS])
+            : [];
         unset(
             $payload[Category::PAYLOAD_SHOW_FILTERS],
-            $payload[Category::PAYLOAD_SHOW_PRODUCTS]
+            $payload[Category::PAYLOAD_SHOW_PRODUCTS],
+            $payload[Category::PAYLOAD_SHIPPING_LABELS]
         );
         $this->form['payload_text'] = $payload !== []
             ? json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)

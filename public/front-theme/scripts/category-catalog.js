@@ -280,6 +280,55 @@
         window.addEventListener('resize', requestApply);
     };
 
+    const initResponsiveGridToggles = () => {
+        const grid = document.querySelector('[data-catalog-grid]');
+        const toggles = Array.from(document.querySelectorAll('[data-catalog-grid-cols]'));
+
+        if (!grid || toggles.length === 0 || grid.dataset.gridToggleSyncInit === '1') {
+            return;
+        }
+
+        grid.dataset.gridToggleSyncInit = '1';
+
+        let rafId = 0;
+        const countRenderedColumns = () => {
+            const template = window.getComputedStyle(grid).gridTemplateColumns.trim();
+            return template === '' || template === 'none'
+                ? 0
+                : template.split(/\s+/).length;
+        };
+        const syncToggleState = () => {
+            rafId = 0;
+            const renderedColumns = countRenderedColumns();
+
+            toggles.forEach((toggle) => {
+                const isActive = Number(toggle.dataset.catalogGridCols) === renderedColumns;
+                toggle.classList.toggle('is-active', isActive);
+
+                if (isActive) {
+                    toggle.setAttribute('aria-current', 'true');
+                } else {
+                    toggle.removeAttribute('aria-current');
+                }
+            });
+        };
+        const requestSync = () => {
+            if (rafId) {
+                return;
+            }
+
+            rafId = window.requestAnimationFrame(syncToggleState);
+        };
+
+        requestSync();
+        window.addEventListener('resize', requestSync);
+
+        if (typeof window.ResizeObserver === 'function') {
+            const resizeObserver = new window.ResizeObserver(requestSync);
+            resizeObserver.observe(grid);
+        }
+    };
+
     const init = () => {
         document.querySelectorAll('[data-mobile-filter-root]').forEach((root) => {
             if (root.dataset.mobileFilterInit === '1') {
@@ -461,6 +510,7 @@
         });
 
         initStickyFilterBar();
+        initResponsiveGridToggles();
     };
 
     if (document.readyState === 'loading') {

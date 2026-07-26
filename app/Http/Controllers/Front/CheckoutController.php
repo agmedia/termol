@@ -16,13 +16,14 @@ use App\Services\Payments\BankTransferUpiService;
 use App\Services\Payments\CorvusPayFormService;
 use App\Services\Payments\KeksPayService;
 use App\Services\Payments\WSPayFormService;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Http\JsonResponse;
 use App\Support\Currency;
-use Illuminate\Validation\ValidationException;
+use App\Support\GlsShipping;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CheckoutController extends Controller
@@ -33,8 +34,7 @@ class CheckoutController extends Controller
         private readonly CartService $cart,
         private readonly CheckoutService $checkout,
         private readonly StoreNotificationService $notifications
-    ) {
-    }
+    ) {}
 
     public function create(Request $request): View|RedirectResponse
     {
@@ -178,6 +178,13 @@ class CheckoutController extends Controller
             'shipping_boxnow_address_line_1' => ['nullable', 'string', 'max:255'],
             'shipping_boxnow_postal_code' => ['nullable', 'string', 'max:32'],
             'shipping_boxnow_city' => ['nullable', 'string', 'max:120'],
+            'shipping_gls_dpm_id' => ['nullable', 'string', 'max:120', 'regex:/^[A-Za-z0-9._:\\-]+$/'],
+            'shipping_gls_dpm_external_id' => ['nullable', 'string', 'max:120'],
+            'shipping_gls_dpm_name' => ['nullable', 'string', 'max:255'],
+            'shipping_gls_dpm_type' => ['nullable', 'string', 'max:80'],
+            'shipping_gls_dpm_address_line_1' => ['nullable', 'string', 'max:255'],
+            'shipping_gls_dpm_postal_code' => ['nullable', 'string', 'max:32'],
+            'shipping_gls_dpm_city' => ['nullable', 'string', 'max:120'],
 
             'shipping_method_code' => ['required', 'string', 'max:60'],
             'payment_method_code' => ['required', 'string', 'max:60'],
@@ -308,7 +315,7 @@ class CheckoutController extends Controller
         $shippingState = (string) $request->query('shipping_state', '');
         $shippingPostal = (string) $request->query('shipping_postal_code', '');
 
-        if (!$shipToDifferent) {
+        if (! $shipToDifferent) {
             $shippingCountry = $billingCountry;
             $shippingState = $billingState;
             $shippingPostal = $billingPostal;
@@ -342,10 +349,15 @@ class CheckoutController extends Controller
             'shipping_methods' => $shippingMethods->map(fn ($method) => [
                 'code' => (string) $method->code,
                 'name' => (string) $method->name,
-                'price' => round((float) $method->price, 2),
-                'price_formatted' => Currency::format((float) $method->price),
+                'price' => round((float) ($method->resolved_price ?? $method->price), 2),
+                'price_formatted' => (string) $method->pricing_type === 'quote'
+                    ? __('Cijena na upit')
+                    : Currency::format((float) ($method->resolved_price ?? $method->price)),
+                'requires_quote' => (string) $method->pricing_type === 'quote',
                 'is_boxnow' => in_array(strtolower((string) $method->code), ['boxnow', 'box_now'], true),
                 'boxnow_partner_id' => (string) ((is_array($method->settings ?? null) ? ($method->settings['boxnow_partner_id'] ?? '') : '') ?: ''),
+                'is_gls_dpm' => GlsShipping::isGlsDpmShippingMethod($method),
+                'gls_dpm_filter_type' => GlsShipping::glsDpmFilterType($method),
             ])->all(),
             'payment_methods' => $paymentMethods->map(fn ($method) => [
                 'code' => (string) $method->code,
@@ -593,7 +605,7 @@ class CheckoutController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $validated
+     * @param  array<string, mixed>  $validated
      */
     private function syncCustomerData(Request $request, array $validated): void
     {

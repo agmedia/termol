@@ -19,8 +19,10 @@
         return [
             'current' => $formatGrossPrice((float) ($priceData['current_gross'] ?? 0)),
             'current_value' => $formatGrossDecimal((float) ($priceData['current_gross'] ?? 0)),
+            'current_net' => $formatGrossPrice((float) ($priceData['current_net'] ?? $priceData['current_gross'] ?? 0)),
             'old' => $oldGross !== null ? $formatGrossPrice((float) $oldGross) : '',
             'discount_percent' => $discountPercent > 0 ? (string) $discountPercent : '',
+            'is_b2b' => (bool) ($priceData['is_b2b_price'] ?? false),
             'lowest_30_days' => $lowestGross !== null
                 ? __('ui.product.lowest_price_30_days', ['price' => $formatGrossPrice((float) $lowestGross)])
                 : '',
@@ -200,6 +202,9 @@
 
     <div class="card card-style">
         <div class="content">
+            <p class="{{ $productPriceData['is_b2b'] ? '' : 'd-none' }} font-11 font-600 color-highlight mb-1" data-product-price-b2b>
+                {{ __('ui.product.b2b_contract_price') }}
+            </p>
             <div class="product-mobile-title-row">
                 <h2 class="mb-0" data-product-price-current>{{ $productPriceData['current'] }}</h2>
                 <form
@@ -230,6 +235,9 @@
                     {{ __('ui.product.vat_included', ['rate' => rtrim(rtrim(number_format($vatRate, 2, $locale === 'hr' ? ',' : '.', ''), '0'), $locale === 'hr' ? ',' : '.')]) }}
                 </p>
             @endif
+            <p class="product-detail-net-price">
+                {{ __('ui.product.price_excluding_vat') }}: <span data-product-price-net>{{ $productPriceData['current_net'] }}</span>
+            </p>
             <p class="font-12 opacity-60 mb-2">{{ __('ui.product.sku') }} <span data-product-sku-value>{{ $product->sku ?: $product->code ?: 'n/a' }}</span></p>
 
             @if ($manufacturerTranslation && $manufacturerEnabled)
@@ -282,6 +290,8 @@
                 data-product-name="{{ $translation?->name ?? $product->code }}"
                 data-product-image="{{ (string) (($gallery->first()['full'] ?? '') ?: '') }}"
                 data-cart-url="{{ route('cart.index') }}"
+                data-modal-title="{{ __('ui.cart.modal.title') }}"
+                data-modal-close="{{ __('Close') }}"
                 data-modal-continue="{{ __('ui.cart.modal.continue') }}"
                 data-modal-go-cart="{{ __('ui.cart.modal.go_to_cart') }}"
                 data-modal-option="{{ __('ui.cart.modal.option') }}"
@@ -290,9 +300,11 @@
                 data-option-error-unavailable="{{ __('ui.cart.status.unavailable') }}"
                 data-product-default-price-current="{{ $productPriceData['current'] }}"
                 data-product-default-price-current-value="{{ $productPriceData['current_value'] }}"
+                data-product-default-price-net="{{ $productPriceData['current_net'] }}"
                 data-product-default-price-old="{{ $productPriceData['old'] }}"
                 data-product-default-price-discount="{{ $productPriceData['discount_percent'] }}"
                 data-product-default-price-lowest="{{ $productPriceData['lowest_30_days'] }}"
+                data-product-default-price-b2b="{{ $productPriceData['is_b2b'] ? '1' : '0' }}"
             >
                 @csrf
                 <input type="hidden" name="product_id" value="{{ $product->id }}">
@@ -326,9 +338,11 @@
                                         data-option-sku="{{ (string) ($row->sku ?: '') }}"
                                         data-option-price-current="{{ $rowPriceData['current'] }}"
                                         data-option-price-current-value="{{ $rowPriceData['current_value'] }}"
+                                        data-option-price-net="{{ $rowPriceData['current_net'] }}"
                                         data-option-price-old="{{ $rowPriceData['old'] }}"
                                         data-option-price-discount="{{ $rowPriceData['discount_percent'] }}"
                                         data-option-price-lowest="{{ $rowPriceData['lowest_30_days'] }}"
+                                        data-option-price-b2b="{{ $rowPriceData['is_b2b'] ? '1' : '0' }}"
                                     >{{ $label }}</option>
                                 @endforeach
                             </select>
@@ -352,9 +366,11 @@
                                         data-option-sku="{{ (string) ($row->sku ?: '') }}"
                                         data-option-price-current="{{ $rowPriceData['current'] }}"
                                         data-option-price-current-value="{{ $rowPriceData['current_value'] }}"
+                                        data-option-price-net="{{ $rowPriceData['current_net'] }}"
                                         data-option-price-old="{{ $rowPriceData['old'] }}"
                                         data-option-price-discount="{{ $rowPriceData['discount_percent'] }}"
                                         data-option-price-lowest="{{ $rowPriceData['lowest_30_days'] }}"
+                                        data-option-price-b2b="{{ $rowPriceData['is_b2b'] ? '1' : '0' }}"
                                     >{{ $label }}</option>
                                 @endforeach
                             </select>
@@ -493,6 +509,7 @@
 
 @push('scripts')
     @include('front.partials.splide-assets')
+    @include('front.partials.cart-modal-script')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/css/lightgallery-bundle.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/lightgallery.min.js"></script>
     <script defer src="{{ asset('front-theme/scripts/product-detail.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-detail.js')) }}"></script>

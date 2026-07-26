@@ -1194,7 +1194,8 @@
                     $catalogB2bPricesActive = request()->routeIs('admin.b2b-prices*');
                     $catalogOpen = $catalogCategoriesActive || $catalogProductsActive || $catalogAttributesActive || $catalogOptionsActive || $catalogManufacturersActive || $catalogActionsActive || $catalogB2bPricesActive;
                     $salesOrdersActive = request()->routeIs('admin.orders*');
-                    $salesOpen = $salesOrdersActive;
+                    $salesShippingActive = request()->routeIs('admin.shipping.*');
+                    $salesOpen = $salesOrdersActive || $salesShippingActive;
                     $contentBlogActive = request()->routeIs('admin.content.blog.*');
                     $contentPagesActive = request()->routeIs('admin.content.pages.*');
                     $contentFaqsActive = request()->routeIs('admin.content.faqs.*');
@@ -1494,6 +1495,15 @@
                                     <span>{{ __('admin.layout.menu.orders') }}</span>
                                 </span>
                             </a>
+                            <a
+                                href="{{ route('admin.shipping.index') }}"
+                                class="sidebar-dropdown-link block rounded-lg font-medium {{ $salesShippingActive ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
+                            >
+                                <span class="flex items-center gap-2">
+                                    <span class="sidebar-dot"></span>
+                                    <span>{{ __('Dostava') }}</span>
+                                </span>
+                            </a>
                         </div>
                     </details>
 
@@ -1591,7 +1601,6 @@
                                 <div class="ml-2 mt-1 space-y-1 border-l border-slate-200 pl-2">
                                     @foreach ([
                                         'payment-methods' => __('admin.layout.menu.payment_methods'),
-                                        'shipping-methods' => __('admin.layout.menu.shipping_methods'),
                                         'geo-zones' => __('admin.layout.menu.geo_zones'),
                                         'geo-zone-countries' => __('admin.layout.menu.geo_zone_countries'),
                                         'regions' => __('admin.layout.menu.regions'),

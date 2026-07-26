@@ -21,10 +21,11 @@
     </section>
 
     <section class="auth-layout">
-        <div class="auth-form-card border border-slate-200 p-6">
+        <div class="auth-form-card border border-slate-200 p-6" data-address-autofill data-address-source="{{ $placesAssetUrl }}">
             <h2 class="text-xl font-bold text-slate-900">{{ __('Podaci korisnika i tvrtke') }}</h2>
 
             <form method="POST" action="{{ route('front.auth.b2b-register.store') }}" class="mt-5 grid gap-4 md:grid-cols-2" novalidate
+                data-address-scope="billing"
                 @if($captchaEnabled) data-recaptcha-form data-recaptcha-site-key="{{ $captchaSiteKey }}" data-recaptcha-action="register_form" @endif>
                 @csrf
                 <input type="hidden" name="recaptcha_token" value="" data-recaptcha-token>
@@ -48,44 +49,75 @@
                 @foreach ($fields as $field)
                     <div class="{{ in_array($field[0], ['company_name', 'address_line_1', 'address_line_2'], true) ? 'md:col-span-2' : '' }}">
                         <label for="b2b-{{ $field[0] }}" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $field[1] }}</label>
-                        <input id="b2b-{{ $field[0] }}" type="{{ $field[4] ?? 'text' }}" name="{{ $field[0] }}" value="{{ old($field[0]) }}" autocomplete="{{ $field[2] }}" class="w-full px-3 text-sm" @required($field[3])>
-                        @error($field[0]) <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p> @enderror
+                        <input
+                            id="b2b-{{ $field[0] }}"
+                            type="{{ $field[4] ?? 'text' }}"
+                            name="{{ $field[0] }}"
+                            value="{{ old($field[0]) }}"
+                            autocomplete="{{ $field[2] }}"
+                            class="w-full px-3 text-sm @error($field[0]) border-rose-500 @enderror"
+                            @if($field[0] === 'postal_code') data-address-postal inputmode="numeric" @endif
+                            @if($field[0] === 'city') data-address-city @endif
+                            @required($field[3])
+                            @error($field[0]) aria-invalid="true" aria-describedby="b2b-{{ $field[0] }}-error" @enderror
+                        >
+                        @error($field[0])
+                            <p id="b2b-{{ $field[0] }}-error" class="mt-2 text-xs font-semibold text-rose-600" aria-live="polite">{{ $message }}</p>
+                        @enderror
                     </div>
                 @endforeach
 
                 <div>
                     <label for="b2b-country" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('Država') }}</label>
-                    <select id="b2b-country" name="country_code" class="w-full px-3 text-sm" required>
-                        <option value="HR" @selected(old('country_code', 'HR') === 'HR')>Hrvatska</option>
-                        <option value="SI" @selected(old('country_code') === 'SI')>Slovenija</option>
-                        <option value="BA" @selected(old('country_code') === 'BA')>Bosna i Hercegovina</option>
-                        <option value="RS" @selected(old('country_code') === 'RS')>Srbija</option>
-                        <option value="DE" @selected(old('country_code') === 'DE')>Njemačka</option>
-                        <option value="AT" @selected(old('country_code') === 'AT')>Austrija</option>
+                    <select
+                        id="b2b-country"
+                        name="country_code"
+                        class="w-full px-3 text-sm @error('country_code') border-rose-500 @enderror"
+                        required
+                        data-address-country
+                        @error('country_code') aria-invalid="true" aria-describedby="b2b-country-error" @enderror
+                    >
+                        @foreach ($countryOptions as $countryOption)
+                            <option value="{{ $countryOption['code'] }}" @selected(old('country_code', 'HR') === $countryOption['code'])>{{ $countryOption['label'] }}</option>
+                        @endforeach
                     </select>
+                    @error('country_code')
+                        <p id="b2b-country-error" class="mt-2 text-xs font-semibold text-rose-600" aria-live="polite">{{ $message }}</p>
+                    @enderror
                 </div>
 
                 <div></div>
 
                 <div>
                     <label for="b2b-password" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('Lozinka') }}</label>
-                    <input id="b2b-password" type="password" name="password" class="w-full px-3 text-sm" autocomplete="new-password" required>
-                    @error('password') <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p> @enderror
+                    <input id="b2b-password" type="password" name="password" class="w-full px-3 text-sm @error('password') border-rose-500 @enderror" autocomplete="new-password" required @error('password') aria-invalid="true" aria-describedby="b2b-password-error" @enderror>
+                    @error('password')
+                        <p id="b2b-password-error" class="mt-2 text-xs font-semibold text-rose-600" aria-live="polite">{{ $message }}</p>
+                    @enderror
                 </div>
                 <div>
                     <label for="b2b-password-confirmation" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('Potvrda lozinke') }}</label>
-                    <input id="b2b-password-confirmation" type="password" name="password_confirmation" class="w-full px-3 text-sm" autocomplete="new-password" required>
+                    <input id="b2b-password-confirmation" type="password" name="password_confirmation" class="w-full px-3 text-sm @error('password_confirmation') border-rose-500 @enderror" autocomplete="new-password" required @error('password_confirmation') aria-invalid="true" aria-describedby="b2b-password-confirmation-error" @enderror>
+                    @error('password_confirmation')
+                        <p id="b2b-password-confirmation-error" class="mt-2 text-xs font-semibold text-rose-600" aria-live="polite">{{ $message }}</p>
+                    @enderror
                 </div>
 
-                <label class="md:col-span-2 flex items-start gap-3 border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                    <input type="checkbox" name="terms_accepted" value="1" class="mt-0.5" @checked(old('terms_accepted')) required>
-                    <span>{{ __('Potvrđujem da su uneseni poslovni podaci točni i prihvaćam provjeru B2B zahtjeva prije aktivacije ugovorenih cijena.') }}</span>
-                </label>
-                @error('terms_accepted') <p class="md:col-span-2 text-xs font-semibold text-rose-600">{{ $message }}</p> @enderror
+                <div class="md:col-span-2">
+                    <label class="flex items-start gap-3 border bg-slate-50 p-4 text-sm text-slate-700 @error('terms_accepted') border-rose-500 @else border-slate-200 @enderror">
+                        <input type="checkbox" name="terms_accepted" value="1" class="mt-0.5" @checked(old('terms_accepted')) required @error('terms_accepted') aria-invalid="true" aria-describedby="b2b-terms-error" @enderror>
+                        <span>{{ __('Potvrđujem da su uneseni poslovni podaci točni i prihvaćam provjeru B2B zahtjeva prije aktivacije ugovorenih cijena.') }}</span>
+                    </label>
+                    @error('terms_accepted')
+                        <p id="b2b-terms-error" class="mt-2 text-xs font-semibold text-rose-600" aria-live="polite">{{ $message }}</p>
+                    @enderror
+                </div>
 
                 <div class="md:col-span-2">
                     <button type="submit" class="commerce-primary-action px-5 py-3 text-sm font-semibold">{{ __('Pošalji B2B zahtjev') }}</button>
-                    @error('recaptcha_token') <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p> @enderror
+                    @error('recaptcha_token')
+                        <p class="mt-2 text-xs font-semibold text-rose-600" aria-live="polite">{{ $message }}</p>
+                    @enderror
                 </div>
             </form>
         </div>
@@ -102,3 +134,7 @@
         @include('front.partials.recaptcha-v3', ['siteKey' => $captchaSiteKey])
     @endif
 @endsection
+
+@push('scripts')
+    <script defer src="{{ asset('front-theme/scripts/address-autofill.js') }}?v={{ filemtime(public_path('front-theme/scripts/address-autofill.js')) }}"></script>
+@endpush

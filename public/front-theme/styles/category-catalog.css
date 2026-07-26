@@ -1162,6 +1162,10 @@
         color: #fff;
     }
 
+    .catalog-grid-toggle.catalog-grid-toggle--five {
+        display: none;
+    }
+
     .catalog-reset-button {
         display: inline-flex;
         height: 32px;
@@ -1637,5 +1641,11 @@
             min-width: 190px;
         }
 
+    }
+}
+
+@media (min-width: 1536px) {
+    .catalog-grid-toggle.catalog-grid-toggle--five {
+        display: inline-flex;
     }
 }

@@ -18,6 +18,13 @@
         $selectedBoxNowAddressLine1 = (string) old('shipping_boxnow_address_line_1', '');
         $selectedBoxNowPostalCode = (string) old('shipping_boxnow_postal_code', '');
         $selectedBoxNowCity = (string) old('shipping_boxnow_city', '');
+        $selectedGlsDpmId = (string) old('shipping_gls_dpm_id', '');
+        $selectedGlsDpmExternalId = (string) old('shipping_gls_dpm_external_id', '');
+        $selectedGlsDpmName = (string) old('shipping_gls_dpm_name', '');
+        $selectedGlsDpmType = (string) old('shipping_gls_dpm_type', '');
+        $selectedGlsDpmAddressLine1 = (string) old('shipping_gls_dpm_address_line_1', '');
+        $selectedGlsDpmPostalCode = (string) old('shipping_gls_dpm_postal_code', '');
+        $selectedGlsDpmCity = (string) old('shipping_gls_dpm_city', '');
         $ga4Items = collect($lines)->map(function (array $line) {
             $locale = app()->getLocale();
             $fallbackLocale = (string) config('app.locale');
@@ -51,7 +58,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('checkout.store') }}" class="mobile-checkout" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($checkoutTotals['grand_total'] ?? $summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
+    <form method="POST" action="{{ route('checkout.store') }}" class="mobile-checkout" novalidate data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($checkoutTotals['grand_total'] ?? $summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
         @csrf
 
         <div class="card card-style">
@@ -84,6 +91,9 @@
                             @endif
                             @if (!empty($line['option_label']))
                                 <p class="font-11 opacity-60 mb-1">{{ $line['option_label'] }}</p>
+                            @endif
+                            @if (!empty($line['is_b2b_price']))
+                                <p class="font-11 font-600 color-highlight mb-1">{{ __('ui.product.b2b_contract_price') }}</p>
                             @endif
                             <p class="font-11 opacity-60 mb-1">{{ __('ui.checkout.labels.qty') }} {{ $line['quantity'] }}</p>
                             <h4 class="font-700 mb-0">{{ \App\Support\Currency::format((float) ($line['display_line_total'] ?? $line['line_total'])) }}</h4>
@@ -122,37 +132,94 @@
                 <input type="hidden" name="customer_first_name" value="{{ old('customer_first_name', old('billing_first_name', $prefill['billing']['first_name'])) }}" data-customer-first-hidden>
                 <input type="hidden" name="customer_last_name" value="{{ old('customer_last_name', old('billing_last_name', $prefill['billing']['last_name'])) }}" data-customer-last-hidden>
 
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-first" class="color-highlight">{{ __('ui.account.fields.first_name') }}</label><input id="billing-first" type="text" name="billing_first_name" value="{{ old('billing_first_name', $prefill['billing']['first_name']) }}" autocomplete="billing given-name" data-billing-first required></div>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-last" class="color-highlight">{{ __('ui.account.fields.last_name') }}</label><input id="billing-last" type="text" name="billing_last_name" value="{{ old('billing_last_name', $prefill['billing']['last_name']) }}" autocomplete="billing family-name" data-billing-last required></div>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="customer-email" class="color-highlight">{{ __('ui.account.fields.email') }}</label><input id="customer-email" type="email" name="customer_email" value="{{ old('customer_email', $prefill['email']) }}" autocomplete="email" required></div>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="customer-phone" class="color-highlight">{{ __('ui.account.fields.phone') }}</label><input id="customer-phone" type="tel" name="customer_phone" value="{{ old('customer_phone', $prefill['phone']) }}" autocomplete="tel" inputmode="tel" required></div>
+                <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                    <label for="billing-first" class="color-highlight">{{ __('ui.account.fields.first_name') }}</label>
+                    <input id="billing-first" type="text" name="billing_first_name" value="{{ old('billing_first_name', $prefill['billing']['first_name']) }}" autocomplete="billing given-name" data-billing-first required @error('billing_first_name') aria-invalid="true" aria-describedby="billing-first-error" @enderror>
+                </div>
+                @error('billing_first_name')
+                    <p id="billing-first-error" class="mb-3 mt-n2 font-600 font-12 color-red-dark">{{ $message }}</p>
+                @enderror
+
+                <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                    <label for="billing-last" class="color-highlight">{{ __('ui.account.fields.last_name') }}</label>
+                    <input id="billing-last" type="text" name="billing_last_name" value="{{ old('billing_last_name', $prefill['billing']['last_name']) }}" autocomplete="billing family-name" data-billing-last required @error('billing_last_name') aria-invalid="true" aria-describedby="billing-last-error" @enderror>
+                </div>
+                @error('billing_last_name')
+                    <p id="billing-last-error" class="mb-3 mt-n2 font-600 font-12 color-red-dark">{{ $message }}</p>
+                @enderror
+
+                <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                    <label for="customer-email" class="color-highlight">{{ __('ui.account.fields.email') }}</label>
+                    <input id="customer-email" type="email" name="customer_email" value="{{ old('customer_email', $prefill['email']) }}" autocomplete="email" required @error('customer_email') aria-invalid="true" aria-describedby="customer-email-error" @enderror>
+                </div>
+                @error('customer_email')
+                    <p id="customer-email-error" class="mb-3 mt-n2 font-600 font-12 color-red-dark">{{ $message }}</p>
+                @enderror
+
+                <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                    <label for="customer-phone" class="color-highlight">{{ __('ui.account.fields.phone') }}</label>
+                    <input id="customer-phone" type="tel" name="customer_phone" value="{{ old('customer_phone', $prefill['phone']) }}" autocomplete="tel" inputmode="tel" required @error('customer_phone') aria-invalid="true" aria-describedby="customer-phone-error" @enderror>
+                </div>
+                @error('customer_phone')
+                    <p id="customer-phone-error" class="mb-3 mt-n2 font-600 font-12 color-red-dark">{{ $message }}</p>
+                @enderror
                 <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-company" class="color-highlight">{{ __('ui.account.fields.company') }}</label><input id="billing-company" type="text" name="billing_company" value="{{ old('billing_company', $prefill['billing']['company']) }}" autocomplete="billing organization"></div>
                 <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-oib" class="color-highlight">{{ __('ui.account.fields.oib') }}</label><input id="billing-oib" type="text" name="billing_oib" value="{{ old('billing_oib', $prefill['billing']['oib']) }}" inputmode="numeric"></div>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-address1" class="color-highlight">{{ __('ui.account.fields.address_line_1') }}</label><input id="billing-address1" type="text" name="billing_address_line_1" value="{{ old('billing_address_line_1', $prefill['billing']['address_line_1']) }}" autocomplete="billing street-address" required></div>
+                <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                    <label for="billing-address1" class="color-highlight">{{ __('ui.account.fields.address_line_1') }}</label>
+                    <input id="billing-address1" type="text" name="billing_address_line_1" value="{{ old('billing_address_line_1', $prefill['billing']['address_line_1']) }}" autocomplete="billing street-address" required @error('billing_address_line_1') aria-invalid="true" aria-describedby="billing-address1-error" @enderror>
+                </div>
+                @error('billing_address_line_1')
+                    <p id="billing-address1-error" class="mb-3 mt-n2 font-600 font-12 color-red-dark">{{ $message }}</p>
+                @enderror
+
                 <div class="row">
-                    <div class="col-4"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-postal" class="color-highlight">{{ __('ui.account.fields.postal_code') }}</label><input id="billing-postal" type="text" name="billing_postal_code" value="{{ old('billing_postal_code', $prefill['billing']['postal_code']) }}" autocomplete="billing postal-code" inputmode="numeric" data-address-postal required></div></div>
-                    <div class="col-8"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="billing-city" class="color-highlight">{{ __('ui.account.fields.city') }}</label><input id="billing-city" type="text" name="billing_city" value="{{ old('billing_city', $prefill['billing']['city']) }}" autocomplete="billing address-level2" data-address-city required></div></div>
+                    <div class="col-4">
+                        <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                            <label for="billing-postal" class="color-highlight">{{ __('ui.account.fields.postal_code') }}</label>
+                            <input id="billing-postal" type="text" name="billing_postal_code" value="{{ old('billing_postal_code', $prefill['billing']['postal_code']) }}" autocomplete="billing postal-code" inputmode="numeric" data-address-postal required @error('billing_postal_code') aria-invalid="true" aria-describedby="billing-postal-error" @enderror>
+                        </div>
+                        @error('billing_postal_code')
+                            <p id="billing-postal-error" class="mb-3 mt-n2 font-600 font-12 color-red-dark">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <div class="col-8">
+                        <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                            <label for="billing-city" class="color-highlight">{{ __('ui.account.fields.city') }}</label>
+                            <input id="billing-city" type="text" name="billing_city" value="{{ old('billing_city', $prefill['billing']['city']) }}" autocomplete="billing address-level2" data-address-city required @error('billing_city') aria-invalid="true" aria-describedby="billing-city-error" @enderror>
+                        </div>
+                        @error('billing_city')
+                            <p id="billing-city-error" class="mb-3 mt-n2 font-600 font-12 color-red-dark">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </div>
                 <div class="input-style has-borders no-icon input-style-always-active mb-3">
                     <label for="billing-state" class="color-highlight" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
-                    <select id="billing-state" name="billing_state" autocomplete="billing address-level1" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
+                    <select id="billing-state" name="billing_state" autocomplete="billing address-level1" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}" @error('billing_state') aria-invalid="true" aria-describedby="billing-state-error" @enderror>
                         <option value="">{{ __('ui.account.fields.select_county') }}</option>
                         @foreach ($countyOptions as $countyOption)
                             <option value="{{ $countyOption }}" @selected(old('billing_state', $prefill['billing']['state']) === $countyOption)>{{ $countyOption }}</option>
                         @endforeach
                     </select>
-                    <input type="text" value="{{ old('billing_state', $prefill['billing']['state']) }}" autocomplete="billing address-level1" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" style="display:none;">
+                    <input type="text" value="{{ old('billing_state', $prefill['billing']['state']) }}" autocomplete="billing address-level1" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" style="display:none;" @error('billing_state') aria-invalid="true" aria-describedby="billing-state-error" @enderror>
                     <span><i class="fa fa-chevron-down"></i></span>
                 </div>
+                @error('billing_state')
+                    <p id="billing-state-error" class="mb-3 mt-n2 font-600 font-12 color-red-dark">{{ $message }}</p>
+                @enderror
+
                 <div class="input-style has-borders no-icon input-style-always-active mb-0">
                     <label for="billing-country" class="color-highlight">{{ __('ui.account.fields.country_code') }}</label>
-                    <select id="billing-country" name="billing_country_code" autocomplete="billing country" data-address-country required>
+                    <select id="billing-country" name="billing_country_code" autocomplete="billing country" data-address-country required @error('billing_country_code') aria-invalid="true" aria-describedby="billing-country-error" @enderror>
                         @foreach ($countryOptions as $countryOption)
                             <option value="{{ $countryOption['code'] }}" @selected(old('billing_country_code', $prefill['billing']['country_code']) === $countryOption['code'])>{{ $countryOption['label'] }}</option>
                         @endforeach
                     </select>
                     <span><i class="fa fa-chevron-down"></i></span>
                 </div>
+                @error('billing_country_code')
+                    <p id="billing-country-error" class="mb-0 mt-1 font-600 font-12 color-red-dark">{{ $message }}</p>
+                @enderror
             </div>
         </div>
 
@@ -221,11 +288,17 @@
                                     value="{{ $method->code }}"
                                     data-is-boxnow="{{ in_array(strtolower((string) $method->code), ['boxnow', 'box_now'], true) ? '1' : '0' }}"
                                     data-boxnow-partner-id="{{ (string) ((is_array($method->settings ?? null) ? ($method->settings['boxnow_partner_id'] ?? '') : '') ?: '') }}"
+                                    data-is-gls-dpm="{{ \App\Support\GlsShipping::isGlsDpmShippingMethod($method) ? '1' : '0' }}"
+                                    data-gls-dpm-filter-type="{{ \App\Support\GlsShipping::glsDpmFilterType($method) ?? '' }}"
                                     @checked($selectedShippingCode === (string) $method->code)
                                     required
                                 > {{ $method->name }}
                             </span>
-                            <span>{{ \App\Support\Currency::format((float) $method->price) }}</span>
+                            <span>
+                                {{ (string) $method->pricing_type === 'quote'
+                                    ? __('Cijena na upit')
+                                    : \App\Support\Currency::format((float) ($method->resolved_price ?? $method->price)) }}
+                            </span>
                         </label>
                     @endforeach
                 </div>
@@ -245,6 +318,27 @@
                         {{ trim($selectedBoxNowAddressLine1.', '.$selectedBoxNowPostalCode.' '.$selectedBoxNowCity, ', ') }}
                     </p>
                     @error('shipping_boxnow_locker_id')
+                        <p class="font-11 color-red-dark mt-2 mb-0">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="border rounded-sm px-3 py-2 mb-2 d-none" data-gls-dpm-panel>
+                    <input type="hidden" name="shipping_gls_dpm_id" value="{{ $selectedGlsDpmId }}" data-gls-dpm-id>
+                    <input type="hidden" name="shipping_gls_dpm_external_id" value="{{ $selectedGlsDpmExternalId }}" data-gls-dpm-external-id>
+                    <input type="hidden" name="shipping_gls_dpm_name" value="{{ $selectedGlsDpmName }}" data-gls-dpm-name>
+                    <input type="hidden" name="shipping_gls_dpm_type" value="{{ $selectedGlsDpmType }}" data-gls-dpm-type>
+                    <input type="hidden" name="shipping_gls_dpm_address_line_1" value="{{ $selectedGlsDpmAddressLine1 }}" data-gls-dpm-address-line-1>
+                    <input type="hidden" name="shipping_gls_dpm_postal_code" value="{{ $selectedGlsDpmPostalCode }}" data-gls-dpm-postal-code>
+                    <input type="hidden" name="shipping_gls_dpm_city" value="{{ $selectedGlsDpmCity }}" data-gls-dpm-city>
+
+                    <button type="button" class="checkout-primary-button checkout-primary-button--compact px-3 py-2 mb-2" data-gls-dpm-open>{{ __('Odaberi GLS paketomat / ParcelShop') }}</button>
+                    <p class="font-12 mb-0" data-gls-dpm-selected>
+                        {{ $selectedGlsDpmId !== '' ? $selectedGlsDpmName.' ('.$selectedGlsDpmId.')' : __('GLS lokacija nije odabrana.') }}
+                    </p>
+                    <p class="font-12 opacity-70 mt-1 mb-0" data-gls-dpm-selected-address>
+                        {{ trim($selectedGlsDpmAddressLine1.', '.$selectedGlsDpmPostalCode.' '.$selectedGlsDpmCity, ', ') }}
+                    </p>
+                    @error('shipping_gls_dpm_id')
                         <p class="font-11 color-red-dark mt-2 mb-0">{{ $message }}</p>
                     @enderror
                 </div>
@@ -276,7 +370,10 @@
                     <label for="customer-note" class="color-highlight">{{ __('ui.checkout.fields.order_note') }}</label>
                 </div>
 
-                <label class="font-12 d-block mb-3"><input type="checkbox" name="accept_terms" value="1" required @checked((bool) old('accept_terms'))> {{ __('ui.checkout.options.accept_terms') }}</label>
+                <label class="font-12 d-block mb-3"><input type="checkbox" name="accept_terms" value="1" required @checked((bool) old('accept_terms')) @error('accept_terms') aria-invalid="true" aria-describedby="mobile-accept-terms-error" @enderror> {{ __('ui.checkout.options.accept_terms') }}</label>
+                @error('accept_terms')
+                    <p id="mobile-accept-terms-error" class="mb-3 mt-n2 font-600 font-12 color-red-dark">{{ $message }}</p>
+                @enderror
                 <label class="font-12 d-block mb-3"><input type="checkbox" name="newsletter_opt_in" value="1" @checked((bool) old('newsletter_opt_in', false))> {{ __('ui.checkout.options.newsletter_opt_in') }}</label>
 
                 <button type="submit" class="checkout-primary-button btn btn-margins btn-full font-13 btn-l font-600">{{ __('ui.checkout.actions.place_order') }}</button>
@@ -285,6 +382,7 @@
     </form>
 
     <div id="boxnow-widget-root"></div>
+    <gls-dpm-dialog id="gls-dpm-dialog" country="hr" language="hr"></gls-dpm-dialog>
 @endsection
 
 @push('scripts')
@@ -312,6 +410,18 @@
             const boxNowAddressLine1 = form?.querySelector('[data-boxnow-address-line-1]');
             const boxNowPostalCode = form?.querySelector('[data-boxnow-postal-code]');
             const boxNowCity = form?.querySelector('[data-boxnow-city]');
+            const glsDpmPanel = form?.querySelector('[data-gls-dpm-panel]');
+            const glsDpmOpenButton = form?.querySelector('[data-gls-dpm-open]');
+            const glsDpmSelectedLabel = form?.querySelector('[data-gls-dpm-selected]');
+            const glsDpmSelectedAddress = form?.querySelector('[data-gls-dpm-selected-address]');
+            const glsDpmId = form?.querySelector('[data-gls-dpm-id]');
+            const glsDpmExternalId = form?.querySelector('[data-gls-dpm-external-id]');
+            const glsDpmName = form?.querySelector('[data-gls-dpm-name]');
+            const glsDpmType = form?.querySelector('[data-gls-dpm-type]');
+            const glsDpmAddressLine1 = form?.querySelector('[data-gls-dpm-address-line-1]');
+            const glsDpmPostalCode = form?.querySelector('[data-gls-dpm-postal-code]');
+            const glsDpmCity = form?.querySelector('[data-gls-dpm-city]');
+            const glsDpmDialog = document.getElementById('gls-dpm-dialog');
             const summaryTax = form?.querySelector('[data-summary-tax]');
             const summaryShipping = form?.querySelector('[data-summary-shipping]');
             const summaryPaymentFee = form?.querySelector('[data-summary-payment-fee]');
@@ -321,6 +431,7 @@
             let refreshTimer = null;
             let optionsAbortController = null;
             let boxNowScriptLoaded = false;
+            let glsWidgetPromise = null;
 
             if (!toggle || !shippingFields || !useBillingInput) {
                 return;
@@ -440,13 +551,16 @@
                         || (!selectedCode && selected === '' && index === 0);
                     const isBoxNow = method.is_boxnow ? '1' : '0';
                     const partnerId = String(method.boxnow_partner_id || '');
+                    const isGlsDpm = method.is_gls_dpm ? '1' : '0';
+                    const glsDpmFilterType = String(method.gls_dpm_filter_type || '');
                     return '<label class="d-flex align-items-center justify-content-between border rounded-sm px-3 py-2 mb-2">'
-                        + '<span><input type="radio" name="shipping_method_code" value="' + String(method.code || '') + '" data-is-boxnow="' + isBoxNow + '" data-boxnow-partner-id="' + partnerId + '" ' + (checked ? 'checked' : '') + ' required> ' + String(method.name || '') + '</span>'
+                        + '<span><input type="radio" name="shipping_method_code" value="' + String(method.code || '') + '" data-is-boxnow="' + isBoxNow + '" data-boxnow-partner-id="' + partnerId + '" data-is-gls-dpm="' + isGlsDpm + '" data-gls-dpm-filter-type="' + glsDpmFilterType + '" ' + (checked ? 'checked' : '') + ' required> ' + String(method.name || '') + '</span>'
                         + '<span>' + String(method.price_formatted || '') + '</span>'
                         + '</label>';
                 }).join('');
 
                 toggleBoxNowPanel();
+                toggleGlsDpmPanel();
             };
 
             const renderPaymentOptions = function (methods, selectedCode) {
@@ -512,6 +626,28 @@
                 boxNowPanel.classList.toggle('d-none', !isBoxNow);
             };
 
+            const toggleGlsDpmPanel = function () {
+                if (!glsDpmPanel) {
+                    return;
+                }
+
+                const selected = selectedShippingInput();
+                const isGlsDpm = selected?.dataset?.isGlsDpm === '1' || selected?.dataset?.isGlsDpm === 'true';
+                const filterType = String(selected?.dataset?.glsDpmFilterType || '').trim();
+
+                glsDpmPanel.classList.toggle('d-none', !isGlsDpm);
+
+                if (!glsDpmDialog) {
+                    return;
+                }
+
+                if (filterType !== '') {
+                    glsDpmDialog.setAttribute('filter-type', filterType);
+                } else {
+                    glsDpmDialog.removeAttribute('filter-type');
+                }
+            };
+
             const initBoxNowWidget = function () {
                 if (boxNowScriptLoaded) {
                     return;
@@ -544,6 +680,30 @@
                 boxNowScriptLoaded = true;
             };
 
+            const ensureGlsWidgetLoaded = function () {
+                if (window.customElements?.get('gls-dpm-dialog')) {
+                    return Promise.resolve();
+                }
+
+                if (glsWidgetPromise) {
+                    return glsWidgetPromise;
+                }
+
+                glsWidgetPromise = new Promise(function (resolve, reject) {
+                    const script = document.createElement('script');
+                    script.type = 'module';
+                    script.src = 'https://map.gls-hungary.com/widget/gls-dpm.js';
+                    script.onload = resolve;
+                    script.onerror = function () {
+                        glsWidgetPromise = null;
+                        reject(new Error('GLS widget load failed.'));
+                    };
+                    document.head.appendChild(script);
+                });
+
+                return glsWidgetPromise;
+            };
+
             const updateBoxNowSelection = function (selection) {
                 const lockerId = String(selection?.boxnowLockerId || selection?.id || '');
                 const lockerAddress = String(selection?.boxnowLockerAddressLine1 || selection?.addressLine1 || '');
@@ -565,6 +725,36 @@
                 if (boxNowSelectedAddress) {
                     boxNowSelectedAddress.textContent = lockerId !== ''
                         ? [lockerAddress, (lockerPostal + ' ' + lockerCity).trim()].filter(Boolean).join(', ')
+                        : '';
+                }
+            };
+
+            const updateGlsDpmSelection = function (selection) {
+                const locationId = String(selection?.id || '');
+                const externalId = String(selection?.externalId || '');
+                const locationName = String(selection?.name || '');
+                const locationType = String(selection?.type || '');
+                const address = String(selection?.contact?.address || '');
+                const postalCode = String(selection?.contact?.postalCode || '');
+                const city = String(selection?.contact?.city || '');
+
+                if (glsDpmId) glsDpmId.value = locationId;
+                if (glsDpmExternalId) glsDpmExternalId.value = externalId;
+                if (glsDpmName) glsDpmName.value = locationName;
+                if (glsDpmType) glsDpmType.value = locationType;
+                if (glsDpmAddressLine1) glsDpmAddressLine1.value = address;
+                if (glsDpmPostalCode) glsDpmPostalCode.value = postalCode;
+                if (glsDpmCity) glsDpmCity.value = city;
+
+                if (glsDpmSelectedLabel) {
+                    glsDpmSelectedLabel.textContent = locationId !== ''
+                        ? [locationName, locationId].filter(Boolean).join(' / ')
+                        : @json(__('GLS lokacija nije odabrana.'));
+                }
+
+                if (glsDpmSelectedAddress) {
+                    glsDpmSelectedAddress.textContent = locationId !== ''
+                        ? [address, (postalCode + ' ' + city).trim()].filter(Boolean).join(', ')
                         : '';
                 }
             };
@@ -612,6 +802,7 @@
                     renderPaymentOptions(payload.payment_methods || [], String(totals.payment_method_code || ''));
                     renderCheckoutTotals(totals);
                     initBoxNowWidget();
+                    toggleGlsDpmPanel();
                 } catch (error) {
                     // Keep current options on request errors.
                 }
@@ -629,6 +820,7 @@
             applyAllStateModes();
             scheduleOptionsRefresh();
             toggleBoxNowPanel();
+            toggleGlsDpmPanel();
             initBoxNowWidget();
             toggle.addEventListener('change', setState);
             billingFirst?.addEventListener('input', syncCustomerNames);
@@ -637,6 +829,7 @@
             shippingOptionsRoot?.addEventListener('change', function (event) {
                 if (event.target && event.target.name === 'shipping_method_code') {
                     toggleBoxNowPanel();
+                    toggleGlsDpmPanel();
                     scheduleOptionsRefresh();
                 }
             });
@@ -651,6 +844,25 @@
                 if (partnerId === '') {
                     alert(@json(__('ui.checkout.boxnow.partner_missing')));
                 }
+            });
+            glsDpmOpenButton?.addEventListener('click', async function () {
+                const selected = selectedShippingInput();
+                const isGlsDpm = selected?.dataset?.isGlsDpm === '1' || selected?.dataset?.isGlsDpm === 'true';
+
+                if (!isGlsDpm) {
+                    return;
+                }
+
+                try {
+                    await ensureGlsWidgetLoaded();
+                    toggleGlsDpmPanel();
+                    glsDpmDialog?.showModal?.();
+                } catch (error) {
+                    alert(@json(__('GLS widget trenutno nije dostupan.')));
+                }
+            });
+            glsDpmDialog?.addEventListener('change', function (event) {
+                updateGlsDpmSelection(event.detail || {});
             });
             form?.querySelectorAll('[data-address-country], [data-state-select], [data-state-input], [name="billing_postal_code"], [name="shipping_postal_code"]').forEach(function (node) {
                 node.addEventListener('change', function () {
