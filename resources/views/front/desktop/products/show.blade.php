@@ -349,6 +349,7 @@
             @endif
 
             <form
+                id="product-detail-cart-form-{{ $product->id }}"
                 method="POST"
                 action="{{ route('cart.items.store') }}"
                 class="mt-6 space-y-4"
@@ -765,6 +766,14 @@
         'fallbackLocale' => $fallbackLocale,
         'hasProductStory' => $hasProductStory,
         'comments' => $comments ?? collect(),
+    ])
+
+    @include('front.partials.product-floating-cart', [
+        'product' => $product,
+        'translation' => $translation,
+        'gallery' => $gallery,
+        'productPriceData' => $productPriceData,
+        'isPurchasable' => $isPurchasable,
     ])
 
     @if (!empty($sizeGuide) && $optionRows->isNotEmpty())

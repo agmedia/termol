@@ -470,6 +470,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const numeric = Number.parseInt(String(value), 10);
             const clamped = Number.isNaN(numeric) ? 1 : Math.min(99, Math.max(1, numeric));
             input.value = String(clamped);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
         };
 
         dec.addEventListener('click', function () {
@@ -484,6 +486,92 @@ document.addEventListener('DOMContentLoaded', function () {
     const forms = document.querySelectorAll('[data-product-detail-form]');
     if (!forms.length) {
         return;
+    }
+
+    const floatingCart = document.querySelector('[data-product-floating-cart]');
+    if (floatingCart) {
+        const floatingForm = document.getElementById(String(floatingCart.dataset.cartFormId || ''));
+        const sourceQtyInput = floatingForm ? floatingForm.querySelector('input[name="quantity"]') : null;
+        const floatingQtyInput = floatingCart.querySelector('[data-product-floating-qty-input]');
+        const floatingQtyDec = floatingCart.querySelector('[data-product-floating-qty-dec]');
+        const floatingQtyInc = floatingCart.querySelector('[data-product-floating-qty-inc]');
+        const floatingTrigger = document.querySelector('#product-description')
+            || document.querySelector('#product-specifications')
+            || document.querySelector('[data-product-detail-lower]');
+
+        const normalizedQuantity = function (value) {
+            const numeric = Number.parseInt(String(value), 10);
+            return Number.isNaN(numeric) ? 1 : Math.min(99, Math.max(1, numeric));
+        };
+
+        const syncFloatingQuantity = function () {
+            if (!sourceQtyInput || !floatingQtyInput) {
+                return;
+            }
+
+            floatingQtyInput.value = String(normalizedQuantity(sourceQtyInput.value));
+        };
+
+        const setSourceQuantity = function (value) {
+            if (!sourceQtyInput) {
+                return;
+            }
+
+            sourceQtyInput.value = String(normalizedQuantity(value));
+            sourceQtyInput.dispatchEvent(new Event('input', { bubbles: true }));
+            sourceQtyInput.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+
+        if (sourceQtyInput && floatingQtyInput) {
+            sourceQtyInput.addEventListener('input', syncFloatingQuantity);
+            sourceQtyInput.addEventListener('change', syncFloatingQuantity);
+            syncFloatingQuantity();
+        }
+
+        if (floatingQtyDec) {
+            floatingQtyDec.addEventListener('click', function () {
+                setSourceQuantity((Number.parseInt(String(sourceQtyInput ? sourceQtyInput.value : '1'), 10) || 1) - 1);
+            });
+        }
+
+        if (floatingQtyInc) {
+            floatingQtyInc.addEventListener('click', function () {
+                setSourceQuantity((Number.parseInt(String(sourceQtyInput ? sourceQtyInput.value : '1'), 10) || 1) + 1);
+            });
+        }
+
+        let floatingScrollFrame = null;
+        const updateFloatingCart = function () {
+            floatingScrollFrame = null;
+
+            if (!floatingTrigger || !floatingForm) {
+                floatingCart.classList.remove('is-visible');
+                floatingCart.setAttribute('aria-hidden', 'true');
+                return;
+            }
+
+            const triggerRect = floatingTrigger.getBoundingClientRect();
+            const formRect = floatingForm.getBoundingClientRect();
+            const revealLine = Math.max(120, window.innerHeight * 0.78);
+            const sourceControlsVisible = formRect.bottom > 0 && formRect.top < window.innerHeight;
+            const shouldShow = triggerRect.bottom <= revealLine && !sourceControlsVisible;
+
+            floatingCart.classList.toggle('is-visible', shouldShow);
+            floatingCart.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+        };
+
+        const scheduleFloatingCartUpdate = function () {
+            if (floatingScrollFrame !== null) {
+                return;
+            }
+
+            floatingScrollFrame = window.requestAnimationFrame(updateFloatingCart);
+        };
+
+        window.addEventListener('scroll', scheduleFloatingCartUpdate, { passive: true });
+        window.addEventListener('resize', scheduleFloatingCartUpdate);
+        window.addEventListener('load', scheduleFloatingCartUpdate, { once: true });
+        scheduleFloatingCartUpdate();
     }
 
     const initLinkedOptionSelectors = function (form) {
@@ -765,6 +853,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (optionError) {
                     optionError.textContent = String(form.dataset.optionErrorRequired || optionError.textContent || '');
                     optionError.classList.remove('hidden', 'd-none');
+                }
+                if (event.submitter && event.submitter.hasAttribute('data-product-floating-submit')) {
+                    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                    form.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
                 }
                 return;
             }
