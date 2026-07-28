@@ -100,7 +100,7 @@ class HomeFullWidthImageSliderTest extends TestCase
             ->assertSee('home-slide-mobile', false);
 
         $sliderTemplate = file_get_contents(resource_path('views/front/content-blocks/types/full_width_image_slider.blade.php'));
-        $storefrontCss = file_get_contents(resource_path('css/app.css'));
+        $storefrontCss = file_get_contents(resource_path('css/full-width-image-slider.css'));
 
         $this->assertStringNotContainsString('<style', $sliderTemplate);
         $this->assertStringNotContainsString('style="', $sliderTemplate);
