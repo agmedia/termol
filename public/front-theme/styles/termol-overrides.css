@@ -376,11 +376,11 @@ body.termol-storefront textarea {
         padding: .75rem;
     }
 
-    .site-footer-payment-logos {
+    .site-footer-payments .site-footer-payment-logos {
         gap: .35rem;
     }
 
-    .site-footer-payment-logo {
+    .site-footer-payment-logos > .site-footer-payment-logo {
         width: auto;
         height: 2.75rem;
         flex: 0 0 calc((100% - 1.05rem) / 4);

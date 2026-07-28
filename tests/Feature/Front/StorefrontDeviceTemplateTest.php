@@ -59,15 +59,21 @@ class StorefrontDeviceTemplateTest extends TestCase
     {
         app(SystemSettingsService::class)->put('catalog_use_mobile_view', true);
 
-        $response = $this
-            ->withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-            ])
-            ->get('/');
+        $mobileHeaders = [
+            'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        ];
+        $response = $this->withHeaders($mobileHeaders)->get('/');
 
         $response->assertOk();
         $response->assertSee('front-theme/styles/bootstrap.css', false);
         $response->assertDontSee('desktop-header-menu.js', false);
+        $response->assertDontSee('id="cookie-consent-floating-button"', false);
+
+        $shopResponse = $this->withHeaders($mobileHeaders)->get('/shop');
+
+        $shopResponse->assertOk();
+        $shopResponse->assertDontSee('data-scroll-to-top', false);
+        $shopResponse->assertDontSee('id="cookie-consent-floating-button"', false);
     }
 
     public function test_desktop_home_header_uses_admin_store_logo_when_configured(): void
