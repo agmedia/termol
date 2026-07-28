@@ -60,7 +60,7 @@
 
 @media (max-width: 640px) {
     .scroll-to-top-button {
-        bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+        display: none !important;
     }
 }
 

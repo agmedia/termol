@@ -486,7 +486,7 @@
 </div>
 
 <script defer src="{{ asset('front-theme/scripts/bootstrap.min.js') }}"></script>
-@include('front.partials.cookie-consent')
+@include('front.partials.cookie-consent', ['showCookieFloatingButton' => false])
 @stack('scripts')
 <script defer src="{{ asset('front-theme/scripts/custom.js') }}"></script>
 </body>

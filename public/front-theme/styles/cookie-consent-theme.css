@@ -187,7 +187,10 @@ body.termol-storefront #cookie-consent-floating-button {
 
 @media (max-width: 640px) {
     #cookie-consent-floating-button {
-        bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px)) !important;
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
     }
 
     body #cc-main .cm__body {

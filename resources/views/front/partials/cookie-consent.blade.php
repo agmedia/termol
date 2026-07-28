@@ -16,19 +16,22 @@
         $cookieMarketingTitle = trim((string) ($storeSettings['cookies']['marketing_title'] ?? 'Marketinški kolačići'));
         $cookieMarketingDescription = trim((string) ($storeSettings['cookies']['marketing_description'] ?? 'Marketinški kolačići služe za praćenje posjetitelja u korištenju internet stranice u svrhu omogućavanja prikazivanja relevantnih oglasa oglašivača trećih strana.'));
         $cookieLocale = app()->getLocale();
+        $showCookieFloatingButton = (bool) ($showCookieFloatingButton ?? true);
         $cookieDescription = $cookieMessage;
         if ($cookiePolicyUrl !== '') {
             $cookieDescription .= ' <a href="'.e($cookiePolicyUrl).'">'.e($cookiePolicyLabel).'</a>';
         }
     @endphp
-    <button
-        type="button"
-        id="cookie-consent-floating-button"
-        class="cookie-consent-floating-button"
-        aria-label="Cookie postavke"
-    >
-        <x-fa-icon name="cookie-bite" class="h-6 w-6" />
-    </button>
+    @if ($showCookieFloatingButton)
+        <button
+            type="button"
+            id="cookie-consent-floating-button"
+            class="cookie-consent-floating-button"
+            aria-label="Cookie postavke"
+        >
+            <x-fa-icon name="cookie-bite" class="h-6 w-6" />
+        </button>
+    @endif
 
     <script>
         const syncGoogleConsent = () => {

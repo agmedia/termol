@@ -16,7 +16,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('front-theme/styles/termol-overrides.css') }}?v={{ filemtime(public_path('front-theme/styles/termol-overrides.css')) }}">
     <link rel="stylesheet" href="{{ asset('front-theme/styles/font-awesome-svg.css') }}?v={{ filemtime(public_path('front-theme/styles/font-awesome-svg.css')) }}">
-    <link rel="stylesheet" href="{{ asset('front-theme/styles/scroll-to-top.css') }}?v={{ filemtime(public_path('front-theme/styles/scroll-to-top.css')) }}">
     @if (!empty($storeSettings['branding']['favicons']['ico_url'] ?? null))
         <link rel="icon" href="{{ $storeSettings['branding']['favicons']['ico_url'] }}" sizes="any">
     @endif
@@ -149,10 +148,8 @@
 
     })();
 </script>
-@include('front.partials.scroll-to-top', ['mobileOffset' => true])
-@include('front.partials.cookie-consent')
+@include('front.partials.cookie-consent', ['showCookieFloatingButton' => false])
 <script defer src="{{ asset('front-theme/scripts/storefront-ui.js') }}?v={{ filemtime(public_path('front-theme/scripts/storefront-ui.js')) }}"></script>
-<script defer src="{{ asset('front-theme/scripts/scroll-to-top.js') }}?v={{ filemtime(public_path('front-theme/scripts/scroll-to-top.js')) }}"></script>
 @stack('scripts')
 </body>
 </html>
