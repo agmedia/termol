@@ -1404,8 +1404,13 @@
     width: 100vw;
     background: linear-gradient(
         90deg,
-        var(--navigation-background-color, #ff9100) 0 50%,
-        var(--store-announcement-background-color, #0057c8) 50% 100%
+        #ed1c24 0%,
+        #ff5a00 16%,
+        #ffb000 32%,
+        #52b94f 50%,
+        #00a7d8 66%,
+        #0057c8 82%,
+        #5b2aa8 100%
     );
     transform: translateX(-50%);
     pointer-events: none;
