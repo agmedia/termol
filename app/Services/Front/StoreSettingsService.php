@@ -78,7 +78,7 @@ class StoreSettingsService
     public function images(): array
     {
         return [
-            'use_webp' => (bool) $this->settings->get('store_images_use_webp', false),
+            'use_webp' => (bool) $this->settings->get('store_images_use_webp', true),
         ];
     }
 
@@ -159,9 +159,14 @@ class StoreSettingsService
      */
     public function branding(): array
     {
+        $logoPath = (string) $this->settings->get('store_brand_logo_path', '');
+        $optimizedLogoPath = (string) $this->settings->get('store_brand_logo_optimized_path', '');
+
         return [
             'store_name' => (string) $this->settings->get('store_brand_name', config('app.name', 'AG Shop')),
-            'logo_url' => $this->assetUrl((string) $this->settings->get('store_brand_logo_path', '')),
+            'logo_url' => $this->assetUrl($optimizedLogoPath !== '' ? $optimizedLogoPath : $logoPath),
+            'logo_width' => (int) $this->settings->get('store_brand_logo_width', 0),
+            'logo_height' => (int) $this->settings->get('store_brand_logo_height', 0),
             'favicon_url' => $this->assetUrl((string) $this->settings->get('store_brand_favicon_path', '')),
             'favicons' => [
                 'ico_url' => $this->assetUrl((string) $this->settings->get('store_brand_favicon_ico_path', '')),

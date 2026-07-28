@@ -21,8 +21,7 @@ class BlogController extends Controller
 
     public function __construct(
         private readonly CatalogFeatureService $catalogFeatures
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): View
     {
@@ -139,7 +138,7 @@ class BlogController extends Controller
 
         $hotspotProducts = collect();
         if ($hotspotProductIds !== []) {
-            $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', false);
+            $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', true);
             $pricing = app(ProductPricePresentationService::class);
             $viewer = auth()->user();
 

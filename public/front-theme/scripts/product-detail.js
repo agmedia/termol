@@ -23,6 +23,8 @@ document.addEventListener('DOMContentLoaded', function () {
             drag: gallerySlideCount > 1,
             speed: 450,
             rewind: gallerySlideCount > 1,
+            lazyLoad: 'nearby',
+            preloadPages: 0,
         });
 
         const revealGalleryNavigation = function (button) {
@@ -108,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const galleryItemsFromButtons = galleryOpenButtons.map(function (button) {
         const image = button.querySelector('img');
         return {
-            full: normalizeGalleryUrl((image && image.getAttribute('src')) || ''),
+            full: normalizeGalleryUrl((image && (image.getAttribute('src') || image.dataset.splideLazy)) || ''),
             alt: String((image && image.getAttribute('alt')) || button.getAttribute('aria-label') || '').trim(),
         };
     });

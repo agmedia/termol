@@ -22,6 +22,8 @@ class ProductCard extends Component
         public ?string $fallbackLocale = null,
         public bool $flat = false,
         public bool $lined = false,
+        public bool $priorityImage = false,
+        public int $headingLevel = 3,
     ) {}
 
     public function render(): View
@@ -67,7 +69,12 @@ class ProductCard extends Component
                 ->first(static fn ($media): bool => MediaUrl::hasUsableSource($media, ['card_720w', 'card_480w', 'card_320w'])
                     && (! $mainMedia || (int) $media->id !== (int) $mainMedia->id));
         }
-        $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', false);
+        $settings = app(SystemSettingsService::class);
+        $preferWebp = (bool) $settings->get('store_images_use_webp', true);
+        $mobileColumns = $settings->getInt('store_product_mobile_default_cols', 2, 1, 2);
+        $imageSizes = $mobileColumns === 1
+            ? '(max-width: 767px) 88vw, (max-width: 1279px) 30vw, 24vw'
+            : '(max-width: 767px) 42vw, (max-width: 1279px) 30vw, 24vw';
 
         $imageUrl720 = MediaUrl::conversionOrNull($mainMedia, 'card_720w', $preferWebp);
         $imageUrl480 = MediaUrl::conversionOrNull($mainMedia, 'card_480w', $preferWebp);
@@ -172,6 +179,7 @@ class ProductCard extends Component
             'cartImageUrl' => $imageOriginalUrl ?? $imageUrl,
             'imageUrl320' => $imageUrl320,
             'imageSrcset' => $imageSrcset,
+            'imageSizes' => $imageSizes,
             'hoverImageUrl' => $hoverImageUrl,
             'hoverImageUrl320' => $hoverImageUrl320,
             'hoverImageSrcset' => $hoverImageSrcset,
@@ -192,6 +200,8 @@ class ProductCard extends Component
             'reviewSummary' => $this->product->approvedCommentSummary([$locale, $fallbackLocale]),
             'flat' => $this->flat,
             'lined' => $this->lined,
+            'priorityImage' => $this->priorityImage,
+            'headingLevel' => $this->headingLevel === 2 ? 2 : 3,
         ]);
     }
 }

@@ -42,6 +42,10 @@
 @php
     $mobileBrandName = trim((string) (($storeSettings['branding']['store_name'] ?? null) ?: config('app.name', 'AG Shop')));
     $mobileBrandLogoUrl = trim((string) ($storeSettings['branding']['logo_url'] ?? ''));
+    $mobileBrandLogoRawWidth = (int) ($storeSettings['branding']['logo_width'] ?? 0);
+    $mobileBrandLogoRawHeight = (int) ($storeSettings['branding']['logo_height'] ?? 0);
+    $mobileBrandLogoWidth = $mobileBrandLogoRawWidth > 0 ? $mobileBrandLogoRawWidth : 176;
+    $mobileBrandLogoHeight = $mobileBrandLogoRawHeight > 0 ? $mobileBrandLogoRawHeight : 80;
 @endphp
 <div id="page">
     <div class="header header-fixed header-logo-center header-auto-show">
@@ -49,7 +53,7 @@
             @hasSection('header_title')
                 @yield('header_title')
             @elseif ($mobileBrandLogoUrl !== '')
-                <img src="{{ $mobileBrandLogoUrl }}" alt="{{ $mobileBrandName }}" class="store-header-logo" data-store-brand-logo>
+                <img src="{{ $mobileBrandLogoUrl }}" alt="{{ $mobileBrandName }}" class="store-header-logo" width="{{ $mobileBrandLogoWidth }}" height="{{ $mobileBrandLogoHeight }}" data-store-brand-logo>
             @else
                 {{ $mobileBrandName }}
             @endif

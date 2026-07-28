@@ -6,7 +6,6 @@ use App\Jobs\GenerateWebpConversionsJob;
 use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Option\Option;
-use App\Models\Catalog\Product\Product;
 use App\Models\Content\Page\InfoPage;
 use App\Models\Settings\Local\Language;
 use App\Services\Settings\SystemSettingsService;
@@ -114,6 +113,9 @@ class StoreSettings extends Component
         'store_footer_social_tiktok_enabled' => true,
         'store_footer_social_youtube_enabled' => true,
         'store_brand_logo_path' => '',
+        'store_brand_logo_optimized_path' => '',
+        'store_brand_logo_width' => 0,
+        'store_brand_logo_height' => 0,
         'store_brand_favicon_path' => '',
         'store_brand_favicon_16_path' => '',
         'store_brand_favicon_32_path' => '',
@@ -196,7 +198,7 @@ class StoreSettings extends Component
         'store_benefits_bar_item_1' => 'Više od **50 000 proizvoda** u ponudi',
         'store_benefits_bar_item_2' => 'Plaćanje karticama do **12 rata bez naknada**',
         'store_benefits_bar_item_3' => '**Dostava** u roku **3-5 radnih dana**',
-        'store_images_use_webp' => false,
+        'store_images_use_webp' => true,
         'store_product_fit_finder_enabled' => false,
         'store_search_autocomplete_enabled' => false,
         'store_search_autocomplete_products_enabled' => true,
@@ -712,6 +714,8 @@ class StoreSettings extends Component
             return;
         }
 
+        $this->optimizeStoredLogoIfNeeded();
+
         $missingIds = $this->collectMissingWebpMediaIds();
         $total = count($missingIds);
 
@@ -800,7 +804,7 @@ class StoreSettings extends Component
     {
         $ids = [];
 
-        $this->activeProductWebpGenerationMediaQuery()
+        $this->activeStorefrontWebpGenerationMediaQuery()
             ->orderBy('id')
             ->chunkById(250, function ($mediaItems) use (&$ids): void {
                 /** @var Media $media */
@@ -896,7 +900,7 @@ class StoreSettings extends Component
         $total = 0;
         $processed = 0;
 
-        $this->activeProductWebpGenerationMediaQuery()
+        $this->activeStorefrontWebpGenerationMediaQuery()
             ->orderBy('id')
             ->chunkById(250, function ($mediaItems) use (&$total, &$processed): void {
                 /** @var Media $media */
@@ -931,14 +935,134 @@ class StoreSettings extends Component
     /**
      * @return Builder<Media>
      */
-    private function activeProductWebpGenerationMediaQuery(): Builder
+    private function activeStorefrontWebpGenerationMediaQuery(): Builder
     {
         return Media::query()
-            ->where('model_type', Product::class)
-            ->whereIn('collection_name', ['product_main', 'product_gallery'])
-            ->whereHasMorph('model', [Product::class], function (Builder $productQuery): void {
-                $productQuery->where('is_active', true);
+            ->whereIn('model_type', MediaProfileRegistry::modelClasses())
+            ->whereHasMorph('model', MediaProfileRegistry::modelClasses(), function (Builder $modelQuery): void {
+                $modelQuery->where('is_active', true);
             });
+    }
+
+    /**
+     * @return array<string, int|string>
+     */
+    private function processLogoUpload(TemporaryUploadedFile $upload): array
+    {
+        $storedOriginalPath = $upload->store('store-settings', 'public');
+        $payload = [
+            'store_brand_logo_path' => $storedOriginalPath,
+            'store_brand_logo_optimized_path' => '',
+            'store_brand_logo_width' => 0,
+            'store_brand_logo_height' => 0,
+        ];
+
+        $source = $this->createImageResourceFromUpload($upload);
+        if (! $source || ! function_exists('imagewebp')) {
+            return $payload;
+        }
+
+        return array_merge($payload, $this->renderOptimizedLogo($source, $storedOriginalPath));
+    }
+
+    /**
+     * @return array<string, int|string>
+     */
+    private function renderOptimizedLogo(mixed $source, string $storedOriginalPath): array
+    {
+        $sourceWidth = imagesx($source);
+        $sourceHeight = imagesy($source);
+        if ($sourceWidth < 1 || $sourceHeight < 1) {
+            imagedestroy($source);
+
+            return [];
+        }
+
+        $targetWidth = min(320, $sourceWidth);
+        $targetHeight = max(1, (int) round($sourceHeight * ($targetWidth / $sourceWidth)));
+        $canvas = imagecreatetruecolor($targetWidth, $targetHeight);
+        if (! $canvas) {
+            imagedestroy($source);
+
+            return [];
+        }
+
+        imagealphablending($canvas, false);
+        imagesavealpha($canvas, true);
+        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+        imagefilledrectangle($canvas, 0, 0, $targetWidth, $targetHeight, $transparent);
+        imagecopyresampled(
+            $canvas,
+            $source,
+            0,
+            0,
+            0,
+            0,
+            $targetWidth,
+            $targetHeight,
+            $sourceWidth,
+            $sourceHeight
+        );
+
+        ob_start();
+        $rendered = imagewebp($canvas, null, 82);
+        $binary = ob_get_clean();
+        imagedestroy($canvas);
+        imagedestroy($source);
+
+        if (! $rendered || ! is_string($binary) || $binary === '') {
+            return [];
+        }
+
+        $optimizedPath = 'store-settings/'.pathinfo($storedOriginalPath, PATHINFO_FILENAME).'-optimized.webp';
+        Storage::disk('public')->put($optimizedPath, $binary);
+
+        return [
+            'store_brand_logo_optimized_path' => $optimizedPath,
+            'store_brand_logo_width' => $targetWidth,
+            'store_brand_logo_height' => $targetHeight,
+        ];
+    }
+
+    private function optimizeStoredLogoIfNeeded(): void
+    {
+        if (! function_exists('imagewebp')) {
+            return;
+        }
+
+        $settings = app(SystemSettingsService::class);
+        $originalPath = trim((string) $settings->get('store_brand_logo_path', ''));
+        $optimizedPath = trim((string) $settings->get('store_brand_logo_optimized_path', ''));
+        $optimizedWidth = (int) $settings->get('store_brand_logo_width', 0);
+        $optimizedHeight = (int) $settings->get('store_brand_logo_height', 0);
+        $disk = Storage::disk('public');
+
+        if ($originalPath === '' || ! $disk->exists($originalPath)) {
+            return;
+        }
+
+        if (
+            $optimizedPath !== ''
+            && $optimizedWidth > 0
+            && $optimizedWidth <= 320
+            && $optimizedHeight > 0
+            && $disk->exists($optimizedPath)
+        ) {
+            return;
+        }
+
+        $realPath = $disk->path($originalPath);
+        $mime = strtolower((string) ($disk->mimeType($originalPath) ?: ''));
+        $source = $this->createImageResourceFromPath($realPath, $mime);
+        if (! $source) {
+            return;
+        }
+
+        $payload = $this->renderOptimizedLogo($source, $originalPath);
+        if ($payload !== []) {
+            $settings->putMany($payload);
+            $this->form = array_merge($this->form, $payload);
+        }
     }
 
     /**
@@ -997,8 +1121,11 @@ class StoreSettings extends Component
             return null;
         }
 
-        $mime = strtolower((string) $upload->getMimeType());
+        return $this->createImageResourceFromPath($realPath, strtolower((string) $upload->getMimeType()));
+    }
 
+    private function createImageResourceFromPath(string $realPath, string $mime): mixed
+    {
         return match ($mime) {
             'image/png' => @imagecreatefrompng($realPath) ?: null,
             'image/jpeg', 'image/jpg' => @imagecreatefromjpeg($realPath) ?: null,
@@ -1272,7 +1399,7 @@ class StoreSettings extends Component
 
         if ($this->tab === 'branding') {
             if ($this->logoUpload) {
-                $payload['store_brand_logo_path'] = $this->logoUpload->store('store-settings', 'public');
+                $payload = array_merge($payload, $this->processLogoUpload($this->logoUpload));
             }
 
             if ($this->faviconUpload) {

@@ -341,6 +341,23 @@ html {
     height: 100%;
 }
 
+.product-gallery-main .splide__track {
+    overflow: hidden;
+}
+
+.product-gallery-main .splide__list {
+    display: flex;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.product-gallery-main .splide__slide {
+    width: 100%;
+    flex: 0 0 100%;
+    list-style: none;
+}
+
 .product-gallery-slide-button {
     display: block;
     width: 100%;
@@ -1517,10 +1534,6 @@ html {
         position: static;
     }
 
-    .product-gallery-thumbnails {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-    }
-
     .product-detail-card {
         padding-top: 1rem;
     }
@@ -1545,6 +1558,7 @@ html {
     }
 
     .product-gallery-thumbnails {
+        grid-template-columns: none;
         grid-auto-columns: 72px;
     }
 

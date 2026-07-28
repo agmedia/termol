@@ -257,9 +257,9 @@
             >
                 <div id="products-carousel-{{ $block->id }}" class="splide" data-products-carousel-splide>
                     <div class="splide__track">
-                        <ul class="splide__list">
+                        <div class="splide__list">
                             @foreach ($products as $product)
-                                <li class="splide__slide">
+                                <div class="splide__slide">
                                     @include('front.desktop.partials.product-card', [
                                         'product' => $product,
                                         'locale' => $locale,
@@ -267,9 +267,9 @@
                                         'flat' => true,
                                         'lined' => $categoryProductsMode,
                                     ])
-                                </li>
+                                </div>
                             @endforeach
-                        </ul>
+                        </div>
                     </div>
                 </div>
             </div>

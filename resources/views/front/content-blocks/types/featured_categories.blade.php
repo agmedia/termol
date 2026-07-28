@@ -41,16 +41,30 @@
                     $categoryMedia = $category->getFirstMedia('category_banner')
                         ?? $category->getFirstMedia('category_icon');
                     $categoryImageUrl = null;
+                    $categoryImageSrcset = '';
+                    $categoryImageWidth = 360;
+                    $categoryImageHeight = 240;
 
                     if ($categoryMedia) {
-                        $conversion = $categoryMedia->collection_name === 'category_banner'
-                            ? 'card_360x240'
-                            : 'icon_96x96';
-                        $categoryImageUrl = \App\Support\Media\MediaUrl::conversionOrNull(
-                            $categoryMedia,
-                            $conversion,
-                            $preferWebp
-                        ) ?? $categoryMedia->getUrl();
+                        if ($categoryMedia->collection_name === 'category_banner') {
+                            $cardUrl = \App\Support\Media\MediaUrl::conversionOrNull($categoryMedia, 'card_360x240', $preferWebp);
+                            $categoryImageUrl = $cardUrl ?? $categoryMedia->getUrl();
+                            $categoryImageSrcset = $cardUrl ? $cardUrl.' 360w' : '';
+                        } else {
+                            $iconUrl96 = \App\Support\Media\MediaUrl::conversionOrNull($categoryMedia, 'icon_96x96', $preferWebp);
+                            $iconUrl192 = \App\Support\Media\MediaUrl::conversionOrNull($categoryMedia, 'card_192w', $preferWebp);
+                            $iconUrl320 = \App\Support\Media\MediaUrl::conversionOrNull($categoryMedia, 'card_320w', $preferWebp);
+                            $iconUrl540 = \App\Support\Media\MediaUrl::conversionOrNull($categoryMedia, 'square_540w', $preferWebp);
+                            $categoryImageUrl = $iconUrl192 ?? $iconUrl320 ?? $iconUrl540 ?? $iconUrl96 ?? $categoryMedia->getUrl();
+                            $categoryImageSrcset = collect([
+                                $iconUrl96 ? $iconUrl96.' 96w' : null,
+                                $iconUrl192 ? $iconUrl192.' 192w' : null,
+                                $iconUrl320 ? $iconUrl320.' 320w' : null,
+                                $iconUrl540 ? $iconUrl540.' 540w' : null,
+                            ])->filter()->unique()->implode(', ');
+                            $categoryImageWidth = 192;
+                            $categoryImageHeight = 192;
+                        }
                     }
 
                     $categoryImageAlt = $categoryMedia
@@ -79,10 +93,12 @@
                         @if ($categoryImageUrl)
                             <img
                                 src="{{ $categoryImageUrl }}"
+                                @if ($categoryImageSrcset !== '') srcset="{{ $categoryImageSrcset }}" @endif
+                                sizes="(max-width: 639px) 110px, (max-width: 1023px) 22vw, 14vw"
                                 alt="{{ $categoryImageAlt }}"
-                                width="360"
-                                height="240"
-                                loading="{{ $loop->index < 6 ? 'eager' : 'lazy' }}"
+                                width="{{ $categoryImageWidth }}"
+                                height="{{ $categoryImageHeight }}"
+                                loading="lazy"
                                 decoding="async"
                             >
                         @else

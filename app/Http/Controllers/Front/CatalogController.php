@@ -117,7 +117,7 @@ class CatalogController extends Controller
         $total = (clone $query)->count('products.id');
         $viewer = $request->user();
         $pricing = app(ProductPricePresentationService::class);
-        $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', false);
+        $preferWebp = (bool) app(SystemSettingsService::class)->get('store_images_use_webp', true);
 
         $products = $query
             ->orderByDesc('products.id')

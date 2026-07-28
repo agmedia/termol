@@ -77,13 +77,22 @@
     $gallery = $galleryItems
         ->unique(fn ($mediaItem) => (int) $mediaItem->id)
         ->map(function ($mediaItem) use ($translation, $product, $preferWebp) {
-            $displayUrl = \App\Support\Media\MediaUrl::conversion($mediaItem, 'detail_960x960', $preferWebp);
+            $detailUrl = \App\Support\Media\MediaUrl::conversion($mediaItem, 'detail_960x960', $preferWebp);
+            $cardUrl720 = \App\Support\Media\MediaUrl::conversionOrNull($mediaItem, 'card_720w', $preferWebp);
+            $cardUrl480 = \App\Support\Media\MediaUrl::conversionOrNull($mediaItem, 'card_480w', $preferWebp);
             $thumbUrl = \App\Support\Media\MediaUrl::conversion($mediaItem, 'thumb_100x100', $preferWebp);
+            $displayUrl = $cardUrl720 ?? $detailUrl;
+            $displaySrcset = collect([
+                $cardUrl480 ? $cardUrl480.' 480w' : null,
+                $cardUrl720 ? $cardUrl720.' 720w' : null,
+                $detailUrl ? $detailUrl.' 960w' : null,
+            ])->filter()->unique()->implode(', ');
 
             return [
                 'id' => (int) $mediaItem->id,
-                'full' => (string) ($displayUrl ?? $mediaItem->getUrl()),
+                'full' => (string) ($detailUrl ?? $mediaItem->getUrl()),
                 'display' => (string) $displayUrl,
+                'display_srcset' => $displaySrcset,
                 'thumb' => (string) ($thumbUrl ?? $mediaItem->getUrl()),
                 'alt' => (string) ($translation?->name ?? $product->code),
             ];
@@ -209,10 +218,20 @@
                                         aria-label="{{ $image['alt'] }}"
                                     >
                                         <img
-                                            src="{{ $image['display'] }}"
+                                            @if ($loop->first)
+                                                src="{{ $image['display'] }}"
+                                                @if ($image['display_srcset'] !== '') srcset="{{ $image['display_srcset'] }}" @endif
+                                                loading="eager"
+                                                fetchpriority="high"
+                                            @else
+                                                data-splide-lazy="{{ $image['display'] }}"
+                                                @if ($image['display_srcset'] !== '') data-splide-lazy-srcset="{{ $image['display_srcset'] }}" @endif
+                                            @endif
+                                            sizes="(max-width: 900px) calc(100vw - 2rem), 720px"
                                             alt="{{ $image['alt'] }}"
                                             class="product-gallery-slide-image"
-                                            loading="{{ $loop->first ? 'eager' : 'lazy' }}"
+                                            width="960"
+                                            height="960"
                                             decoding="async"
                                         >
                                     </button>
@@ -496,7 +515,7 @@
                         data-wishlist-button
                     >
                         <svg class="fa6-icon h-5 w-5" fill="currentColor" aria-hidden="true" focusable="false">
-                            <use href="{{ asset('front-theme/fonts/sprites/'.($isWishlisted ? 'solid' : 'regular').'.svg') }}#heart"></use>
+                            <use href="{{ asset('front-theme/fonts/storefront-sprites/'.($isWishlisted ? 'solid' : 'regular').'.svg') }}#heart"></use>
                         </svg>
                     </button>
                 </div>

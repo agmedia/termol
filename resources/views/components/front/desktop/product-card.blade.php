@@ -10,19 +10,20 @@
                     <img
                         src="{{ $imageUrl }}"
                         @if (!empty($imageSrcset)) srcset="{{ $imageSrcset }}" @endif
-                        sizes="(max-width: 767px) 88vw, (max-width: 1279px) 30vw, 24vw"
+                        sizes="{{ $imageSizes }}"
                         alt="{{ $productName }}"
                         class="block h-full w-full object-contain object-center {{ $hoverImageUrl ? 'transition-opacity duration-300 group-hover:opacity-0' : '' }}"
                         width="{{ (int) $imageWidth }}"
                         height="{{ (int) $imageHeight }}"
-                        loading="lazy"
+                        loading="{{ $priorityImage ? 'eager' : 'lazy' }}"
+                        @if ($priorityImage) fetchpriority="high" @endif
                         decoding="async"
                     >
                     @if ($hoverImageUrl)
                         <img
                             src="{{ $hoverImageUrl }}"
                             @if (!empty($hoverImageSrcset)) srcset="{{ $hoverImageSrcset }}" @endif
-                            sizes="(max-width: 767px) 88vw, (max-width: 1279px) 30vw, 24vw"
+                            sizes="{{ $imageSizes }}"
                             alt="{{ $productName }}"
                             class="absolute inset-0 h-full w-full object-contain object-center opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                             width="{{ (int) $hoverImageWidth }}"
@@ -153,7 +154,11 @@
                 </div>
             @endif
             <a href="{{ $productUrl }}" class="block">
-                <h3 class="text-[12px] font-extrabold uppercase leading-[1.25] text-slate-900 sm:text-[13px]">{{ $productName }}</h3>
+                @if ($headingLevel === 2)
+                    <h2 class="text-[12px] font-extrabold uppercase leading-[1.25] text-slate-900 sm:text-[13px]">{{ $productName }}</h2>
+                @else
+                    <h3 class="text-[12px] font-extrabold uppercase leading-[1.25] text-slate-900 sm:text-[13px]">{{ $productName }}</h3>
+                @endif
             </a>
             @if ($productBrand !== '')
                 <p class="mt-1 text-[11px] font-bold uppercase leading-tight text-slate-400 sm:text-[12px]">{{ $productBrand }}</p>
@@ -261,7 +266,11 @@
                 </div>
             @endif
             <a href="{{ $productUrl }}" class="block pr-12">
-                <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-[15px]">{{ $productName }}</h3>
+                @if ($headingLevel === 2)
+                    <h2 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-[15px]">{{ $productName }}</h2>
+                @else
+                    <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-[15px]">{{ $productName }}</h3>
+                @endif
             </a>
             @if ($materialLabel !== '')
                 <p class="mt-1 pr-12 text-[11px] leading-tight text-slate-500 sm:text-[12px]">{{ $materialLabel }}</p>
@@ -308,7 +317,11 @@
             </div>
         @endif
         <a href="{{ $productUrl }}" class="{{ (int) ($reviewSummary['count'] ?? 0) > 0 ? 'mt-2 block' : 'mt-4 block' }}">
-            <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-[15px]">{{ $productName }}</h3>
+            @if ($headingLevel === 2)
+                <h2 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-[15px]">{{ $productName }}</h2>
+            @else
+                <h3 class="text-[14px] font-medium leading-tight text-slate-900 sm:text-[15px]">{{ $productName }}</h3>
+            @endif
         </a>
         @if ($materialLabel !== '')
             <p class="mt-1 text-[11px] leading-tight text-slate-500 sm:text-[12px]">{{ $materialLabel }}</p>
@@ -349,9 +362,6 @@
 </article>
 
 @once
-    @push('styles')
-        <link rel="stylesheet" href="{{ asset('front-theme/styles/product-card.css') }}?v={{ filemtime(public_path('front-theme/styles/product-card.css')) }}">
-    @endpush
     @push('scripts')
         @include('front.partials.cart-modal-script')
         <script defer src="{{ asset('front-theme/scripts/product-card-cart-modal.js') }}?v={{ filemtime(public_path('front-theme/scripts/product-card-cart-modal.js')) }}"></script>

@@ -425,8 +425,8 @@
                                     <div class="catalog-price-range-slider">
                                         <div class="catalog-price-range-track"></div>
                                         <div class="catalog-price-range-progress" data-price-range-progress></div>
-                                        <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMin }}" data-price-range-min>
-                                        <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMax }}" data-price-range-max>
+                                        <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMin }}" aria-label="{{ __('ui.shop.filters.price_from') }}" data-price-range-min>
+                                        <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMax }}" aria-label="{{ __('ui.shop.filters.price_to') }}" data-price-range-max>
                                     </div>
                                     <div class="catalog-price-range-scale">
                                         <span>{{ $priceSliderMin }} €</span>
@@ -539,6 +539,7 @@
                         name="sort"
                         form="category-desktop-filter-form"
                         class="catalog-filter-select catalog-filter-inline-select h-9 w-full rounded-none border-slate-300 text-sm"
+                        aria-label="{{ __('ui.shop.filters.sort') }}"
                         data-auto-submit-filter
                     >
                         <option value="default" @selected(($filters['sort'] ?? 'default') === 'default')>{{ __('ui.shop.filters.default') }}</option>
@@ -684,8 +685,8 @@
                                         <div class="catalog-price-range-slider">
                                             <div class="catalog-price-range-track"></div>
                                             <div class="catalog-price-range-progress" data-price-range-progress></div>
-                                            <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMin }}" data-price-range-min>
-                                            <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMax }}" data-price-range-max>
+                                            <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMin }}" aria-label="{{ __('ui.shop.filters.price_from') }}" data-price-range-min>
+                                            <input type="range" min="{{ $priceSliderMin }}" max="{{ $priceSliderMax }}" step="1" value="{{ $priceSliderSelectedMax }}" aria-label="{{ __('ui.shop.filters.price_to') }}" data-price-range-max>
                                         </div>
                                         <div class="catalog-price-range-scale">
                                             <span>{{ $priceSliderMin }} €</span>
@@ -750,7 +751,15 @@
                     @else
                         <div class="catalog-lined-grid {{ $gridClass }}" data-catalog-grid>
                             @foreach ($products as $product)
-                                @include('front.desktop.partials.product-card', ['product' => $product, 'locale' => $locale, 'fallbackLocale' => $fallbackLocale, 'flat' => true, 'lined' => true])
+                                @include('front.desktop.partials.product-card', [
+                                    'product' => $product,
+                                    'locale' => $locale,
+                                    'fallbackLocale' => $fallbackLocale,
+                                    'flat' => true,
+                                    'lined' => true,
+                                    'priorityImage' => $loop->first,
+                                    'headingLevel' => 2,
+                                ])
                             @endforeach
                         </div>
 

@@ -157,7 +157,7 @@ class AppServiceProvider extends ServiceProvider
                             'text_color' => '#ffffff',
                         ],
                         'images' => [
-                            'use_webp' => false,
+                            'use_webp' => true,
                         ],
                         'cookies' => [
                             'enabled' => true,

@@ -24,16 +24,18 @@
     @if (empty($storeSettings['branding']['favicons']['ico_url'] ?? null) && !empty($storeSettings['branding']['favicon_url'] ?? null))
         <link rel="icon" href="{{ $storeSettings['branding']['favicon_url'] }}">
     @endif
+    @php
+        $storefrontCssBundleIncludesLegacyAssets = true;
+    @endphp
     @include('front.partials.cookie-consent-head')
     @stack('head')
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
     @vite(['resources/css/app.css'])
-    <link rel="stylesheet" href="{{ route('front.storefront.styles') }}">
-    <link rel="stylesheet" href="{{ asset('front-theme/styles/termol-overrides.css') }}?v={{ filemtime(public_path('front-theme/styles/termol-overrides.css')) }}">
-    <link rel="stylesheet" href="{{ asset('front-theme/styles/font-awesome-svg.css') }}?v={{ filemtime(public_path('front-theme/styles/font-awesome-svg.css')) }}">
-    <link rel="stylesheet" href="{{ asset('front-theme/styles/scroll-to-top.css') }}?v={{ filemtime(public_path('front-theme/styles/scroll-to-top.css')) }}">
+    <link rel="preload" as="style" href="{{ route('front.storefront.styles') }}" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{{ route('front.storefront.styles') }}"></noscript>
     @stack('styles')
 </head>
 @php
@@ -44,6 +46,10 @@
     $topBar = $navigationService->topBar();
     $storeBrandName = trim((string) (($storeSettings['branding']['store_name'] ?? null) ?: config('app.name', 'AG Shop')));
     $storeBrandLogoUrl = trim((string) ($storeSettings['branding']['logo_url'] ?? ''));
+    $storeBrandLogoRawWidth = (int) ($storeSettings['branding']['logo_width'] ?? 0);
+    $storeBrandLogoRawHeight = (int) ($storeSettings['branding']['logo_height'] ?? 0);
+    $storeBrandLogoWidth = $storeBrandLogoRawWidth > 0 ? $storeBrandLogoRawWidth : 176;
+    $storeBrandLogoHeight = $storeBrandLogoRawHeight > 0 ? $storeBrandLogoRawHeight : 80;
     $benefitsBar = is_array($storeSettings['benefits_bar'] ?? null)
         ? $storeSettings['benefits_bar']
         : [
@@ -118,7 +124,7 @@
         <div class="site-main-header-row storefront-header-container relative mx-auto flex h-[60px] w-full items-stretch justify-between px-2 sm:px-4 lg:px-0">
             <a href="{{ route('home') }}" class="responsive-header-brand inline-flex h-full shrink-0 items-center pr-4 text-2xl font-black tracking-tight text-slate-900 sm:text-4xl lg:w-[230px] lg:px-6">
                 @if ($storeBrandLogoUrl !== '')
-                    <img src="{{ $storeBrandLogoUrl }}" alt="{{ $storeBrandName }}" class="site-main-logo h-10 w-auto object-contain" width="176" height="44" data-store-brand-logo>
+                    <img src="{{ $storeBrandLogoUrl }}" alt="{{ $storeBrandName }}" class="site-main-logo h-10 w-auto object-contain" width="{{ $storeBrandLogoWidth }}" height="{{ $storeBrandLogoHeight }}" data-store-brand-logo>
                 @else
                     {{ $storeBrandName }}
                 @endif
@@ -211,14 +217,14 @@
                     </a>
                 @endauth
 
-                <a href="{{ route('wishlist.index') }}" class="relative inline-flex h-full w-[76px] items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black {{ $wishlistCount > 0 ? '' : 'hidden' }}" aria-label="{{ __('ui.front.desktop.favorites') }}" data-wishlist-link>
+                <a href="{{ route('wishlist.index') }}" class="relative inline-flex h-full w-[76px] items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black {{ $wishlistCount > 0 ? '' : 'hidden' }}" aria-label="{{ __('ui.front.desktop.favorites') }}: {{ $wishlistCount }}" data-wishlist-link>
                     <x-fa-icon name="heart" style="regular" class="block h-5 w-5 text-current" />
                     <span class="header-count-badge absolute right-3 top-4 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-bold" data-wishlist-count>
                         {{ $wishlistCount }}
                     </span>
                 </a>
 
-                <a href="{{ route('cart.index') }}" class="relative inline-flex h-full w-[76px] items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.cart') }}">
+                <a href="{{ route('cart.index') }}" class="relative inline-flex h-full w-[76px] items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.cart') }}: {{ (int) $cartSummary['item_qty'] }}">
                     <x-fa-icon name="bag-shopping" class="block h-6 w-6 text-current" />
                     <span class="header-count-badge absolute right-3 top-4 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-bold" data-cart-count>
                         {{ (int) $cartSummary['item_qty'] }}
@@ -237,14 +243,14 @@
                     </a>
                 @endauth
 
-                <a href="{{ route('wishlist.index') }}" class="responsive-header-action relative inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.favorites') }}" data-wishlist-link data-wishlist-always-visible>
+                <a href="{{ route('wishlist.index') }}" class="responsive-header-action relative inline-flex w-12 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.favorites') }}: {{ $wishlistCount }}" data-wishlist-link data-wishlist-always-visible>
                     <x-fa-icon name="heart" style="regular" class="h-5 w-5" />
                     <span class="header-count-badge absolute right-0.5 top-2.5 h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold {{ $wishlistCount > 0 ? 'inline-flex' : 'hidden' }}" data-wishlist-count>
                         {{ $wishlistCount }}
                     </span>
                 </a>
 
-                <a href="{{ route('cart.index') }}" class="responsive-header-action relative inline-flex h-full w-12 items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.cart') }}">
+                <a href="{{ route('cart.index') }}" class="responsive-header-action relative inline-flex h-full w-12 items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black sm:w-14 lg:w-16" aria-label="{{ __('ui.front.desktop.cart') }}: {{ (int) $cartSummary['item_qty'] }}">
                     <x-fa-icon name="bag-shopping" class="h-6 w-6" />
                     <span class="header-count-badge absolute right-0.5 top-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold" data-cart-count>
                         {{ (int) $cartSummary['item_qty'] }}
@@ -316,7 +322,7 @@
     <aside class="absolute inset-y-0 left-0 flex w-full max-w-none -translate-x-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-out" data-mobile-menu-panel>
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-4">
             @if ($storeBrandLogoUrl !== '')
-                <img src="{{ $storeBrandLogoUrl }}" alt="{{ $storeBrandName }}" class="block h-10 w-auto max-w-[12rem] object-contain" data-store-brand-logo>
+                <img src="{{ $storeBrandLogoUrl }}" alt="{{ $storeBrandName }}" class="block h-10 w-auto max-w-[12rem] object-contain" width="{{ $storeBrandLogoWidth }}" height="{{ $storeBrandLogoHeight }}" data-store-brand-logo>
             @else
                 <span class="text-xl font-black tracking-tight text-slate-900">{{ $storeBrandName }}</span>
             @endif

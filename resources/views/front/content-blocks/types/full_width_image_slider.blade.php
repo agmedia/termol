@@ -148,7 +148,7 @@
     <section id="{{ $sliderId }}-shell" class="full-width-image-slider-shell {{ $isHomeMainSlider ? 'full-width-image-slider-shell--home-main' : '' }} relative left-1/2 -translate-x-1/2 overflow-hidden {{ $customClasses }}">
         <div id="{{ $sliderId }}" class="splide" data-fullwidth-splide>
             <div class="splide__track">
-                <ul class="splide__list">
+                <div class="splide__list">
                     @foreach ($slides as $media)
                         @php
                             $slideUrl2560 = \App\Support\Media\MediaUrl::conversionOrNull($media, 'hero_2560w', $preferWebp);
@@ -236,7 +236,7 @@
                                 ->values()
                                 ->take(3);
                         @endphp
-                        <li class="splide__slide">
+                        <div class="splide__slide">
                             <article class="relative min-w-full hero-slide-frame" data-slider-hotspot-root>
                                 @if ($hasSlideLink)
                                     <a href="{{ $slideLink }}" class="block h-full">
@@ -245,24 +245,29 @@
                                         @if ($mobileSlideUrl)
                                             <source
                                                 media="(max-width: 768px)"
-                                                srcset="{{ $mobileSlideSrcset !== '' ? $mobileSlideSrcset : $mobileSlideUrl }}"
+                                                @if ($loop->first)
+                                                    srcset="{{ $mobileSlideSrcset !== '' ? $mobileSlideSrcset : $mobileSlideUrl }}"
+                                                @else
+                                                    data-hero-lazy-srcset="{{ $mobileSlideSrcset !== '' ? $mobileSlideSrcset : $mobileSlideUrl }}"
+                                                @endif
                                                 sizes="100vw"
                                             >
                                         @endif
                                         <img
-                                            src="{{ $slideUrl }}"
-                                            @if ($slideSrcset !== '') srcset="{{ $slideSrcset }}" @endif
+                                            @if ($loop->first)
+                                                src="{{ $slideUrl }}"
+                                                @if ($slideSrcset !== '') srcset="{{ $slideSrcset }}" @endif
+                                                loading="eager"
+                                                fetchpriority="high"
+                                            @else
+                                                data-hero-lazy-src="{{ $slideUrl }}"
+                                                @if ($slideSrcset !== '') data-hero-lazy-srcset="{{ $slideSrcset }}" @endif
+                                            @endif
                                             sizes="(max-width: 1860px) 100vw, 1860px"
                                             alt="{{ $slideAlt }}"
                                             class="hero-slide-image bg-slate-100"
                                             width="{{ $slideWidth }}"
                                             height="{{ $slideHeight }}"
-                                            @if ($loop->first)
-                                                loading="eager"
-                                                fetchpriority="high"
-                                            @else
-                                                loading="lazy"
-                                            @endif
                                             decoding="async"
                                         >
                                     </picture>
@@ -332,9 +337,9 @@
                                     </div>
                                 @endforeach
                             </article>
-                        </li>
+                        </div>
                     @endforeach
-                </ul>
+                </div>
             </div>
         </div>
     </section>
@@ -459,20 +464,39 @@
                             el.dataset.splideReady = '1';
 
                             const count = el.querySelectorAll('.splide__slide').length;
-                            new window.Splide(el, {
-                                type: count > 1 ? 'loop' : 'slide',
+                            const loadSlideImage = function (index) {
+                                const slide = el.querySelectorAll('.splide__slide')[index];
+                                if (!slide) {
+                                    return;
+                                }
+
+                                slide.querySelectorAll('[data-hero-lazy-srcset]').forEach(function (node) {
+                                    node.setAttribute('srcset', node.dataset.heroLazySrcset);
+                                    node.removeAttribute('data-hero-lazy-srcset');
+                                });
+
+                                slide.querySelectorAll('img[data-hero-lazy-src]').forEach(function (image) {
+                                    image.setAttribute('src', image.dataset.heroLazySrc);
+                                    image.removeAttribute('data-hero-lazy-src');
+                                });
+                            };
+                            const slider = new window.Splide(el, {
+                                type: 'slide',
+                                rewind: count > 1,
                                 perPage: 1,
                                 perMove: 1,
                                 arrows: count > 1,
                                 pagination: count > 1,
                                 noDrag: '[data-slider-hotspot-toggle], [data-slider-hotspot-panel]',
-                                autoplay: count > 1,
+                                autoplay: false,
                                 interval: {{ $autoplayMs }},
                                 pauseOnHover: true,
                                 pauseOnFocus: true,
                                 speed: 700,
                                 easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-                            }).mount();
+                            });
+                            slider.on('move', loadSlideImage);
+                            slider.mount();
                         });
 
                         initHotspots();

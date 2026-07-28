@@ -81,6 +81,12 @@ return [
             'quality' => 82,
             'format' => null,
         ],
+        'card_192w' => [
+            'fit' => 'max',
+            'width' => 192,
+            'quality' => 76,
+            'format' => null,
+        ],
         'detail_960x960' => [
             'fit' => 'contain',
             'width' => 960,
@@ -265,7 +271,7 @@ return [
                     'single_file' => true,
                     'max_upload_kb' => 4096,
                     'accept_mime_types' => ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml'],
-                    'conversions' => ['icon_96x96', 'thumb_100x100'],
+                    'conversions' => ['icon_96x96', 'thumb_100x100', 'card_192w', 'card_320w', 'square_540w'],
                     'preview_conversion' => 'icon_96x96',
                 ],
                 'category_banner' => [

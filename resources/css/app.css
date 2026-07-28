@@ -1,4 +1,9 @@
 @import './full-width-image-slider.css';
+@import '../../public/front-theme/styles/cookie-consent-theme.css';
+@import '../../public/front-theme/styles/termol-overrides.css';
+@import '../../public/front-theme/styles/font-awesome-svg.css';
+@import '../../public/front-theme/styles/scroll-to-top.css';
+@import '../../public/front-theme/styles/product-card.css';
 
 @tailwind base;
 @tailwind components;

@@ -5,14 +5,17 @@ namespace Tests\Feature\Admin;
 use App\Jobs\GenerateWebpConversionsJob;
 use App\Livewire\Admin\Settings\System\StoreSettings;
 use App\Models\Catalog\Product\Product;
+use App\Models\Content\ContentBlock;
 use App\Models\Settings\Local\Language;
 use App\Models\User;
 use App\Services\Front\StoreSettingsService as FrontStoreSettingsService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -227,7 +230,7 @@ class StoreSettingsFeatureTest extends TestCase
         $this->assertSame('/returns-and-claims', $footer['link_columns'][1]['links'][1]['url']);
     }
 
-    public function test_webp_generation_only_targets_active_product_media(): void
+    public function test_webp_generation_targets_media_from_all_active_storefront_models(): void
     {
         Queue::fake();
 
@@ -236,6 +239,24 @@ class StoreSettingsFeatureTest extends TestCase
         $inactiveProduct = $this->makeProduct($admin, 'WEBP-INACTIVE', false);
         $activeMedia = $this->makeProductMedia($activeProduct);
         $inactiveMedia = $this->makeProductMedia($inactiveProduct);
+        $activeBlock = ContentBlock::query()->create([
+            'code' => 'WEBP-HERO-ACTIVE',
+            'name' => 'Active hero',
+            'type' => 'full_width_image_slider',
+            'is_active' => true,
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+        $inactiveBlock = ContentBlock::query()->create([
+            'code' => 'WEBP-HERO-INACTIVE',
+            'name' => 'Inactive hero',
+            'type' => 'full_width_image_slider',
+            'is_active' => false,
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+        $activeBlockMedia = $this->makeContentBlockMedia($activeBlock);
+        $inactiveBlockMedia = $this->makeContentBlockMedia($inactiveBlock);
 
         Cache::forget('settings.store.webp_generation.active_products.'.$admin->id);
         Cache::forget('settings.store.webp_coverage.active_products');
@@ -244,15 +265,51 @@ class StoreSettingsFeatureTest extends TestCase
             ->test(StoreSettings::class)
             ->set('tab', 'images')
             ->call('startWebpGeneration')
-            ->assertSet('webpGeneration.total', 1)
+            ->assertSet('webpGeneration.total', 2)
             ->assertSet('webpGeneration.processed', 0);
 
         $state = Cache::get('settings.store.webp_generation.active_products.'.$admin->id);
         $pendingIds = array_values(array_map('intval', (array) ($state['pending_ids'] ?? [])));
 
-        $this->assertSame([(int) $activeMedia->id], $pendingIds);
+        $this->assertSame([(int) $activeMedia->id, (int) $activeBlockMedia->id], $pendingIds);
         $this->assertNotContains((int) $inactiveMedia->id, $pendingIds);
+        $this->assertNotContains((int) $inactiveBlockMedia->id, $pendingIds);
         Queue::assertPushed(GenerateWebpConversionsJob::class);
+    }
+
+    public function test_webp_generation_also_optimizes_the_existing_store_logo(): void
+    {
+        if (! function_exists('imagewebp')) {
+            $this->markTestSkipped('GD WebP support is required.');
+        }
+
+        Queue::fake();
+        Storage::fake('public');
+
+        $admin = $this->makeUserWithRole('superadmin');
+        $logoPath = UploadedFile::fake()
+            ->image('store-logo.png', 800, 400)
+            ->storeAs('store-settings', 'store-logo.png', 'public');
+
+        app(SystemSettingsService::class)->putMany([
+            'store_brand_logo_path' => $logoPath,
+            'store_brand_logo_optimized_path' => '',
+            'store_brand_logo_width' => 0,
+            'store_brand_logo_height' => 0,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(StoreSettings::class)
+            ->set('tab', 'images')
+            ->call('startWebpGeneration');
+
+        $settings = app(SystemSettingsService::class);
+        $optimizedPath = (string) $settings->get('store_brand_logo_optimized_path', '');
+
+        Storage::disk('public')->assertExists($optimizedPath);
+        $this->assertSame(320, (int) $settings->get('store_brand_logo_width'));
+        $this->assertSame(160, (int) $settings->get('store_brand_logo_height'));
+        $this->assertSame([320, 160], array_slice(getimagesize(Storage::disk('public')->path($optimizedPath)), 0, 2));
     }
 
     private function makeUserWithRole(string $role): User
@@ -293,6 +350,26 @@ class StoreSettingsFeatureTest extends TestCase
             'collection_name' => 'product_main',
             'name' => $product->code,
             'file_name' => strtolower($product->code).'.jpg',
+            'mime_type' => 'image/jpeg',
+            'disk' => 'public',
+            'conversions_disk' => 'public',
+            'size' => 100,
+            'manipulations' => [],
+            'custom_properties' => [],
+            'generated_conversions' => [],
+            'responsive_images' => [],
+            'order_column' => 1,
+        ]);
+    }
+
+    private function makeContentBlockMedia(ContentBlock $block): Media
+    {
+        return Media::query()->create([
+            'model_type' => ContentBlock::class,
+            'model_id' => $block->id,
+            'collection_name' => 'block_slides',
+            'name' => $block->code,
+            'file_name' => strtolower($block->code).'.jpg',
             'mime_type' => 'image/jpeg',
             'disk' => 'public',
             'conversions_disk' => 'public',

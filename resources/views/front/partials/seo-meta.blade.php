@@ -33,6 +33,15 @@
     if ($siteName === '') {
         $siteName = (string) config('app.name', 'AG Shop');
     }
+    if ($defaultDescription === '') {
+        $defaultDescription = $cleanupText(
+            (string) __('ui.seo.default_description', ['store' => $siteName]),
+            320
+        );
+        if ($description === '') {
+            $description = $defaultDescription;
+        }
+    }
 
     $ogType = 'website';
     $ogImage = (string) ($ogSettings['default_image_url'] ?? '');

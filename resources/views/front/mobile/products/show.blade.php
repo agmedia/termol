@@ -225,7 +225,7 @@
                         data-wishlist-button
                     >
                         <svg class="fa6-icon h-5 w-5" fill="currentColor" aria-hidden="true" focusable="false">
-                            <use href="{{ asset('front-theme/fonts/sprites/'.($isWishlisted ? 'solid' : 'regular').'.svg') }}#heart"></use>
+                            <use href="{{ asset('front-theme/fonts/storefront-sprites/'.($isWishlisted ? 'solid' : 'regular').'.svg') }}#heart"></use>
                         </svg>
                     </button>
                 </form>

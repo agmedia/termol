@@ -17,6 +17,10 @@
 
     $storeName = trim((string) (($storeSettings['branding']['store_name'] ?? null) ?: config('app.name', 'AG Shop')));
     $storeLogoUrl = trim((string) ($storeSettings['branding']['logo_url'] ?? ''));
+    $storeLogoRawWidth = (int) ($storeSettings['branding']['logo_width'] ?? 0);
+    $storeLogoRawHeight = (int) ($storeSettings['branding']['logo_height'] ?? 0);
+    $storeLogoWidth = $storeLogoRawWidth > 0 ? $storeLogoRawWidth : 176;
+    $storeLogoHeight = $storeLogoRawHeight > 0 ? $storeLogoRawHeight : 80;
 
     $primaryUrls = collect($mainNavigation ?? [])
         ->map(fn ($item) => trim((string) ($item['url'] ?? '')))
@@ -279,7 +283,7 @@
     <div class="mobile-menu-header">
         <a href="{{ route('home') }}" class="mobile-menu-brand {{ $storeLogoUrl !== '' ? 'has-logo' : '' }}">
             @if ($storeLogoUrl !== '')
-                <img src="{{ $storeLogoUrl }}" alt="{{ $storeName }}" data-store-brand-logo>
+                <img src="{{ $storeLogoUrl }}" alt="{{ $storeName }}" width="{{ $storeLogoWidth }}" height="{{ $storeLogoHeight }}" data-store-brand-logo>
             @else
                 {{ $storeName }}
             @endif

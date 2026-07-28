@@ -5,6 +5,7 @@ namespace App\Services\Front;
 use App\Models\Catalog\Category\Category;
 use App\Models\Content\Page\InfoPage;
 use App\Services\Settings\SystemSettingsService;
+use App\Support\Media\MediaUrl;
 use Illuminate\Support\Facades\Storage;
 
 class NavigationMenuService
@@ -499,9 +500,8 @@ class NavigationMenuService
             ];
         }
 
-        $imageUrl = $media->hasGeneratedConversion('icon_96x96')
-            ? $media->getUrl('icon_96x96')
-            : $media->getUrl();
+        $preferWebp = (bool) $this->settings->get('store_images_use_webp', true);
+        $imageUrl = MediaUrl::conversion($media, 'icon_96x96', $preferWebp);
 
         $imageAlt = trim((string) $media->getCustomProperty('alt.'.$locale));
         if ($imageAlt === '') {

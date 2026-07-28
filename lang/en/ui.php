@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'seo' => [
+        'default_description' => ':store online store for heating, air conditioning, bathrooms, home appliances, installation supplies and home equipment.',
+    ],
     'currency' => [
         'eur' => 'EUR',
     ],

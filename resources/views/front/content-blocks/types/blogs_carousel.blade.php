@@ -102,7 +102,7 @@
         <div>
             <div id="blogs-carousel-{{ $block->id }}" class="splide home-news-carousel" data-blogs-carousel-splide>
                     <div class="splide__track">
-                        <ul class="splide__list">
+                        <div class="splide__list">
                             @foreach ($posts as $post)
                                 @php
                                     $postTranslation = $post->translations->firstWhere('locale', $locale)
@@ -138,7 +138,7 @@
                                     $postCoverWidth = max(1, (int) ($postCover?->width ?? 900));
                                     $postCoverHeight = max(1, (int) ($postCover?->height ?? 1200));
                                 @endphp
-                                <li class="splide__slide">
+                                <div class="splide__slide">
                                     <article class="group h-full bg-white">
                                         <a href="{{ $postUrl }}" class="block">
                                             <div class="aspect-[4/3] overflow-hidden bg-slate-100">
@@ -171,9 +171,9 @@
                                             </div>
                                         </a>
                                     </article>
-                                </li>
+                                </div>
                             @endforeach
-                        </ul>
+                        </div>
                     </div>
                 </div>
             </div>

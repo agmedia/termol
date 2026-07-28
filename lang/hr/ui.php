@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'seo' => [
+        'default_description' => ':store web trgovina – grijanje, klimatizacija, kupaonica, kućanski uređaji, instalacije i oprema za dom.',
+    ],
     'currency' => [
         'eur' => 'EUR',
     ],
@@ -253,7 +256,7 @@ return [
         'size_guide' => 'Vodič za veličine',
         'color_variants' => 'Varijante u bojama',
         'product_images' => 'Slike proizvoda',
-        'description' => 'Opis proizvoda',
+        'description' => 'Opis',
         'description_short' => 'Opis',
         'specifications' => 'Specifikacije',
         'detail_navigation' => 'Informacije o proizvodu',
