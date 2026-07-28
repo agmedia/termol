@@ -79,15 +79,13 @@ class HomeFullWidthImageSliderTest extends TestCase
             ->assertOk()
             ->assertSee('id="'.$sliderId.'-shell"', false)
             ->assertSee('class="full-width-image-slider-shell', false)
+            ->assertSee('full-width-image-slider-shell--home-main', false)
             ->assertSee('sizes="(max-width: 1860px) 100vw, 1860px"', false)
             ->assertSee('media="(max-width: 768px)"', false)
             ->assertSee('sizes="100vw"', false)
             ->assertSee('home-slide-mobile', false)
             ->assertSee('class="hero-slide-cta"', false)
             ->assertSee('Pogledajte ponudu')
-            ->assertSee('bottom: 6.75rem;', false)
-            ->assertSee('@media (min-width: 1440px) and (max-width: 1599px)', false)
-            ->assertSee('height: calc(100dvh - 223px);', false)
             ->assertSee('data-fullwidth-splide', false);
 
         app(SystemSettingsService::class)->put('catalog_use_mobile_view', true);
@@ -99,7 +97,17 @@ class HomeFullWidthImageSliderTest extends TestCase
             ->get('/')
             ->assertOk()
             ->assertSee('id="'.$sliderId.'-shell"', false)
-            ->assertSee('aspect-ratio: 1 / 1;', false)
             ->assertSee('home-slide-mobile', false);
+
+        $sliderTemplate = file_get_contents(resource_path('views/front/content-blocks/types/full_width_image_slider.blade.php'));
+        $storefrontCss = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringNotContainsString('<style', $sliderTemplate);
+        $this->assertStringNotContainsString('style="', $sliderTemplate);
+        $this->assertStringContainsString('.full-width-image-slider-shell .hero-slide-cta', $storefrontCss);
+        $this->assertStringContainsString('background: var(--navigation-background-color, #e65100);', $storefrontCss);
+        $this->assertStringContainsString('background: #0057c8;', $storefrontCss);
+        $this->assertStringContainsString('height: calc(100dvh - 223px);', $storefrontCss);
+        $this->assertStringContainsString('aspect-ratio: 1 / 1;', $storefrontCss);
     }
 }

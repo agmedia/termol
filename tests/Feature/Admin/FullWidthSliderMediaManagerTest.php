@@ -75,7 +75,10 @@ class FullWidthSliderMediaManagerTest extends TestCase
             ->assertSee('1920 × 820 px')
             ->assertSee('Mobile slike slidera (square)')
             ->assertSee('1080 × 1080 px')
-            ->assertSee('block_slides_mobile');
+            ->assertSee('block_slides_mobile')
+            ->assertSee('wire:loading.attr="disabled"', false)
+            ->assertSee('wire:target="uploads.block_slides"', false)
+            ->assertSee('wire:target="uploads.block_slides_mobile"', false);
 
         $component
             ->set('uploads.block_slides', [

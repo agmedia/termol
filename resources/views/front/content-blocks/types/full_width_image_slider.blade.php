@@ -145,240 +145,7 @@
 
     @include('front.partials.splide-assets')
 
-    <style>
-        #{{ $sliderId }}.splide {
-            visibility: visible;
-        }
-
-        #{{ $sliderId }} .splide__track {
-            overflow: hidden;
-            height: 100%;
-        }
-
-        #{{ $sliderId }} .splide__list {
-            display: flex;
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-
-        #{{ $sliderId }} .splide__slide {
-            flex: 0 0 100%;
-            min-width: 0;
-        }
-
-        #{{ $sliderId }} .splide__list,
-        #{{ $sliderId }} .splide__slide {
-            height: 100%;
-        }
-
-        #{{ $sliderId }} .hero-slide-frame {
-            position: relative;
-            aspect-ratio: 1920 / 820;
-            background: #f1f5f9;
-            height: 100%;
-        }
-
-        #{{ $sliderId }} .hero-slide-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center;
-        }
-
-        #{{ $sliderId }} .hero-slide-picture {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-
-        @if ($isHomeMainSlider)
-            @media (min-width: 1440px) and (max-width: 1599px) {
-                #{{ $sliderId }} .hero-slide-frame {
-                    aspect-ratio: auto;
-                    height: calc(100vh - 223px);
-                    height: calc(100dvh - 223px);
-                }
-            }
-        @endif
-
-        #{{ $sliderId }} .hero-slide-cta {
-            position: absolute;
-            z-index: 18;
-            left: 50%;
-            bottom: 6.75rem;
-            display: inline-flex;
-            min-height: 60px;
-            max-width: calc(100% - 2rem);
-            align-items: center;
-            justify-content: center;
-            padding: 0.85rem 2.5rem;
-            transform: translateX(-50%);
-            background: #ffd800;
-            color: #111827;
-            font-size: 1rem;
-            font-weight: 800;
-            line-height: 1.15;
-            text-align: center;
-            text-decoration: none;
-            white-space: nowrap;
-            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.2);
-            transition: background-color 0.2s ease, transform 0.2s ease;
-        }
-
-        #{{ $sliderId }} .hero-slide-cta:hover,
-        #{{ $sliderId }} .hero-slide-cta:focus-visible {
-            background: #ffe34d;
-            color: #111827;
-            transform: translateX(-50%) translateY(-2px);
-        }
-
-        #{{ $sliderId }} .ag-hotspot-toggle {
-            isolation: isolate;
-        }
-
-        #{{ $sliderId }} .ag-hotspot-toggle::before {
-            content: '';
-            position: absolute;
-            inset: -8px;
-            z-index: -1;
-            border-radius: 9999px;
-            border: 1px solid rgba(255, 255, 255, 0.72);
-            background: rgba(255, 255, 255, 0.2);
-            pointer-events: none;
-            animation: ag-hotspot-pulse 1.9s ease-out infinite;
-        }
-
-        #{{ $sliderId }} .ag-hotspot-toggle[aria-expanded="true"]::before {
-            opacity: 0;
-            animation: none;
-        }
-
-        #{{ $sliderId }} .ag-hotspot-panel {
-            overflow: visible;
-        }
-
-        #{{ $sliderId }} .ag-hotspot-panel > a {
-            position: relative;
-            z-index: 1;
-        }
-
-        #{{ $sliderId }} .ag-hotspot-caret {
-            width: 14px;
-            height: 18px;
-            pointer-events: none;
-        }
-
-        #{{ $sliderId }} .ag-hotspot-caret::before,
-        #{{ $sliderId }} .ag-hotspot-caret::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            clip-path: polygon(0 50%, 100% 0, 100% 100%);
-        }
-
-        #{{ $sliderId }} .ag-hotspot-caret::before {
-            background: rgb(226 232 240);
-        }
-
-        #{{ $sliderId }} .ag-hotspot-caret::after {
-            inset: 1px 0 1px 1px;
-            background: #fff;
-        }
-
-        #{{ $sliderId }} .ag-hotspot-panel.is-side-right .ag-hotspot-caret {
-            left: -13px;
-            transform: translateY(-50%);
-        }
-
-        #{{ $sliderId }} .ag-hotspot-panel.is-side-left .ag-hotspot-caret {
-            right: -13px;
-            transform: translateY(-50%) scaleX(-1);
-        }
-
-        #{{ $sliderId }} .splide__arrow {
-            opacity: 0;
-            width: 46px;
-            height: 46px;
-            border-radius: 9999px;
-            border: 1px solid rgba(255, 255, 255, 0.75);
-            background: rgba(15, 23, 42, 0.35);
-            backdrop-filter: blur(6px);
-            transform: translateY(-50%) scale(0.92);
-            transition: opacity .25s ease, transform .25s ease, background-color .25s ease;
-        }
-
-        #{{ $sliderId }}:hover .splide__arrow,
-        #{{ $sliderId }}:focus-within .splide__arrow {
-            opacity: 1;
-            transform: translateY(-50%) scale(1);
-        }
-
-        #{{ $sliderId }} .splide__arrow:hover {
-            background: rgba(15, 23, 42, 0.55);
-        }
-
-        #{{ $sliderId }} .splide__arrow svg {
-            fill: #fff;
-        }
-
-        #{{ $sliderId }} .splide__pagination {
-            bottom: 1rem;
-            gap: 0.45rem;
-        }
-
-        #{{ $sliderId }} .splide__pagination__page {
-            width: 10px;
-            height: 10px;
-            margin: 0;
-            opacity: 0.95;
-            background: #ffffff !important;
-            border: 2px solid transparent;
-            transition: transform 0.2s linear, background-color 0.2s linear, border-color 0.2s linear;
-        }
-
-        #{{ $sliderId }} .splide__pagination__page.is-active {
-            transform: none;
-            background: #0f172a !important;
-            border-color: #ffffff;
-        }
-
-        @media (max-width: 768px) {
-            #{{ $sliderId }} .hero-slide-frame {
-                aspect-ratio: 1 / 1;
-            }
-
-            #{{ $sliderId }} .hero-slide-image {
-                height: 100%;
-            }
-
-            #{{ $sliderId }} .hero-slide-cta {
-                bottom: 4.5rem;
-                min-height: 48px;
-                padding: 0.75rem 1.5rem;
-                font-size: 0.9rem;
-            }
-        }
-
-        @keyframes ag-hotspot-pulse {
-            0% {
-                transform: scale(0.9);
-                opacity: 0.85;
-            }
-
-            70% {
-                transform: scale(1.35);
-                opacity: 0;
-            }
-
-            100% {
-                transform: scale(1.35);
-                opacity: 0;
-            }
-        }
-    </style>
-
-    <section id="{{ $sliderId }}-shell" class="full-width-image-slider-shell relative left-1/2 -translate-x-1/2 overflow-hidden {{ $customClasses }}">
+    <section id="{{ $sliderId }}-shell" class="full-width-image-slider-shell {{ $isHomeMainSlider ? 'full-width-image-slider-shell--home-main' : '' }} relative left-1/2 -translate-x-1/2 overflow-hidden {{ $customClasses }}">
         <div id="{{ $sliderId }}" class="splide" data-fullwidth-splide>
             <div class="splide__track">
                 <ul class="splide__list">
@@ -539,7 +306,8 @@
                                     <button
                                         type="button"
                                         class="ag-hotspot-toggle absolute z-20 inline-flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/90 bg-white text-[22px] font-light leading-none text-slate-900 shadow-md transition-colors hover:bg-slate-200"
-                                        style="left: {{ number_format((float) ($hotspot['x'] ?? 50), 2, '.', '') }}%; top: {{ number_format((float) ($hotspot['y'] ?? 50), 2, '.', '') }}%;"
+                                        data-hotspot-x="{{ number_format((float) ($hotspot['x'] ?? 50), 2, '.', '') }}"
+                                        data-hotspot-y="{{ number_format((float) ($hotspot['y'] ?? 50), 2, '.', '') }}"
                                         data-slider-hotspot-toggle
                                         data-panel-key="{{ $hotspotKey }}"
                                         aria-expanded="false"
@@ -576,6 +344,14 @@
             <script>
                 (function () {
                     const initHotspots = function () {
+                        document.querySelectorAll('[data-slider-hotspot-toggle]').forEach(function (btn) {
+                            const x = Math.max(0, Math.min(100, Number.parseFloat(btn.dataset.hotspotX || '50')));
+                            const y = Math.max(0, Math.min(100, Number.parseFloat(btn.dataset.hotspotY || '50')));
+
+                            btn.style.left = x + '%';
+                            btn.style.top = y + '%';
+                        });
+
                         const positionHotspotPanel = function (btn, panel) {
                             const root = btn.closest('[data-slider-hotspot-root]');
                             const caret = panel.querySelector('[data-slider-hotspot-caret]');

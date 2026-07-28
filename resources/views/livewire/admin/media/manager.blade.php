@@ -87,7 +87,10 @@
                                 <button
                                     type="button"
                                     wire:click="uploadCollection('{{ $collectionName }}')"
-                                    class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
+                                    wire:loading.attr="disabled"
+                                    wire:target="uploads.{{ $collectionName }}"
+                                    @disabled(empty($uploads[$collectionName]))
+                                    class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {{ __('Upload') }}
                                 </button>
