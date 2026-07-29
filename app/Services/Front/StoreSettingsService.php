@@ -30,6 +30,7 @@ class StoreSettingsService
             'captcha' => $this->captcha(),
             'analytics' => $this->analytics(),
             'email' => $this->email(),
+            'withdrawal' => $this->withdrawal(),
             'seo' => $this->seo(),
             'og' => $this->og(),
             'schema' => $this->schema(),
@@ -305,6 +306,36 @@ class StoreSettingsService
             'reply_to' => (string) $this->settings->get('store_email_reply_to', ''),
             'orders_to' => (string) $this->settings->get('store_email_orders_to', ''),
             'contact_to' => (string) $this->settings->get('store_email_contact_to', ''),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function withdrawal(): array
+    {
+        $defaultAddress = implode(', ', array_filter([
+            trim((string) $this->settings->get('store_schema_business_name', '')),
+            trim((string) $this->settings->get('store_schema_address_street', '')),
+            trim(implode(' ', array_filter([
+                trim((string) $this->settings->get('store_schema_address_postal_code', '')),
+                trim((string) $this->settings->get('store_schema_address_city', '')),
+            ]))),
+        ]));
+
+        return [
+            'admin_email' => trim((string) $this->settings->get(
+                'store_withdrawal_admin_email',
+                $this->settings->get('store_email_orders_to', ''),
+            )),
+            'return_address' => trim((string) $this->settings->get(
+                'store_withdrawal_return_address',
+                $defaultAddress,
+            )),
+            'instructions' => trim((string) $this->settings->get(
+                'store_withdrawal_instructions',
+                '',
+            )),
         ];
     }
 

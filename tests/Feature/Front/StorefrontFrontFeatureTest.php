@@ -3,6 +3,8 @@
 namespace Tests\Feature\Front;
 
 use App\Http\Controllers\Front\CatalogController;
+use App\Mail\ContractWithdrawalAdminMail;
+use App\Mail\ContractWithdrawalReceiptMail;
 use App\Mail\NewsletterCouponMail;
 use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Attribute\Attribute;
@@ -268,74 +270,68 @@ class StorefrontFrontFeatureTest extends TestCase
     {
         $this->get('/forma-za-povrat-i-reklamacije')
             ->assertOk()
+            ->assertSee((string) __('return_request.form.full_name'))
             ->assertSee((string) __('return_request.form.email'))
             ->assertSee((string) __('return_request.form.order_number'))
-            ->assertSee((string) __('return_request.form.return_items'))
+            ->assertSee((string) __('return_request.form.items'))
+            ->assertSee((string) __('return_request.form.received_date'))
             ->assertSee((string) __('return_request.form.note'));
     }
 
-    public function test_return_request_form_stores_message_and_uses_orders_email(): void
+    public function test_contract_withdrawal_requires_review_then_stores_evidence_and_emails_both_parties(): void
     {
+        Mail::fake();
+
         app(SystemSettingsService::class)->putMany([
-            'store_email_enabled' => true,
-            'store_email_orders_to' => 'orders@example.test',
-            'store_email_contact_to' => 'support@example.test',
+            'store_withdrawal_admin_email' => 'withdrawals@example.test',
+            'store_withdrawal_return_address' => 'Example Store, Main Street 1, Zagreb',
         ]);
 
-        Mail::shouldReceive('raw')
-            ->once()
-            ->with(
-                \Mockery::on(static fn (string $body): bool => str_contains($body, 'R-1001')
-                    && str_contains($body, 'T-shirt size M')),
-                \Mockery::on(static function (callable $callback): bool {
-                    $mail = new class
-                    {
-                        public array $calls = [];
-
-                        public function to(string $email): self
-                        {
-                            $this->calls['to'] = $email;
-
-                            return $this;
-                        }
-
-                        public function subject(string $subject): self
-                        {
-                            $this->calls['subject'] = $subject;
-
-                            return $this;
-                        }
-
-                        public function replyTo(string $email): self
-                        {
-                            $this->calls['reply_to'] = $email;
-
-                            return $this;
-                        }
-                    };
-
-                    $callback($mail);
-
-                    return ($mail->calls['to'] ?? '') === 'orders@example.test'
-                        && ($mail->calls['reply_to'] ?? '') === 'buyer@example.test'
-                        && str_contains((string) ($mail->calls['subject'] ?? ''), 'R-1001');
-                })
-            );
-
-        $this->post('/forma-za-povrat-i-reklamacije', [
+        $review = $this->post('/forma-za-povrat-i-reklamacije', [
+            'full_name' => 'Ana Horvat',
             'email' => 'buyer@example.test',
+            'phone' => '+385 91 000 0000',
+            'address_line' => 'Ilica 1',
+            'postal_code' => '10000',
+            'city' => 'Zagreb',
+            'country_code' => 'HR',
             'order_number' => 'R-1001',
-            'return_items' => 'T-shirt size M',
-            'note' => 'Wrong size.',
+            'contract_date' => now()->subDays(8)->toDateString(),
+            'received_date' => now()->subDays(5)->toDateString(),
+            'items' => 'T-shirt size M',
+            'note' => '',
+        ])
+            ->assertOk()
+            ->assertSee(__('return_request.review.confirm'))
+            ->assertSee('R-1001');
+
+        $this->assertDatabaseCount('contract_withdrawals', 0);
+        preg_match('/name="draft_token" value="([^"]+)"/', $review->getContent(), $matches);
+        $this->assertNotEmpty($matches[1] ?? null);
+
+        $this->post('/forma-za-povrat-i-reklamacije/confirm', [
+            'draft_token' => $matches[1],
         ])
             ->assertRedirect('/forma-za-povrat-i-reklamacije')
-            ->assertSessionHas('status', (string) __('return_request.sent_status'));
+            ->assertSessionHas('withdrawal_reference');
 
-        $this->assertDatabaseHas('contact_messages', [
+        $this->assertDatabaseHas('contract_withdrawals', [
             'email' => 'buyer@example.test',
-            'subject' => __('return_request.mail.subject', ['order' => 'R-1001']),
-            'status' => 'new',
+            'order_number' => 'R-1001',
+            'full_name' => 'Ana Horvat',
+            'items' => 'T-shirt size M',
+            'status' => 'received',
         ]);
+
+        Mail::assertSent(ContractWithdrawalReceiptMail::class, static fn ($mail): bool =>
+            $mail->hasTo('buyer@example.test')
+            && $mail->withdrawal->order_number === 'R-1001'
+            && $mail->withdrawal->consumer_notified_at !== null
+        );
+        Mail::assertSent(ContractWithdrawalAdminMail::class, static fn ($mail): bool =>
+            $mail->hasTo('withdrawals@example.test')
+            && $mail->withdrawal->order_number === 'R-1001'
+        );
     }
 
     public function test_return_request_form_uses_enabled_recaptcha_settings(): void
@@ -350,34 +346,36 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->get('/forma-za-povrat-i-reklamacije')
             ->assertOk()
             ->assertSee('data-recaptcha-site-key="test-site-key"', false)
-            ->assertSee('data-recaptcha-action="return_request_form"', false)
+            ->assertSee('data-recaptcha-action="contract_withdrawal_form"', false)
             ->assertSee('https://www.google.com/recaptcha/api.js?render=test-site-key', false);
 
         Http::fake([
             'https://www.google.com/recaptcha/api/siteverify' => Http::response([
                 'success' => true,
                 'score' => 0.9,
-                'action' => 'return_request_form',
+                'action' => 'contract_withdrawal_form',
             ]),
         ]);
 
-        $this->post('/forma-za-povrat-i-reklamacije', [
+        $review = $this->post('/forma-za-povrat-i-reklamacije', [
+            'full_name' => 'Captcha Buyer',
             'email' => 'captcha-buyer@example.test',
+            'address_line' => 'Test Street 2',
+            'postal_code' => '10000',
+            'city' => 'Zagreb',
+            'country_code' => 'HR',
             'order_number' => 'R-2002',
-            'return_items' => 'Socks size L',
+            'items' => 'Socks size L',
             'note' => '',
             'recaptcha_token' => 'token-123',
-        ])->assertRedirect('/forma-za-povrat-i-reklamacije');
+        ])->assertOk();
 
         Http::assertSent(static fn ($request): bool => $request->url() === 'https://www.google.com/recaptcha/api/siteverify'
             && $request['secret'] === 'test-secret-key'
             && $request['response'] === 'token-123');
 
-        $this->assertDatabaseHas('contact_messages', [
-            'email' => 'captcha-buyer@example.test',
-            'subject' => __('return_request.mail.subject', ['order' => 'R-2002']),
-            'status' => 'new',
-        ]);
+        $this->assertDatabaseCount('contract_withdrawals', 0);
+        $review->assertSee(__('return_request.review.confirm'));
     }
 
     public function test_front_auth_forms_use_enabled_recaptcha_settings(): void

@@ -54,6 +54,8 @@ return [
         ['name' => 'sales.orders.view', 'title' => 'View orders', 'group' => 'sales.orders'],
         ['name' => 'sales.orders.update', 'title' => 'Update orders', 'group' => 'sales.orders'],
         ['name' => 'sales.orders.invoice.view', 'title' => 'View order invoices', 'group' => 'sales.orders'],
+        ['name' => 'sales.withdrawals.view', 'title' => 'View contract withdrawals', 'group' => 'sales.withdrawals'],
+        ['name' => 'sales.withdrawals.manage', 'title' => 'Manage contract withdrawals', 'group' => 'sales.withdrawals'],
 
         ['name' => 'content.blog.view', 'title' => 'View blog posts', 'group' => 'content.blog'],
         ['name' => 'content.blog.create', 'title' => 'Create blog posts', 'group' => 'content.blog'],
@@ -150,6 +152,8 @@ return [
             'sales.orders.view',
             'sales.orders.update',
             'sales.orders.invoice.view',
+            'sales.withdrawals.view',
+            'sales.withdrawals.manage',
             'content.blog.view',
             'content.blog.create',
             'content.blog.update',

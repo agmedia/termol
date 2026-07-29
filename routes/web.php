@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminAiController;
+use App\Http\Controllers\Admin\ContractWithdrawalController;
 use App\Http\Controllers\Admin\OrderGlsController;
 use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Front\AccountController;
@@ -99,7 +100,12 @@ Route::middleware(['front.locale', 'front.device'])
         Route::get('{returnRequestSlug}', [ReturnRequestController::class, 'create'])
             ->where('returnRequestSlug', 'forma-za-povrat-i-reklamacije|returns-and-claims|rucksendungen-und-reklamationen')
             ->name('returns.create');
-        Route::post('{returnRequestSlug}', [ReturnRequestController::class, 'store'])
+        Route::post('{returnRequestSlug}', [ReturnRequestController::class, 'review'])
+            ->middleware('throttle:10,1')
+            ->where('returnRequestSlug', 'forma-za-povrat-i-reklamacije|returns-and-claims|rucksendungen-und-reklamationen')
+            ->name('returns.review');
+        Route::post('{returnRequestSlug}/confirm', [ReturnRequestController::class, 'store'])
+            ->middleware('throttle:10,1')
             ->where('returnRequestSlug', 'forma-za-povrat-i-reklamacije|returns-and-claims|rucksendungen-und-reklamationen')
             ->name('returns.store');
         Route::post('newsletter/subscribe', [NewsletterController::class, 'store'])->name('newsletter.subscribe');
@@ -257,6 +263,10 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
             return view('admin.products.edit', compact('product'));
         })->name('products.edit');
         Route::view('orders', 'admin.orders.index')->name('orders');
+        Route::get('withdrawals', [ContractWithdrawalController::class, 'index'])->name('withdrawals.index');
+        Route::get('withdrawals/{withdrawal}', [ContractWithdrawalController::class, 'show'])->name('withdrawals.show');
+        Route::patch('withdrawals/{withdrawal}', [ContractWithdrawalController::class, 'update'])->name('withdrawals.update');
+        Route::post('withdrawals/{withdrawal}/resend', [ContractWithdrawalController::class, 'resend'])->name('withdrawals.resend');
         Route::view('shipping', 'admin.shipping.index')->name('shipping.index');
         Route::post('orders/{order}/gls/send', [OrderGlsController::class, 'send'])->name('orders.gls.send');
         Route::get('orders/{order}/gls/label', [OrderGlsController::class, 'label'])->name('orders.gls.label');
@@ -456,6 +466,7 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
                 Route::view('system/admin-appearance-controls', 'admin.settings.system.admin-appearance-controls')->name('system.admin-appearance-controls');
                 Route::view('system/catalog-features', 'admin.settings.system.catalog-features')->name('system.catalog-features');
                 Route::view('system/store-settings', 'admin.settings.system.store-settings')->name('system.store-settings');
+                Route::view('system/withdrawal-settings', 'admin.settings.system.withdrawal-settings')->name('system.withdrawal-settings');
                 Route::prefix('api')
                     ->as('api.')
                     ->group(function (): void {

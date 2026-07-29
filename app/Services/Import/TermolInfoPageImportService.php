@@ -226,10 +226,10 @@ class TermolInfoPageImportService
                 $pageIds['shipping-returns'],
                 $pageIds['returns-claims'],
             ],
-            'store_footer_col_2_custom_links' => 'Obrazac za povrat|/forma-za-povrat-i-reklamacije',
+            'store_footer_col_2_custom_links' => 'Raskid ugovora|/forma-za-povrat-i-reklamacije',
             'store_footer_col_2_custom_links_translations' => [
-                'hr' => 'Obrazac za povrat|/forma-za-povrat-i-reklamacije',
-                'en' => 'Returns and claims form|/returns-and-claims',
+                'hr' => 'Raskid ugovora|/forma-za-povrat-i-reklamacije',
+                'en' => 'Withdraw from contract|/returns-and-claims',
             ],
             'store_footer_col_3_title' => 'Informacije',
             'store_footer_col_3_title_translations' => [

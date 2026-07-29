@@ -921,6 +921,15 @@
     letter-spacing: -.025em;
 }
 
+.storefront-widget-heading-title::before {
+    display: block;
+    width: 44px;
+    height: 4px;
+    margin-bottom: .9rem;
+    background: var(--navigation-background-color, #e65100);
+    content: "";
+}
+
 .storefront-widget-heading-meta {
     display: flex;
     align-items: center;

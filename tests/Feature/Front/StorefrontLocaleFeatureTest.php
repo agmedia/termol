@@ -35,20 +35,20 @@ class StorefrontLocaleFeatureTest extends TestCase
 
         $this->get('/forma-za-povrat-i-reklamacije')
             ->assertOk()
-            ->assertSee('Forma za povrat i reklamacije');
+            ->assertSee('Raskid ugovora');
 
         $this->from('/contact')->get('/locale/en');
 
         $this->get('/returns-and-claims')
             ->assertOk()
-            ->assertSee('Returns and claims form')
+            ->assertSee('Withdraw from contract')
             ->assertSee('/returns-and-claims', false);
 
         $this->from('/returns-and-claims')->get('/locale/de');
 
         $this->get('/rucksendungen-und-reklamationen')
             ->assertOk()
-            ->assertSee('Formular für Rücksendungen und Reklamationen')
+            ->assertSee('Vertrag widerrufen')
             ->assertSee('/rucksendungen-und-reklamationen', false);
     }
 

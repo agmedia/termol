@@ -23,49 +23,94 @@
         </div>
     </div>
 
+    @if (session('status'))
+        <div class="card card-style bg-green-light">
+            <div class="content"><p class="mb-0 font-13 color-green-dark">{{ session('status') }}</p></div>
+        </div>
+    @endif
+    @if (session('warning'))
+        <div class="card card-style bg-yellow-light">
+            <div class="content"><p class="mb-0 font-13 color-brown-dark">{{ session('warning') }}</p></div>
+        </div>
+    @endif
+    @error('draft')
+        <div class="card card-style bg-red-light"><div class="content"><p class="mb-0 font-13 color-red-dark">{{ $message }}</p></div></div>
+    @enderror
+
+    <div class="card card-style bg-blue-light">
+        <div class="content">
+            <p class="font-13 font-600 mb-1">{{ __('return_request.intro') }}</p>
+            <p class="font-12 mb-0">{{ __('return_request.scope_note') }}</p>
+        </div>
+    </div>
+
     <div class="returns-mobile-form card card-style">
         <div class="content">
             <form
                 method="POST"
-                action="{{ route('returns.store', ['returnRequestSlug' => __('return_request.slug')]) }}"
-                novalidate
-                data-return-form
-                data-msg-email-required="{{ __('return_request.validation.inline.email_required') }}"
-                data-msg-email-invalid="{{ __('return_request.validation.inline.email_invalid') }}"
-                data-msg-order-number-required="{{ __('return_request.validation.inline.order_number_required') }}"
-                data-msg-return-items-required="{{ __('return_request.validation.inline.return_items_required') }}"
-                data-msg-return-items-min="{{ __('return_request.validation.inline.return_items_min') }}"
-                @if($captchaEnabled) data-recaptcha-form data-recaptcha-site-key="{{ $captchaSiteKey }}" data-recaptcha-action="return_request_form" @endif
+                action="{{ route('returns.review', ['returnRequestSlug' => __('return_request.slug')]) }}"
+                data-withdrawal-form
+                @if($captchaEnabled) data-recaptcha-site-key="{{ $captchaSiteKey }}" data-recaptcha-action="contract_withdrawal_form" @endif
             >
                 @csrf
                 <input type="hidden" name="recaptcha_token" value="" data-recaptcha-token>
 
+                <h4 class="mb-3">{{ __('return_request.form.identity_section') }}</h4>
+                @foreach ([
+                    ['full_name', 'text', 'name', true],
+                    ['email', 'email', 'email', true],
+                    ['phone', 'tel', 'tel', false],
+                    ['address_line', 'text', 'street-address', true],
+                    ['postal_code', 'text', 'postal-code', true],
+                    ['city', 'text', 'address-level2', true],
+                    ['country_code', 'text', 'country', true],
+                ] as [$field, $type, $autocomplete, $required])
+                    <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                        <label for="withdrawal-{{ $field }}" class="color-highlight">{{ __('return_request.form.'.$field) }}</label>
+                        <input
+                            id="withdrawal-{{ $field }}"
+                            type="{{ $type }}"
+                            name="{{ $field }}"
+                            value="{{ old($field, $prefill[$field] ?? ($field === 'country_code' ? 'HR' : '')) }}"
+                            autocomplete="{{ $autocomplete }}"
+                            @if($required) required @endif
+                            @if($field === 'country_code') minlength="2" maxlength="2" pattern="[A-Za-z]{2}" class="text-uppercase" @endif
+                        >
+                        @if ($field === 'email') <p class="font-11 color-gray-dark mb-0 mt-1">{{ __('return_request.form.email_help') }}</p> @endif
+                        @error($field) <p class="font-11 color-red-dark mb-0 mt-1">{{ $message }}</p> @enderror
+                    </div>
+                @endforeach
+
+                <h4 class="mb-3 mt-4">{{ __('return_request.form.contract_section') }}</h4>
                 <div class="input-style has-borders no-icon input-style-always-active mb-3">
-                    <label for="return-email" class="color-highlight">{{ __('return_request.form.email') }}</label>
-                    <input id="return-email" type="email" name="email" value="{{ old('email', auth()->user()?->email) }}" autocomplete="email" required>
-                    <p class="font-11 color-red-dark mb-0 mt-1 {{ $errors->has('email') ? '' : 'hidden' }}" data-field-error="email">@error('email'){{ $message }}@enderror</p>
+                    <label for="withdrawal-order-number" class="color-highlight">{{ __('return_request.form.order_number') }}</label>
+                    <input id="withdrawal-order-number" type="text" name="order_number" value="{{ old('order_number') }}" required maxlength="80">
+                    @error('order_number') <p class="font-11 color-red-dark mb-0 mt-1">{{ $message }}</p> @enderror
                 </div>
-
                 <div class="input-style has-borders no-icon input-style-always-active mb-3">
-                    <label for="return-order-number" class="color-highlight">{{ __('return_request.form.order_number') }}</label>
-                    <input id="return-order-number" type="text" name="order_number" value="{{ old('order_number') }}" autocomplete="off" required>
-                    <p class="font-11 color-red-dark mb-0 mt-1 {{ $errors->has('order_number') ? '' : 'hidden' }}" data-field-error="order_number">@error('order_number'){{ $message }}@enderror</p>
+                    <label for="withdrawal-contract-date" class="color-highlight">{{ __('return_request.form.contract_date') }}</label>
+                    <input id="withdrawal-contract-date" type="date" name="contract_date" value="{{ old('contract_date') }}" max="{{ now()->toDateString() }}">
+                    @error('contract_date') <p class="font-11 color-red-dark mb-0 mt-1">{{ $message }}</p> @enderror
                 </div>
-
+                <div class="input-style has-borders no-icon input-style-always-active mb-3">
+                    <label for="withdrawal-received-date" class="color-highlight">{{ __('return_request.form.received_date') }}</label>
+                    <input id="withdrawal-received-date" type="date" name="received_date" value="{{ old('received_date') }}" max="{{ now()->toDateString() }}">
+                    @error('received_date') <p class="font-11 color-red-dark mb-0 mt-1">{{ $message }}</p> @enderror
+                </div>
                 <div class="input-style has-borders input-style-always-active no-icon mb-3">
-                    <textarea id="return-items" name="return_items" style="height:130px;" placeholder="{{ __('return_request.form.return_items_placeholder') }}" required>{{ old('return_items') }}</textarea>
-                    <label for="return-items" class="color-highlight">{{ __('return_request.form.return_items') }}</label>
-                    <p class="font-11 color-red-dark mb-0 mt-1 {{ $errors->has('return_items') ? '' : 'hidden' }}" data-field-error="return_items">@error('return_items'){{ $message }}@enderror</p>
+                    <textarea id="withdrawal-items" name="items" style="height:150px;" placeholder="{{ __('return_request.form.items_placeholder') }}" required maxlength="5000">{{ old('items') }}</textarea>
+                    <label for="withdrawal-items" class="color-highlight">{{ __('return_request.form.items') }}</label>
+                    @error('items') <p class="font-11 color-red-dark mb-0 mt-1">{{ $message }}</p> @enderror
                 </div>
-
                 <div class="input-style has-borders input-style-always-active no-icon mb-3">
-                    <textarea id="return-note" name="note" style="height:120px;" placeholder="{{ __('return_request.form.note_placeholder') }}">{{ old('note') }}</textarea>
-                    <label for="return-note" class="color-highlight">{{ __('return_request.form.note') }}</label>
-                    <p class="font-11 color-red-dark mb-0 mt-1 {{ $errors->has('note') ? '' : 'hidden' }}" data-field-error="note">@error('note'){{ $message }}@enderror</p>
+                    <textarea id="withdrawal-note" name="note" style="height:110px;" placeholder="{{ __('return_request.form.note_placeholder') }}" maxlength="5000">{{ old('note') }}</textarea>
+                    <label for="withdrawal-note" class="color-highlight">{{ __('return_request.form.note') }}</label>
+                    @error('note') <p class="font-11 color-red-dark mb-0 mt-1">{{ $message }}</p> @enderror
                 </div>
 
-                <button type="submit" class="commerce-primary-action btn btn-full font-600">{{ __('return_request.form.submit') }}</button>
-                <p class="font-11 color-red-dark mb-2 mt-1 {{ $errors->has('recaptcha_token') ? '' : 'hidden' }}" data-field-error="recaptcha_token">@error('recaptcha_token'){{ $message }}@enderror</p>
+                <p class="font-11 color-gray-dark">{{ __('return_request.form.privacy_note') }}</p>
+                @error('recaptcha_token') <p class="font-11 color-red-dark mb-2">{{ $message }}</p> @enderror
+                <button type="submit" class="commerce-primary-action btn btn-full font-600" data-submit-button>{{ __('return_request.form.review_submit') }}</button>
             </form>
         </div>
     </div>
@@ -73,7 +118,11 @@
     <div class="card card-style rounded-0">
         <div class="content">
             <h4 class="mb-2">{{ __('return_request.help.title') }}</h4>
-            <p class="mb-0">{{ __('return_request.help.body') }}</p>
+            <ul class="mb-0 ps-3">
+                @foreach (__('return_request.help.items') as $item)
+                    <li class="font-13 mb-2">{{ $item }}</li>
+                @endforeach
+            </ul>
         </div>
     </div>
 
@@ -82,105 +131,25 @@
             <script src="https://www.google.com/recaptcha/api.js?render={{ $captchaSiteKey }}"></script>
         @endpush
     @endif
-
     @push('scripts')
         <script>
-            (function () {
-                const forms = document.querySelectorAll('[data-return-form]');
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-                forms.forEach(function (form) {
-                    const clearError = function (field) {
-                        const errorNode = form.querySelector('[data-field-error="' + field + '"]');
-                        const fieldNode = form.querySelector('[name="' + field + '"]');
-                        fieldNode?.removeAttribute('aria-invalid');
-                        if (!errorNode) {
-                            return;
-                        }
-                        errorNode.textContent = '';
-                        errorNode.classList.add('hidden');
-                        errorNode.style.display = 'none';
-                    };
-
-                    const setError = function (field, message) {
-                        const errorNode = form.querySelector('[data-field-error="' + field + '"]');
-                        const fieldNode = form.querySelector('[name="' + field + '"]');
-                        fieldNode?.setAttribute('aria-invalid', 'true');
-                        if (!errorNode) {
-                            return;
-                        }
-                        errorNode.textContent = message;
-                        errorNode.classList.remove('hidden');
-                        errorNode.style.display = 'block';
-                    };
-
-                    form.querySelectorAll('[data-field-error]').forEach(function (node) {
-                        if ((node.textContent || '').trim() === '') {
-                            node.style.display = 'none';
-                        } else {
-                            node.style.display = 'block';
-                            node.classList.remove('hidden');
-                        }
-                    });
-
-                    const validate = function () {
-                        ['email', 'order_number', 'return_items', 'note', 'recaptcha_token'].forEach(clearError);
-
-                        const email = form.querySelector('[name="email"]');
-                        const orderNumber = form.querySelector('[name="order_number"]');
-                        const returnItems = form.querySelector('[name="return_items"]');
-                        let valid = true;
-
-                        const emailValue = email ? email.value.trim() : '';
-                        if (emailValue === '') {
-                            setError('email', form.dataset.msgEmailRequired || '');
-                            valid = false;
-                        } else if (!emailRegex.test(emailValue)) {
-                            setError('email', form.dataset.msgEmailInvalid || '');
-                            valid = false;
-                        }
-
-                        if (!orderNumber || orderNumber.value.trim() === '') {
-                            setError('order_number', form.dataset.msgOrderNumberRequired || '');
-                            valid = false;
-                        }
-
-                        const returnItemsValue = returnItems ? returnItems.value.trim() : '';
-                        if (returnItemsValue === '') {
-                            setError('return_items', form.dataset.msgReturnItemsRequired || '');
-                            valid = false;
-                        } else if (returnItemsValue.length < 2) {
-                            setError('return_items', form.dataset.msgReturnItemsMin || '');
-                            valid = false;
-                        }
-
-                        return valid;
-                    };
-
-                    form.addEventListener('submit', function (event) {
-                        event.preventDefault();
-                        if (!validate()) {
-                            form.querySelector('[aria-invalid="true"]')?.focus();
-                            return;
-                        }
-
-                        const tokenInput = form.querySelector('[data-recaptcha-token]');
-                        const siteKey = form.dataset.recaptchaSiteKey;
-                        const action = form.dataset.recaptchaAction || 'return_request_form';
-                        if (!tokenInput || !window.grecaptcha || !siteKey) {
+            document.querySelectorAll('[data-withdrawal-form]').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    const input = form.querySelector('[data-recaptcha-token]');
+                    const key = form.dataset.recaptchaSiteKey;
+                    if (!input || !key || !window.grecaptcha || input.value) return;
+                    event.preventDefault();
+                    if (!form.reportValidity()) return;
+                    const button = form.querySelector('[data-submit-button]');
+                    if (button) button.disabled = true;
+                    grecaptcha.ready(function () {
+                        grecaptcha.execute(key, { action: form.dataset.recaptchaAction }).then(function (token) {
+                            input.value = token || '';
                             form.submit();
-                            return;
-                        }
-
-                        grecaptcha.ready(function () {
-                            grecaptcha.execute(siteKey, { action: action }).then(function (token) {
-                                tokenInput.value = token || '';
-                                form.submit();
-                            });
                         });
                     });
                 });
-            }());
+            });
         </script>
     @endpush
 @endsection

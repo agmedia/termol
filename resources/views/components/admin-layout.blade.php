@@ -1194,8 +1194,9 @@
                     $catalogB2bPricesActive = request()->routeIs('admin.b2b-prices*');
                     $catalogOpen = $catalogCategoriesActive || $catalogProductsActive || $catalogAttributesActive || $catalogOptionsActive || $catalogManufacturersActive || $catalogActionsActive || $catalogB2bPricesActive;
                     $salesOrdersActive = request()->routeIs('admin.orders*');
+                    $salesWithdrawalsActive = request()->routeIs('admin.withdrawals.*');
                     $salesShippingActive = request()->routeIs('admin.shipping.*');
-                    $salesOpen = $salesOrdersActive || $salesShippingActive;
+                    $salesOpen = $salesOrdersActive || $salesWithdrawalsActive || $salesShippingActive;
                     $contentBlogActive = request()->routeIs('admin.content.blog.*');
                     $contentPagesActive = request()->routeIs('admin.content.pages.*');
                     $contentFaqsActive = request()->routeIs('admin.content.faqs.*');
@@ -1217,6 +1218,10 @@
                     $canManageStoreSettings = auth()->user() && (
                         auth()->user()->isA('superadmin')
                         || auth()->user()->can('settings.system.store.manage')
+                    );
+                    $canViewWithdrawals = auth()->user() && (
+                        auth()->user()->isA('superadmin')
+                        || auth()->user()->can('sales.withdrawals.view')
                     );
                     $canManageApiSettings = auth()->user() && (
                         auth()->user()->isA('superadmin')
@@ -1495,6 +1500,17 @@
                                     <span>{{ __('admin.layout.menu.orders') }}</span>
                                 </span>
                             </a>
+                            @if ($canViewWithdrawals)
+                                <a
+                                    href="{{ route('admin.withdrawals.index') }}"
+                                    class="sidebar-dropdown-link block rounded-lg font-medium {{ $salesWithdrawalsActive ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
+                                >
+                                    <span class="flex items-center gap-2">
+                                        <span class="sidebar-dot"></span>
+                                        <span>{{ __('admin.layout.menu.withdrawals') }}</span>
+                                    </span>
+                                </a>
+                            @endif
                             <a
                                 href="{{ route('admin.shipping.index') }}"
                                 class="sidebar-dropdown-link block rounded-lg font-medium {{ $salesShippingActive ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
@@ -1669,6 +1685,15 @@
                                             <span class="flex items-center gap-2">
                                                 <span class="sidebar-dot"></span>
                                                 <span>{{ __('admin.layout.menu.store_settings') }}</span>
+                                            </span>
+                                        </a>
+                                        <a
+                                            href="{{ route('admin.settings.system.withdrawal-settings') }}"
+                                            class="sidebar-dropdown-link block rounded-lg font-medium {{ request()->routeIs('admin.settings.system.withdrawal-settings') ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
+                                        >
+                                            <span class="flex items-center gap-2">
+                                                <span class="sidebar-dot"></span>
+                                                <span>{{ __('admin.layout.menu.withdrawal_settings') }}</span>
                                             </span>
                                         </a>
                                     @endif

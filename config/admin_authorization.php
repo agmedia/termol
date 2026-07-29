@@ -134,6 +134,16 @@ return [
         'admin.orders' => [
             'view' => ['sales.orders.view'],
         ],
+        'admin.withdrawals.index' => [
+            'view' => ['sales.withdrawals.view'],
+        ],
+        'admin.withdrawals.show' => [
+            'view' => ['sales.withdrawals.view'],
+        ],
+        'admin.withdrawals.*' => [
+            'view' => ['sales.withdrawals.view'],
+            'mutate' => ['sales.withdrawals.manage'],
+        ],
         'admin.shipping.*' => [
             'view' => ['settings.local.manage'],
             'mutate' => ['settings.local.manage'],
@@ -236,6 +246,10 @@ return [
             'mutate' => ['settings.system.catalog_features.manage'],
         ],
         'admin.settings.system.store-settings' => [
+            'view' => ['settings.system.store.manage'],
+            'mutate' => ['settings.system.store.manage'],
+        ],
+        'admin.settings.system.withdrawal-settings' => [
             'view' => ['settings.system.store.manage'],
             'mutate' => ['settings.system.store.manage'],
         ],
