@@ -1356,10 +1356,14 @@
 }
 
 .site-main-nav-row {
-    max-width: var(--storefront-container-width, 1860px);
+    max-width: var(--header-content-width, 1400px);
     height: var(--navigation-item-height, 62px);
     background: var(--navigation-background-color, #e65100);
     color: var(--navigation-text-color, #ffffff);
+}
+
+.site-main-nav-shell {
+    background: var(--navigation-background-color, #e65100);
 }
 
 .site-main-nav-link {
