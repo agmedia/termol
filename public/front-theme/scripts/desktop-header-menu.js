@@ -342,6 +342,7 @@
         const openButtons = document.querySelectorAll('[data-mobile-menu-open]');
         const closeButtons = root.querySelectorAll('[data-mobile-menu-close]');
         const accordionSections = root.querySelectorAll('[data-mobile-menu-accordion]');
+        const accordionToggleButtons = root.querySelectorAll('[data-mobile-menu-toggle]');
         const menuLinks = Array.from(root.querySelectorAll('a[href]'));
         const accordionStateKey = 'desktop-mobile-menu-accordion-state-v2';
         let isRestoringAccordionState = false;
@@ -585,6 +586,60 @@
                         collapseSection(otherSection);
                     }
                 });
+            });
+        });
+        accordionToggleButtons.forEach((button) => {
+            let touchStart = null;
+            let lastTouchToggleAt = 0;
+
+            const toggleSection = (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const section = button.closest('[data-mobile-menu-accordion]');
+                if (section instanceof HTMLDetailsElement) {
+                    section.open = !section.open;
+                }
+            };
+
+            button.addEventListener('touchstart', (event) => {
+                const touch = event.touches[0];
+                touchStart = touch
+                    ? { x: touch.clientX, y: touch.clientY }
+                    : null;
+            }, { passive: true });
+
+            button.addEventListener('touchend', (event) => {
+                const touch = event.changedTouches[0];
+                if (!touchStart || !touch) {
+                    touchStart = null;
+                    return;
+                }
+
+                const movedX = Math.abs(touch.clientX - touchStart.x);
+                const movedY = Math.abs(touch.clientY - touchStart.y);
+                touchStart = null;
+
+                if (movedX > 12 || movedY > 12) {
+                    return;
+                }
+
+                lastTouchToggleAt = Date.now();
+                toggleSection(event);
+            }, { passive: false });
+
+            button.addEventListener('touchcancel', () => {
+                touchStart = null;
+            }, { passive: true });
+
+            button.addEventListener('click', (event) => {
+                if (Date.now() - lastTouchToggleAt < 700) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                }
+
+                toggleSection(event);
             });
         });
         root.querySelectorAll('summary [data-mobile-nav-link]').forEach((link) => {

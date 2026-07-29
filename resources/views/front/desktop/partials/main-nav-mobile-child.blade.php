@@ -30,12 +30,24 @@
                         <span class="desktop-mobile-menu-label">{{ $child['label'] ?? '' }}</span>
                     </span>
                 </a>
-                <span class="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center border border-slate-300 bg-white text-slate-500 group-open/subnav:hidden" aria-hidden="true">
-                    <x-fa-icon name="plus" class="h-3.5 w-3.5" />
-                </span>
-                <span class="absolute right-3 top-1/2 hidden h-7 w-7 -translate-y-1/2 items-center justify-center border border-slate-300 bg-white text-slate-500 group-open/subnav:inline-flex" aria-hidden="true">
-                    <x-fa-icon name="minus" class="h-3.5 w-3.5" />
-                </span>
+                <button
+                    type="button"
+                    class="absolute right-3 top-1/2 z-10 inline-flex h-11 w-11 -translate-y-1/2 touch-manipulation items-center justify-center border border-slate-300 bg-white p-0 text-slate-500 group-open/subnav:hidden"
+                    aria-label="{{ __('ui.front.desktop.open_navigation') }}: {{ $child['label'] ?? '' }}"
+                    aria-expanded="false"
+                    data-mobile-menu-toggle
+                >
+                    <x-fa-icon name="plus" class="h-5 w-5" />
+                </button>
+                <button
+                    type="button"
+                    class="absolute right-3 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 touch-manipulation items-center justify-center border border-slate-300 bg-white p-0 text-slate-500 group-open/subnav:inline-flex"
+                    aria-label="{{ __('ui.front.desktop.close_navigation') }}: {{ $child['label'] ?? '' }}"
+                    aria-expanded="true"
+                    data-mobile-menu-toggle
+                >
+                    <x-fa-icon name="minus" class="h-5 w-5" />
+                </button>
             </summary>
             <ul class="desktop-mobile-menu-children">
                 @foreach ($children as $nestedChild)

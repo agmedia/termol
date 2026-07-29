@@ -795,6 +795,10 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('class="catalog-mega-item has-image"', false)
             ->assertSee('class="catalog-mega-item-thumb"', false)
             ->assertSee('class="desktop-mobile-menu-thumb"', false)
+            ->assertSee('data-mobile-menu-toggle', false)
+            ->assertSee('h-11 w-11', false)
+            ->assertSee('data-mobile-nav-link', false)
+            ->assertSee('/category/mega-category-level-1', false)
             ->assertSee('Mega category level 1')
             ->assertSee('Mega category level 5');
     }
