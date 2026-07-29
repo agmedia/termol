@@ -262,7 +262,7 @@ return [
         'detail_navigation' => 'Informacije o proizvodu',
         'size_guide_close' => 'Zatvori',
         'check_store' => 'Provjeri dostupnost u trgovinama',
-        'related' => 'Slični proizvodi',
+        'related' => 'Povezani proizvodi',
         'recently_viewed' => 'Zadnje pregledano',
         'slide_aria' => 'Slika :index',
         'add_to_cart' => 'Dodaj u košaricu',

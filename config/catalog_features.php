@@ -8,7 +8,6 @@ return [
         'catalog_use_options' => false,
         'catalog_use_manufacturers' => false,
         'catalog_use_actions' => true,
-        'catalog_use_mobile_view' => false,
         'catalog_hide_out_of_stock_products' => false,
     ],
 ];

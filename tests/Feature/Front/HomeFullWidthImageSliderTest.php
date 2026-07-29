@@ -3,7 +3,6 @@
 namespace Tests\Feature\Front;
 
 use App\Models\Content\ContentBlock;
-use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
@@ -87,17 +86,6 @@ class HomeFullWidthImageSliderTest extends TestCase
             ->assertSee('class="hero-slide-cta"', false)
             ->assertSee('Pogledajte ponudu')
             ->assertSee('data-fullwidth-splide', false);
-
-        app(SystemSettingsService::class)->put('catalog_use_mobile_view', true);
-
-        $this
-            ->withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-            ])
-            ->get('/')
-            ->assertOk()
-            ->assertSee('id="'.$sliderId.'-shell"', false)
-            ->assertSee('home-slide-mobile', false);
 
         $sliderTemplate = file_get_contents(resource_path('views/front/content-blocks/types/full_width_image_slider.blade.php'));
         $storefrontCss = file_get_contents(resource_path('css/full-width-image-slider.css'));

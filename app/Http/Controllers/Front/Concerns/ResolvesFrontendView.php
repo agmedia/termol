@@ -8,9 +8,7 @@ trait ResolvesFrontendView
 {
     protected function frontendVariant(Request $request): string
     {
-        return (string) $request->attributes->get('frontend_variant', 'desktop') === 'mobile'
-            ? 'mobile'
-            : 'desktop';
+        return 'desktop';
     }
 
     protected function frontendView(Request $request, string $view): string

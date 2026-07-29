@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Front\DeviceViewResolver;
 use Closure;
 use Illuminate\Http\Request;
@@ -13,7 +12,6 @@ class DetectFrontendVariant
 {
     public function __construct(
         private readonly DeviceViewResolver $deviceViewResolver,
-        private readonly CatalogFeatureService $catalogFeatureService,
     ) {
     }
 
@@ -21,30 +19,9 @@ class DetectFrontendVariant
     {
         $detectedVariant = $this->deviceViewResolver->variant($request->userAgent());
         $isMobileDevice = $detectedVariant === 'mobile';
-        $variant = $detectedVariant;
 
-        $requestedVariant = (string) $request->query('frontend_variant', '');
-        $user = $request->user();
-        $canForceVariant = $user && ($user->isA('superadmin') || $user->can('content.blocks'));
-
-        if ($canForceVariant && in_array($requestedVariant, ['desktop', 'mobile'], true)) {
-            $variant = $requestedVariant;
-        }
-
-        $useMobileView = (bool) config('catalog_features.flags.catalog_use_mobile_view', false);
-
-        try {
-            $useMobileView = $this->catalogFeatureService->useMobileView();
-        } catch (\Throwable) {
-            // Fallback to config when settings storage isn't available yet (e.g. isolated tests).
-        }
-
-        if (! $useMobileView) {
-            $variant = 'desktop';
-        }
-
-        $request->attributes->set('frontend_variant', $variant);
-        View::share('frontendVariant', $variant);
+        $request->attributes->set('frontend_variant', 'desktop');
+        View::share('frontendVariant', 'desktop');
         View::share('isMobileDevice', $isMobileDevice);
 
         $response = $next($request);

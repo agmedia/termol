@@ -78,6 +78,36 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertNotNull($page);
     }
 
+    public function test_blog_post_renders_connected_products_in_the_shared_lined_style(): void
+    {
+        $this->useEnglishStorefrontLocale();
+
+        [$category] = $this->seedCategory();
+        [$product, $productSlug] = $this->seedProduct($category->id);
+        [$post, $postSlug] = $this->seedBlogPost();
+
+        $post->update([
+            'payload' => [
+                'related_product_ids' => [$product->id],
+            ],
+        ]);
+
+        app(SystemSettingsService::class)->put('catalog_use_blog', true);
+
+        $this->get('/blog/'.$postSlug)
+            ->assertOk()
+            ->assertSee('data-blog-related-products', false)
+            ->assertSee('data-blog-related-products-splide', false)
+            ->assertSee('data-product-card-lined', false)
+            ->assertSee('visibility: visible', false)
+            ->assertDontSee('>Editorial<', false)
+            ->assertDontSee('section-heading-line', false)
+            ->assertSee('text-[1.75rem] font-extrabold', false)
+            ->assertSee($productSlug);
+
+        $this->assertSame('Povezani proizvodi', trans('ui.product.related', [], 'hr'));
+    }
+
     public function test_manufacturer_page_uses_the_shared_catalog_header_filters_and_product_cards(): void
     {
         $this->useEnglishStorefrontLocale();
@@ -1473,63 +1503,6 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('79.99 €');
     }
 
-    public function test_mobile_home_renders_instagram_curated_grid_assets_and_slider_init(): void
-    {
-        app(SystemSettingsService::class)->put('catalog_use_mobile_view', true);
-
-        $block = ContentBlock::query()->create([
-            'code' => 'mobile-instagram-widget',
-            'name' => 'Mobile Instagram Widget',
-            'type' => 'instagram_curated_grid',
-            'is_active' => true,
-            'payload' => null,
-        ]);
-
-        $block->translations()->create([
-            'locale' => 'hr',
-            'title' => 'Prati nas na Instagramu',
-            'subtitle' => '@kozo_bodywear',
-            'body_html' => null,
-            'cta_label' => 'Otvori profil',
-            'cta_url' => 'https://www.instagram.com/kozo_bodywear/',
-            'payload' => null,
-        ]);
-
-        $block->slots()->create([
-            'placement' => 'home.hero',
-            'frontend_variant' => 'mobile',
-            'target_type' => null,
-            'target_ref' => null,
-            'sort_order' => 10,
-            'is_active' => true,
-        ]);
-
-        $image = UploadedFile::fake()->image('instagram-mobile-widget.jpg', 1080, 1080);
-
-        $block->addMedia($image->getPathname())
-            ->usingName('Instagram mobile widget image')
-            ->usingFileName('instagram-mobile-widget.jpg')
-            ->withCustomProperties([
-                'link_url' => ['hr' => 'https://www.instagram.com/p/mobile-demo-post/'],
-                'link_url_value' => 'https://www.instagram.com/p/mobile-demo-post/',
-                'caption' => ['hr' => 'Demo Instagram mobile post caption'],
-            ])
-            ->toMediaCollection('block_slides');
-
-        $this
-            ->withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-            ])
-            ->get('/')
-            ->assertOk()
-            ->assertSee('https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js', false)
-            ->assertSee('data-instagram-grid-splide', false)
-            ->assertSee("type: count > 1 ? 'loop' : 'slide'", false)
-            ->assertSee("const mobilePaddingRight = count > 1 ? '18%' : '0';", false)
-            ->assertSee('perPage: 1,', false)
-            ->assertSee("padding: { left: '0', right: mobilePaddingRight },", false);
-    }
-
     public function test_shop_listing_falls_back_to_gallery_when_main_image_file_is_missing(): void
     {
         $this->useEnglishStorefrontLocale();
@@ -1830,24 +1803,6 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertDontSee('name="shipping_state"', false)
             ->assertDontSee('name="shipping_company"', false);
 
-        app(SystemSettingsService::class)->put('catalog_use_mobile_view', true);
-
-        $this
-            ->withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-            ])
-            ->get('/checkout')
-            ->assertOk()
-            ->assertSee('front-theme/styles/checkout.css', false)
-            ->assertSee('class="mobile-checkout" novalidate', false)
-            ->assertSee('data-customer-first-hidden', false)
-            ->assertSee('data-billing-first', false)
-            ->assertSee('href="'.route('pages.show', ['slug' => 'uvjeti-koristenja']).'"', false)
-            ->assertSee(__('ui.auth.register.terms_link'))
-            ->assertDontSee('id="customer-first"', false)
-            ->assertDontSee('name="billing_state"', false)
-            ->assertDontSee('name="shipping_state"', false)
-            ->assertDontSee('name="shipping_company"', false);
     }
 
     public function test_category_shows_only_option_filters_available_in_that_category_scope(): void

@@ -33,10 +33,6 @@ trait ResolvesGridColumns
 
     protected function defaultDesktopGridCols(Request $request): int
     {
-        if (method_exists($this, 'frontendVariant') && $this->frontendVariant($request) === 'mobile') {
-            return 4;
-        }
-
         return app(SystemSettingsService::class)->getInt('store_product_desktop_default_cols', 4, 4, 5);
     }
 

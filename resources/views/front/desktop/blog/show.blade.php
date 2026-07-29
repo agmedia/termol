@@ -160,7 +160,6 @@
                     <li class="max-w-[42ch] truncate text-slate-700">{{ Str::limit((string) ($translation?->title ?? $post->code), 78, '...') }}</li>
                 </ol>
             </nav>
-            <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Editorial</p>
             <h1 class="mx-auto mt-1 max-w-4xl text-[1.7rem] font-semibold leading-[1.12] tracking-[-0.01em] text-slate-900 md:text-[2.2rem]">{{ $translation?->title ?? $post->code }}</h1>
             @if (!empty($translation?->excerpt))
                 <p class="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">{{ $translation->excerpt }}</p>
@@ -204,7 +203,6 @@
 
     @if ($galleryItems->isNotEmpty())
         <section class="mt-12 border-t border-slate-200 pt-8">
-            <h2 class="mb-6 text-center text-2xl font-semibold tracking-tight text-slate-900">Editorial</h2>
             <div class="grid gap-5 {{ $galleryColumnsClass }}" data-blog-gallery>
                 @foreach ($galleryItems as $mediaItem)
                     @php
@@ -291,27 +289,43 @@
     @endif
 
     @if (($relatedProducts ?? collect())->isNotEmpty())
-        <section class="relative left-1/2 right-1/2 mt-14 -ml-[50vw] -mr-[50vw] w-screen bg-white py-8">
+        <section class="mt-16" data-blog-related-products>
             <div class="w-full px-4 sm:px-6 lg:px-8">
-                <div class="mb-8 text-center">
-                    <div class="mx-auto flex max-w-3xl items-center gap-4 md:gap-6">
-                        @include('front.partials.section-heading-line', ['side' => 'left'])
-                        <h2 class="text-[1.35rem] font-semibold uppercase leading-[1.95rem] text-slate-900 sm:text-[1.7rem] sm:leading-[2.5rem]">{{ __('ui.product.related') }}</h2>
-                        @include('front.partials.section-heading-line', ['side' => 'right'])
-                    </div>
+                <div class="mb-7">
+                    <h2 class="text-[1.75rem] font-extrabold leading-[1.25] text-slate-900">{{ __('ui.product.related') }}</h2>
                 </div>
 
                 <style>
+                    #blog-related-products-carousel-{{ $post->id }} {
+                        visibility: visible;
+                    }
+
+                    #blog-related-products-carousel-{{ $post->id }} .splide__track {
+                        overflow: hidden;
+                        border-left: 1px solid #e2e8f0;
+                    }
+
+                    #blog-related-products-carousel-{{ $post->id }} .splide__list {
+                        gap: 0 !important;
+                    }
+
+                    #blog-related-products-carousel-{{ $post->id }} .splide__slide {
+                        min-width: 0;
+                        border-top: 1px solid #e2e8f0;
+                        border-right: 1px solid #e2e8f0;
+                        border-bottom: 1px solid #e2e8f0;
+                    }
+
                     #blog-related-products-carousel-{{ $post->id }} .splide__arrow {
                         opacity: 0;
-                        width: 46px;
-                        height: 46px;
+                        width: 42px;
+                        height: 42px;
                         border-radius: 9999px;
-                        border: 1px solid rgba(255, 255, 255, 0.75);
-                        background: rgba(15, 23, 42, 0.35);
-                        backdrop-filter: blur(6px);
+                        border: 1px solid #d7dde5;
+                        background: rgba(255, 255, 255, 0.94);
+                        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
                         transform: translateY(-50%) scale(0.92);
-                        transition: opacity .25s ease, transform .25s ease, background-color .25s ease;
+                        transition: opacity .2s ease, transform .2s ease, border-color .2s ease, background-color .2s ease;
                     }
 
                     #blog-related-products-carousel-{{ $post->id }}:hover .splide__arrow,
@@ -321,10 +335,11 @@
                     }
 
                     #blog-related-products-carousel-{{ $post->id }} .splide__arrow:hover {
-                        background: rgba(15, 23, 42, 0.55);
+                        border-color: var(--navigation-background-color, #e65100);
+                        background: var(--navigation-background-color, #e65100);
                     }
 
-                    #blog-related-products-carousel-{{ $post->id }} .splide__arrow svg {
+                    #blog-related-products-carousel-{{ $post->id }} .splide__arrow:hover svg {
                         fill: #fff;
                     }
 
@@ -347,6 +362,7 @@
                                             'locale' => $locale,
                                             'fallbackLocale' => $fallbackLocale,
                                             'flat' => true,
+                                            'lined' => true,
                                         ])
                                     </li>
                                 @endforeach
@@ -367,15 +383,13 @@
     <script defer>
         document.addEventListener('DOMContentLoaded', function () {
             const galleryRoot = document.querySelector('[data-blog-gallery]');
-            if (!galleryRoot || typeof window.lightGallery !== 'function') {
-                return;
+            if (galleryRoot && typeof window.lightGallery === 'function') {
+                window.lightGallery(galleryRoot, {
+                    selector: '[data-blog-gallery-item]',
+                    download: false,
+                    counter: true,
+                });
             }
-
-            window.lightGallery(galleryRoot, {
-                selector: '[data-blog-gallery-item]',
-                download: false,
-                counter: true,
-            });
 
             const hotspotToggles = document.querySelectorAll('[data-blog-hotspot-toggle]');
             const positionHotspotPanel = function (btn, panel) {
@@ -472,37 +486,70 @@
                 }
             });
 
-            const sliders = document.querySelectorAll('[data-blog-related-products-splide]');
-            sliders.forEach(function (el) {
-                if (el.dataset.splideReady === '1' || typeof window.Splide !== 'function') {
-                    return;
+            const initRelatedProductSliders = function () {
+                if (typeof window.Splide !== 'function') {
+                    return false;
                 }
-                el.dataset.splideReady = '1';
 
-                const count = el.querySelectorAll('.splide__slide').length;
-                const mobilePerPage = {{ $mobileDefaultCols }};
-                const preferredDesktopPerPage = {{ $preferredGridCols }};
-                const desktopGap = preferredDesktopPerPage >= 5 ? '1rem' : '1.25rem';
-                new window.Splide(el, {
-                    type: count > 1 ? 'loop' : 'slide',
-                    perPage: Math.min(Math.max(1, preferredDesktopPerPage), Math.max(1, count)),
-                    perMove: 1,
-                    gap: desktopGap,
-                    drag: count > 1,
-                    snap: true,
-                    pagination: false,
-                    arrows: count > 1,
-                    updateOnMove: true,
-                    speed: 520,
-                    breakpoints: {
-                        1536: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 5), Math.max(1, count)) },
-                        1280: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 4), Math.max(1, count)) },
-                        1024: { perPage: Math.min(Math.min(Math.max(1, preferredDesktopPerPage), 3), Math.max(1, count)) },
-                        860: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '1rem' },
-                        640: { perPage: Math.min(mobilePerPage, Math.max(1, count)), gap: '0.8rem' },
-                    },
-                }).mount();
-            });
+                const sliders = document.querySelectorAll('[data-blog-related-products-splide]');
+                sliders.forEach(function (el) {
+                    if (el.dataset.splideReady === '1') {
+                        return;
+                    }
+
+                    const count = el.querySelectorAll('.splide__slide').length;
+                    if (count === 0) {
+                        return;
+                    }
+
+                    el.dataset.splideReady = '1';
+                    const mobilePerPage = {{ $mobileDefaultCols }};
+                    const preferredDesktopPerPage = {{ $preferredGridCols }};
+                    new window.Splide(el, {
+                        type: count > preferredDesktopPerPage ? 'loop' : 'slide',
+                        perPage: Math.min(Math.max(1, preferredDesktopPerPage), count),
+                        perMove: 1,
+                        gap: '0rem',
+                        drag: count > 1,
+                        snap: true,
+                        pagination: false,
+                        arrows: count > preferredDesktopPerPage,
+                        updateOnMove: true,
+                        speed: 520,
+                        breakpoints: {
+                            1280: {
+                                perPage: Math.min(4, count),
+                                arrows: count > 4,
+                            },
+                            1024: {
+                                perPage: Math.min(3, count),
+                                arrows: count > 3,
+                            },
+                            860: {
+                                perPage: Math.min(mobilePerPage, count),
+                                arrows: count > mobilePerPage,
+                            },
+                            640: {
+                                perPage: Math.min(mobilePerPage, count),
+                                arrows: false,
+                                pagination: count > mobilePerPage,
+                            },
+                        },
+                    }).mount();
+                });
+
+                return true;
+            };
+
+            if (!initRelatedProductSliders()) {
+                let attempts = 0;
+                const timer = window.setInterval(function () {
+                    attempts += 1;
+                    if (initRelatedProductSliders() || attempts > 40) {
+                        window.clearInterval(timer);
+                    }
+                }, 120);
+            }
         });
     </script>
 @endpush

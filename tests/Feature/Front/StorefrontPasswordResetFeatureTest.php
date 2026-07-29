@@ -3,7 +3,6 @@
 namespace Tests\Feature\Front;
 
 use App\Models\User;
-use App\Services\Settings\SystemSettingsService;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -22,19 +21,17 @@ class StorefrontPasswordResetFeatureTest extends TestCase
             ->assertSee(__('ui.auth.login.forgot_password'));
     }
 
-    public function test_password_reset_request_renders_for_desktop_and_mobile_storefronts(): void
+    public function test_password_reset_request_renders_in_the_responsive_storefront(): void
     {
         $this->get(route('front.auth.password.request'))
             ->assertOk()
             ->assertSee('auth-form-card', false)
             ->assertSee(__('ui.auth.forgot.form_title'));
 
-        app(SystemSettingsService::class)->put('catalog_use_mobile_view', true);
-
         $this->withHeader('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile')
             ->get(route('front.auth.password.request'))
             ->assertOk()
-            ->assertSee('auth-mobile-form', false)
+            ->assertSee('auth-form-card', false)
             ->assertSee(__('ui.auth.forgot.form_title'));
 
         $this->withHeader('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile')
@@ -43,7 +40,7 @@ class StorefrontPasswordResetFeatureTest extends TestCase
                 'email' => 'customer@example.test',
             ]))
             ->assertOk()
-            ->assertSee('auth-mobile-form', false)
+            ->assertSee('auth-form-card', false)
             ->assertSee(__('ui.auth.reset.form_title'));
     }
 
