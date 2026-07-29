@@ -45,7 +45,7 @@
                 @endphp
 
                 @foreach ($fields as $field)
-                    <div class="{{ in_array($field[0], ['company_name', 'address_line_1'], true) ? 'md:col-span-2' : '' }}">
+                    <div class="{{ $field[0] === 'company_name' ? 'md:col-span-2' : '' }}">
                         <label for="b2b-{{ $field[0] }}" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $field[1] }}</label>
                         <input
                             id="b2b-{{ $field[0] }}"

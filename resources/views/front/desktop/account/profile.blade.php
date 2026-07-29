@@ -14,7 +14,7 @@
         <p class="mt-2 text-slate-600">{{ __('ui.account.profile.subtitle') }}</p>
     </section>
 
-    <div class="account-layout" data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
+    <div class="account-layout" data-address-autofill data-address-source="{{ $placesAssetUrl }}">
         @include('front.desktop.account.partials.nav', ['current' => 'profile'])
 
         <div class="min-w-0 space-y-8">
@@ -85,21 +85,15 @@
                         <div class="mt-4 grid gap-3">
                             <div><label for="{{ $type }}-first-name" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.first_name') }}</label><input id="{{ $type }}-first-name" type="text" name="first_name" value="{{ old('first_name', $address?->first_name) }}" autocomplete="{{ $type }} given-name" class="w-full px-3 text-sm"></div>
                             <div><label for="{{ $type }}-last-name" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.last_name') }}</label><input id="{{ $type }}-last-name" type="text" name="last_name" value="{{ old('last_name', $address?->last_name) }}" autocomplete="{{ $type }} family-name" class="w-full px-3 text-sm"></div>
-                            <div><label for="{{ $type }}-company" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.company') }}</label><input id="{{ $type }}-company" type="text" name="company" value="{{ old('company', $address?->company) }}" autocomplete="{{ $type }} organization" class="w-full px-3 text-sm"></div>
+                            @if ($type === 'billing')
+                                <div><label for="{{ $type }}-company" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.company') }}</label><input id="{{ $type }}-company" type="text" name="company" value="{{ old('company', $address?->company) }}" autocomplete="{{ $type }} organization" class="w-full px-3 text-sm"></div>
+                            @endif
                             <div><label for="{{ $type }}-oib" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.oib') }}</label><input id="{{ $type }}-oib" type="text" name="oib" value="{{ old('oib', $address?->oib) }}" inputmode="numeric" class="w-full px-3 text-sm"></div>
                             <div><label for="{{ $type }}-vat-id" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.vat_id') }}</label><input id="{{ $type }}-vat-id" type="text" name="vat_id" value="{{ old('vat_id', $address?->vat_id) }}" class="w-full px-3 text-sm"></div>
                             <div><label for="{{ $type }}-phone" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.phone') }}</label><input id="{{ $type }}-phone" type="tel" name="phone" value="{{ old('phone', $address?->phone) }}" autocomplete="{{ $type }} tel" class="w-full px-3 text-sm"></div>
                             <div><label for="{{ $type }}-address-line-1" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.address_line_1') }}</label><input id="{{ $type }}-address-line-1" type="text" name="address_line_1" value="{{ old('address_line_1', $address?->address_line_1) }}" autocomplete="{{ $type }} address-line1" class="w-full px-3 text-sm" required></div>
                             <div><label for="{{ $type }}-postal-code" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.postal_code') }}</label><input id="{{ $type }}-postal-code" type="text" name="postal_code" value="{{ old('postal_code', $address?->postal_code) }}" autocomplete="{{ $type }} postal-code" class="w-full px-3 text-sm" data-address-postal required></div>
                             <div><label for="{{ $type }}-city" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.city') }}</label><input id="{{ $type }}-city" type="text" name="city" value="{{ old('city', $address?->city) }}" autocomplete="{{ $type }} address-level2" class="w-full px-3 text-sm" data-address-city required></div>
-                            <label for="{{ $type }}-state" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
-                            <select id="{{ $type }}-state" name="state" autocomplete="{{ $type }} address-level1" class="w-full px-3 text-sm" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
-                                <option value="">{{ __('ui.account.fields.select_county') }}</option>
-                                @foreach ($countyOptions as $countyOption)
-                                    <option value="{{ $countyOption }}" @selected(old('state', $address?->state) === $countyOption)>{{ $countyOption }}</option>
-                                @endforeach
-                            </select>
-                            <input type="text" value="{{ old('state', $address?->state) }}" autocomplete="{{ $type }} address-level1" class="hidden mt-2 w-full px-3 text-sm" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}">
                             <label for="{{ $type }}-country" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.account.fields.country_code') }}</label>
                             <select id="{{ $type }}-country" name="country_code" autocomplete="{{ $type }} country" class="w-full px-3 text-sm" data-address-country required>
                                 @foreach ($countryOptions as $countryOption)
@@ -118,87 +112,4 @@
 
 @push('scripts')
     <script defer src="{{ asset('front-theme/scripts/address-autofill.js') }}?v={{ filemtime(public_path('front-theme/scripts/address-autofill.js')) }}"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const root = document.querySelector('[data-region-options]');
-            if (!root) {
-                return;
-            }
-
-            const regionOptionsByCountry = root.dataset.regionOptions ? JSON.parse(root.dataset.regionOptions) : {};
-            const escapeHtml = function (value) {
-                return String(value || '')
-                    .replaceAll('&', '&amp;')
-                    .replaceAll('<', '&lt;')
-                    .replaceAll('>', '&gt;')
-                    .replaceAll('"', '&quot;')
-                    .replaceAll("'", '&#039;');
-            };
-
-            const applyStateFieldMode = function (scope) {
-                const countrySelect = scope.querySelector('[data-address-country]');
-                const stateLabel = scope.querySelector('[data-state-label]');
-                const stateSelect = scope.querySelector('[data-state-select]');
-                const stateInput = scope.querySelector('[data-state-input]');
-                if (!countrySelect || !stateLabel || !stateSelect || !stateInput) {
-                    return;
-                }
-
-                const stateFieldName = stateSelect.dataset.stateName || stateSelect.getAttribute('name') || stateInput.getAttribute('name') || 'state';
-                stateSelect.dataset.stateName = stateFieldName;
-
-                const countryCode = String(countrySelect.value || '').toUpperCase();
-                const regions = Array.isArray(regionOptionsByCountry[countryCode]) ? regionOptionsByCountry[countryCode] : [];
-                const hasRegions = regions.length > 0;
-                const optionLabel = countryCode === 'HR'
-                    ? (stateSelect.dataset.optionHr || '')
-                    : (stateSelect.dataset.optionIntl || stateSelect.dataset.optionHr || '');
-
-                stateLabel.textContent = countryCode === 'HR'
-                    ? (stateLabel.dataset.labelHr || stateLabel.textContent)
-                    : (stateLabel.dataset.labelIntl || stateLabel.textContent);
-
-                if (hasRegions) {
-                    const previousValue = stateSelect.value || stateInput.value || '';
-                    const options = ['<option value="">' + escapeHtml(optionLabel) + '</option>']
-                        .concat(regions.map(function (region) {
-                            const regionName = String(region?.name || '');
-                            const selected = previousValue !== '' && previousValue === regionName ? ' selected' : '';
-                            return '<option value="' + escapeHtml(regionName) + '"' + selected + '>' + escapeHtml(regionName) + '</option>';
-                        }));
-                    stateSelect.innerHTML = options.join('');
-                    stateSelect.classList.remove('hidden');
-                    stateSelect.disabled = false;
-                    stateSelect.setAttribute('name', stateFieldName);
-                    stateInput.classList.add('hidden');
-                    stateInput.disabled = true;
-                    stateInput.removeAttribute('name');
-                } else {
-                    if (!stateInput.value && stateSelect.value) {
-                        stateInput.value = stateSelect.value;
-                    }
-                    stateInput.classList.remove('hidden');
-                    stateInput.disabled = false;
-                    stateInput.setAttribute('name', stateFieldName);
-                    stateInput.placeholder = stateInput.dataset.placeholderIntl || '';
-                    stateSelect.classList.add('hidden');
-                    stateSelect.disabled = true;
-                    stateSelect.removeAttribute('name');
-                }
-            };
-
-            root.querySelectorAll('[data-address-scope]').forEach(function (scope) {
-                applyStateFieldMode(scope);
-            });
-
-            root.querySelectorAll('[data-address-country]').forEach(function (countrySelect) {
-                countrySelect.addEventListener('change', function () {
-                    const scope = countrySelect.closest('[data-address-scope]');
-                    if (scope) {
-                        applyStateFieldMode(scope);
-                    }
-                });
-            });
-        });
-    </script>
 @endpush

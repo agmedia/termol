@@ -194,6 +194,7 @@ class AdminUsersFeatureTest extends TestCase
             ->set('form.profile.phone', '+38591111222')
             ->set('form.profile.company', 'Agmedia')
             ->set('form.profile.oib', '12345678901')
+            ->set('form.billing_address.company', 'Agmedia Billing')
             ->set('form.billing_address.address_line_1', 'Billing Street 1')
             ->set('form.billing_address.city', 'Zagreb')
             ->set('form.billing_address.postal_code', '10000')
@@ -215,6 +216,7 @@ class AdminUsersFeatureTest extends TestCase
         $this->assertDatabaseHas('user_addresses', [
             'user_id' => $target->id,
             'type' => 'billing',
+            'company' => 'Agmedia Billing',
             'address_line_1' => 'Billing Street 1',
             'city' => 'Zagreb',
             'postal_code' => '10000',
@@ -223,6 +225,7 @@ class AdminUsersFeatureTest extends TestCase
         $this->assertDatabaseHas('user_addresses', [
             'user_id' => $target->id,
             'type' => 'shipping',
+            'company' => 'Agmedia Billing',
             'address_line_1' => 'Shipping Street 2',
             'city' => 'Kutina',
             'postal_code' => '44320',

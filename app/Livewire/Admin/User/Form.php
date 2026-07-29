@@ -50,13 +50,11 @@ class Form extends Component
             'address_line_2' => '',
             'postal_code' => '',
             'city' => '',
-            'state' => '',
             'country_code' => 'HR',
         ],
         'shipping_address' => [
             'first_name' => '',
             'last_name' => '',
-            'company' => '',
             'oib' => '',
             'vat_id' => '',
             'phone' => '',
@@ -64,7 +62,6 @@ class Form extends Component
             'address_line_2' => '',
             'postal_code' => '',
             'city' => '',
-            'state' => '',
             'country_code' => 'HR',
         ],
     ];
@@ -104,6 +101,7 @@ class Form extends Component
             $profilePayload = $this->normalizeProfilePayload((array) ($payload['profile'] ?? []));
             $billingPayload = $this->normalizeAddressPayload((array) ($payload['billing_address'] ?? []));
             $shippingPayload = $this->normalizeAddressPayload((array) ($payload['shipping_address'] ?? []));
+            $shippingPayload['company'] = $billingPayload['company'];
 
             $user->profile()->updateOrCreate([], $profilePayload);
             $this->upsertAddress($user, UserAddress::TYPE_BILLING, $billingPayload);
@@ -198,11 +196,9 @@ class Form extends Component
             'form.billing_address.address_line_2' => ['nullable', 'string', 'max:191'],
             'form.billing_address.postal_code' => ['nullable', 'string', 'max:32'],
             'form.billing_address.city' => ['nullable', 'string', 'max:120'],
-            'form.billing_address.state' => ['nullable', 'string', 'max:120'],
             'form.billing_address.country_code' => ['nullable', 'string', 'max:2'],
             'form.shipping_address.first_name' => ['nullable', 'string', 'max:120'],
             'form.shipping_address.last_name' => ['nullable', 'string', 'max:120'],
-            'form.shipping_address.company' => ['nullable', 'string', 'max:191'],
             'form.shipping_address.oib' => ['nullable', 'string', 'max:60'],
             'form.shipping_address.vat_id' => ['nullable', 'string', 'max:60'],
             'form.shipping_address.phone' => ['nullable', 'string', 'max:80'],
@@ -210,7 +206,6 @@ class Form extends Component
             'form.shipping_address.address_line_2' => ['nullable', 'string', 'max:191'],
             'form.shipping_address.postal_code' => ['nullable', 'string', 'max:32'],
             'form.shipping_address.city' => ['nullable', 'string', 'max:120'],
-            'form.shipping_address.state' => ['nullable', 'string', 'max:120'],
             'form.shipping_address.country_code' => ['nullable', 'string', 'max:2'],
         ];
     }
@@ -306,7 +301,7 @@ class Form extends Component
             'address_line_2' => $this->nullableString($payload['address_line_2'] ?? null),
             'postal_code' => $this->nullableString($payload['postal_code'] ?? null),
             'city' => $this->nullableString($payload['city'] ?? null),
-            'state' => $this->nullableString($payload['state'] ?? null),
+            'state' => null,
             'country_code' => $country,
             'is_default' => true,
         ];
@@ -339,7 +334,6 @@ class Form extends Component
             'address_line_2' => (string) ($address?->address_line_2 ?? ''),
             'postal_code' => (string) ($address?->postal_code ?? ''),
             'city' => (string) ($address?->city ?? ''),
-            'state' => (string) ($address?->state ?? ''),
             'country_code' => (string) ($address?->country_code ?? 'HR'),
         ];
     }

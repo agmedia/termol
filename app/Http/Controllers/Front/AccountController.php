@@ -161,7 +161,6 @@ class AccountController extends Controller
         $shipping = $user->addresses->firstWhere('type', UserAddress::TYPE_SHIPPING);
         $payload = is_array($user->profile?->payload) ? $user->profile->payload : [];
         $addressDirectory = app(AddressDirectoryService::class);
-        $regionOptionsByCountry = $addressDirectory->regionsByCountry((string) app()->getLocale());
 
         return view($this->frontendView($request, 'account.profile'), [
             'user' => $user,
@@ -169,11 +168,6 @@ class AccountController extends Controller
             'shipping' => $shipping,
             'preferencePayload' => $payload,
             'countryOptions' => $addressDirectory->countries((string) app()->getLocale()),
-            'countyOptions' => array_values(array_map(
-                static fn (array $row): string => (string) ($row['name'] ?? ''),
-                $regionOptionsByCountry['HR'] ?? []
-            )),
-            'regionOptionsByCountry' => $regionOptionsByCountry,
             'placesAssetUrl' => $addressDirectory->placesAssetUrl(),
         ]);
     }
@@ -251,16 +245,23 @@ class AccountController extends Controller
             'address_line_2' => ['nullable', 'string', 'max:191'],
             'postal_code' => ['required', 'string', 'max:32'],
             'city' => ['required', 'string', 'max:120'],
-            'state' => ['nullable', 'string', 'max:120'],
             'country_code' => ['required', 'string', 'size:2'],
         ]);
 
+        $userId = (int) $request->user()->id;
+        $company = $type === UserAddress::TYPE_BILLING
+            ? ($validated['company'] ?? null)
+            : UserAddress::query()
+                ->where('user_id', $userId)
+                ->where('type', UserAddress::TYPE_BILLING)
+                ->value('company');
+
         UserAddress::query()->updateOrCreate(
-            ['user_id' => $request->user()->id, 'type' => $type],
+            ['user_id' => $userId, 'type' => $type],
             [
                 'first_name' => $validated['first_name'] ?? null,
                 'last_name' => $validated['last_name'] ?? null,
-                'company' => $validated['company'] ?? null,
+                'company' => $company,
                 'oib' => $validated['oib'] ?? null,
                 'vat_id' => $validated['vat_id'] ?? null,
                 'phone' => $validated['phone'] ?? null,
@@ -268,11 +269,17 @@ class AccountController extends Controller
                 'address_line_2' => $validated['address_line_2'] ?? null,
                 'postal_code' => $validated['postal_code'],
                 'city' => $validated['city'],
-                'state' => $validated['state'] ?? null,
                 'country_code' => strtoupper($validated['country_code']),
                 'is_default' => true,
             ]
         );
+
+        if ($type === UserAddress::TYPE_BILLING) {
+            UserAddress::query()
+                ->where('user_id', $userId)
+                ->where('type', UserAddress::TYPE_SHIPPING)
+                ->update(['company' => $company]);
+        }
 
         return back()->with('status', __('ui.account.status.address_updated', [
             'type' => __('ui.account.address.types.'.$type),

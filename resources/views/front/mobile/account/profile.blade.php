@@ -10,7 +10,7 @@
 @endpush
 
 @section('content')
-    <div data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
+    <div data-address-autofill data-address-source="{{ $placesAssetUrl }}">
         <div class="card card-style">
             <div class="content">
                 <div class="d-flex mb-1">
@@ -104,7 +104,9 @@
                             <div class="col-6"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="{{ $type }}-last" class="color-highlight">{{ __('ui.account.fields.last_name') }}</label><input id="{{ $type }}-last" type="text" name="last_name" value="{{ old('last_name', $address?->last_name) }}"></div></div>
                         </div>
 
-                        <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="{{ $type }}-company" class="color-highlight">{{ __('ui.account.fields.company') }}</label><input id="{{ $type }}-company" type="text" name="company" value="{{ old('company', $address?->company) }}"></div>
+                        @if ($type === 'billing')
+                            <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="{{ $type }}-company" class="color-highlight">{{ __('ui.account.fields.company') }}</label><input id="{{ $type }}-company" type="text" name="company" value="{{ old('company', $address?->company) }}"></div>
+                        @endif
                         <div class="row mb-0">
                             <div class="col-6"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="{{ $type }}-oib" class="color-highlight">{{ __('ui.account.fields.oib') }}</label><input id="{{ $type }}-oib" type="text" name="oib" value="{{ old('oib', $address?->oib) }}"></div></div>
                             <div class="col-6"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="{{ $type }}-vat" class="color-highlight">{{ __('ui.account.fields.vat_id') }}</label><input id="{{ $type }}-vat" type="text" name="vat_id" value="{{ old('vat_id', $address?->vat_id) }}"></div></div>
@@ -116,18 +118,6 @@
                         <div class="row mb-0">
                             <div class="col-4"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="{{ $type }}-postal" class="color-highlight">{{ __('ui.account.fields.postal_code') }}</label><input id="{{ $type }}-postal" type="text" name="postal_code" value="{{ old('postal_code', $address?->postal_code) }}" data-address-postal required></div></div>
                             <div class="col-8"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="{{ $type }}-city" class="color-highlight">{{ __('ui.account.fields.city') }}</label><input id="{{ $type }}-city" type="text" name="city" value="{{ old('city', $address?->city) }}" data-address-city required></div></div>
-                        </div>
-
-                        <div class="input-style has-borders no-icon input-style-always-active mb-3">
-                            <label for="{{ $type }}-state" class="color-highlight" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
-                            <select id="{{ $type }}-state" name="state" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
-                                <option value="">{{ __('ui.account.fields.select_county') }}</option>
-                                @foreach ($countyOptions as $countyOption)
-                                    <option value="{{ $countyOption }}" @selected(old('state', $address?->state) === $countyOption)>{{ $countyOption }}</option>
-                                @endforeach
-                            </select>
-                            <input type="text" value="{{ old('state', $address?->state) }}" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" style="display:none;">
-                            <span><i class="fa fa-chevron-down"></i></span>
                         </div>
 
                         <div class="input-style has-borders no-icon input-style-always-active mb-3">
@@ -150,87 +140,4 @@
 
 @push('scripts')
     <script defer src="{{ asset('front-theme/scripts/address-autofill.js') }}?v={{ filemtime(public_path('front-theme/scripts/address-autofill.js')) }}"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const root = document.querySelector('[data-region-options]');
-            if (!root) {
-                return;
-            }
-
-            const regionOptionsByCountry = root.dataset.regionOptions ? JSON.parse(root.dataset.regionOptions) : {};
-            const escapeHtml = function (value) {
-                return String(value || '')
-                    .replaceAll('&', '&amp;')
-                    .replaceAll('<', '&lt;')
-                    .replaceAll('>', '&gt;')
-                    .replaceAll('"', '&quot;')
-                    .replaceAll("'", '&#039;');
-            };
-
-            const applyStateFieldMode = function (scope) {
-                const countrySelect = scope.querySelector('[data-address-country]');
-                const stateLabel = scope.querySelector('[data-state-label]');
-                const stateSelect = scope.querySelector('[data-state-select]');
-                const stateInput = scope.querySelector('[data-state-input]');
-                if (!countrySelect || !stateLabel || !stateSelect || !stateInput) {
-                    return;
-                }
-
-                const stateFieldName = stateSelect.dataset.stateName || stateSelect.getAttribute('name') || stateInput.getAttribute('name') || 'state';
-                stateSelect.dataset.stateName = stateFieldName;
-
-                const countryCode = String(countrySelect.value || '').toUpperCase();
-                const regions = Array.isArray(regionOptionsByCountry[countryCode]) ? regionOptionsByCountry[countryCode] : [];
-                const hasRegions = regions.length > 0;
-                const optionLabel = countryCode === 'HR'
-                    ? (stateSelect.dataset.optionHr || '')
-                    : (stateSelect.dataset.optionIntl || stateSelect.dataset.optionHr || '');
-
-                stateLabel.textContent = countryCode === 'HR'
-                    ? (stateLabel.dataset.labelHr || stateLabel.textContent)
-                    : (stateLabel.dataset.labelIntl || stateLabel.textContent);
-
-                if (hasRegions) {
-                    const previousValue = stateSelect.value || stateInput.value || '';
-                    const options = ['<option value="">' + escapeHtml(optionLabel) + '</option>']
-                        .concat(regions.map(function (region) {
-                            const regionName = String(region?.name || '');
-                            const selected = previousValue !== '' && previousValue === regionName ? ' selected' : '';
-                            return '<option value="' + escapeHtml(regionName) + '"' + selected + '>' + escapeHtml(regionName) + '</option>';
-                        }));
-                    stateSelect.innerHTML = options.join('');
-                    stateSelect.style.display = '';
-                    stateSelect.disabled = false;
-                    stateSelect.setAttribute('name', stateFieldName);
-                    stateInput.style.display = 'none';
-                    stateInput.disabled = true;
-                    stateInput.removeAttribute('name');
-                } else {
-                    if (!stateInput.value && stateSelect.value) {
-                        stateInput.value = stateSelect.value;
-                    }
-                    stateInput.style.display = '';
-                    stateInput.disabled = false;
-                    stateInput.setAttribute('name', stateFieldName);
-                    stateInput.placeholder = stateInput.dataset.placeholderIntl || '';
-                    stateSelect.style.display = 'none';
-                    stateSelect.disabled = true;
-                    stateSelect.removeAttribute('name');
-                }
-            };
-
-            root.querySelectorAll('[data-address-scope]').forEach(function (scope) {
-                applyStateFieldMode(scope);
-            });
-
-            root.querySelectorAll('[data-address-country]').forEach(function (countrySelect) {
-                countrySelect.addEventListener('change', function () {
-                    const scope = countrySelect.closest('[data-address-scope]');
-                    if (scope) {
-                        applyStateFieldMode(scope);
-                    }
-                });
-            });
-        });
-    </script>
 @endpush

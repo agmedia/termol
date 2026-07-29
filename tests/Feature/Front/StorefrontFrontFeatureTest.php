@@ -27,6 +27,7 @@ use App\Models\Settings\Local\PaymentMethod;
 use App\Models\Settings\Local\ShippingMethod;
 use App\Models\Settings\Local\TaxRate;
 use App\Models\User;
+use App\Models\User\UserAddress;
 use App\Services\Front\NavigationMenuService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Schema\Blueprint;
@@ -1570,7 +1571,70 @@ class StorefrontFrontFeatureTest extends TestCase
 
         $this->actingAs($user)->get('/account')->assertOk();
         $this->actingAs($user)->get('/account/orders')->assertOk();
-        $this->actingAs($user)->get('/account/profile')->assertOk();
+        $this->actingAs($user)
+            ->get('/account/profile')
+            ->assertOk()
+            ->assertDontSee('name="state"', false)
+            ->assertDontSee('id="shipping-company"', false);
+
+        $this
+            ->actingAs($user)
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            ])
+            ->get('/account/profile')
+            ->assertOk()
+            ->assertDontSee('name="state"', false)
+            ->assertDontSee('id="shipping-company"', false);
+    }
+
+    public function test_shipping_address_company_always_follows_the_billing_address(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        UserAddress::query()->create([
+            'user_id' => $user->id,
+            'type' => UserAddress::TYPE_BILLING,
+            'company' => 'Billing Company',
+            'address_line_1' => 'Billing Street 1',
+            'postal_code' => '10000',
+            'city' => 'Zagreb',
+            'country_code' => 'HR',
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('account.addresses.update', ['type' => UserAddress::TYPE_SHIPPING]), [
+                'company' => 'Ignored Shipping Company',
+                'address_line_1' => 'Shipping Street 2',
+                'postal_code' => '44320',
+                'city' => 'Kutina',
+                'country_code' => 'HR',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('user_addresses', [
+            'user_id' => $user->id,
+            'type' => UserAddress::TYPE_SHIPPING,
+            'company' => 'Billing Company',
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('account.addresses.update', ['type' => UserAddress::TYPE_BILLING]), [
+                'company' => 'Updated Billing Company',
+                'address_line_1' => 'Billing Street 1',
+                'postal_code' => '10000',
+                'city' => 'Zagreb',
+                'country_code' => 'HR',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('user_addresses', [
+            'user_id' => $user->id,
+            'type' => UserAddress::TYPE_SHIPPING,
+            'company' => 'Updated Billing Company',
+        ]);
     }
 
     public function test_account_dashboard_hides_loyalty_summary_when_loyalty_feature_is_disabled(): void
@@ -1670,10 +1734,16 @@ class StorefrontFrontFeatureTest extends TestCase
             'billing_address_line_2' => '',
             'billing_postal_code' => '10000',
             'billing_city' => 'Zagreb',
-            'billing_state' => 'Grad Zagreb',
             'billing_country_code' => 'HR',
 
-            'use_billing_for_shipping' => '1',
+            'ship_to_different_address' => '1',
+            'shipping_first_name' => 'Janet',
+            'shipping_last_name' => 'Doe',
+            'shipping_company' => 'Do not save this company',
+            'shipping_address_line_1' => 'Side Street 2',
+            'shipping_postal_code' => '10000',
+            'shipping_city' => 'Zagreb',
+            'shipping_country_code' => 'HR',
 
             'shipping_method_code' => 'standard',
             'payment_method_code' => 'bank',
@@ -1694,6 +1764,10 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
             'customer_email' => 'jane@example.test',
+            'billing_company' => 'AG Test',
+            'shipping_company' => 'AG Test',
+            'billing_state' => '',
+            'shipping_state' => '',
             'item_qty' => 2,
             'user_id' => null,
         ]);
@@ -1748,7 +1822,14 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('class="checkout-layout" novalidate', false)
             ->assertSee('checkout-primary-button', false)
             ->assertSee('autocomplete="billing given-name"', false)
-            ->assertSee('aria-controls="shipping-address-fields"', false);
+            ->assertSee('aria-controls="shipping-address-fields"', false)
+            ->assertSee('items-center justify-start', false)
+            ->assertSee('lg:justify-between', false)
+            ->assertSee('href="'.route('pages.show', ['slug' => 'uvjeti-koristenja']).'"', false)
+            ->assertSee(__('ui.auth.register.terms_link'))
+            ->assertDontSee('name="billing_state"', false)
+            ->assertDontSee('name="shipping_state"', false)
+            ->assertDontSee('name="shipping_company"', false);
 
         app(SystemSettingsService::class)->put('catalog_use_mobile_view', true);
 
@@ -1762,7 +1843,12 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('class="mobile-checkout" novalidate', false)
             ->assertSee('data-customer-first-hidden', false)
             ->assertSee('data-billing-first', false)
-            ->assertDontSee('id="customer-first"', false);
+            ->assertSee('href="'.route('pages.show', ['slug' => 'uvjeti-koristenja']).'"', false)
+            ->assertSee(__('ui.auth.register.terms_link'))
+            ->assertDontSee('id="customer-first"', false)
+            ->assertDontSee('name="billing_state"', false)
+            ->assertDontSee('name="shipping_state"', false)
+            ->assertDontSee('name="shipping_company"', false);
     }
 
     public function test_category_shows_only_option_filters_available_in_that_category_scope(): void

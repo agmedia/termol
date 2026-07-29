@@ -58,7 +58,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('checkout.store') }}" class="mobile-checkout" novalidate data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-options-url="{{ route('checkout.options') }}" data-region-options='@json($regionOptionsByCountry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($checkoutTotals['grand_total'] ?? $summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
+    <form method="POST" action="{{ route('checkout.store') }}" class="mobile-checkout" novalidate data-address-autofill data-address-source="{{ $placesAssetUrl }}" data-checkout-options-url="{{ route('checkout.options') }}" data-ga4-checkout-form data-ga4-currency="EUR" data-ga4-value="{{ number_format((float) ($checkoutTotals['grand_total'] ?? $summary['grand_total'] ?? 0), 2, '.', '') }}" data-ga4-items='@json($ga4Items, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
         @csrf
 
         <div class="card card-style">
@@ -193,21 +193,6 @@
                         @enderror
                     </div>
                 </div>
-                <div class="input-style has-borders no-icon input-style-always-active mb-3">
-                    <label for="billing-state" class="color-highlight" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
-                    <select id="billing-state" name="billing_state" autocomplete="billing address-level1" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}" @error('billing_state') aria-invalid="true" aria-describedby="billing-state-error" @enderror>
-                        <option value="">{{ __('ui.account.fields.select_county') }}</option>
-                        @foreach ($countyOptions as $countyOption)
-                            <option value="{{ $countyOption }}" @selected(old('billing_state', $prefill['billing']['state']) === $countyOption)>{{ $countyOption }}</option>
-                        @endforeach
-                    </select>
-                    <input type="text" value="{{ old('billing_state', $prefill['billing']['state']) }}" autocomplete="billing address-level1" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" style="display:none;" @error('billing_state') aria-invalid="true" aria-describedby="billing-state-error" @enderror>
-                    <span><i class="fa fa-chevron-down"></i></span>
-                </div>
-                @error('billing_state')
-                    <p id="billing-state-error" class="mb-3 mt-n2 font-600 font-12 color-red-dark">{{ $message }}</p>
-                @enderror
-
                 <div class="input-style has-borders no-icon input-style-always-active mb-0">
                     <label for="billing-country" class="color-highlight">{{ __('ui.account.fields.country_code') }}</label>
                     <select id="billing-country" name="billing_country_code" autocomplete="billing country" data-address-country required @error('billing_country_code') aria-invalid="true" aria-describedby="billing-country-error" @enderror>
@@ -241,23 +226,11 @@
                     <div class="pt-2">
                         <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="shipping-first" class="color-highlight">{{ __('ui.account.fields.first_name') }}</label><input id="shipping-first" type="text" name="shipping_first_name" value="{{ old('shipping_first_name', $prefill['shipping']['first_name']) }}"></div>
                         <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="shipping-last" class="color-highlight">{{ __('ui.account.fields.last_name') }}</label><input id="shipping-last" type="text" name="shipping_last_name" value="{{ old('shipping_last_name', $prefill['shipping']['last_name']) }}"></div>
-                        <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="shipping-company" class="color-highlight">{{ __('ui.account.fields.company') }}</label><input id="shipping-company" type="text" name="shipping_company" value="{{ old('shipping_company', $prefill['shipping']['company']) }}"></div>
                         <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="shipping-vat" class="color-highlight">{{ __('ui.account.fields.vat_id') }}</label><input id="shipping-vat" type="text" name="shipping_vat_id" value="{{ old('shipping_vat_id', $prefill['shipping']['vat_id']) }}"></div>
                         <div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="shipping-address1" class="color-highlight">{{ __('ui.account.fields.address_line_1') }}</label><input id="shipping-address1" type="text" name="shipping_address_line_1" value="{{ old('shipping_address_line_1', $prefill['shipping']['address_line_1']) }}"></div>
                         <div class="row">
                             <div class="col-4"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="shipping-postal" class="color-highlight">{{ __('ui.account.fields.postal_code') }}</label><input id="shipping-postal" type="text" name="shipping_postal_code" value="{{ old('shipping_postal_code', $prefill['shipping']['postal_code']) }}" data-address-postal></div></div>
                             <div class="col-8"><div class="input-style has-borders no-icon input-style-always-active mb-3"><label for="shipping-city" class="color-highlight">{{ __('ui.account.fields.city') }}</label><input id="shipping-city" type="text" name="shipping_city" value="{{ old('shipping_city', $prefill['shipping']['city']) }}" data-address-city></div></div>
-                        </div>
-                        <div class="input-style has-borders no-icon input-style-always-active mb-3">
-                            <label for="shipping-state" class="color-highlight" data-state-label data-label-hr="{{ __('ui.account.fields.county') }}" data-label-intl="{{ __('ui.account.fields.region') }}">{{ __('ui.account.fields.state') }}</label>
-                            <select id="shipping-state" name="shipping_state" data-address-county data-state-select data-option-hr="{{ __('ui.account.fields.select_county') }}" data-option-intl="{{ __('ui.account.fields.select_region') }}">
-                                <option value="">{{ __('ui.account.fields.select_county') }}</option>
-                                @foreach ($countyOptions as $countyOption)
-                                    <option value="{{ $countyOption }}" @selected(old('shipping_state', $prefill['shipping']['state']) === $countyOption)>{{ $countyOption }}</option>
-                                @endforeach
-                            </select>
-                            <input type="text" value="{{ old('shipping_state', $prefill['shipping']['state']) }}" data-state-input data-placeholder-intl="{{ __('ui.account.fields.enter_region') }}" style="display:none;">
-                            <span><i class="fa fa-chevron-down"></i></span>
                         </div>
                         <div class="input-style has-borders no-icon input-style-always-active mb-0">
                             <label for="shipping-country" class="color-highlight">{{ __('ui.account.fields.country_code') }}</label>
@@ -370,7 +343,13 @@
                     <label for="customer-note" class="color-highlight">{{ __('ui.checkout.fields.order_note') }}</label>
                 </div>
 
-                <label class="font-12 d-block mb-3"><input type="checkbox" name="accept_terms" value="1" required @checked((bool) old('accept_terms')) @error('accept_terms') aria-invalid="true" aria-describedby="mobile-accept-terms-error" @enderror> {{ __('ui.checkout.options.accept_terms') }}</label>
+                <label class="font-12 d-flex align-items-start mb-3">
+                    <input type="checkbox" name="accept_terms" value="1" class="me-2 mt-1" required @checked((bool) old('accept_terms')) @error('accept_terms') aria-invalid="true" aria-describedby="mobile-accept-terms-error" @enderror>
+                    <span>
+                        {{ __('ui.checkout.options.accept_terms_prefix') }}
+                        <a href="{{ route('pages.show', ['slug' => 'uvjeti-koristenja']) }}" class="font-600 text-underline" target="_blank" rel="noopener noreferrer">{{ __('ui.auth.register.terms_link') }}</a>.
+                    </span>
+                </label>
                 @error('accept_terms')
                     <p id="mobile-accept-terms-error" class="mb-3 mt-n2 font-600 font-12 color-red-dark">{{ $message }}</p>
                 @enderror
@@ -398,7 +377,6 @@
             const customerFirstHidden = document.querySelector('[data-customer-first-hidden]');
             const customerLastHidden = document.querySelector('[data-customer-last-hidden]');
             const optionsUrl = form?.dataset.checkoutOptionsUrl || '';
-            const regionOptionsByCountry = form?.dataset.regionOptions ? JSON.parse(form.dataset.regionOptions) : {};
             const shippingOptionsRoot = form?.querySelector('[data-checkout-shipping-options]');
             const paymentOptionsRoot = form?.querySelector('[data-checkout-payment-options]');
             const boxNowPanel = form?.querySelector('[data-boxnow-panel]');
@@ -473,65 +451,6 @@
                     .replaceAll('>', '&gt;')
                     .replaceAll('"', '&quot;')
                     .replaceAll("'", '&#039;');
-            };
-
-            const applyStateFieldMode = function (scope) {
-                const countrySelect = scope.querySelector('[data-address-country]');
-                const label = scope.querySelector('[data-state-label]');
-                const select = scope.querySelector('[data-state-select]');
-                const input = scope.querySelector('[data-state-input]');
-                if (!countrySelect || !label || !select || !input) {
-                    return;
-                }
-
-                const stateFieldName = select.dataset.stateName || select.getAttribute('name') || input.getAttribute('name') || 'state';
-                select.dataset.stateName = stateFieldName;
-
-                const countryCode = String(countrySelect.value || '').toUpperCase();
-                const regions = Array.isArray(regionOptionsByCountry[countryCode]) ? regionOptionsByCountry[countryCode] : [];
-                const hasRegions = regions.length > 0;
-                const optionLabel = countryCode === 'HR'
-                    ? (select.dataset.optionHr || '')
-                    : (select.dataset.optionIntl || select.dataset.optionHr || '');
-
-                label.textContent = countryCode === 'HR'
-                    ? (label.dataset.labelHr || label.textContent)
-                    : (label.dataset.labelIntl || label.textContent);
-
-                if (hasRegions) {
-                    const previousValue = select.value || input.value || '';
-                    const options = ['<option value="">' + escapeHtml(optionLabel) + '</option>']
-                        .concat(regions.map(function (region) {
-                            const regionName = String(region?.name || '');
-                            const selected = previousValue !== '' && previousValue === regionName ? ' selected' : '';
-                            return '<option value="' + escapeHtml(regionName) + '"' + selected + '>' + escapeHtml(regionName) + '</option>';
-                        }));
-                    select.innerHTML = options.join('');
-
-                    select.style.display = '';
-                    select.disabled = false;
-                    select.setAttribute('name', stateFieldName);
-                    input.style.display = 'none';
-                    input.disabled = true;
-                    input.removeAttribute('name');
-                } else {
-                    if (!input.value && select.value) {
-                        input.value = select.value;
-                    }
-                    input.style.display = '';
-                    input.disabled = false;
-                    input.setAttribute('name', stateFieldName);
-                    input.placeholder = input.dataset.placeholderIntl || '';
-                    select.style.display = 'none';
-                    select.disabled = true;
-                    select.removeAttribute('name');
-                }
-            };
-
-            const applyAllStateModes = function () {
-                form?.querySelectorAll('[data-address-scope]').forEach(function (scope) {
-                    applyStateFieldMode(scope);
-                });
             };
 
             const renderShippingOptions = function (methods, selectedCode) {
@@ -773,10 +692,8 @@
                 const params = new URLSearchParams({
                     ship_to_different_address: shipDifferent ? '1' : '0',
                     billing_country_code: form.querySelector('[name="billing_country_code"]')?.value || '',
-                    billing_state: form.querySelector('[name="billing_state"]')?.value || '',
                     billing_postal_code: form.querySelector('[name="billing_postal_code"]')?.value || '',
                     shipping_country_code: form.querySelector('[name="shipping_country_code"]')?.value || '',
-                    shipping_state: form.querySelector('[name="shipping_state"]')?.value || '',
                     shipping_postal_code: form.querySelector('[name="shipping_postal_code"]')?.value || '',
                     shipping_method_code: form.querySelector('input[name="shipping_method_code"]:checked')?.value || '',
                     payment_method_code: form.querySelector('input[name="payment_method_code"]:checked')?.value || '',
@@ -817,7 +734,6 @@
 
             syncCustomerNames();
             setState();
-            applyAllStateModes();
             scheduleOptionsRefresh();
             toggleBoxNowPanel();
             toggleGlsDpmPanel();
@@ -864,9 +780,8 @@
             glsDpmDialog?.addEventListener('change', function (event) {
                 updateGlsDpmSelection(event.detail || {});
             });
-            form?.querySelectorAll('[data-address-country], [data-state-select], [data-state-input], [name="billing_postal_code"], [name="shipping_postal_code"]').forEach(function (node) {
+            form?.querySelectorAll('[data-address-country], [name="billing_postal_code"], [name="shipping_postal_code"]').forEach(function (node) {
                 node.addEventListener('change', function () {
-                    applyAllStateModes();
                     scheduleOptionsRefresh();
                 });
                 node.addEventListener('input', function () {

@@ -50,14 +50,13 @@ class CheckoutController extends Controller
         $billing = $user?->addresses?->firstWhere('type', UserAddress::TYPE_BILLING);
         $shipping = $user?->addresses?->firstWhere('type', UserAddress::TYPE_SHIPPING);
         $shippingCountry = (string) ($shipping?->country_code ?: $billing?->country_code ?: 'HR');
-        $shippingState = (string) ($shipping?->state ?: $billing?->state ?: '');
+        $shippingState = '';
         $shippingPostal = (string) ($shipping?->postal_code ?: $billing?->postal_code ?: '');
         $billingCountry = (string) ($billing?->country_code ?: $shippingCountry);
-        $billingState = (string) ($billing?->state ?: '');
+        $billingState = '';
         $billingPostal = (string) ($billing?->postal_code ?: '');
 
         $addressDirectory = app(AddressDirectoryService::class);
-        $regionOptionsByCountry = $addressDirectory->regionsByCountry((string) app()->getLocale());
         $defaultShippingCode = (string) ($shippingMethods = $this->checkout->availableShippingMethods(
             (float) ($summary['subtotal_after_discount'] ?? $summary['subtotal']),
             $shippingCountry,
@@ -92,11 +91,6 @@ class CheckoutController extends Controller
             'paymentMethods' => $paymentMethods,
             'checkoutTotals' => $checkoutTotals,
             'countryOptions' => $addressDirectory->countries((string) app()->getLocale()),
-            'countyOptions' => array_values(array_map(
-                static fn (array $row): string => (string) ($row['name'] ?? ''),
-                $regionOptionsByCountry['HR'] ?? []
-            )),
-            'regionOptionsByCountry' => $regionOptionsByCountry,
             'placesAssetUrl' => $addressDirectory->placesAssetUrl(),
             'prefill' => [
                 'name' => (string) ($user?->name ?? ''),
@@ -115,20 +109,17 @@ class CheckoutController extends Controller
                     'address_line_2' => (string) ($billing?->address_line_2 ?? ''),
                     'postal_code' => (string) ($billing?->postal_code ?? ''),
                     'city' => (string) ($billing?->city ?? ''),
-                    'state' => (string) ($billing?->state ?? ''),
                     'country_code' => (string) ($billing?->country_code ?? 'HR'),
                 ],
                 'shipping' => [
                     'first_name' => (string) ($shipping?->first_name ?? ''),
                     'last_name' => (string) ($shipping?->last_name ?? ''),
-                    'company' => (string) ($shipping?->company ?? ''),
                     'oib' => (string) ($shipping?->oib ?? ''),
                     'vat_id' => (string) ($shipping?->vat_id ?? ''),
                     'address_line_1' => (string) ($shipping?->address_line_1 ?? ''),
                     'address_line_2' => (string) ($shipping?->address_line_2 ?? ''),
                     'postal_code' => (string) ($shipping?->postal_code ?? ''),
                     'city' => (string) ($shipping?->city ?? ''),
-                    'state' => (string) ($shipping?->state ?? ''),
                     'country_code' => (string) ($shipping?->country_code ?? 'HR'),
                 ],
             ],
@@ -156,7 +147,6 @@ class CheckoutController extends Controller
             'billing_address_line_2' => ['nullable', 'string', 'max:191'],
             'billing_postal_code' => ['required', 'string', 'max:32'],
             'billing_city' => ['required', 'string', 'max:120'],
-            'billing_state' => ['required_if:billing_country_code,HR', 'nullable', 'string', 'max:120'],
             'billing_country_code' => ['required', 'string', 'size:2'],
 
             'use_billing_for_shipping' => ['nullable', 'boolean'],
@@ -164,14 +154,12 @@ class CheckoutController extends Controller
 
             'shipping_first_name' => ['nullable', 'string', 'max:120'],
             'shipping_last_name' => ['nullable', 'string', 'max:120'],
-            'shipping_company' => ['nullable', 'string', 'max:191'],
             'shipping_oib' => ['nullable', 'string', 'max:60'],
             'shipping_vat_id' => ['nullable', 'string', 'max:60'],
             'shipping_address_line_1' => ['nullable', 'string', 'max:191'],
             'shipping_address_line_2' => ['nullable', 'string', 'max:191'],
             'shipping_postal_code' => ['nullable', 'string', 'max:32'],
             'shipping_city' => ['nullable', 'string', 'max:120'],
-            'shipping_state' => ['nullable', 'string', 'max:120'],
             'shipping_country_code' => ['nullable', 'string', 'size:2'],
             'shipping_boxnow_locker_id' => ['nullable', 'string', 'max:80'],
             'shipping_boxnow_locker_name' => ['nullable', 'string', 'max:255'],
@@ -202,7 +190,6 @@ class CheckoutController extends Controller
             'customer_phone.required' => __('ui.checkout.validation.customer_phone_required'),
             'customer_phone.regex' => __('ui.checkout.validation.customer_phone_invalid'),
             'customer_phone.max' => __('ui.checkout.validation.customer_phone_max'),
-            'billing_state.required_if' => __('ui.checkout.validation.billing_state_required_hr'),
             'register_password.required' => __('ui.checkout.validation.register_password_required'),
             'register_password.min' => __('ui.checkout.validation.register_password_min'),
             'register_password.confirmed' => __('ui.checkout.validation.register_password_confirmed'),
@@ -216,17 +203,16 @@ class CheckoutController extends Controller
         if ($shippingFromBilling) {
             $validated['shipping_first_name'] = $validated['billing_first_name'];
             $validated['shipping_last_name'] = $validated['billing_last_name'];
-            $validated['shipping_company'] = $validated['billing_company'] ?? null;
             $validated['shipping_oib'] = $validated['billing_oib'] ?? null;
             $validated['shipping_vat_id'] = $validated['billing_vat_id'] ?? null;
             $validated['shipping_address_line_1'] = $validated['billing_address_line_1'];
             $validated['shipping_address_line_2'] = $validated['billing_address_line_2'] ?? null;
             $validated['shipping_postal_code'] = $validated['billing_postal_code'];
             $validated['shipping_city'] = $validated['billing_city'];
-            $validated['shipping_state'] = $validated['billing_state'] ?? null;
             $validated['shipping_country_code'] = $validated['billing_country_code'];
         }
 
+        $validated['shipping_company'] = $validated['billing_company'] ?? null;
         $validated['customer_first_name'] = (string) ($validated['billing_first_name'] ?? $validated['customer_first_name'] ?? '');
         $validated['customer_last_name'] = (string) ($validated['billing_last_name'] ?? $validated['customer_last_name'] ?? '');
 
@@ -307,17 +293,16 @@ class CheckoutController extends Controller
         $subtotal = (float) ($summary['subtotal_after_discount'] ?? $summary['subtotal'] ?? 0);
 
         $billingCountry = strtoupper((string) $request->query('billing_country_code', 'HR'));
-        $billingState = (string) $request->query('billing_state', '');
+        $billingState = '';
         $billingPostal = (string) $request->query('billing_postal_code', '');
 
         $shipToDifferent = filter_var((string) $request->query('ship_to_different_address', '0'), FILTER_VALIDATE_BOOL);
         $shippingCountry = strtoupper((string) $request->query('shipping_country_code', $billingCountry));
-        $shippingState = (string) $request->query('shipping_state', '');
+        $shippingState = '';
         $shippingPostal = (string) $request->query('shipping_postal_code', '');
 
         if (! $shipToDifferent) {
             $shippingCountry = $billingCountry;
-            $shippingState = $billingState;
             $shippingPostal = $billingPostal;
         }
 
@@ -642,7 +627,7 @@ class CheckoutController extends Controller
                 'address_line_2' => (string) ($validated['billing_address_line_2'] ?? ''),
                 'postal_code' => (string) $validated['billing_postal_code'],
                 'city' => (string) $validated['billing_city'],
-                'state' => (string) ($validated['billing_state'] ?? ''),
+                'state' => '',
                 'country_code' => (string) $validated['billing_country_code'],
                 'is_default' => true,
             ]
@@ -661,7 +646,7 @@ class CheckoutController extends Controller
                 'address_line_2' => (string) ($validated['shipping_address_line_2'] ?? ''),
                 'postal_code' => (string) ($validated['shipping_postal_code'] ?? ''),
                 'city' => (string) ($validated['shipping_city'] ?? ''),
-                'state' => (string) ($validated['shipping_state'] ?? ''),
+                'state' => '',
                 'country_code' => (string) ($validated['shipping_country_code'] ?? 'HR'),
                 'is_default' => true,
             ]
