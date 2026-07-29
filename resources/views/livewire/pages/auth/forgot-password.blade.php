@@ -17,9 +17,6 @@ new #[Layout('layouts.guest')] class extends Component
             'email' => ['required', 'string', 'email'],
         ]);
 
-        // We will send the password reset link to this user. Once we have attempted
-        // to send the link, we will examine the response then see the message we
-        // need to show to the user. Finally, we'll send out a proper response.
         $status = Password::sendResetLink(
             $this->only('email')
         );
@@ -36,26 +33,46 @@ new #[Layout('layouts.guest')] class extends Component
     }
 }; ?>
 
-<div>
-    <div class="mb-4 text-sm text-gray-600">
-        {{ __('Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.') }}
+<section class="auth-layout store-auth-layout">
+    <div class="auth-form-card store-auth-card">
+        <div class="store-auth-card-heading">
+            <p>{{ __('ui.auth.forgot.form_eyebrow') }}</p>
+            <h2>{{ __('ui.auth.forgot.form_title') }}</h2>
+            <span>{{ __('ui.auth.forgot.intro') }}</span>
+        </div>
+
+        <x-auth-session-status class="store-auth-status" :status="session('status')" />
+
+        <form wire:submit="sendPasswordResetLink" class="store-auth-form" novalidate>
+            <div class="store-auth-field">
+                <label for="email">{{ __('ui.auth.fields.email') }}</label>
+                <input
+                    wire:model="email"
+                    id="email"
+                    type="email"
+                    name="email"
+                    autocomplete="email"
+                    autofocus
+                    required
+                    @if ($errors->has('email')) aria-invalid="true" aria-describedby="forgot-password-email-error" @endif
+                >
+                <x-input-error id="forgot-password-email-error" :messages="$errors->get('email')" class="store-auth-error" />
+            </div>
+
+            <button type="submit" class="commerce-primary-action store-auth-submit" wire:loading.attr="disabled">
+                <span wire:loading.remove wire:target="sendPasswordResetLink">{{ __('ui.auth.forgot.submit') }}</span>
+                <span wire:loading wire:target="sendPasswordResetLink">{{ __('ui.auth.forgot.submitting') }}</span>
+            </button>
+        </form>
     </div>
 
-    <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
+    <aside class="auth-side-card store-auth-card store-auth-side-card">
+        <p class="store-auth-side-eyebrow">{{ __('ui.auth.forgot.back_eyebrow') }}</p>
+        <h2>{{ __('ui.auth.forgot.back_title') }}</h2>
+        <p>{{ __('ui.auth.forgot.back_text') }}</p>
 
-    <form wire:submit="sendPasswordResetLink">
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input wire:model="email" id="email" class="block mt-1 w-full" type="email" name="email" required autofocus />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
-
-        <div class="flex items-center justify-end mt-4">
-            <x-primary-button>
-                {{ __('Email Password Reset Link') }}
-            </x-primary-button>
-        </div>
-    </form>
-</div>
+        <a href="{{ route('login') }}" class="commerce-secondary-action store-auth-secondary-action" wire:navigate>
+            {{ __('ui.auth.forgot.back_action') }}
+        </a>
+    </aside>
+</section>
