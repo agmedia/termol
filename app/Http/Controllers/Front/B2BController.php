@@ -55,7 +55,7 @@ class B2BController extends Controller
 
         $initialItems = collect((array) $request->old(
             'items',
-            $request->session()->get($this->quickOrderDraftSessionKey($request), []),
+            $account->quick_order_draft ?? [],
         ));
         $requestedCode = trim((string) $request->query('code', ''));
         if ($initialItems->isEmpty() && $requestedCode !== '') {
@@ -127,7 +127,7 @@ class B2BController extends Controller
 
     public function syncQuickOrder(Request $request): JsonResponse
     {
-        $this->approvedAccount($request);
+        $account = $this->approvedAccount($request);
 
         $validated = $request->validate([
             'items' => ['present', 'array', 'max:100'],
@@ -172,12 +172,9 @@ class B2BController extends Controller
             ])
             ->values();
 
-        $sessionKey = $this->quickOrderDraftSessionKey($request);
-        if ($items->isEmpty()) {
-            $request->session()->forget($sessionKey);
-        } else {
-            $request->session()->put($sessionKey, $items->all());
-        }
+        $account->update([
+            'quick_order_draft' => $items->isEmpty() ? null : $items->all(),
+        ]);
 
         return response()->json([
             'saved' => true,
@@ -274,11 +271,6 @@ class B2BController extends Controller
         }
 
         return $response;
-    }
-
-    private function quickOrderDraftSessionKey(Request $request): string
-    {
-        return 'front.b2b.quick_order_drafts.'.(int) $request->user()->getAuthIdentifier().'.items';
     }
 
     public function reorder(Request $request, string $orderNumber): RedirectResponse

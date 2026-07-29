@@ -355,7 +355,7 @@
     grid-template-columns: 2.15rem minmax(2.75rem, 1fr) 2.15rem;
     overflow: hidden;
     border: 1px solid #cbd5e1;
-    border-radius: .5rem;
+    border-radius: 0;
 }
 
 .quick-order-quantity-control button {

@@ -334,11 +334,11 @@ class B2BCommerceFeatureTest extends TestCase
         $response->assertSessionHas('front.cart.items.'.$product->id.':0.quantity', 4);
     }
 
-    public function test_quick_order_draft_is_restored_after_refresh(): void
+    public function test_quick_order_draft_is_stored_in_database_and_restored_after_logout_and_login(): void
     {
         $customer = User::factory()->create();
         $group = $this->makeGroup('quick-draft');
-        $this->makeB2BAccount($customer, B2BAccount::STATUS_APPROVED, $group);
+        $account = $this->makeB2BAccount($customer, B2BAccount::STATUS_APPROVED, $group);
         $product = $this->makeProduct('DRAFT-100', 42);
 
         $response = $this->actingAs($customer)
@@ -355,15 +355,22 @@ class B2BCommerceFeatureTest extends TestCase
             ->assertJson([
                 'saved' => true,
                 'count' => 1,
-            ])
-            ->assertSessionHas(
-                'front.b2b.quick_order_drafts.'.$customer->id.'.items.0.product_id',
-                $product->id,
-            )
-            ->assertSessionHas(
-                'front.b2b.quick_order_drafts.'.$customer->id.'.items.0.quantity',
-                4,
-            );
+            ]);
+
+        $this->assertSame([[
+            'product_id' => $product->id,
+            'product_option_value_id' => null,
+            'quantity' => 4,
+        ]], $account->fresh()->quick_order_draft);
+
+        $this->post(route('logout'))->assertRedirect('/');
+        $this->assertGuest();
+
+        $this->post(route('front.auth.login.store'), [
+            'email' => $customer->email,
+            'password' => 'password',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($customer);
 
         $this->actingAs($customer)
             ->get(route('account.b2b.quick-order'))
@@ -376,25 +383,25 @@ class B2BCommerceFeatureTest extends TestCase
     {
         $customer = User::factory()->create();
         $group = $this->makeGroup('quick-draft-clear');
-        $this->makeB2BAccount($customer, B2BAccount::STATUS_APPROVED, $group);
+        $account = $this->makeB2BAccount($customer, B2BAccount::STATUS_APPROVED, $group);
         $product = $this->makeProduct('DRAFT-CLEAR-100', 42);
-        $sessionKey = 'front.b2b.quick_order_drafts.'.$customer->id.'.items';
+        $account->update([
+            'quick_order_draft' => [[
+                'product_id' => $product->id,
+                'product_option_value_id' => null,
+                'quantity' => 2,
+            ]],
+        ]);
 
         $this->actingAs($customer)
-            ->withSession([
-                $sessionKey => [[
-                    'product_id' => $product->id,
-                    'product_option_value_id' => null,
-                    'quantity' => 2,
-                ]],
-            ])
             ->putJson(route('account.b2b.quick-order.draft'), ['items' => []])
             ->assertOk()
             ->assertJson([
                 'saved' => true,
                 'count' => 0,
-            ])
-            ->assertSessionMissing($sessionKey);
+            ]);
+
+        $this->assertNull($account->fresh()->quick_order_draft);
     }
 
     public function test_approved_customer_can_repeat_a_previous_order(): void

@@ -45,6 +45,7 @@ class B2BAccount extends Model
         'reviewed_at',
         'reviewed_by',
         'payload',
+        'quick_order_draft',
     ];
 
     protected function casts(): array
@@ -59,6 +60,7 @@ class B2BAccount extends Model
             'requested_at' => 'datetime',
             'reviewed_at' => 'datetime',
             'payload' => 'array',
+            'quick_order_draft' => 'array',
         ];
     }
 
