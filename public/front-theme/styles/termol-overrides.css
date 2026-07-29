@@ -6,6 +6,15 @@ body.termol-storefront textarea {
     font-family: "Sora", Arial, Helvetica, sans-serif;
 }
 
+.storefront-widget-heading-title::before {
+    display: block;
+    width: 44px;
+    height: 4px;
+    margin-bottom: .9rem;
+    background: var(--navigation-background-color, #e65100);
+    content: "";
+}
+
 .header .store-header-logo-link {
     display: flex;
     align-items: center;

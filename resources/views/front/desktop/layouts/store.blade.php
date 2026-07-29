@@ -26,6 +26,7 @@
     @endif
     @php
         $storefrontCssBundleIncludesLegacyAssets = true;
+        $storefrontAssetVersion = app(\App\Support\AssetVersion::class)->current();
     @endphp
     @include('front.partials.cookie-consent-head')
     @stack('head')
@@ -34,10 +35,10 @@
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
     @vite(['resources/css/app.css'])
-    <link rel="stylesheet" href="{{ asset('front-theme/styles/termol-overrides.css') }}?v={{ filemtime(public_path('front-theme/styles/termol-overrides.css')) }}">
-    <link rel="stylesheet" href="{{ asset('front-theme/styles/header-cart-popover.css') }}?v={{ filemtime(public_path('front-theme/styles/header-cart-popover.css')) }}">
-    <link rel="preload" as="style" href="{{ route('front.storefront.styles') }}" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="{{ route('front.storefront.styles') }}"></noscript>
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/termol-overrides.css') }}?v={{ filemtime(public_path('front-theme/styles/termol-overrides.css')) }}-{{ $storefrontAssetVersion }}">
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/header-cart-popover.css') }}?v={{ filemtime(public_path('front-theme/styles/header-cart-popover.css')) }}-{{ $storefrontAssetVersion }}">
+    <link rel="preload" as="style" href="{{ route('front.storefront.styles', ['v' => $storefrontAssetVersion]) }}" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{{ route('front.storefront.styles', ['v' => $storefrontAssetVersion]) }}"></noscript>
     @stack('styles')
 </head>
 @php
