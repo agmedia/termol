@@ -9,7 +9,7 @@ return [
     ],
     'shop' => [
         'page_title' => 'Shop',
-        'title' => 'Shop Proizvodi',
+        'title' => 'Katalog proizvoda',
         'subtitle' => 'Pretraži i filtriraj aktivni katalog.',
         'search_autocomplete' => [
             'results' => 'Pronađeno :count rezultata',
