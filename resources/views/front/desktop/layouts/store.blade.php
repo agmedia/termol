@@ -34,6 +34,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
+    {{-- Keep configurable header colors available for the first paint while the full settings stylesheet loads asynchronously. --}}
+    <style data-storefront-critical-styles>{!! app(\App\Services\Front\StorefrontStylesService::class)->css() !!}</style>
     @vite(['resources/css/app.css'])
     <link rel="stylesheet" href="{{ asset('front-theme/styles/termol-overrides.css') }}?v={{ filemtime(public_path('front-theme/styles/termol-overrides.css')) }}-{{ $storefrontAssetVersion }}">
     <link rel="stylesheet" href="{{ asset('front-theme/styles/header-cart-popover.css') }}?v={{ filemtime(public_path('front-theme/styles/header-cart-popover.css')) }}-{{ $storefrontAssetVersion }}">

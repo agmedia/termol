@@ -258,6 +258,9 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('Spring promo')
             ->assertSee('store-announcement-bar is-scrolling', false)
             ->assertSee(route('front.storefront.styles'), false)
+            ->assertSee('data-storefront-critical-styles', false)
+            ->assertSee('--store-announcement-background-color:#123456', false)
+            ->assertSee('--store-announcement-text-color:#abcdef', false)
             ->assertDontSee('style="background-color: #123456', false);
 
         $this->get('/storefront-settings.css')
