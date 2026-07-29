@@ -1,6 +1,5 @@
 @import './full-width-image-slider.css';
 @import '../../public/front-theme/styles/cookie-consent-theme.css';
-@import '../../public/front-theme/styles/termol-overrides.css';
 @import '../../public/front-theme/styles/font-awesome-svg.css';
 @import '../../public/front-theme/styles/scroll-to-top.css';
 @import '../../public/front-theme/styles/product-card.css';
@@ -1356,14 +1355,10 @@
 }
 
 .site-main-nav-row {
-    max-width: var(--header-content-width, 1400px);
+    max-width: var(--storefront-container-width, 1860px);
     height: var(--navigation-item-height, 62px);
     background: var(--navigation-background-color, #e65100);
     color: var(--navigation-text-color, #ffffff);
-}
-
-.site-main-nav-shell {
-    background: var(--navigation-background-color, #e65100);
 }
 
 .site-main-nav-link {

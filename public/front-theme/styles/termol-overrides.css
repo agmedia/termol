@@ -414,3 +414,20 @@ body.termol-storefront textarea {
     font-weight: 700;
     line-height: 1.15;
 }
+
+/* Full-bleed desktop header bars with content aligned to the header grid. */
+.site-top-bar-shell.storefront-container,
+.store-benefits-shell.storefront-container {
+    width: 100%;
+    max-width: none;
+    margin-right: 0;
+    margin-left: 0;
+}
+
+.site-main-nav-shell {
+    background: var(--navigation-background-color, #e65100);
+}
+
+.site-main-nav-row {
+    max-width: var(--header-content-width, 1400px);
+}

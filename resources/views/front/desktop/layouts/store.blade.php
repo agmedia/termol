@@ -34,6 +34,7 @@
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
     @vite(['resources/css/app.css'])
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/termol-overrides.css') }}?v={{ filemtime(public_path('front-theme/styles/termol-overrides.css')) }}">
     <link rel="preload" as="style" href="{{ route('front.storefront.styles') }}" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="{{ route('front.storefront.styles') }}"></noscript>
     @stack('styles')
@@ -76,7 +77,7 @@
 <header class="site-main-header sticky top-0 z-40 bg-white">
     @if ($topBar['is_enabled'])
         <div class="site-top-bar hidden lg:block">
-            <div class="site-top-bar-shell">
+            <div class="site-top-bar-shell storefront-container">
                 <div class="site-top-bar-inner storefront-header-container">
                     <nav class="site-top-bar-links" aria-label="{{ __('admin.content.navigation.top_bar_title') }}">
                         @foreach ($topBar['links'] as $link)
@@ -273,7 +274,7 @@
     </div>
 
     @if ((bool) ($benefitsBar['enabled'] ?? true) && !empty($benefitsBar['items']))
-        <div class="store-benefits-shell">
+        <div class="store-benefits-shell storefront-container">
             <div class="store-benefits-bar" aria-label="{{ __('Prednosti kupnje') }}" aria-live="off" data-store-benefits-rotator>
                 @foreach ($benefitsBar['items'] as $benefitIndex => $benefitItem)
                     @php

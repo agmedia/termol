@@ -22,6 +22,11 @@ class StorefrontDeviceTemplateTest extends TestCase
         $response->assertOk();
         $response->assertSee('desktop-header-menu.js', false);
         $response->assertDontSee('front-theme/styles/bootstrap.css', false);
+        $response->assertSee(
+            asset('front-theme/styles/termol-overrides.css')
+                .'?v='.filemtime(public_path('front-theme/styles/termol-overrides.css')),
+            false
+        );
         $response->assertSee('data-scroll-to-top', false);
         $response->assertSee('id="cookie-consent-floating-button"', false);
     }
