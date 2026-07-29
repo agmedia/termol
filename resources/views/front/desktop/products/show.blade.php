@@ -794,7 +794,9 @@
 
     @if ($related->isNotEmpty())
         <section class="product-products-widget">
-            <h2 class="product-products-widget-heading">{{ __('ui.product.related') }}</h2>
+            <x-storefront-section-heading class="mb-7">
+                {{ __('ui.product.related') }}
+            </x-storefront-section-heading>
             @if ($related->count() > $mobileDefaultCols)
                 @include('front.partials.carousel-swipe-hint')
             @endif
@@ -826,7 +828,9 @@
 
     @if (($recentlyViewed ?? collect())->isNotEmpty())
         <section class="product-products-widget">
-            <h2 class="product-products-widget-heading">{{ __('ui.product.recently_viewed') }}</h2>
+            <x-storefront-section-heading class="mb-7">
+                {{ __('ui.product.recently_viewed') }}
+            </x-storefront-section-heading>
             @if ($recentlyViewed->count() > $mobileDefaultCols)
                 @include('front.partials.carousel-swipe-hint')
             @endif

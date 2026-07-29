@@ -855,7 +855,7 @@ return [
     'blog' => [
         'page_title' => 'Novosti i objave',
         'title' => 'Novosti i objave',
-        'subtitle' => 'Izdvojene priče, trendovi i BALI noviteti.',
+        'subtitle' => 'Termol noviteti',
         'view_all' => 'Sve novosti',
         'empty' => 'Trenutno nema objavljenih blog članaka.',
         'excerpt_fallback' => 'Otvori članak za više detalja.',

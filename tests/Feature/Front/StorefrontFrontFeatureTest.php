@@ -102,10 +102,35 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('visibility: visible', false)
             ->assertDontSee('>Editorial<', false)
             ->assertDontSee('section-heading-line', false)
-            ->assertSee('text-[1.75rem] font-extrabold', false)
+            ->assertSee('mb-[0.9rem] block h-1 w-11', false)
+            ->assertSee('text-3xl font-extrabold', false)
             ->assertSee($productSlug);
 
         $this->assertSame('Povezani proizvodi', trans('ui.product.related', [], 'hr'));
+    }
+
+    public function test_blog_list_uses_landscape_cards_and_detail_keeps_the_original_cover_ratio(): void
+    {
+        $this->useEnglishStorefrontLocale();
+
+        [$post, $postSlug] = $this->seedBlogPost();
+        $cover = $post
+            ->addMedia(UploadedFile::fake()->image('original-blog-cover.jpg', 1200, 800))
+            ->toMediaCollection('blog_cover');
+
+        app(SystemSettingsService::class)->put('catalog_use_blog', true);
+
+        $this->get('/blog')
+            ->assertOk()
+            ->assertSee('aspect-[3/2]', false)
+            ->assertDontSee('aspect-[3/4]', false)
+            ->assertSee($cover->getUrl(), false);
+
+        $this->get('/blog/'.$postSlug)
+            ->assertOk()
+            ->assertSee('src="'.$cover->getUrl().'"', false)
+            ->assertSee('class="mx-auto block h-auto max-w-full"', false)
+            ->assertDontSee('cover_1600x2133', false);
     }
 
     public function test_manufacturer_page_uses_the_shared_catalog_header_filters_and_product_cards(): void
@@ -2447,6 +2472,8 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertIsString($html);
         $this->assertSame(7, substr_count($html, 'data-gallery-nav='));
         $this->assertSame(2, substr_count($html, 'data-product-products-widget-swipe-hint'));
+        $this->assertSame(2, substr_count($html, 'mb-[0.9rem] block h-1 w-11'));
+        $this->assertSame(2, substr_count($html, 'text-3xl font-extrabold'));
     }
 
     public function test_mobile_product_detail_renders_attribute_panels_in_requested_order(): void

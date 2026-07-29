@@ -25,48 +25,21 @@
     @if ($posts->isEmpty())
         <div class="border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">{{ __('ui.blog.empty') }}</div>
     @else
-        @php
-            $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
-        @endphp
         <section class="grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
             @foreach ($posts as $post)
                 @php
                     $translation = $post->translations->firstWhere('locale', $locale)
                         ?? $post->translations->firstWhere('locale', $fallbackLocale);
                     $postImage = $post->getFirstMedia('blog_cover');
-                    $postImageUrl1600 = $postImage
-                        ? \App\Support\Media\MediaUrl::conversionOrNull($postImage, 'cover_1600x2133', $preferWebp)
-                        : null;
-                    $postImageUrl1200 = $postImage
-                        ? \App\Support\Media\MediaUrl::conversionOrNull($postImage, 'cover_1200x1600', $preferWebp)
-                        : null;
-                    $postImageUrl900 = $postImage
-                        ? \App\Support\Media\MediaUrl::conversionOrNull($postImage, 'cover_900x1200', $preferWebp)
-                        : null;
-                    $postImageUrl680 = $postImage
-                        ? \App\Support\Media\MediaUrl::conversionOrNull($postImage, 'cover_680x900', $preferWebp)
-                        : null;
-                    $postImageUrl520 = $postImage
-                        ? \App\Support\Media\MediaUrl::conversionOrNull($postImage, 'cover_520x700', $preferWebp)
-                        : null;
-                    $postImageUrl = $postImageUrl1600 ?? $postImageUrl1200 ?? $postImageUrl900 ?? $postImageUrl680 ?? $postImageUrl520 ?? ($postImage?->getUrl());
-                    $postImageSrcset = collect([
-                        $postImageUrl520 ? $postImageUrl520.' 520w' : null,
-                        $postImageUrl680 ? $postImageUrl680.' 680w' : null,
-                        $postImageUrl900 ? $postImageUrl900.' 900w' : null,
-                        $postImageUrl1200 ? $postImageUrl1200.' 1200w' : null,
-                        $postImageUrl1600 ? $postImageUrl1600.' 1600w' : null,
-                    ])->filter()->unique()->implode(', ');
+                    $postImageUrl = $postImage?->getUrl();
                 @endphp
 
                 <article>
                     <a href="{{ route('blog.show', ['slug' => $translation?->slug ?? $post->id]) }}" class="group block">
-                        <div class="aspect-[3/4] overflow-hidden bg-slate-200">
+                        <div class="aspect-[3/2] overflow-hidden bg-slate-200">
                             @if ($postImageUrl)
                                 <img
                                     src="{{ $postImageUrl }}"
-                                    @if ($postImageSrcset !== '') srcset="{{ $postImageSrcset }}" @endif
-                                    sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 33vw"
                                     alt="{{ $translation?->title ?? $post->code }}"
                                     class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
                                     loading="lazy"

@@ -824,15 +824,6 @@ html {
     margin-top: clamp(3rem, 6vw, 5rem);
 }
 
-.product-products-widget-heading {
-    margin-bottom: 1.75rem;
-    color: #0f172a;
-    font-size: clamp(1.6rem, 2.6vw, 2.15rem);
-    font-weight: 800;
-    line-height: 1.1;
-    text-align: center;
-}
-
 .product-products-widget-swipe-hint,
 .product-products-widget .splide__pagination {
     display: none;
@@ -1770,11 +1761,6 @@ html {
     .product-detail-cart-button {
         padding-inline: .75rem;
         font-size: .77rem;
-    }
-
-    .product-products-widget-heading {
-        margin-bottom: 1.15rem;
-        font-size: 1.45rem;
     }
 
     .product-products-widget .splide__arrow {

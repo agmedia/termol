@@ -854,7 +854,7 @@ return [
     'blog' => [
         'page_title' => 'News & Updates',
         'title' => 'News & Updates',
-        'subtitle' => 'Featured stories, trends, and BALI highlights.',
+        'subtitle' => 'Termol updates',
         'view_all' => 'All news',
         'empty' => 'No blog posts published yet.',
         'excerpt_fallback' => 'Open the article for more details.',

@@ -12,29 +12,7 @@
         : collect();
     $preferWebp = (bool) ($storeSettings['images']['use_webp'] ?? false);
     $coverImage = $mediaItems->firstWhere('collection_name', 'blog_cover') ?? $post->getFirstMedia('blog_cover');
-    $coverImageUrl1600 = $coverImage
-        ? \App\Support\Media\MediaUrl::conversionOrNull($coverImage, 'cover_1600x2133', $preferWebp)
-        : null;
-    $coverImageUrl1200 = $coverImage
-        ? \App\Support\Media\MediaUrl::conversionOrNull($coverImage, 'cover_1200x1600', $preferWebp)
-        : null;
-    $coverImageUrl900 = $coverImage
-        ? \App\Support\Media\MediaUrl::conversionOrNull($coverImage, 'cover_900x1200', $preferWebp)
-        : null;
-    $coverImageUrl680 = $coverImage
-        ? \App\Support\Media\MediaUrl::conversionOrNull($coverImage, 'cover_680x900', $preferWebp)
-        : null;
-    $coverImageUrl520 = $coverImage
-        ? \App\Support\Media\MediaUrl::conversionOrNull($coverImage, 'cover_520x700', $preferWebp)
-        : null;
-    $coverImageUrl = $coverImageUrl1600 ?? $coverImageUrl1200 ?? $coverImageUrl900 ?? $coverImageUrl680 ?? $coverImageUrl520 ?? ($coverImage?->getUrl());
-    $coverImageSrcset = collect([
-        $coverImageUrl520 ? $coverImageUrl520.' 520w' : null,
-        $coverImageUrl680 ? $coverImageUrl680.' 680w' : null,
-        $coverImageUrl900 ? $coverImageUrl900.' 900w' : null,
-        $coverImageUrl1200 ? $coverImageUrl1200.' 1200w' : null,
-        $coverImageUrl1600 ? $coverImageUrl1600.' 1600w' : null,
-    ])->filter()->unique()->implode(', ');
+    $coverImageUrl = $coverImage?->getUrl();
     $galleryItems = $mediaItems->where('collection_name', 'blog_gallery')->values();
     if ($galleryItems->isEmpty()) {
         $galleryItems = $post->getMedia('blog_gallery')
@@ -185,10 +163,8 @@
                 <figure class="mb-8">
                     <img
                         src="{{ $coverImageUrl }}"
-                        @if ($coverImageSrcset !== '') srcset="{{ $coverImageSrcset }}" @endif
-                        sizes="(max-width: 1024px) 100vw, 896px"
                         alt="{{ $translation?->title ?? $post->code }}"
-                        class="h-auto w-full object-cover"
+                        class="mx-auto block h-auto max-w-full"
                         loading="eager"
                         decoding="async"
                     >
@@ -291,9 +267,9 @@
     @if (($relatedProducts ?? collect())->isNotEmpty())
         <section class="mt-16" data-blog-related-products>
             <div class="w-full px-4 sm:px-6 lg:px-8">
-                <div class="mb-7">
-                    <h2 class="text-[1.75rem] font-extrabold leading-[1.25] text-slate-900">{{ __('ui.product.related') }}</h2>
-                </div>
+                <x-storefront-section-heading class="mb-7">
+                    {{ __('ui.product.related') }}
+                </x-storefront-section-heading>
 
                 <style>
                     #blog-related-products-carousel-{{ $post->id }} {
