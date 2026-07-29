@@ -951,10 +951,14 @@
         window.addEventListener('pageshow', loadOnReady);
     })();
 </script>
-@include('front.partials.scroll-to-top')
-@include('front.partials.cookie-consent')
+@if (empty($isMobileDevice))
+    @include('front.partials.scroll-to-top')
+@endif
+@include('front.partials.cookie-consent', ['showCookieFloatingButton' => empty($isMobileDevice)])
 <script defer src="{{ asset('front-theme/scripts/storefront-ui.js') }}?v={{ filemtime(public_path('front-theme/scripts/storefront-ui.js')) }}"></script>
-<script defer src="{{ asset('front-theme/scripts/scroll-to-top.js') }}?v={{ filemtime(public_path('front-theme/scripts/scroll-to-top.js')) }}"></script>
+@if (empty($isMobileDevice))
+    <script defer src="{{ asset('front-theme/scripts/scroll-to-top.js') }}?v={{ filemtime(public_path('front-theme/scripts/scroll-to-top.js')) }}"></script>
+@endif
 @stack('scripts')
 </body>
 </html>

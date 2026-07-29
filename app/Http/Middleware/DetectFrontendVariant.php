@@ -19,7 +19,9 @@ class DetectFrontendVariant
 
     public function handle(Request $request, Closure $next): Response
     {
-        $variant = $this->deviceViewResolver->variant($request->userAgent());
+        $detectedVariant = $this->deviceViewResolver->variant($request->userAgent());
+        $isMobileDevice = $detectedVariant === 'mobile';
+        $variant = $detectedVariant;
 
         $requestedVariant = (string) $request->query('frontend_variant', '');
         $user = $request->user();
@@ -43,6 +45,7 @@ class DetectFrontendVariant
 
         $request->attributes->set('frontend_variant', $variant);
         View::share('frontendVariant', $variant);
+        View::share('isMobileDevice', $isMobileDevice);
 
         $response = $next($request);
 

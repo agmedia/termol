@@ -22,6 +22,8 @@ class StorefrontDeviceTemplateTest extends TestCase
         $response->assertOk();
         $response->assertSee('desktop-header-menu.js', false);
         $response->assertDontSee('front-theme/styles/bootstrap.css', false);
+        $response->assertSee('data-scroll-to-top', false);
+        $response->assertSee('id="cookie-consent-floating-button"', false);
     }
 
     public function test_mobile_user_agent_uses_desktop_storefront_by_default(): void
@@ -35,6 +37,9 @@ class StorefrontDeviceTemplateTest extends TestCase
         $response->assertOk();
         $response->assertSee('desktop-header-menu.js', false);
         $response->assertDontSee('front-theme/styles/bootstrap.css', false);
+        $response->assertDontSee('data-scroll-to-top', false);
+        $response->assertDontSee('id="cookie-consent-floating-button"', false);
+        $response->assertDontSee('front-theme/scripts/scroll-to-top.js', false);
     }
 
     public function test_responsive_desktop_header_keeps_search_visible_and_rotates_benefits(): void
