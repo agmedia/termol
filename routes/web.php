@@ -204,6 +204,8 @@ Route::middleware(['front.locale', 'front.device'])
                 Route::get('b2b/quick-order/search', [B2BController::class, 'searchQuickOrder'])
                     ->middleware('throttle:60,1')
                     ->name('b2b.quick-order.search');
+                Route::put('b2b/quick-order/draft', [B2BController::class, 'syncQuickOrder'])
+                    ->name('b2b.quick-order.draft');
                 Route::post('b2b/quick-order', [B2BController::class, 'storeQuickOrder'])->name('b2b.quick-order.store');
                 Route::get('loyalty', [AccountController::class, 'loyalty'])->name('loyalty');
 

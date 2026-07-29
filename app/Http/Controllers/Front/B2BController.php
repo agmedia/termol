@@ -53,7 +53,10 @@ class B2BController extends Controller
             ->map(static fn ($id): int => (int) $id)
             ->all();
 
-        $initialItems = collect((array) $request->old('items', []));
+        $initialItems = collect((array) $request->old(
+            'items',
+            $request->session()->get($this->quickOrderDraftSessionKey($request), []),
+        ));
         $requestedCode = trim((string) $request->query('code', ''));
         if ($initialItems->isEmpty() && $requestedCode !== '') {
             $initialItems->push([
@@ -119,6 +122,66 @@ class B2BController extends Controller
         return response()->json([
             'query' => $search,
             'items' => $items->all(),
+        ]);
+    }
+
+    public function syncQuickOrder(Request $request): JsonResponse
+    {
+        $this->approvedAccount($request);
+
+        $validated = $request->validate([
+            'items' => ['present', 'array', 'max:100'],
+            'items.*.product_id' => [
+                'required',
+                'integer',
+                Rule::exists('products', 'id')->where('is_active', true),
+            ],
+            'items.*.product_option_value_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('catalog_product_option_values', 'id')->where('is_active', true),
+            ],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:999'],
+        ]);
+
+        $items = collect($validated['items'])
+            ->map(static fn (array $item): array => [
+                'product_id' => (int) $item['product_id'],
+                'product_option_value_id' => (int) ($item['product_option_value_id'] ?? 0),
+                'quantity' => (int) $item['quantity'],
+            ]);
+
+        $optionProductIds = ProductOptionValue::query()
+            ->whereIn(
+                'id',
+                $items->pluck('product_option_value_id')->filter()->unique()->all(),
+            )
+            ->pluck('product_id', 'id');
+
+        $items = $items
+            ->filter(static function (array $item) use ($optionProductIds): bool {
+                $optionId = $item['product_option_value_id'];
+
+                return $optionId === 0
+                    || (int) $optionProductIds->get($optionId) === $item['product_id'];
+            })
+            ->unique(static fn (array $item): string => $item['product_id'].':'.$item['product_option_value_id'])
+            ->map(static fn (array $item): array => [
+                ...$item,
+                'product_option_value_id' => $item['product_option_value_id'] ?: null,
+            ])
+            ->values();
+
+        $sessionKey = $this->quickOrderDraftSessionKey($request);
+        if ($items->isEmpty()) {
+            $request->session()->forget($sessionKey);
+        } else {
+            $request->session()->put($sessionKey, $items->all());
+        }
+
+        return response()->json([
+            'saved' => true,
+            'count' => $items->count(),
         ]);
     }
 
@@ -211,6 +274,11 @@ class B2BController extends Controller
         }
 
         return $response;
+    }
+
+    private function quickOrderDraftSessionKey(Request $request): string
+    {
+        return 'front.b2b.quick_order_drafts.'.(int) $request->user()->getAuthIdentifier().'.items';
     }
 
     public function reorder(Request $request, string $orderNumber): RedirectResponse

@@ -1,3 +1,11 @@
+.commerce-main .b2b-quick-order-hero {
+    max-width: none;
+}
+
+.b2b-quick-order-hero-description {
+    white-space: nowrap;
+}
+
 .quick-order-builder {
     --qo-border: #d9e2ec;
     --qo-muted: #64748b;

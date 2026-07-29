@@ -334,6 +334,69 @@ class B2BCommerceFeatureTest extends TestCase
         $response->assertSessionHas('front.cart.items.'.$product->id.':0.quantity', 4);
     }
 
+    public function test_quick_order_draft_is_restored_after_refresh(): void
+    {
+        $customer = User::factory()->create();
+        $group = $this->makeGroup('quick-draft');
+        $this->makeB2BAccount($customer, B2BAccount::STATUS_APPROVED, $group);
+        $product = $this->makeProduct('DRAFT-100', 42);
+
+        $response = $this->actingAs($customer)
+            ->putJson(route('account.b2b.quick-order.draft'), [
+                'items' => [[
+                    'product_id' => $product->id,
+                    'product_option_value_id' => null,
+                    'quantity' => 4,
+                ]],
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJson([
+                'saved' => true,
+                'count' => 1,
+            ])
+            ->assertSessionHas(
+                'front.b2b.quick_order_drafts.'.$customer->id.'.items.0.product_id',
+                $product->id,
+            )
+            ->assertSessionHas(
+                'front.b2b.quick_order_drafts.'.$customer->id.'.items.0.quantity',
+                4,
+            );
+
+        $this->actingAs($customer)
+            ->get(route('account.b2b.quick-order'))
+            ->assertOk()
+            ->assertSee('Artikl DRAFT-100')
+            ->assertSee('"quantity":4', false);
+    }
+
+    public function test_removing_all_quick_order_items_clears_the_saved_draft(): void
+    {
+        $customer = User::factory()->create();
+        $group = $this->makeGroup('quick-draft-clear');
+        $this->makeB2BAccount($customer, B2BAccount::STATUS_APPROVED, $group);
+        $product = $this->makeProduct('DRAFT-CLEAR-100', 42);
+        $sessionKey = 'front.b2b.quick_order_drafts.'.$customer->id.'.items';
+
+        $this->actingAs($customer)
+            ->withSession([
+                $sessionKey => [[
+                    'product_id' => $product->id,
+                    'product_option_value_id' => null,
+                    'quantity' => 2,
+                ]],
+            ])
+            ->putJson(route('account.b2b.quick-order.draft'), ['items' => []])
+            ->assertOk()
+            ->assertJson([
+                'saved' => true,
+                'count' => 0,
+            ])
+            ->assertSessionMissing($sessionKey);
+    }
+
     public function test_approved_customer_can_repeat_a_previous_order(): void
     {
         $customer = User::factory()->create();

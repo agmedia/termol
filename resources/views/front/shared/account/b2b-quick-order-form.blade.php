@@ -2,6 +2,8 @@
     class="quick-order-builder"
     data-quick-order-builder
     data-search-url="{{ route('account.b2b.quick-order.search') }}"
+    data-sync-url="{{ route('account.b2b.quick-order.draft') }}"
+    data-storage-key="b2b-quick-order-draft-{{ auth()->id() }}"
     data-min-search-length="2"
     data-searching-label="{{ __('Pretraživanje artikala...') }}"
     data-empty-search-label="{{ __('Nema pronađenih artikala.') }}"

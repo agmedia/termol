@@ -40,9 +40,13 @@
         const total = builder.querySelector('[data-quick-order-total]');
         const submit = builder.querySelector('[data-quick-order-submit]');
         const initial = builder.querySelector('[data-quick-order-initial]');
+        const csrfToken = builder.querySelector('input[name="_token"]')?.value || '';
         const selected = new Map();
         let searchTimer = null;
         let request = null;
+        let syncInFlight = false;
+        let syncPending = false;
+        let selectionVersion = 0;
         let activeResult = -1;
         let currentResults = [];
 
@@ -74,6 +78,83 @@
                 unit_price: Number(item.unit_price || 0),
                 is_b2b_price: Boolean(item.is_b2b_price)
             };
+        };
+
+        const selectionItems = () => Array.from(selected.values()).map((item) => ({
+            product_id: item.product_id,
+            product_option_value_id: item.product_option_value_id || null,
+            quantity: item.quantity
+        }));
+
+        const saveBrowserFallback = () => {
+            selectionVersion++;
+            if (!builder.dataset.storageKey) return;
+
+            try {
+                window.sessionStorage.setItem(
+                    builder.dataset.storageKey,
+                    JSON.stringify(Array.from(selected.values()))
+                );
+            } catch (error) {
+                // Storage restrictions should not block the quick-order form.
+            }
+        };
+
+        const loadBrowserFallback = () => {
+            if (!builder.dataset.storageKey) return null;
+
+            try {
+                const stored = window.sessionStorage.getItem(builder.dataset.storageKey);
+                if (stored === null) return null;
+
+                const items = JSON.parse(stored);
+                return Array.isArray(items) ? items : null;
+            } catch (error) {
+                return null;
+            }
+        };
+
+        const clearBrowserFallback = () => {
+            if (!builder.dataset.storageKey) return;
+
+            try {
+                window.sessionStorage.removeItem(builder.dataset.storageKey);
+            } catch (error) {
+                // Storage restrictions should not block the quick-order form.
+            }
+        };
+
+        const persistSelection = async () => {
+            if (!builder.dataset.syncUrl || !csrfToken) return;
+
+            syncPending = true;
+            if (syncInFlight) return;
+
+            syncPending = false;
+            syncInFlight = true;
+            const syncedVersion = selectionVersion;
+
+            try {
+                const response = await fetch(builder.dataset.syncUrl, {
+                    method: 'PUT',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin',
+                    keepalive: true,
+                    body: JSON.stringify({items: selectionItems()})
+                });
+                if (!response.ok) throw new Error(`Draft sync failed with status ${response.status}`);
+                if (syncedVersion === selectionVersion) clearBrowserFallback();
+            } catch (error) {
+                // The current selection remains usable even if draft syncing fails.
+            } finally {
+                syncInFlight = false;
+                if (syncPending) persistSelection();
+            }
         };
 
         const hideResults = () => {
@@ -122,6 +203,8 @@
             searchInput.value = '';
             hideResults();
             render();
+            saveBrowserFallback();
+            persistSelection();
             searchInput.focus();
         };
 
@@ -233,6 +316,8 @@
                 item.quantity = Math.max(item.minimum_quantity, Math.min(item.maximum_quantity, item.quantity));
                 selected.set(item.key, item);
                 render();
+                saveBrowserFallback();
+                persistSelection();
             };
 
             decrement.addEventListener('click', () => setQuantity(item.quantity - item.quantity_step));
@@ -298,6 +383,8 @@
                 remove.addEventListener('click', () => {
                     selected.delete(item.key);
                     render();
+                    saveBrowserFallback();
+                    persistSelection();
                 });
 
                 row.append(product, unitPrice, quantity, lineTotal, remove);
@@ -365,8 +452,10 @@
             searchInput.scrollIntoView({behavior: 'smooth', block: 'center'});
         });
 
+        const browserFallback = loadBrowserFallback();
+
         try {
-            const items = JSON.parse(initial ? initial.textContent : '[]');
+            const items = browserFallback ?? JSON.parse(initial ? initial.textContent : '[]');
             if (Array.isArray(items)) {
                 items.forEach((item) => {
                     const normalized = normalizeItem(item);
@@ -378,5 +467,6 @@
         }
 
         render();
+        if (browserFallback !== null) persistSelection();
     });
 })();
