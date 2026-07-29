@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\User;
 use App\Services\Settings\SystemSettingsService;
+use App\Support\AssetVersion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
@@ -61,6 +62,31 @@ class RuntimeAndApiAccessFeatureTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/settings/api/wholesale')
             ->assertRedirect(route('admin.settings.system.catalog-features'));
+    }
+
+    public function test_clearing_cache_changes_the_vite_asset_version(): void
+    {
+        $admin = $this->makeUserWithRole('superadmin');
+        $assetVersion = app(AssetVersion::class);
+        $versionBeforeClear = $assetVersion->current();
+
+        $this->actingAs($admin)
+            ->get('/')
+            ->assertOk()
+            ->assertSee('?v='.rawurlencode($versionBeforeClear), false);
+
+        $this->actingAs($admin)
+            ->post(route('admin.system.cache.clear'))
+            ->assertRedirect();
+
+        $versionAfterClear = $assetVersion->current();
+
+        $this->assertNotSame($versionBeforeClear, $versionAfterClear);
+
+        $this->actingAs($admin)
+            ->get('/')
+            ->assertOk()
+            ->assertSee('?v='.rawurlencode($versionAfterClear), false);
     }
 
     private function makeUserWithRole(string $role): User

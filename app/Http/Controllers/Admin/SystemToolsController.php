@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\AssetVersion;
 use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Artisan;
@@ -19,6 +20,7 @@ class SystemToolsController extends Controller
         Artisan::call('config:clear');
         Artisan::call('view:clear');
         Artisan::call('route:clear');
+        app(AssetVersion::class)->bump();
 
         return back()
             ->with('status', __('Application cache has been cleared.'))

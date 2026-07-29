@@ -2,9 +2,10 @@
 
 namespace App\Livewire\Admin\Settings\System;
 
+use App\Support\AssetVersion;
 use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
-use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cookie;
 use Livewire\Component;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 
@@ -25,6 +26,7 @@ class RuntimeTools extends Component
             Artisan::call('up');
             $this->refreshState();
             $this->dispatch('notify', type: 'success', message: __('Maintenance mode switched OFF.'));
+
             return;
         }
 
@@ -45,6 +47,7 @@ class RuntimeTools extends Component
         Artisan::call('config:clear');
         Artisan::call('view:clear');
         Artisan::call('route:clear');
+        app(AssetVersion::class)->bump();
 
         $this->dispatch('notify', type: 'success', message: __('Application cache has been cleared.'));
     }

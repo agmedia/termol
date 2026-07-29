@@ -30,6 +30,7 @@ use App\Services\Loyalty\LoyaltyService;
 use App\Services\Settings\LocalSettingsService;
 use App\Services\Settings\SystemSettingsService;
 use App\Services\UserTracking\UserTrackingService;
+use App\Support\AssetVersion;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -38,6 +39,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 
@@ -56,6 +58,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(StoreSettingsService::class, fn ($app) => new StoreSettingsService($app->make(SystemSettingsService::class)));
         $this->app->singleton(UserTrackingService::class, fn ($app) => new UserTrackingService($app->make(SystemSettingsService::class)));
         $this->app->singleton(LoyaltyService::class, fn ($app) => new LoyaltyService($app->make(SystemSettingsService::class)));
+        $this->app->scoped(AssetVersion::class, fn () => new AssetVersion);
     }
 
     /**
@@ -68,6 +71,13 @@ class AppServiceProvider extends ServiceProvider
         if ((bool) config('app.force_https', false)) {
             URL::forceScheme('https');
         }
+
+        Vite::createAssetPathsUsing(static function (string $path, ?bool $secure = null): string {
+            $url = asset($path, $secure);
+            $separator = str_contains($url, '?') ? '&' : '?';
+
+            return $url.$separator.'v='.rawurlencode(app(AssetVersion::class)->current());
+        });
 
         Livewire::addPersistentMiddleware([
             \App\Http\Middleware\EnsureAdminAbility::class,
