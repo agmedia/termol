@@ -895,6 +895,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     setCartCount(payload.summary.item_qty);
                 }
 
+                document.dispatchEvent(new CustomEvent('cart:updated', {
+                    detail: { summary: payload.summary || null },
+                }));
+
                 if (window.ShopAnalytics && typeof window.ShopAnalytics.trackAddToCartFromForm === 'function') {
                     window.ShopAnalytics.trackAddToCartFromForm(form, currentQty(form), selectedOptionLabel(form));
                 }

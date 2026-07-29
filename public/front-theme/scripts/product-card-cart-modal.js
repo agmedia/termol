@@ -112,6 +112,10 @@
                     setCartCount(payload.summary.item_qty);
                 }
 
+                document.dispatchEvent(new CustomEvent('cart:updated', {
+                    detail: { summary: payload.summary || null },
+                }));
+
                 const quantity = currentQty(form);
                 const optionLabel = selectedOptionLabel(form);
 

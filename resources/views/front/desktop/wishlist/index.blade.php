@@ -8,15 +8,19 @@
         $cols = (int) ($cols ?? 4);
 
         $gridClass = match ($cols) {
-            1 => 'grid grid-cols-1 gap-4',
-            2 => 'grid grid-cols-2 gap-4',
-            3 => 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3',
-            5 => 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5',
-            default => 'grid gap-4 sm:grid-cols-2 lg:grid-cols-4',
+            1 => 'grid grid-cols-1',
+            2 => 'grid grid-cols-2',
+            3 => 'grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3',
+            5 => 'grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5',
+            default => 'grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
         };
     @endphp
 
-    <section class="px-4 sm:px-6 lg:px-8">
+    @push('styles')
+        <link rel="stylesheet" href="{{ asset('front-theme/styles/category-catalog.css') }}?v={{ filemtime(public_path('front-theme/styles/category-catalog.css')) }}">
+    @endpush
+
+    <section class="storefront-container px-3 sm:px-4 lg:px-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
                 <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{{ __('ui.wishlist.title') }}</h1>
@@ -61,15 +65,23 @@
         </div>
     </section>
 
-    <section class="px-4 py-6 sm:px-6 lg:px-8" data-wishlist-page data-wishlist-empty-text="{{ __('ui.wishlist.empty') }}">
+    <section class="storefront-container px-3 py-6 sm:px-4 lg:px-6" data-wishlist-page data-wishlist-empty-text="{{ __('ui.wishlist.empty') }}">
         @if ($products->isEmpty())
             <div class="border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
                 {{ __('ui.wishlist.empty') }}
             </div>
         @else
-            <div class="{{ $gridClass }}">
+            <div class="catalog-lined-grid {{ $gridClass }}">
                 @foreach ($products as $product)
-                    @include('front.desktop.partials.product-card', ['product' => $product, 'locale' => $locale, 'fallbackLocale' => $fallbackLocale, 'flat' => true])
+                    @include('front.desktop.partials.product-card', [
+                        'product' => $product,
+                        'locale' => $locale,
+                        'fallbackLocale' => $fallbackLocale,
+                        'flat' => true,
+                        'lined' => true,
+                        'priorityImage' => $loop->first,
+                        'headingLevel' => 2,
+                    ])
                 @endforeach
             </div>
         @endif

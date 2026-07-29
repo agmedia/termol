@@ -30,21 +30,23 @@
                         </a>
                         <button
                             type="button"
-                            class="absolute right-3 top-1/2 z-10 inline-flex h-11 w-11 -translate-y-1/2 touch-manipulation items-center justify-center border border-slate-300 bg-white p-0 text-slate-600 group-open/nav:hidden"
+                            class="absolute right-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 touch-manipulation items-center justify-center border border-slate-300 bg-white p-0 text-slate-600"
                             aria-label="{{ __('ui.front.desktop.open_navigation') }}: {{ $item['label'] }}"
                             aria-expanded="false"
                             data-mobile-menu-toggle
+                            data-mobile-menu-toggle-open
                         >
-                            <x-fa-icon name="plus" class="h-5 w-5" />
+                            <x-fa-icon name="plus" class="h-[18px] w-[18px]" />
                         </button>
                         <button
                             type="button"
-                            class="absolute right-3 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 touch-manipulation items-center justify-center border border-slate-300 bg-white p-0 text-slate-600 group-open/nav:inline-flex"
+                            class="absolute right-3 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 touch-manipulation items-center justify-center border border-slate-300 bg-white p-0 text-slate-600"
                             aria-label="{{ __('ui.front.desktop.close_navigation') }}: {{ $item['label'] }}"
                             aria-expanded="true"
                             data-mobile-menu-toggle
+                            data-mobile-menu-toggle-close
                         >
-                            <x-fa-icon name="minus" class="h-5 w-5" />
+                            <x-fa-icon name="minus" class="h-[18px] w-[18px]" />
                         </button>
                     </summary>
                     <ul class="desktop-mobile-menu-children text-[13px]">

@@ -35,12 +35,15 @@
     <noscript><link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
     @vite(['resources/css/app.css'])
     <link rel="stylesheet" href="{{ asset('front-theme/styles/termol-overrides.css') }}?v={{ filemtime(public_path('front-theme/styles/termol-overrides.css')) }}">
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/header-cart-popover.css') }}?v={{ filemtime(public_path('front-theme/styles/header-cart-popover.css')) }}">
     <link rel="preload" as="style" href="{{ route('front.storefront.styles') }}" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="{{ route('front.storefront.styles') }}"></noscript>
     @stack('styles')
 </head>
 @php
-    $cartSummary = app(\App\Services\Front\CartService::class)->summary();
+    $cartService = app(\App\Services\Front\CartService::class);
+    $cartSummary = $cartService->summary();
+    $headerCartLines = $cartService->lines();
     $wishlistCount = (int) ($wishlistSummary['item_count'] ?? 0);
     $navigationService = app(\App\Services\Front\NavigationMenuService::class);
     $mainNavigation = $navigationService->forLocale((string) app()->getLocale());
@@ -225,12 +228,26 @@
                     </span>
                 </a>
 
-                <a href="{{ route('cart.index') }}" class="relative inline-flex h-full w-[76px] items-center justify-center border-r border-slate-200 text-slate-900 transition hover:bg-slate-50 hover:text-black" aria-label="{{ __('ui.front.desktop.cart') }}: {{ (int) $cartSummary['item_qty'] }}">
-                    <x-fa-icon name="bag-shopping" class="block h-6 w-6 text-current" />
-                    <span class="header-count-badge absolute right-3 top-4 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-bold" data-cart-count>
-                        {{ (int) $cartSummary['item_qty'] }}
-                    </span>
-                </a>
+                <div class="header-cart-hover" data-header-cart>
+                    <a
+                        href="{{ route('cart.index') }}"
+                        class="header-cart-trigger"
+                        aria-label="{{ __('ui.front.desktop.cart') }}: {{ (int) $cartSummary['item_qty'] }}"
+                        aria-controls="header-cart-popover"
+                        aria-expanded="false"
+                        data-header-cart-trigger
+                    >
+                        <x-fa-icon name="bag-shopping" class="header-cart-trigger-icon" />
+                        <span class="header-count-badge header-cart-count" data-cart-count>
+                            {{ (int) $cartSummary['item_qty'] }}
+                        </span>
+                    </a>
+
+                    @include('front.desktop.partials.header-cart-popover', [
+                        'cartLines' => $headerCartLines,
+                        'cartSummary' => $cartSummary,
+                    ])
+                </div>
             </div>
 
             <div class="responsive-header-actions flex h-full items-stretch border-l border-slate-200 lg:hidden">
@@ -956,6 +973,7 @@
     @include('front.partials.scroll-to-top')
 @endif
 @include('front.partials.cookie-consent', ['showCookieFloatingButton' => empty($isMobileDevice)])
+<script defer src="{{ asset('front-theme/scripts/header-cart-popover.js') }}?v={{ filemtime(public_path('front-theme/scripts/header-cart-popover.js')) }}"></script>
 <script defer src="{{ asset('front-theme/scripts/storefront-ui.js') }}?v={{ filemtime(public_path('front-theme/scripts/storefront-ui.js')) }}"></script>
 @if (empty($isMobileDevice))
     <script defer src="{{ asset('front-theme/scripts/scroll-to-top.js') }}?v={{ filemtime(public_path('front-theme/scripts/scroll-to-top.js')) }}"></script>

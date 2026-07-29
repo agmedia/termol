@@ -104,6 +104,7 @@ Route::middleware(['front.locale', 'front.device'])
             ->name('returns.store');
         Route::post('newsletter/subscribe', [NewsletterController::class, 'store'])->name('newsletter.subscribe');
 
+        Route::get('cart/preview', [CartController::class, 'preview'])->name('cart.preview');
         Route::get('cart', [CartController::class, 'index'])->name('cart.index');
         Route::post('cart/items', [CartController::class, 'store'])->name('cart.items.store');
         Route::patch('cart/items/{product}', [CartController::class, 'update'])->name('cart.items.update');

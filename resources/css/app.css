@@ -1967,6 +1967,22 @@
     padding-left: 4.25rem;
 }
 
+[data-mobile-menu-accordion] > summary > [data-mobile-menu-toggle-open] {
+    display: inline-flex;
+}
+
+[data-mobile-menu-accordion] > summary > [data-mobile-menu-toggle-close] {
+    display: none;
+}
+
+[data-mobile-menu-accordion][open] > summary > [data-mobile-menu-toggle-open] {
+    display: none;
+}
+
+[data-mobile-menu-accordion][open] > summary > [data-mobile-menu-toggle-close] {
+    display: inline-flex;
+}
+
 .desktop-mobile-menu-item-main {
     display: flex;
     min-width: 0;

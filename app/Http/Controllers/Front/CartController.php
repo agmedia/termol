@@ -30,6 +30,14 @@ class CartController extends Controller
         ]);
     }
 
+    public function preview(): View
+    {
+        return view('front.desktop.partials.header-cart-popover-content', [
+            'cartLines' => $this->cart->lines(),
+            'cartSummary' => $this->cart->summary(),
+        ]);
+    }
+
     public function store(Request $request): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
@@ -154,7 +162,7 @@ class CartController extends Controller
             : back()->with('warning', $message);
     }
 
-    public function destroy(Request $request, Product $product): RedirectResponse
+    public function destroy(Request $request, Product $product): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
             'product_option_value_id' => ['nullable', 'integer', Rule::exists('catalog_product_option_values', 'id')],
@@ -164,6 +172,14 @@ class CartController extends Controller
             (int) $product->id,
             isset($validated['product_option_value_id']) ? (int) $validated['product_option_value_id'] : null
         );
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'message' => __('ui.cart.status.removed'),
+                'summary' => $this->cart->summary(),
+            ]);
+        }
 
         return back()->with('status', __('ui.cart.status.removed'));
     }

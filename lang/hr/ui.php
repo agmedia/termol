@@ -347,6 +347,12 @@ return [
         'title' => 'Košarica',
         'subtitle' => 'Provjerite proizvode prije završetka kupnje.',
         'empty' => 'Vaša košarica je trenutno prazna.',
+        'preview' => [
+            'label' => 'Brzi pregled košarice',
+            'items_label' => 'Artikli u košarici',
+            'shipping_pending' => 'Na naplati',
+            'view_cart' => 'Pregled košarice',
+        ],
         'table' => [
             'product' => 'Proizvod',
             'price' => 'Cijena',

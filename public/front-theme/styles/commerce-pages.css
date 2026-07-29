@@ -354,8 +354,12 @@
     box-shadow: none !important;
 }
 
-.cart-save-action {
+.commerce-main .commerce-primary-action.cart-save-action,
+.mobile-commerce-body .commerce-primary-action.cart-save-action {
+    height: 44px;
     min-height: 44px;
+    padding-top: 0;
+    padding-bottom: 0;
     white-space: nowrap;
 }
 

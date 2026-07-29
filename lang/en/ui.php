@@ -346,6 +346,12 @@ return [
         'title' => 'Cart',
         'subtitle' => 'Review products before checkout.',
         'empty' => 'Your cart is currently empty.',
+        'preview' => [
+            'label' => 'Cart preview',
+            'items_label' => 'Items in cart',
+            'shipping_pending' => 'At checkout',
+            'view_cart' => 'View cart',
+        ],
         'table' => [
             'product' => 'Product',
             'price' => 'Price',
