@@ -37,9 +37,7 @@ class B2BCommerceFeatureTest extends TestCase
             'phone' => '+385 1 555 123',
             'company_name' => 'Tvrtka d.o.o.',
             'oib' => '12345678901',
-            'vat_id' => 'HR12345678901',
             'address_line_1' => 'Ilica 1',
-            'address_line_2' => '',
             'postal_code' => '10000',
             'city' => 'Zagreb',
             'country_code' => 'HR',
@@ -57,6 +55,8 @@ class B2BCommerceFeatureTest extends TestCase
             'status' => B2BAccount::STATUS_PENDING,
             'company_name' => 'Tvrtka d.o.o.',
             'oib' => '12345678901',
+            'vat_id' => null,
+            'address_line_2' => null,
             'customer_group_id' => null,
             'erp_customer_id' => null,
         ]);
@@ -70,6 +70,8 @@ class B2BCommerceFeatureTest extends TestCase
             'type' => 'billing',
             'company' => 'Tvrtka d.o.o.',
             'city' => 'Zagreb',
+            'vat_id' => null,
+            'address_line_2' => null,
         ]);
         $this->assertCount(0, $user->customerGroups);
     }
@@ -126,7 +128,7 @@ class B2BCommerceFeatureTest extends TestCase
             ->assertSeeInOrder([
                 'name="terms_accepted"',
                 'id="b2b-terms-error"',
-                'Za nastavak morate prihvatiti uvjete B2B registracije.',
+                'Za registraciju morate prihvatiti Opće uvjete korištenja.',
             ], false)
             ->assertDontSee('validation.required')
             ->assertDontSee('<ul class="list-disc space-y-1 pl-5">', false);
@@ -145,7 +147,12 @@ class B2BCommerceFeatureTest extends TestCase
             ->assertSee('data-address-city', false)
             ->assertSee('name="country_code"', false)
             ->assertSee('data-address-country', false)
-            ->assertSee('front-theme/scripts/address-autofill.js', false);
+            ->assertSee('front-theme/scripts/address-autofill.js', false)
+            ->assertSee('PDV ID (OIB)')
+            ->assertSee('name="terms_accepted"', false)
+            ->assertSee('/page/uvjeti-koristenja', false)
+            ->assertDontSee('name="vat_id"', false)
+            ->assertDontSee('name="address_line_2"', false);
     }
 
     public function test_admin_can_approve_request_assign_group_and_store_future_erp_link(): void

@@ -1968,19 +1968,19 @@
 }
 
 [data-mobile-menu-accordion] > summary > [data-mobile-menu-toggle-open] {
-    display: inline-flex;
+    display: inline-flex !important;
 }
 
 [data-mobile-menu-accordion] > summary > [data-mobile-menu-toggle-close] {
-    display: none;
+    display: none !important;
 }
 
 [data-mobile-menu-accordion][open] > summary > [data-mobile-menu-toggle-open] {
-    display: none;
+    display: none !important;
 }
 
 [data-mobile-menu-accordion][open] > summary > [data-mobile-menu-toggle-close] {
-    display: inline-flex;
+    display: inline-flex !important;
 }
 
 .desktop-mobile-menu-item-main {

@@ -20,7 +20,7 @@
     </section>
 
     <section class="auth-layout">
-        <div class="auth-form-card border border-slate-200 p-6">
+        <div class="auth-form-card border border-slate-200 p-6" data-address-autofill data-address-source="{{ $placesAssetUrl }}">
             <h2 class="text-xl font-bold text-slate-900">{{ __('ui.auth.register.form_title') }}</h2>
 
             <form
@@ -28,6 +28,7 @@
                 action="{{ route('front.auth.register.store') }}"
                 class="mt-5 grid gap-4 md:grid-cols-2"
                 novalidate
+                data-address-scope="billing"
                 @if($captchaEnabled) data-recaptcha-form data-recaptcha-site-key="{{ $captchaSiteKey }}" data-recaptcha-action="register_form" @endif
             >
                 @csrf
@@ -50,10 +51,54 @@
                     @enderror
                 </div>
 
-                <div class="md:col-span-2">
+                <div>
                     <label for="auth-register-email" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.auth.fields.email') }}</label>
                     <input id="auth-register-email" type="email" name="email" value="{{ old('email') }}" class="w-full px-3 text-sm" autocomplete="email" required>
                     @error('email')
+                        <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label for="auth-register-phone" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.auth.fields.phone') }}</label>
+                    <input id="auth-register-phone" type="tel" name="phone" value="{{ old('phone') }}" class="w-full px-3 text-sm" autocomplete="tel" required>
+                    @error('phone')
+                        <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="md:col-span-2">
+                    <label for="auth-register-address" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.auth.fields.address') }}</label>
+                    <input id="auth-register-address" type="text" name="address_line_1" value="{{ old('address_line_1') }}" class="w-full px-3 text-sm" autocomplete="street-address" required>
+                    @error('address_line_1')
+                        <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label for="auth-register-postal-code" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.auth.fields.postal_code') }}</label>
+                    <input id="auth-register-postal-code" type="text" name="postal_code" value="{{ old('postal_code') }}" class="w-full px-3 text-sm" autocomplete="postal-code" inputmode="numeric" data-address-postal required>
+                    @error('postal_code')
+                        <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label for="auth-register-city" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.auth.fields.city') }}</label>
+                    <input id="auth-register-city" type="text" name="city" value="{{ old('city') }}" class="w-full px-3 text-sm" autocomplete="address-level2" data-address-city required>
+                    @error('city')
+                        <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="md:col-span-2">
+                    <label for="auth-register-country" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.auth.fields.country') }}</label>
+                    <select id="auth-register-country" name="country_code" class="w-full px-3 text-sm" autocomplete="country" data-address-country required>
+                        @foreach ($countryOptions as $countryOption)
+                            <option value="{{ $countryOption['code'] }}" @selected(old('country_code', 'HR') === $countryOption['code'])>{{ $countryOption['label'] }}</option>
+                        @endforeach
+                    </select>
+                    @error('country_code')
                         <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                     @enderror
                 </div>
@@ -69,6 +114,19 @@
                 <div>
                     <label for="auth-register-password-confirmation" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('ui.auth.fields.password_confirmation') }}</label>
                     <input id="auth-register-password-confirmation" type="password" name="password_confirmation" class="w-full px-3 text-sm" autocomplete="new-password" required>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="flex items-start gap-3 border bg-slate-50 p-4 text-sm text-slate-700 @error('terms_accepted') border-rose-500 @else border-slate-200 @enderror">
+                        <input type="checkbox" name="terms_accepted" value="1" class="mt-0.5" @checked(old('terms_accepted')) required @error('terms_accepted') aria-invalid="true" aria-describedby="auth-register-terms-error" @enderror>
+                        <span>
+                            {{ __('ui.auth.register.terms_prefix') }}
+                            <a href="{{ route('pages.show', ['slug' => 'uvjeti-koristenja']) }}" class="font-semibold text-blue-700 underline underline-offset-2" target="_blank" rel="noopener noreferrer">{{ __('ui.auth.register.terms_link') }}</a>.
+                        </span>
+                    </label>
+                    @error('terms_accepted')
+                        <p id="auth-register-terms-error" class="mt-2 text-xs font-semibold text-rose-600" aria-live="polite">{{ $message }}</p>
+                    @enderror
                 </div>
 
                 <div class="md:col-span-2">
@@ -103,3 +161,7 @@
         @include('front.partials.recaptcha-v3', ['siteKey' => $captchaSiteKey])
     @endif
 @endsection
+
+@push('scripts')
+    <script defer src="{{ asset('front-theme/scripts/address-autofill.js') }}?v={{ filemtime(public_path('front-theme/scripts/address-autofill.js')) }}"></script>
+@endpush

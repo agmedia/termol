@@ -471,8 +471,14 @@ class StorefrontFrontFeatureTest extends TestCase
             'first_name' => 'Captcha',
             'last_name' => 'Buyer',
             'email' => 'captcha-buyer@example.test',
+            'phone' => '+385 91 555 1234',
+            'address_line_1' => 'Ilica 1',
+            'postal_code' => '10000',
+            'city' => 'Zagreb',
+            'country_code' => 'HR',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'terms_accepted' => '1',
             'recaptcha_token' => 'register-token',
         ])->assertRedirect(route('account.dashboard', absolute: false));
 
@@ -485,6 +491,82 @@ class StorefrontFrontFeatureTest extends TestCase
         $this->assertDatabaseHas('users', [
             'name' => 'Captcha Buyer',
             'email' => 'captcha-buyer@example.test',
+        ]);
+    }
+
+    public function test_front_registration_collects_and_saves_the_complete_default_address(): void
+    {
+        Bouncer::role()->firstOrCreate(['name' => 'customer'], ['title' => 'Customer']);
+
+        $this->get('/auth/register')
+            ->assertOk()
+            ->assertSee('data-address-autofill', false)
+            ->assertSee('data-address-scope="billing"', false)
+            ->assertSee('name="phone"', false)
+            ->assertSee('name="address_line_1"', false)
+            ->assertSee('name="postal_code"', false)
+            ->assertSee('data-address-postal', false)
+            ->assertSee('name="city"', false)
+            ->assertSee('data-address-city', false)
+            ->assertSee('name="country_code"', false)
+            ->assertSee('data-address-country', false)
+            ->assertSee('name="terms_accepted"', false)
+            ->assertSee('/page/uvjeti-koristenja', false)
+            ->assertSee('front-theme/scripts/address-autofill.js', false)
+            ->assertDontSee('name="address_line_2"', false);
+
+        $this->from('/auth/register')
+            ->post('/auth/register', [
+                'first_name' => 'Ivana',
+                'last_name' => 'Marić',
+                'email' => 'ivana.maric@example.test',
+                'phone' => '+385 91 555 1234',
+                'address_line_1' => 'Vukovarska 10',
+                'postal_code' => '21000',
+                'city' => 'Split',
+                'country_code' => 'HR',
+                'password' => 'Password123!',
+                'password_confirmation' => 'Password123!',
+            ])
+            ->assertRedirect('/auth/register')
+            ->assertSessionHasErrors('terms_accepted');
+
+        $response = $this->post('/auth/register', [
+            'first_name' => 'Ivana',
+            'last_name' => 'Marić',
+            'email' => 'ivana.maric@example.test',
+            'phone' => '+385 91 555 1234',
+            'address_line_1' => 'Vukovarska 10',
+            'postal_code' => '21000',
+            'city' => 'Split',
+            'country_code' => 'HR',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'terms_accepted' => '1',
+        ]);
+
+        $user = User::query()->where('email', 'ivana.maric@example.test')->firstOrFail();
+
+        $response->assertRedirect(route('account.dashboard', absolute: false));
+        $this->assertAuthenticatedAs($user);
+        $this->assertDatabaseHas('user_profiles', [
+            'user_id' => $user->id,
+            'first_name' => 'Ivana',
+            'last_name' => 'Marić',
+            'phone' => '+385 91 555 1234',
+        ]);
+        $this->assertDatabaseHas('user_addresses', [
+            'user_id' => $user->id,
+            'type' => 'billing',
+            'first_name' => 'Ivana',
+            'last_name' => 'Marić',
+            'phone' => '+385 91 555 1234',
+            'address_line_1' => 'Vukovarska 10',
+            'address_line_2' => null,
+            'postal_code' => '21000',
+            'city' => 'Split',
+            'country_code' => 'HR',
+            'is_default' => true,
         ]);
     }
 

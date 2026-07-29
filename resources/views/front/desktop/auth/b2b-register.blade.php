@@ -37,17 +37,15 @@
                         ['email', __('E-mail'), 'email', true, 'email'],
                         ['phone', __('Telefon'), 'tel', true],
                         ['company_name', __('Naziv tvrtke'), 'organization', true],
-                        ['oib', __('OIB'), 'off', true],
-                        ['vat_id', __('PDV ID'), 'off', false],
+                        ['oib', __('ui.account.fields.vat_id').' ('.__('ui.account.fields.oib').')', 'off', true],
                         ['address_line_1', __('Adresa'), 'street-address', true],
-                        ['address_line_2', __('Dodatak adresi'), 'address-line2', false],
                         ['postal_code', __('Poštanski broj'), 'postal-code', true],
                         ['city', __('Grad'), 'address-level2', true],
                     ];
                 @endphp
 
                 @foreach ($fields as $field)
-                    <div class="{{ in_array($field[0], ['company_name', 'address_line_1', 'address_line_2'], true) ? 'md:col-span-2' : '' }}">
+                    <div class="{{ in_array($field[0], ['company_name', 'address_line_1'], true) ? 'md:col-span-2' : '' }}">
                         <label for="b2b-{{ $field[0] }}" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $field[1] }}</label>
                         <input
                             id="b2b-{{ $field[0] }}"
@@ -106,7 +104,11 @@
                 <div class="md:col-span-2">
                     <label class="flex items-start gap-3 border bg-slate-50 p-4 text-sm text-slate-700 @error('terms_accepted') border-rose-500 @else border-slate-200 @enderror">
                         <input type="checkbox" name="terms_accepted" value="1" class="mt-0.5" @checked(old('terms_accepted')) required @error('terms_accepted') aria-invalid="true" aria-describedby="b2b-terms-error" @enderror>
-                        <span>{{ __('Potvrđujem da su uneseni poslovni podaci točni i prihvaćam provjeru B2B zahtjeva prije aktivacije ugovorenih cijena.') }}</span>
+                        <span>
+                            {{ __('ui.auth.register.b2b_accuracy') }}
+                            {{ __('ui.auth.register.terms_prefix') }}
+                            <a href="{{ route('pages.show', ['slug' => 'uvjeti-koristenja']) }}" class="font-semibold text-blue-700 underline underline-offset-2" target="_blank" rel="noopener noreferrer">{{ __('ui.auth.register.terms_link') }}</a>.
+                        </span>
                     </label>
                     @error('terms_accepted')
                         <p id="b2b-terms-error" class="mt-2 text-xs font-semibold text-rose-600" aria-live="polite">{{ $message }}</p>

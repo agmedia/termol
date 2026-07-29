@@ -92,7 +92,10 @@ class AuthController extends Controller
 
     public function showRegister(Request $request): View
     {
-        return view($this->frontendView($request, 'auth.register'));
+        return view($this->frontendView($request, 'auth.register'), [
+            'countryOptions' => $this->addressDirectory->countries((string) app()->getLocale()),
+            'placesAssetUrl' => $this->addressDirectory->placesAssetUrl(),
+        ]);
     }
 
     public function showForgotPassword(Request $request): View
@@ -198,9 +201,7 @@ class AuthController extends Controller
                 'phone' => ['required', 'string', 'max:80'],
                 'company_name' => ['required', 'string', 'max:191'],
                 'oib' => ['required', 'regex:/^\d{11}$/', 'unique:b2b_accounts,oib'],
-                'vat_id' => ['nullable', 'string', 'max:60'],
                 'address_line_1' => ['required', 'string', 'max:191'],
-                'address_line_2' => ['nullable', 'string', 'max:191'],
                 'postal_code' => ['required', 'string', 'max:32'],
                 'city' => ['required', 'string', 'max:120'],
                 'country_code' => ['required', 'string', 'size:2'],
@@ -213,7 +214,7 @@ class AuthController extends Controller
                 'oib.regex' => __('OIB mora sadržavati točno 11 znamenki.'),
                 'oib.unique' => __('Za ovaj OIB već postoji B2B zahtjev.'),
                 'password_confirmation.same' => __('Potvrda lozinke ne podudara se s lozinkom.'),
-                'terms_accepted.accepted' => __('Za nastavak morate prihvatiti uvjete B2B registracije.'),
+                'terms_accepted.accepted' => __('ui.auth.validation.terms_accepted'),
                 'recaptcha_token.required' => __('ui.auth.captcha_failed'),
             ],
             [
@@ -222,16 +223,14 @@ class AuthController extends Controller
                 'email' => __('e-mail'),
                 'phone' => __('telefon'),
                 'company_name' => __('naziv tvrtke'),
-                'oib' => __('OIB'),
-                'vat_id' => __('PDV ID'),
+                'oib' => __('PDV ID (OIB)'),
                 'address_line_1' => __('adresa'),
-                'address_line_2' => __('dodatak adresi'),
                 'postal_code' => __('poštanski broj'),
                 'city' => __('grad'),
                 'country_code' => __('država'),
                 'password' => __('lozinka'),
                 'password_confirmation' => __('potvrda lozinke'),
-                'terms_accepted' => __('uvjeti B2B registracije'),
+                'terms_accepted' => __('ui.auth.fields.terms'),
                 'recaptcha_token' => __('sigurnosna provjera'),
             ]
         );
@@ -269,10 +268,8 @@ class AuthController extends Controller
                 'last_name' => trim((string) $validated['last_name']),
                 'company' => trim((string) $validated['company_name']),
                 'oib' => trim((string) $validated['oib']),
-                'vat_id' => trim((string) ($validated['vat_id'] ?? '')) ?: null,
                 'phone' => trim((string) $validated['phone']),
                 'address_line_1' => trim((string) $validated['address_line_1']),
-                'address_line_2' => trim((string) ($validated['address_line_2'] ?? '')) ?: null,
                 'postal_code' => trim((string) $validated['postal_code']),
                 'city' => trim((string) $validated['city']),
                 'country_code' => strtoupper((string) $validated['country_code']),
@@ -284,10 +281,8 @@ class AuthController extends Controller
                 'status' => B2BAccount::STATUS_PENDING,
                 'company_name' => trim((string) $validated['company_name']),
                 'oib' => trim((string) $validated['oib']),
-                'vat_id' => trim((string) ($validated['vat_id'] ?? '')) ?: null,
                 'phone' => trim((string) $validated['phone']),
                 'address_line_1' => trim((string) $validated['address_line_1']),
-                'address_line_2' => trim((string) ($validated['address_line_2'] ?? '')) ?: null,
                 'postal_code' => trim((string) $validated['postal_code']),
                 'city' => trim((string) $validated['city']),
                 'country_code' => strtoupper((string) $validated['country_code']),
@@ -318,7 +313,13 @@ class AuthController extends Controller
                 'first_name' => ['required', 'string', 'max:120'],
                 'last_name' => ['required', 'string', 'max:120'],
                 'email' => ['required', 'email', 'max:191', 'unique:users,email'],
+                'phone' => ['required', 'string', 'max:80'],
+                'address_line_1' => ['required', 'string', 'max:191'],
+                'postal_code' => ['required', 'string', 'max:32'],
+                'city' => ['required', 'string', 'max:120'],
+                'country_code' => ['required', 'string', 'size:2'],
                 'password' => ['required', 'string', 'confirmed', Password::defaults()],
+                'terms_accepted' => ['accepted'],
                 'recaptcha_token' => [$captchaEnabled ? 'required' : 'nullable', 'string', 'max:4096'],
             ],
             [
@@ -327,8 +328,14 @@ class AuthController extends Controller
                 'email.required' => __('ui.auth.validation.email_required'),
                 'email.email' => __('ui.auth.validation.email_invalid'),
                 'email.unique' => __('ui.auth.validation.email_unique'),
+                'phone.required' => __('ui.auth.validation.phone_required'),
+                'address_line_1.required' => __('ui.auth.validation.address_required'),
+                'postal_code.required' => __('ui.auth.validation.postal_code_required'),
+                'city.required' => __('ui.auth.validation.city_required'),
+                'country_code.required' => __('ui.auth.validation.country_required'),
                 'password.required' => __('ui.auth.validation.password_required'),
                 'password.confirmed' => __('ui.auth.validation.password_confirmed'),
+                'terms_accepted.accepted' => __('ui.auth.validation.terms_accepted'),
                 'recaptcha_token.required' => __('ui.auth.captcha_failed'),
             ],
             [
@@ -346,15 +353,39 @@ class AuthController extends Controller
             );
         }
 
-        $user = User::query()->create([
-            'name' => trim($validated['first_name'].' '.$validated['last_name']),
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-        ]);
+        $user = DB::transaction(function () use ($validated): User {
+            $user = User::query()->create([
+                'name' => trim($validated['first_name'].' '.$validated['last_name']),
+                'email' => strtolower(trim((string) $validated['email'])),
+                'password' => Hash::make($validated['password']),
+            ]);
+
+            UserProfile::query()->create([
+                'user_id' => $user->getKey(),
+                'first_name' => trim((string) $validated['first_name']),
+                'last_name' => trim((string) $validated['last_name']),
+                'phone' => trim((string) $validated['phone']),
+            ]);
+
+            UserAddress::query()->create([
+                'user_id' => $user->getKey(),
+                'type' => UserAddress::TYPE_BILLING,
+                'first_name' => trim((string) $validated['first_name']),
+                'last_name' => trim((string) $validated['last_name']),
+                'phone' => trim((string) $validated['phone']),
+                'address_line_1' => trim((string) $validated['address_line_1']),
+                'postal_code' => trim((string) $validated['postal_code']),
+                'city' => trim((string) $validated['city']),
+                'country_code' => strtoupper(trim((string) $validated['country_code'])),
+                'is_default' => true,
+            ]);
+
+            Bouncer::assign('customer')->to($user);
+
+            return $user;
+        });
 
         event(new Registered($user));
-
-        Bouncer::assign('customer')->to($user);
 
         Auth::login($user);
         $request->session()->regenerate();

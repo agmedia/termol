@@ -19,10 +19,8 @@
             ['email', __('E-mail'), 'email'],
             ['phone', __('Telefon'), 'text'],
             ['company_name', __('Naziv tvrtke'), 'text'],
-            ['oib', __('OIB'), 'text'],
-            ['vat_id', __('PDV ID (opcionalno)'), 'text'],
+            ['oib', __('ui.account.fields.vat_id').' ('.__('ui.account.fields.oib').')', 'text'],
             ['address_line_1', __('Adresa'), 'text'],
-            ['address_line_2', __('Dodatak adresi (opcionalno)'), 'text'],
             ['postal_code', __('Poštanski broj'), 'text'],
             ['city', __('Grad'), 'text'],
         ];
@@ -41,7 +39,7 @@
                 @foreach ($fields as $field)
                     <div class="mb-3">
                         <label for="b2b-mobile-{{ $field[0] }}" class="mb-1 d-block font-600 font-12">{{ $field[1] }}</label>
-                        <input id="b2b-mobile-{{ $field[0] }}" type="{{ $field[2] }}" name="{{ $field[0] }}" value="{{ old($field[0]) }}" class="form-control rounded-0 @error($field[0]) border-danger @enderror" @if($field[0] === 'postal_code') data-address-postal inputmode="numeric" @endif @if($field[0] === 'city') data-address-city @endif @required(! in_array($field[0], ['vat_id', 'address_line_2'], true)) @error($field[0]) aria-invalid="true" aria-describedby="b2b-mobile-{{ $field[0] }}-error" @enderror>
+                        <input id="b2b-mobile-{{ $field[0] }}" type="{{ $field[2] }}" name="{{ $field[0] }}" value="{{ old($field[0]) }}" class="form-control rounded-0 @error($field[0]) border-danger @enderror" @if($field[0] === 'postal_code') data-address-postal inputmode="numeric" @endif @if($field[0] === 'city') data-address-city @endif required @error($field[0]) aria-invalid="true" aria-describedby="b2b-mobile-{{ $field[0] }}-error" @enderror>
                         @error($field[0])
                             <p id="b2b-mobile-{{ $field[0] }}-error" class="mb-0 mt-1 font-600 font-12 color-red-dark" aria-live="polite">{{ $message }}</p>
                         @enderror
@@ -78,7 +76,11 @@
                 <div class="mb-3">
                     <label class="d-flex gap-2 mb-0 font-12">
                         <input type="checkbox" name="terms_accepted" value="1" class="mt-1" @checked(old('terms_accepted')) required @error('terms_accepted') aria-invalid="true" aria-describedby="b2b-mobile-terms-error" @enderror>
-                        <span>{{ __('Potvrđujem točnost poslovnih podataka i prihvaćam provjeru zahtjeva.') }}</span>
+                        <span>
+                            {{ __('ui.auth.register.b2b_accuracy') }}
+                            {{ __('ui.auth.register.terms_prefix') }}
+                            <a href="{{ route('pages.show', ['slug' => 'uvjeti-koristenja']) }}" class="font-600 text-underline" target="_blank" rel="noopener noreferrer">{{ __('ui.auth.register.terms_link') }}</a>.
+                        </span>
                     </label>
                     @error('terms_accepted')
                         <p id="b2b-mobile-terms-error" class="mb-0 mt-1 font-600 font-12 color-red-dark" aria-live="polite">{{ $message }}</p>
