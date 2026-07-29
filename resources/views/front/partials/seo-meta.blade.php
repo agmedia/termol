@@ -25,7 +25,10 @@
         ? $sectionTitle
         : ($defaultTitle !== '' ? $defaultTitle : (string) config('app.name', 'AG Shop'));
     $description = $defaultDescription;
-    $robots = trim((string) ($seoSettings['robots'] ?? 'index,follow'));
+    $robotsOverride = trim((string) \Illuminate\Support\Facades\View::yieldContent('robots'));
+    $robots = $robotsOverride !== ''
+        ? $robotsOverride
+        : trim((string) ($seoSettings['robots'] ?? 'index,follow'));
     $canonicalPolicy = (string) ($seoSettings['canonical_policy'] ?? 'self');
     $canonicalUrl = $canonicalPolicy === 'self' ? url()->current() : '';
 

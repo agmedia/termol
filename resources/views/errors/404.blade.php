@@ -1,106 +1,99 @@
-<!DOCTYPE html>
-<html lang="hr">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Stranica nije pronađena</title>
-    <style>
-        :root {
-            --bg: #f5f6f8;
-            --card: #ffffff;
-            --text: #0f172a;
-            --muted: #475569;
-            --line: #dbe2ea;
-            --accent: #111827;
-        }
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            min-height: 100vh;
-            display: grid;
-            place-items: center;
-            padding: 24px;
-            font-family: "Risingsun", Arial, Helvetica, sans-serif;
-            color: var(--text);
-            background:
-                linear-gradient(180deg, rgba(255,255,255,0.95), rgba(245,246,248,0.96)),
-                radial-gradient(1200px 480px at 85% -10%, rgba(15,23,42,0.08), transparent),
-                radial-gradient(900px 400px at 0% 100%, rgba(2,6,23,0.06), transparent),
-                var(--bg);
-        }
-        .panel {
-            width: min(760px, 100%);
-            border: 1px solid var(--line);
-            background: var(--card);
-            box-shadow: 0 24px 70px -42px rgba(15, 23, 42, 0.45);
-        }
-        .top {
-            height: 8px;
-            background: linear-gradient(90deg, #020617 0%, #111827 45%, #1f2937 100%);
-        }
-        .inner {
-            padding: 34px 30px;
-        }
-        .kicker {
-            margin: 0 0 10px;
-            font-size: 12px;
-            letter-spacing: .18em;
-            text-transform: uppercase;
-            color: #64748b;
-        }
-        h1 {
-            margin: 0 0 10px;
-            font-size: clamp(32px, 6vw, 56px);
-            line-height: 1;
-            letter-spacing: .01em;
-        }
-        p {
-            margin: 0;
-            max-width: 56ch;
-            color: var(--muted);
-            font-size: 18px;
-            line-height: 1.5;
-        }
-        .actions {
-            margin-top: 22px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 42px;
-            padding: 0 16px;
-            text-decoration: none;
-            border: 1px solid var(--accent);
-            background: var(--accent);
-            color: #fff;
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: .04em;
-            text-transform: uppercase;
-        }
-        .btn-ghost {
-            background: #fff;
-            color: var(--accent);
-            border-color: var(--line);
-        }
-    </style>
-</head>
-<body>
-    <section class="panel" role="main" aria-labelledby="not-found-title">
-        <div class="top"></div>
-        <div class="inner">
-            <p class="kicker">Error 404</p>
-            <h1 id="not-found-title">Stranica nije pronađena</h1>
-            <p>Link koji ste otvorili ne postoji ili je premješten. Vratite se na početnu ili nastavite kupovinu.</p>
-            <div class="actions">
-                <a class="btn" href="/">Početna</a>
-                <a class="btn btn-ghost" href="/shop">Shop</a>
+@extends('front.desktop.layouts.store')
+
+@section('title', 'Stranica nije pronađena')
+@section('robots', 'noindex,follow')
+@section('body_class', 'error-page-404')
+@section('main_class', 'w-full px-0 py-0')
+
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('front-theme/styles/error-404.css') }}?v={{ filemtime(public_path('front-theme/styles/error-404.css')) }}">
+@endpush
+
+@section('content')
+    <section class="error-404" aria-labelledby="not-found-title">
+        <div class="storefront-container error-404__container">
+            <div class="error-404__hero">
+                <div class="error-404__code" aria-hidden="true">
+                    404
+                    <span class="error-404__degree"></span>
+                </div>
+
+                <p class="error-404__eyebrow">
+                    <span class="error-404__eyebrow-line" aria-hidden="true"></span>
+                    Ups, pogrešna adresa
+                </p>
+
+                <h1 id="not-found-title" class="error-404__title">Stranica nije pronađena</h1>
+                <p class="error-404__lead">
+                    Izgleda da je ova adresa promijenjena ili više nije dostupna.
+                    Potražite proizvod ili odaberite jedan od brzih puteva natrag.
+                </p>
+
+                <div class="error-404__search-block">
+                    <p class="error-404__search-label">Što tražite?</p>
+                    <form action="{{ route('shop.index') }}" method="GET" class="error-404__search" role="search">
+                        <label class="sr-only" for="error-404-search">Pretražite proizvode</label>
+                        <input
+                            id="error-404-search"
+                            type="search"
+                            name="q"
+                            class="error-404__search-input"
+                            placeholder="Upišite naziv proizvoda, brend ili šifru"
+                            autocomplete="off"
+                        >
+                        <button type="submit" class="error-404__search-button">
+                            <x-fa-icon name="magnifying-glass" class="error-404__search-icon" />
+                            <span>Pretraži</span>
+                        </button>
+                    </form>
+                    <p class="error-404__requested-path">
+                        Tražena adresa:
+                        <span>{{ '/'.ltrim((string) request()->path(), '/') }}</span>
+                    </p>
+                </div>
             </div>
+
+            <nav class="error-404__quick-links" aria-label="Brzi povratak">
+                <a href="{{ route('home') }}" class="error-404__quick-link">
+                    <span class="error-404__quick-icon" aria-hidden="true">
+                        <x-fa-icon name="arrow-right" />
+                    </span>
+                    <span>
+                        <strong>Početna stranica</strong>
+                        <small>Vratite se na početak</small>
+                    </span>
+                </a>
+
+                <a href="{{ route('shop.index') }}" class="error-404__quick-link">
+                    <span class="error-404__quick-icon" aria-hidden="true">
+                        <x-fa-icon name="bag-shopping" />
+                    </span>
+                    <span>
+                        <strong>Web trgovina</strong>
+                        <small>Pregled cijele ponude</small>
+                    </span>
+                </a>
+
+                <a href="{{ route('categories.index') }}" class="error-404__quick-link">
+                    <span class="error-404__quick-icon" aria-hidden="true">
+                        <x-fa-icon name="table-cells-large" />
+                    </span>
+                    <span>
+                        <strong>Kategorije</strong>
+                        <small>Pronađite vrstu proizvoda</small>
+                    </span>
+                </a>
+
+                <a href="{{ route('contact.create') }}" class="error-404__quick-link">
+                    <span class="error-404__quick-icon" aria-hidden="true">
+                        <x-fa-icon name="circle-info" />
+                    </span>
+                    <span>
+                        <strong>Trebate pomoć?</strong>
+                        <small>Javite nam što tražite</small>
+                    </span>
+                </a>
+            </nav>
         </div>
     </section>
-</body>
-</html>
+@endsection
