@@ -33,12 +33,26 @@
     $accountUser = auth()->user();
     $accountUser?->loadMissing('b2bAccount');
     if ($accountUser?->b2bAccount?->contractIsActive()) {
-        array_splice($items, 2, 0, [[
-            'key' => 'b2b_quick_order',
-            'label' => __('B2B brza kupnja'),
-            'url' => route('account.b2b.quick-order'),
-            'active' => $current === 'b2b_quick_order',
-        ]]);
+        array_splice($items, 2, 0, [
+            [
+                'key' => 'b2b_quick_order',
+                'label' => __('B2B brza kupnja'),
+                'url' => route('account.b2b.quick-order'),
+                'active' => $current === 'b2b_quick_order',
+            ],
+            [
+                'key' => 'b2b_frequent_products',
+                'label' => __('Često naručivani artikli'),
+                'url' => route('account.b2b.frequent-products'),
+                'active' => $current === 'b2b_frequent_products',
+            ],
+            [
+                'key' => 'b2b_favorite_products',
+                'label' => __('Favoriti'),
+                'url' => route('account.b2b.favorite-products'),
+                'active' => $current === 'b2b_favorite_products',
+            ],
+        ]);
     }
 
     if ($loyaltyEnabled) {

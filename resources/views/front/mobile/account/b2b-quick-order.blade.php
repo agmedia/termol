@@ -20,29 +20,6 @@
 
         @include('front.shared.account.b2b-quick-order-form')
     </div>
-
-    @foreach ([
-        [__('Često naručivano'), $frequentProducts],
-        [__('Favoriti'), $favoriteProducts],
-    ] as [$title, $products])
-        <div class="card card-style">
-            <div class="content">
-                <h4 class="mb-3">{{ $title }}</h4>
-                @forelse ($products as $row)
-                    <div class="d-flex align-items-center">
-                        <div class="pe-2">
-                            <h6 class="font-13 mb-1">{{ $row['name'] }}</h6>
-                            <p class="font-11 opacity-60 mb-0">{{ $row['identifier'] }} · {{ \App\Support\Currency::format((float) $row['price']['current_gross'], 'EUR') }}</p>
-                        </div>
-                        <button type="button" data-quick-order-query="{{ $row['identifier'] }}" class="btn btn-xxs rounded-0 border border-gray-dark color-theme bg-white ms-auto">{{ __('Pronađi') }}</button>
-                    </div>
-                    @if (! $loop->last)<div class="divider my-2"></div>@endif
-                @empty
-                    <p class="mb-0 opacity-60">{{ __('Još nema artikala u ovoj grupi.') }}</p>
-                @endforelse
-            </div>
-        </div>
-    @endforeach
 @endsection
 
 @push('scripts')

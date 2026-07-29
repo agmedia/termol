@@ -34,25 +34,6 @@ class B2BController extends Controller
         $account = $this->approvedAccount($request);
         $user = $request->user();
 
-        $frequentIds = OrderItem::query()
-            ->select('product_id')
-            ->selectRaw('SUM(quantity) as ordered_quantity')
-            ->whereNotNull('product_id')
-            ->whereHas('order', fn ($query) => $query->where('user_id', $user->getKey()))
-            ->groupBy('product_id')
-            ->orderByDesc('ordered_quantity')
-            ->limit(12)
-            ->pluck('product_id')
-            ->map(static fn ($id): int => (int) $id)
-            ->all();
-
-        $favoriteIds = $user->wishlistItems()
-            ->latest('id')
-            ->limit(12)
-            ->pluck('product_id')
-            ->map(static fn ($id): int => (int) $id)
-            ->all();
-
         $initialItems = collect((array) $request->old(
             'items',
             $account->quick_order_draft ?? [],
@@ -103,9 +84,52 @@ class B2BController extends Controller
 
         return view($this->frontendView($request, 'account.b2b-quick-order'), [
             'b2bAccount' => $account,
-            'frequentProducts' => $this->productSuggestions($frequentIds, $user),
-            'favoriteProducts' => $this->productSuggestions($favoriteIds, $user),
             'initialQuickOrderItems' => $initialQuickOrderItems,
+        ]);
+    }
+
+    public function frequentProducts(Request $request): View
+    {
+        $account = $this->approvedAccount($request);
+        $user = $request->user();
+        $productIds = OrderItem::query()
+            ->select('product_id')
+            ->selectRaw('SUM(quantity) as ordered_quantity')
+            ->whereNotNull('product_id')
+            ->whereHas('order', fn ($query) => $query->where('user_id', $user->getKey()))
+            ->groupBy('product_id')
+            ->orderByDesc('ordered_quantity')
+            ->limit(12)
+            ->pluck('product_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        return view($this->frontendView($request, 'account.b2b-product-list'), [
+            'b2bAccount' => $account,
+            'current' => 'b2b_frequent_products',
+            'title' => __('Često naručivani artikli'),
+            'subtitle' => __('Artikli koje najčešće naručujete, poredani prema ukupnoj količini.'),
+            'products' => $this->productSuggestions($productIds, $user),
+        ]);
+    }
+
+    public function favoriteProducts(Request $request): View
+    {
+        $account = $this->approvedAccount($request);
+        $user = $request->user();
+        $productIds = $user->wishlistItems()
+            ->latest('id')
+            ->limit(12)
+            ->pluck('product_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        return view($this->frontendView($request, 'account.b2b-product-list'), [
+            'b2bAccount' => $account,
+            'current' => 'b2b_favorite_products',
+            'title' => __('Favoriti'),
+            'subtitle' => __('Artikli spremljeni na listu želja.'),
+            'products' => $this->productSuggestions($productIds, $user),
         ]);
     }
 

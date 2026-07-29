@@ -313,6 +313,59 @@ class B2BCommerceFeatureTest extends TestCase
             ->assertJsonPath('items.0.product_id', $product->id);
     }
 
+    public function test_frequent_and_favorite_products_are_separate_b2b_navigation_pages(): void
+    {
+        $customer = User::factory()->create();
+        $group = $this->makeGroup('b2b-product-lists');
+        $this->makeB2BAccount($customer, B2BAccount::STATUS_APPROVED, $group);
+        $frequentProduct = $this->makeProduct('FREQUENT-100', 60);
+        $favoriteProduct = $this->makeProduct('FAVORITE-100', 80);
+        $order = Order::query()->create([
+            'order_number' => 'WEB-B2B-LISTS-100',
+            'user_id' => $customer->id,
+            'customer_name' => $customer->name,
+            'customer_email' => $customer->email,
+        ]);
+        $order->items()->create([
+            'product_id' => $frequentProduct->id,
+            'sku' => $frequentProduct->sku,
+            'code' => $frequentProduct->code,
+            'name' => 'Artikl FREQUENT-100',
+            'unit_price' => 60,
+            'quantity' => 4,
+            'line_total' => 240,
+        ]);
+        $customer->wishlistItems()->create([
+            'product_id' => $favoriteProduct->id,
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('account.b2b.quick-order'))
+            ->assertOk()
+            ->assertDontSee('Unos artikala')
+            ->assertDontSee('Odaberite proizvod ili konkretnu varijantu iz rezultata pretrage.')
+            ->assertDontSee('Artikl FREQUENT-100')
+            ->assertDontSee('Artikl FAVORITE-100')
+            ->assertSee(route('account.b2b.frequent-products'), false)
+            ->assertSee(route('account.b2b.favorite-products'), false);
+
+        $this->actingAs($customer)
+            ->get(route('account.b2b.frequent-products'))
+            ->assertOk()
+            ->assertSee('Često naručivani artikli')
+            ->assertSee('Artikl FREQUENT-100')
+            ->assertDontSee('Artikl FAVORITE-100')
+            ->assertSee(route('account.b2b.quick-order', ['code' => $frequentProduct->sku]), false);
+
+        $this->actingAs($customer)
+            ->get(route('account.b2b.favorite-products'))
+            ->assertOk()
+            ->assertSee('Favoriti')
+            ->assertSee('Artikl FAVORITE-100')
+            ->assertDontSee('Artikl FREQUENT-100')
+            ->assertSee(route('account.b2b.quick-order', ['code' => $favoriteProduct->sku]), false);
+    }
+
     public function test_quick_order_accepts_ajax_selected_product_ids(): void
     {
         $customer = User::factory()->create();

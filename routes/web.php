@@ -201,6 +201,10 @@ Route::middleware(['front.locale', 'front.device'])
                     ->where('orderNumber', '[A-Za-z0-9\-]+')
                     ->name('orders.reorder');
                 Route::get('b2b/quick-order', [B2BController::class, 'quickOrder'])->name('b2b.quick-order');
+                Route::get('b2b/frequent-products', [B2BController::class, 'frequentProducts'])
+                    ->name('b2b.frequent-products');
+                Route::get('b2b/favorite-products', [B2BController::class, 'favoriteProducts'])
+                    ->name('b2b.favorite-products');
                 Route::get('b2b/quick-order/search', [B2BController::class, 'searchQuickOrder'])
                     ->middleware('throttle:60,1')
                     ->name('b2b.quick-order.search');
