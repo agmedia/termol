@@ -70,6 +70,12 @@ class ProductPricePresentationTest extends TestCase
         $this->assertFalse($line['has_promotional_discount']);
         $this->assertSame(0.0, (float) $summary['discount_total']);
 
+        $this->get(route('cart.index'))
+            ->assertOk()
+            ->assertSee('cart-price-cell', false)
+            ->assertSee('cart-b2b-price-label', false)
+            ->assertSee('Vaša ugovorena B2B cijena');
+
         $this->get(route('products.show', ['slug' => 'b2b-presentation']))
             ->assertOk()
             ->assertSee('Vaša ugovorena B2B cijena')

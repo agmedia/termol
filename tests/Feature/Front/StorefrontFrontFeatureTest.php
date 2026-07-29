@@ -232,6 +232,7 @@ class StorefrontFrontFeatureTest extends TestCase
             ->get('/')
             ->assertOk()
             ->assertSee('store-benefits-bar', false)
+            ->assertSee('site-footer-shell storefront-header-container', false)
             ->assertSee('site-footer-benefits', false)
             ->assertSee('<strong>50 000 proizvoda</strong>', false)
             ->assertSee('<strong>12 rata bez naknada</strong>', false)

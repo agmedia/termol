@@ -360,7 +360,7 @@
 @include('front.partials.analytics-ecommerce')
 
 <footer class="site-footer {{ request()->routeIs('home') ? 'mt-0' : 'mt-5' }} bg-white">
-    <div class="site-footer-shell storefront-container">
+    <div class="site-footer-shell storefront-header-container">
         <div class="site-footer-accent" aria-hidden="true"></div>
         <div class="site-footer-content">
         @php

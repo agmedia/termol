@@ -201,19 +201,19 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="whitespace-nowrap px-4 py-3.5">
+                            <td class="cart-price-cell px-4 py-3.5">
                                 @php
                                     $displayCurrent = (float) ($line['display_unit_price'] ?? $line['unit_price'] ?? 0);
                                     $displayBase = (float) ($line['display_base_unit_price'] ?? $line['base_unit_price'] ?? $displayCurrent);
                                 @endphp
                                 <div class="flex flex-col gap-0.5">
                                     @if (!empty($line['is_b2b_price']))
-                                        <span class="text-[10px] font-semibold leading-tight text-cyan-800">{{ __('ui.product.b2b_contract_price') }}</span>
+                                        <span class="cart-b2b-price-label text-[10px] font-semibold leading-tight text-cyan-800">{{ __('ui.product.b2b_contract_price') }}</span>
                                     @endif
                                     @if ($displayBase > ($displayCurrent + 0.0001))
-                                        <span class="text-xs text-slate-500 line-through">{{ number_format($displayBase, 2) }} €</span>
+                                        <span class="cart-price-value text-xs text-slate-500 line-through">{{ number_format($displayBase, 2) }} €</span>
                                     @endif
-                                    <span class="font-semibold text-slate-900">{{ number_format($displayCurrent, 2) }} €</span>
+                                    <span class="cart-price-value font-semibold text-slate-900">{{ number_format($displayCurrent, 2) }} €</span>
                                 </div>
                             </td>
                             <td class="px-4 py-3.5">
