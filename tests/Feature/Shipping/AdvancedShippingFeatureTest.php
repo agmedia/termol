@@ -152,7 +152,8 @@ class AdvancedShippingFeatureTest extends TestCase
             'pricing_type' => 'weight_tiers',
             'max_weight_kg' => 20,
         ]);
-        $this->assertDatabaseCount('shipping_method_rates', 2);
+        $savedMethod = ShippingMethod::query()->where('code', 'test_weight')->firstOrFail();
+        $this->assertSame(2, $savedMethod->rates()->count());
     }
 
     public function test_gls_connector_hashes_password_stores_label_and_logs_retry_state(): void

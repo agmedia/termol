@@ -83,6 +83,7 @@ class ShippingMethod extends Model
             'manual' => 'Ostalo / ručno',
             'boxnow' => 'BOX NOW',
             'gls' => 'GLS',
+            'mbe' => 'MBE Boxes',
             'pickup' => 'Osobno preuzimanje',
         ];
     }
