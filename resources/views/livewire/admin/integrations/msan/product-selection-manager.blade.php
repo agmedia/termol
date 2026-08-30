@@ -200,20 +200,13 @@
                                 @endif
                             </td>
                             <td class="px-3 py-3">
-                                <div class="flex min-w-0 items-start gap-3">
-                                    @if ($product->image_url)
-                                        <span class="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500" title="{{ __('Slika će se preuzeti lokalno tek pri uvozu artikla.') }}">
-                                            {{ __('Slika') }}
-                                        </span>
-                                    @endif
-                                    <div class="min-w-0">
-                                        <div class="max-w-[30rem] font-semibold text-slate-900">{{ $product->name }}</div>
-                                        <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-slate-500">
-                                            <span>{{ __('M SAN') }}: {{ $product->external_code }}</span>
-                                            @if ($product->part_number)
-                                                <span>{{ __('Kat. broj') }}: {{ $product->part_number }}</span>
-                                            @endif
-                                        </div>
+                                <div class="min-w-0">
+                                    <div class="max-w-[30rem] font-semibold text-slate-900">{{ $product->name }}</div>
+                                    <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-slate-500">
+                                        <span>{{ __('M SAN') }}: {{ $product->external_code }}</span>
+                                        @if ($product->part_number)
+                                            <span>{{ __('Kat. broj') }}: {{ $product->part_number }}</span>
+                                        @endif
                                     </div>
                                 </div>
                             </td>

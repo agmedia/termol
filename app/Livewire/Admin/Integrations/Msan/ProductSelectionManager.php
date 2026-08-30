@@ -244,7 +244,6 @@ class ProductSelectionManager extends Component
                 'name',
                 'brand',
                 'part_number',
-                'image_url',
                 'currency_code',
                 'partner_price',
                 'recommended_retail_price',
