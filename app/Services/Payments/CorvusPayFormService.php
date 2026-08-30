@@ -14,10 +14,15 @@ use Illuminate\Support\Facades\DB;
 class CorvusPayFormService
 {
     public const PAYLOAD_KEY = 'corvuspay';
+
     public const MODE_TEST = 'test';
+
     public const MODE_LIVE = 'live';
+
     public const FORM_URL_TEST = 'https://wallet.test.corvuspay.com/checkout/';
+
     public const FORM_URL_LIVE = 'https://wallet.corvuspay.com/checkout/';
+
     public const API_VERSION = '1.6';
 
     public function isCorvusCode(string $code): bool
@@ -28,6 +33,26 @@ class CorvusPayFormService
     public function isCorvusOrder(Order $order): bool
     {
         return $this->isCorvusCode((string) $order->payment_method_code);
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    public function hasRequiredSettings(array $settings): bool
+    {
+        return trim((string) ($settings['corvus_store_id'] ?? '')) !== ''
+            && trim((string) ($settings['corvus_secret_key'] ?? '')) !== '';
+    }
+
+    public function canBeOffered(PaymentMethod $method): bool
+    {
+        if (! $this->isCorvusCode((string) $method->code)) {
+            return true;
+        }
+
+        $settings = is_array($method->settings) ? $method->settings : [];
+
+        return $this->hasRequiredSettings($settings);
     }
 
     /**
@@ -45,7 +70,7 @@ class CorvusPayFormService
         $storeId = trim((string) ($settings['corvus_store_id'] ?? ''));
         $secret = trim((string) ($settings['corvus_secret_key'] ?? ''));
 
-        if ($storeId === '' || $secret === '') {
+        if (! $this->hasRequiredSettings($settings)) {
             return null;
         }
 
@@ -111,15 +136,18 @@ class CorvusPayFormService
 
     /**
      * @param  array<string, mixed>  $input
-     * @return array{paid:bool,status:string,signature_valid:bool,message:string}
+     * @return array{paid:bool,newly_paid:bool,status:string,signature_valid:bool,callback_authorized:bool,cancellation_applied:bool,message:string}
      */
     public function handleCallback(Order $order, array $input, string $context): array
     {
         if (! $this->isCorvusOrder($order)) {
             return [
                 'paid' => false,
+                'newly_paid' => false,
                 'status' => 'ignored',
                 'signature_valid' => false,
+                'callback_authorized' => false,
+                'cancellation_applied' => false,
                 'message' => 'Order is not CorvusPay.',
             ];
         }
@@ -142,81 +170,133 @@ class CorvusPayFormService
             $signatureValid = hash_equals(strtolower($expected), strtolower($signature));
         }
 
-        $isPaid = strtolower($context) === 'success'
-            && $signatureValid
-            && $orderNumber === (string) $order->order_number
-            && $approvalCode !== '';
+        $normalizedContext = strtolower($context);
+        $callbackAuthorized = $signatureValid
+            && $orderNumber !== ''
+            && hash_equals((string) $order->order_number, $orderNumber);
 
-        $status = $isPaid ? 'approved' : match (strtolower($context)) {
-            'cancel' => 'cancelled',
-            default => 'declined',
-        };
-        if (! $signatureValid && strtolower($context) === 'success') {
-            $status = 'invalid_signature';
+        if (! $callbackAuthorized) {
+            return [
+                'paid' => false,
+                'newly_paid' => false,
+                'status' => 'invalid_signature',
+                'signature_valid' => $signatureValid,
+                'callback_authorized' => false,
+                'cancellation_applied' => false,
+                'message' => 'Payment callback signature is invalid.',
+            ];
         }
 
-        DB::transaction(function () use ($order, $isPaid, $status, $signatureValid, $input, $approvalCode, $context): void {
-            OrderTransaction::query()->create([
-                'order_id' => $order->id,
+        $result = DB::transaction(function () use (
+            $order,
+            $normalizedContext,
+            $signatureValid,
+            $input,
+            $approvalCode,
+            $context,
+        ): array {
+            /** @var Order $locked */
+            $locked = Order::query()
+                ->whereKey($order->id)
+                ->lockForUpdate()
+                ->with('items')
+                ->firstOrFail();
+            $payload = is_array($locked->payload) ? $locked->payload : [];
+            $existing = is_array($payload[self::PAYLOAD_KEY] ?? null) ? $payload[self::PAYLOAD_KEY] : [];
+            $wasRestocked = ! empty($existing['cancel_restocked_at']);
+            $isPaid = $normalizedContext === 'success'
+                && $approvalCode !== ''
+                && ! $wasRestocked;
+            $newlyPaid = $isPaid && $locked->paid_at === null;
+            $status = match (true) {
+                $normalizedContext === 'success' && $wasRestocked => 'late_success_after_cancel',
+                $isPaid => 'approved',
+                $normalizedContext === 'cancel' && $locked->paid_at !== null => 'already_paid',
+                $normalizedContext === 'cancel' => 'cancelled',
+                default => 'declined',
+            };
+
+            $transactionRef = $approvalCode !== '' ? $approvalCode : (string) ($input['order_number'] ?? '');
+            OrderTransaction::query()->firstOrCreate([
+                'order_id' => $locked->id,
                 'provider' => 'corvuspay',
-                'transaction_ref' => $approvalCode !== '' ? $approvalCode : (string) ($input['order_number'] ?? ''),
+                'transaction_ref' => $transactionRef,
                 'status' => $status,
-                'amount' => (float) $order->grand_total,
-                'currency_code' => (string) ($order->currency_code ?: 'EUR'),
+            ], [
+                'amount' => (float) $locked->grand_total,
+                'currency_code' => (string) ($locked->currency_code ?: 'EUR'),
                 'processed_at' => now(),
                 'payload' => [
                     'context' => $context,
                     'signature_valid' => $signatureValid,
+                    'callback_authorized' => true,
                     'raw' => $input,
                 ],
-                'created_by' => $order->user_id,
+                'created_by' => $locked->user_id,
             ]);
 
-            $payload = is_array($order->payload) ? $order->payload : [];
-            $existing = is_array($payload[self::PAYLOAD_KEY] ?? null) ? $payload[self::PAYLOAD_KEY] : [];
             $callbacks = is_array($existing['callbacks'] ?? null) ? $existing['callbacks'] : [];
             $callbacks[] = [
                 'at' => now()->toIso8601String(),
                 'context' => $context,
                 'status' => $status,
                 'signature_valid' => $signatureValid,
+                'callback_authorized' => true,
                 'approval_code' => $approvalCode,
             ];
+            $callbacks = array_slice($callbacks, -50);
 
             $payload[self::PAYLOAD_KEY] = array_merge($existing, [
-                'status' => $status,
+                'status' => in_array($status, ['late_success_after_cancel', 'already_paid'], true)
+                    ? (string) ($existing['status'] ?? $status)
+                    : $status,
+                'latest_callback_status' => $status,
                 'signature_valid' => $signatureValid,
+                'callback_authorized' => true,
                 'approval_code' => $approvalCode,
                 'callbacks' => $callbacks,
             ]);
 
-            $beforeStatusId = (int) $order->status_id;
-            if ($isPaid) {
+            $beforeStatusId = (int) $locked->status_id;
+            if ($newlyPaid) {
                 $paidStatus = $this->resolvePaidStatus();
-                if ($paidStatus && (int) $order->status_id !== (int) $paidStatus->id) {
-                    $order->status_id = (int) $paidStatus->id;
+                if ($paidStatus && (int) $locked->status_id !== (int) $paidStatus->id) {
+                    $locked->status_id = (int) $paidStatus->id;
                     OrderHistory::query()->create([
-                        'order_id' => $order->id,
+                        'order_id' => $locked->id,
                         'from_status_id' => $beforeStatusId > 0 ? $beforeStatusId : null,
                         'to_status_id' => (int) $paidStatus->id,
-                        'changed_by' => $order->user_id,
+                        'changed_by' => $locked->user_id,
                         'comment' => 'CorvusPay callback: payment approved.',
                     ]);
                 }
-                if (! $order->paid_at) {
-                    $order->paid_at = now();
+                if (! $locked->paid_at) {
+                    $locked->paid_at = now();
                 }
             }
 
-            $order->payload = $payload;
-            $order->save();
+            $locked->payload = $payload;
+            $cancellationApplied = $status === 'cancelled'
+                ? $this->applyCancellationEffectsToLockedOrder($locked)
+                : false;
+            $locked->save();
+
+            return [
+                'paid' => $isPaid,
+                'newly_paid' => $newlyPaid,
+                'status' => $status,
+                'cancellation_applied' => $cancellationApplied,
+            ];
         });
 
         return [
-            'paid' => $isPaid,
-            'status' => $status,
+            'paid' => (bool) $result['paid'],
+            'newly_paid' => (bool) $result['newly_paid'],
+            'status' => (string) $result['status'],
             'signature_valid' => $signatureValid,
-            'message' => $isPaid ? 'Payment approved.' : 'Payment was not approved.',
+            'callback_authorized' => true,
+            'cancellation_applied' => (bool) $result['cancellation_applied'],
+            'message' => (bool) $result['paid'] ? 'Payment approved.' : 'Payment was not approved.',
         ];
     }
 
@@ -234,58 +314,72 @@ class CorvusPayFormService
                 ->with(['items'])
                 ->firstOrFail();
 
-            $payload = is_array($locked->payload) ? $locked->payload : [];
-            $existing = is_array($payload[self::PAYLOAD_KEY] ?? null) ? $payload[self::PAYLOAD_KEY] : [];
-            if (! empty($existing['cancel_restocked_at'])) {
-                return;
+            if ($this->applyCancellationEffectsToLockedOrder($locked)) {
+                $locked->save();
             }
-
-            foreach ($locked->items as $item) {
-                $qty = max(0, (int) $item->quantity);
-                if ($qty <= 0) {
-                    continue;
-                }
-
-                $optionValueId = (int) ($item->product_option_value_id ?? 0);
-                if ($optionValueId > 0) {
-                    $optionRow = ProductOptionValue::query()->lockForUpdate()->find($optionValueId);
-                    if ($optionRow) {
-                        $optionRow->stock_qty = max(0, (int) $optionRow->stock_qty) + $qty;
-                        $optionRow->save();
-                    }
-                    continue;
-                }
-
-                $productId = (int) ($item->product_id ?? 0);
-                if ($productId > 0) {
-                    $product = Product::query()->lockForUpdate()->find($productId);
-                    if ($product) {
-                        $product->stock_qty = max(0, (int) $product->stock_qty) + $qty;
-                        $product->save();
-                    }
-                }
-            }
-
-            $beforeStatusId = (int) $locked->status_id;
-            $cancelledStatus = $this->resolveCancelledStatus();
-            if ($cancelledStatus && (int) $locked->status_id !== (int) $cancelledStatus->id) {
-                $locked->status_id = (int) $cancelledStatus->id;
-                OrderHistory::query()->create([
-                    'order_id' => $locked->id,
-                    'from_status_id' => $beforeStatusId > 0 ? $beforeStatusId : null,
-                    'to_status_id' => (int) $cancelledStatus->id,
-                    'changed_by' => $locked->user_id,
-                    'comment' => 'CorvusPay callback: payment cancelled, stock restored.',
-                ]);
-            }
-
-            $payload[self::PAYLOAD_KEY] = array_merge($existing, [
-                'cancel_restocked_at' => now()->toIso8601String(),
-            ]);
-            $locked->paid_at = null;
-            $locked->payload = $payload;
-            $locked->save();
         });
+    }
+
+    private function applyCancellationEffectsToLockedOrder(Order $locked): bool
+    {
+        $payload = is_array($locked->payload) ? $locked->payload : [];
+        $existing = is_array($payload[self::PAYLOAD_KEY] ?? null) ? $payload[self::PAYLOAD_KEY] : [];
+        if (
+            $locked->paid_at !== null
+            || ($existing['status'] ?? null) !== 'cancelled'
+            || ! ($existing['callback_authorized'] ?? false)
+            || ! empty($existing['cancel_restocked_at'])
+        ) {
+            return false;
+        }
+
+        foreach ($locked->items as $item) {
+            $qty = max(0, (int) $item->quantity);
+            if ($qty <= 0) {
+                continue;
+            }
+
+            $optionValueId = (int) ($item->product_option_value_id ?? 0);
+            if ($optionValueId > 0) {
+                $optionRow = ProductOptionValue::query()->lockForUpdate()->find($optionValueId);
+                if ($optionRow) {
+                    $optionRow->stock_qty = max(0, (int) $optionRow->stock_qty) + $qty;
+                    $optionRow->save();
+                }
+
+                continue;
+            }
+
+            $productId = (int) ($item->product_id ?? 0);
+            if ($productId > 0) {
+                $product = Product::query()->lockForUpdate()->find($productId);
+                if ($product) {
+                    $product->stock_qty = max(0, (int) $product->stock_qty) + $qty;
+                    $product->save();
+                }
+            }
+        }
+
+        $beforeStatusId = (int) $locked->status_id;
+        $cancelledStatus = $this->resolveCancelledStatus();
+        if ($cancelledStatus && (int) $locked->status_id !== (int) $cancelledStatus->id) {
+            $locked->status_id = (int) $cancelledStatus->id;
+            OrderHistory::query()->create([
+                'order_id' => $locked->id,
+                'from_status_id' => $beforeStatusId > 0 ? $beforeStatusId : null,
+                'to_status_id' => (int) $cancelledStatus->id,
+                'changed_by' => $locked->user_id,
+                'comment' => 'CorvusPay callback: payment cancelled, stock restored.',
+            ]);
+        }
+
+        $payload[self::PAYLOAD_KEY] = array_merge($existing, [
+            'cancel_restocked_at' => now()->toIso8601String(),
+        ]);
+        $locked->paid_at = null;
+        $locked->payload = $payload;
+
+        return true;
     }
 
     /**
@@ -310,8 +404,27 @@ class CorvusPayFormService
     private function resolveMethodSettings(string $methodCode): array
     {
         $method = PaymentMethod::query()->where('code', $methodCode)->first();
+        $settings = is_array($method?->settings) ? $method->settings : [];
 
-        return is_array($method?->settings) ? $method->settings : [];
+        if (! $this->isCorvusCode($methodCode) || $this->hasRequiredSettings($settings)) {
+            return $settings;
+        }
+
+        $methods = PaymentMethod::query()
+            ->whereIn('code', ['corvus', 'corvuspay', 'corvus_pay'])
+            ->orderByRaw("CASE WHEN code = 'corvus' THEN 0 ELSE 1 END")
+            ->orderBy('id')
+            ->get();
+
+        foreach ($methods as $candidate) {
+            $candidateSettings = is_array($candidate->settings) ? $candidate->settings : [];
+
+            if ($this->hasRequiredSettings($candidateSettings)) {
+                return $candidateSettings;
+            }
+        }
+
+        return $settings;
     }
 
     private function resolveFormUrl(string $mode): string

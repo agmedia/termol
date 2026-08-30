@@ -311,6 +311,13 @@
                 @if ($this->isCorvusForm())
                     <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                         <p class="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-800">{{ __('CorvusPay settings (required)') }}</p>
+                        @if ($editingId)
+                            <p class="mb-3 rounded-lg px-3 py-2 text-xs font-semibold {{ $corvusCredentialsStored ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900' }}">
+                                {{ $corvusCredentialsStored
+                                    ? __('CorvusPay credentials are stored. Enter a new secret key only when replacing it.')
+                                    : __('CorvusPay credentials are missing. The payment method cannot be activated.') }}
+                            </p>
+                        @endif
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                             <div>
                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Mode') }}</label>
@@ -321,13 +328,13 @@
                                 @error('form.corvus_mode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                             </div>
                             <div>
-                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Store ID</label>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Store ID') }}</label>
                                 <input type="text" wire:model="form.corvus_store_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
                                 @error('form.corvus_store_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Secret key') }}</label>
-                                <input type="text" wire:model="form.corvus_secret_key" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
+                                <input type="password" wire:model="form.corvus_secret_key" autocomplete="new-password" placeholder="{{ $corvusCredentialsStored ? __('Leave blank to keep the stored secret') : '' }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring" />
                                 @error('form.corvus_secret_key') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                             </div>
                             <div>
@@ -352,8 +359,8 @@
                             <div>
                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Require complete') }}</label>
                                 <select wire:model="form.corvus_require_complete" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-200 focus:ring">
-                                    <option value="false">false (sale)</option>
-                                    <option value="true">true (preauth)</option>
+                                    <option value="false">{{ __('Immediate charge') }}</option>
+                                    <option value="true">{{ __('Preauthorization') }}</option>
                                 </select>
                                 @error('form.corvus_require_complete') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                             </div>
@@ -362,11 +369,11 @@
                                 <input type="text" value="{{ ($form['corvus_mode'] ?? 'test') === 'live' ? 'https://wallet.corvuspay.com/checkout/' : 'https://wallet.test.corvuspay.com/checkout/' }}" readonly class="w-full rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none" />
                             </div>
                             <div class="md:col-span-2">
-                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Success URL template</label>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Success URL template') }}</label>
                                 <input type="text" value="{{ rtrim(url('/'), '/').'/checkout/corvus/success' }}" readonly class="w-full rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none" />
                             </div>
                             <div class="md:col-span-2">
-                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Cancel URL template</label>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Cancel URL template') }}</label>
                                 <input type="text" value="{{ rtrim(url('/'), '/').'/checkout/corvus/cancel' }}" readonly class="w-full rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none" />
                             </div>
                         </div>

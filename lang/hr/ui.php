@@ -246,6 +246,8 @@ return [
         'payment_methods' => 'Načini plaćanja',
         'shipping_free' => 'Besplatno',
         'shipping_price' => 'Cijena dostave: :price',
+        'shipping_quote' => 'Cijena dostave potvrđuje se nakon slanja upita.',
+        'shipping_calculated_at_checkout' => 'Izračunava se u košarici prema adresi i težini.',
         'shipping_free_over' => 'Besplatno za narudžbe iznad :amount',
         'payment_fee' => 'Naknada: :fee',
         'no_shipping_methods' => 'Trenutno nema aktivnih načina dostave.',

@@ -245,6 +245,8 @@ return [
         'payment_methods' => 'Payment methods',
         'shipping_free' => 'Free',
         'shipping_price' => 'Shipping price: :price',
+        'shipping_quote' => 'The shipping price is confirmed after the request is submitted.',
+        'shipping_calculated_at_checkout' => 'Calculated at checkout based on the address and weight.',
         'shipping_free_over' => 'Free for orders over :amount',
         'payment_fee' => 'Fee: :fee',
         'no_shipping_methods' => 'There are currently no active shipping methods.',

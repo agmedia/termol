@@ -16,6 +16,7 @@ use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
 use App\Services\Front\ProductColorVariantService;
 use App\Services\Front\WishlistService;
+use App\Services\Payments\CorvusPayFormService;
 use App\Services\Pricing\ProductPricePresentationService;
 use App\Services\Pricing\TaxPricingService;
 use App\Support\ProductMaterialLabel;
@@ -381,17 +382,28 @@ class ProductController extends Controller
         $fitFinderSelection = $this->resolveFitFinderSelection($request, $product);
         $colorVariants = app(ProductColorVariantService::class)->variantsFor($product, $locale, $fallbackLocale);
         $shippingMethods = ShippingMethod::query()
-            ->select(['id', 'code', 'name', 'description', 'price', 'free_over', 'sort_order'])
+            ->select(['id', 'code', 'name', 'description', 'pricing_type', 'price', 'free_over', 'sort_order'])
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
         $paymentMethods = PaymentMethod::query()
-            ->select(['id', 'code', 'name', 'description', 'fee_type', 'fee_value', 'sort_order'])
+            ->select(['id', 'code', 'name', 'provider', 'description', 'fee_type', 'fee_value', 'settings', 'sort_order'])
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->filter(fn (PaymentMethod $method): bool => app(CorvusPayFormService::class)->canBeOffered($method))
+            ->reject(fn (PaymentMethod $method): bool => in_array(
+                strtolower(trim((string) $method->code)),
+                ['quote_request', 'manual_quote'],
+                true,
+            ) || in_array(
+                strtolower(trim((string) $method->provider)),
+                ['quote_request', 'manual_quote'],
+                true,
+            ))
+            ->values();
         $taxRate = app(TaxPricingService::class)->resolveRateForProduct($product);
 
         $response = response()->view($this->frontendView($request, 'products.show'), [

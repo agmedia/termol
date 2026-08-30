@@ -15,7 +15,7 @@ return [
     'mbe' => [
         'methods' => [
             'mbe_mainland_hr' => [
-                'name' => 'MBE Boxes - dostava kopno',
+                'name' => 'MBE Boxes – dostava na kopno',
                 'description' => 'Dostava na području Republike Hrvatske (kopno) prema MBE Boxes cjeniku.',
                 'destination_scope' => 'hr_mainland',
                 'sort_order' => 80,
@@ -35,8 +35,8 @@ return [
                 ],
             ],
             'mbe_islands_hr' => [
-                'name' => 'MBE Boxes - dostava otoci',
-                'description' => 'Dostava na hrvatske otoke (s mostom i bez mosta) prema MBE Boxes cjeniku.',
+                'name' => 'MBE Boxes – dostava na otoke',
+                'description' => 'Dostava na hrvatske otoke prema MBE Boxes cjeniku i politici odabranoj u administraciji.',
                 'destination_scope' => 'hr_islands',
                 'sort_order' => 81,
                 'rates' => [
@@ -55,6 +55,11 @@ return [
                 ],
             ],
         ],
+    ],
+
+    'islands' => [
+        'setting_key' => 'shipping_hr_island_policy',
+        'default_policy' => 'unconnected_only',
     ],
 
     'pickup' => [

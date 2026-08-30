@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Admin\Settings\Local;
 
-use App\Services\Front\AddressDirectoryService;
 use App\Models\Settings\Local\Currency;
 use App\Models\Settings\Local\GeoZone;
 use App\Models\Settings\Local\GeoZoneCountry;
@@ -12,6 +11,7 @@ use App\Models\Settings\Local\PaymentMethod;
 use App\Models\Settings\Local\Region;
 use App\Models\Settings\Local\ShippingMethod;
 use App\Models\Settings\Local\TaxRate;
+use App\Services\Front\AddressDirectoryService;
 use App\Services\Settings\LocalSettingsService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Validation\Rule;
@@ -23,16 +23,34 @@ class ResourceManager extends Component
     use WithPagination;
 
     private const WSPAY_FORM_URL_TEST = 'https://formtest.wspay.biz/authorization.aspx';
+
     private const WSPAY_FORM_URL_LIVE = 'https://form.wspay.biz/authorization.aspx';
+
     private const CORVUS_FORM_URL_TEST = 'https://wallet.test.corvuspay.com/checkout/';
+
     private const CORVUS_FORM_URL_LIVE = 'https://wallet.corvuspay.com/checkout/';
+
     private const KEKS_SELL_URL_TEST = 'https://kekspayuat.erstebank.hr/galebpay';
+
     private const KEKS_SELL_URL_LIVE = 'https://kekspay.hr/galebpay';
 
+    private const SENSITIVE_PAYMENT_SETTING_KEYS = [
+        'wspay_secret_key',
+        'corvus_secret_key',
+        'keks_des_key',
+        'keks_advice_token',
+        'keks_advice_password',
+    ];
+
     public string $resource = 'payment-methods';
+
     public array $form = [];
+
     public ?int $editingId = null;
+
     public string $search = '';
+
+    public bool $corvusCredentialsStored = false;
 
     /**
      * @var array<string, array<string, mixed>>
@@ -118,7 +136,7 @@ class ResourceManager extends Component
             $data['country_code'] = strtoupper(trim((string) ($data['country_code'] ?? '')));
         }
 
-        if ($this->hasColumn('is_default') && $this->hasColumn('is_active') && !empty($data['is_default'])) {
+        if ($this->hasColumn('is_default') && $this->hasColumn('is_active') && ! empty($data['is_default'])) {
             // Default value must remain active.
             $data['is_active'] = true;
         }
@@ -134,9 +152,18 @@ class ResourceManager extends Component
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     $this->addError('form.settings_text', __('Settings JSON is invalid.'));
                     $this->dispatch('notify', type: 'error', message: __('Settings JSON is invalid.'));
+
                     return;
                 }
-                $settings = is_array($decoded) ? $decoded : [];
+                $decoded = is_array($decoded) ? $decoded : [];
+                if ($this->resource === 'payment-methods') {
+                    foreach (self::SENSITIVE_PAYMENT_SETTING_KEYS as $key) {
+                        unset($decoded[$key]);
+                    }
+                    $settings = array_replace($settings, $decoded);
+                } else {
+                    $settings = $decoded;
+                }
             }
             $settings = $this->mergePaymentMethodSettings($settings, $data);
             $settings = $this->mergeBankTransferUpiSettings($settings, $data);
@@ -148,27 +175,40 @@ class ResourceManager extends Component
                 if (! $this->hasRequiredBankTransferUpiSettings($settings)) {
                     $this->addError('form.upi_receiver_name', __('UPI receiver name, street, place and IBAN are required for bank transfer.'));
                     $this->dispatch('notify', type: 'error', message: __('UPI receiver name, street, place and IBAN are required for bank transfer.'));
+
                     return;
                 }
             }
-            if ($this->isBoxNowCode((string) ($data['code'] ?? '')) && trim((string) ($settings['boxnow_partner_id'] ?? '')) === '') {
-                $this->addError('form.boxnow_partner_id', __('BOX NOW partner ID is required for boxnow shipping method.'));
-                $this->dispatch('notify', type: 'error', message: __('BOX NOW partner ID is required for boxnow shipping method.'));
+            if (
+                $this->isBoxNowCode((string) ($data['code'] ?? ''))
+                && ! empty($data['is_active'])
+                && ! $this->boxNowRecordIsReady($editingRecord, $settings)
+            ) {
+                $this->addError('form.boxnow_partner_id', __('Prije uključivanja postavite BOX NOW Partner ID, limite i blokiranje artikala bez mjera pod Prodaja → Dostava.'));
+                $this->dispatch('notify', type: 'error', message: __('Sigurnosne postavke BOX NOW-a nisu dovršene.'));
+
                 return;
             }
             if ($this->isWspayCode((string) ($data['code'] ?? '')) && ! $this->hasRequiredWspaySettings($settings)) {
                 $this->addError('form.wspay_shop_id', __('WSPay Shop ID and Secret Key are required.'));
                 $this->dispatch('notify', type: 'error', message: __('WSPay Shop ID and Secret Key are required.'));
+
                 return;
             }
-            if ($this->isCorvusCode((string) ($data['code'] ?? '')) && ! $this->hasRequiredCorvusSettings($settings)) {
+            if (
+                $this->isCorvusCode((string) ($data['code'] ?? ''))
+                && ! empty($data['is_active'])
+                && ! $this->hasRequiredCorvusSettings($settings)
+            ) {
                 $this->addError('form.corvus_store_id', __('CorvusPay Store ID and Secret Key are required.'));
                 $this->dispatch('notify', type: 'error', message: __('CorvusPay Store ID and Secret Key are required.'));
+
                 return;
             }
             if ($this->isKeksCode((string) ($data['code'] ?? '')) && ! $this->hasRequiredKeksSettings($settings)) {
                 $this->addError('form.keks_cid', __('KEKS Pay CID, TID and DES key are required.'));
                 $this->dispatch('notify', type: 'error', message: __('KEKS Pay CID, TID and DES key are required.'));
+
                 return;
             }
             $data['settings'] = $settings;
@@ -216,7 +256,7 @@ class ResourceManager extends Component
             $record = $modelClass::query()->create($data);
         }
 
-        if ($this->hasColumn('is_default') && !empty($data['is_default'])) {
+        if ($this->hasColumn('is_default') && ! empty($data['is_default'])) {
             $modelClass::query()
                 ->where('id', '!=', $record->id)
                 ->update(['is_default' => false]);
@@ -233,18 +273,28 @@ class ResourceManager extends Component
         $record = $modelClass::query()->findOrFail($id);
         $this->editingId = $record->id;
         $settings = is_array($record->settings ?? null) ? $record->settings : [];
+        $this->corvusCredentialsStored = $this->isCorvusCode((string) ($record->code ?? ''))
+            && $this->hasRequiredCorvusSettings($settings);
 
         $defaults = $this->defaultForm();
         foreach ($defaults as $key => $default) {
             if ($key === 'settings_text') {
                 $this->form[$key] = $this->hasColumn('settings')
-                    ? json_encode($record->settings ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+                    ? json_encode($this->settingsForAdmin($settings), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
                     : '';
+
+                continue;
+            }
+
+            if (in_array($key, self::SENSITIVE_PAYMENT_SETTING_KEYS, true)) {
+                $this->form[$key] = '';
+
                 continue;
             }
 
             if (in_array($key, $this->booleanFields(), true)) {
                 $this->form[$key] = (bool) ($record->{$key} ?? false);
+
                 continue;
             }
 
@@ -256,6 +306,7 @@ class ResourceManager extends Component
                 || in_array($key, ['boxnow_partner_id', 'default_order_status_id'], true)
             ) {
                 $this->form[$key] = (string) ($settings[$key] ?? $default);
+
                 continue;
             }
 
@@ -277,19 +328,47 @@ class ResourceManager extends Component
 
     public function toggleActive(int $id): void
     {
-        if (!$this->hasColumn('is_active')) {
+        if (! $this->hasColumn('is_active')) {
             return;
         }
 
         $modelClass = $this->modelClass();
         $record = $modelClass::query()->findOrFail($id);
-        $record->update(['is_active' => !$record->is_active]);
+
+        if (
+            $this->resource === 'payment-methods'
+            && ! $record->is_active
+            && $this->isCorvusCode((string) ($record->code ?? ''))
+            && ! $this->hasRequiredCorvusSettings(is_array($record->settings) ? $record->settings : [])
+        ) {
+            $this->addError('form.corvus_store_id', __('CorvusPay Store ID and Secret Key are required.'));
+            $this->dispatch('notify', type: 'error', message: __('CorvusPay Store ID and Secret Key are required.'));
+
+            return;
+        }
+
+        if (
+            $this->resource === 'shipping-methods'
+            && ! $record->is_active
+            && $this->isBoxNowCode((string) ($record->code ?? ''))
+            && ! $this->boxNowRecordIsReady(
+                $record instanceof ShippingMethod ? $record : null,
+                is_array($record->settings) ? $record->settings : [],
+            )
+        ) {
+            $this->addError('form.boxnow_partner_id', __('Prije uključivanja postavite BOX NOW Partner ID, limite i blokiranje artikala bez mjera pod Prodaja → Dostava.'));
+            $this->dispatch('notify', type: 'error', message: __('Sigurnosne postavke BOX NOW-a nisu dovršene.'));
+
+            return;
+        }
+
+        $record->update(['is_active' => ! $record->is_active]);
         $this->dispatch('notify', type: 'info', message: $record->is_active ? __('Item switched to active.') : __('Item switched to inactive.'));
     }
 
     public function makeDefault(int $id): void
     {
-        if (!$this->hasColumn('is_default')) {
+        if (! $this->hasColumn('is_default')) {
             return;
         }
 
@@ -307,6 +386,7 @@ class ResourceManager extends Component
     public function geoZoneOptions(): array
     {
         $zones = app(LocalSettingsService::class)->active(GeoZone::class);
+
         return $zones->pluck('name', 'id')->all();
     }
 
@@ -351,6 +431,7 @@ class ResourceManager extends Component
     private function resetForm(): void
     {
         $this->editingId = null;
+        $this->corvusCredentialsStored = false;
         $this->form = $this->defaultForm();
     }
 
@@ -519,6 +600,7 @@ class ResourceManager extends Component
         }
 
         $allowed = $this->resources[$this->resource]['fields'];
+
         return collect($rules)
             ->filter(function ($v, $k) use ($allowed): bool {
                 $field = str_replace('form.', '', $k);
@@ -670,6 +752,23 @@ class ResourceManager extends Component
     private function isKeksCode(string $code): bool
     {
         return in_array(strtolower(trim($code)), ['keks', 'keks_pay', 'kekspay'], true);
+    }
+
+    /** @param array<string, mixed> $settings */
+    private function boxNowRecordIsReady(?ShippingMethod $method, array $settings): bool
+    {
+        return $method !== null
+            && trim((string) ($settings['boxnow_partner_id'] ?? '')) !== ''
+            && (string) $method->service_type === 'parcel_locker'
+            && (string) $method->pricing_type === 'flat'
+            && (string) $method->missing_measurements_policy === 'block'
+            && (float) $method->max_weight_kg > 0
+            && (float) $method->max_length_cm > 0
+            && (float) $method->max_width_cm > 0
+            && (float) $method->max_height_cm > 0
+            && ! (bool) $method->allows_fragile
+            && ! (bool) $method->allows_oversized
+            && ! (bool) $method->allows_heavy;
     }
 
     /**
@@ -913,6 +1012,22 @@ class ResourceManager extends Component
         }
 
         return true;
+    }
+
+    /**
+     * Secrets have dedicated replacement fields and must never be hydrated back
+     * into the browser through the generic settings JSON editor.
+     *
+     * @param  array<string, mixed>  $settings
+     * @return array<string, mixed>
+     */
+    private function settingsForAdmin(array $settings): array
+    {
+        foreach (self::SENSITIVE_PAYMENT_SETTING_KEYS as $key) {
+            unset($settings[$key]);
+        }
+
+        return $settings;
     }
 
     /**

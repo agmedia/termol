@@ -27,6 +27,7 @@
         : $order->totals->reject(fn ($total) => $total->code === 'loyalty_redemption');
     $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
     $glsPoint = is_array($order->payload['shipping']['gls_dpm'] ?? null) ? $order->payload['shipping']['gls_dpm'] : null;
+    $shippingDestination = is_array($order->payload['shipping']['destination'] ?? null) ? $order->payload['shipping']['destination'] : null;
     $glsState = is_array($order->payload['gls'] ?? null) ? $order->payload['gls'] : [];
     $glsShipment = is_array($glsState['shipment'] ?? null) ? $glsState['shipment'] : [];
     $glsLastError = is_array($glsState['last_error'] ?? null) ? $glsState['last_error'] : [];
@@ -105,6 +106,27 @@
                         @if (!empty($glsPoint['address_line_1']) || !empty($glsPoint['postal_code']) || !empty($glsPoint['city']))
                             <p class="text-xs text-slate-600">{{ trim(($glsPoint['address_line_1'] ?? '').', '.($glsPoint['postal_code'] ?? '').' '.($glsPoint['city'] ?? ''), ', ') }}</p>
                         @endif
+                    @endif
+                    @if ($shippingDestination)
+                        @php
+                            $destinationScopeLabel = match ($shippingDestination['scope'] ?? null) {
+                                'hr_mainland' => __('Kopno'),
+                                'hr_islands' => __('Otok'),
+                                default => __('Nije klasificirano'),
+                            };
+                            $destinationPolicyLabel = match ($shippingDestination['policy'] ?? null) {
+                                'all_islands' => __('svi otoci'),
+                                'unconnected_only' => __('samo otoci bez cestovne veze'),
+                                default => __('nepoznato pravilo'),
+                            };
+                        @endphp
+                        <div class="mt-2 rounded-lg border border-cyan-200 bg-cyan-50 p-2 text-xs text-slate-700">
+                            <p><strong>{{ __('Odredište') }}:</strong> {{ $destinationScopeLabel }}</p>
+                            @if (!empty($shippingDestination['island']))
+                                <p><strong>{{ __('Otok') }}:</strong> {{ $shippingDestination['island'] }}</p>
+                            @endif
+                            <p><strong>{{ __('Pravilo') }}:</strong> {{ $destinationPolicyLabel }}</p>
+                        </div>
                     @endif
                 </div>
             </div>

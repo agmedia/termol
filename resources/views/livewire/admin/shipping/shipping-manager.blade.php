@@ -18,6 +18,30 @@
         </div>
     </section>
 
+    <section class="admin-panel border border-cyan-200 bg-cyan-50 p-5">
+        <form wire:submit="saveIslandPolicy" class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div class="max-w-3xl">
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-800">{{ __('Kopno i otoci') }}</p>
+                <h2 class="mt-1 text-lg font-semibold text-slate-900">{{ __('Kako obračunati otočnu dostavu?') }}</h2>
+                <p class="mt-1 text-sm text-slate-600">{{ __('Kupac ništa ne odabire. Sustav prema adresi automatski prikazuje MBE tarifu za kopno ili otoke.') }}</p>
+            </div>
+            <div class="flex w-full flex-col gap-2 sm:flex-row sm:items-end xl:w-auto">
+                <div class="w-full sm:w-80">
+                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">{{ __('Pravilo klasifikacije') }}</label>
+                    <select wire:model="islandPolicy" class="admin-select w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                        @foreach ($islandPolicyOptions as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    @error('islandPolicy') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <button type="submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">
+                    {{ __('Spremi pravilo') }}
+                </button>
+            </div>
+        </form>
+    </section>
+
     <section class="admin-panel admin-panel-soft p-5">
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             @forelse ($rows as $row)

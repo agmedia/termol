@@ -5,7 +5,10 @@ namespace Tests\Feature\Shipping;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Product\Product;
 use App\Models\Settings\Local\ShippingMethod;
+use App\Services\Settings\SystemSettingsService;
+use App\Services\Shipping\CroatianIslandDestinationClassifier;
 use App\Services\Shipping\ShippingCalculator;
+use Database\Seeders\SettingsLocalSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -13,14 +16,17 @@ class TermolMbeShippingConfigurationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_mbe_tariffs_are_configured_inactive_with_gapless_thousandth_kg_boundaries(): void
+    public function test_mbe_tariffs_are_active_with_destination_scopes_and_gapless_thousandth_kg_boundaries(): void
     {
         $mainland = ShippingMethod::query()->with('rates')->where('code', 'mbe_mainland_hr')->firstOrFail();
         $islands = ShippingMethod::query()->with('rates')->where('code', 'mbe_islands_hr')->firstOrFail();
         $pickup = ShippingMethod::query()->where('code', 'pickup')->firstOrFail();
+        $missingWeightQuote = ShippingMethod::query()->where('code', 'mbe_missing_weight_quote_hr')->firstOrFail();
 
-        $this->assertFalse($mainland->is_active);
-        $this->assertFalse($islands->is_active);
+        $this->assertTrue($mainland->is_active);
+        $this->assertTrue($islands->is_active);
+        $this->assertSame('MBE Boxes – dostava na kopno', $mainland->name);
+        $this->assertSame('MBE Boxes – dostava na otoke', $islands->name);
         $this->assertSame('mbe', $mainland->carrier);
         $this->assertSame('weight_tiers', $mainland->pricing_type);
         $this->assertSame('block', $mainland->missing_measurements_policy);
@@ -28,11 +34,18 @@ class TermolMbeShippingConfigurationTest extends TestCase
         $this->assertSame('hr_islands', data_get($islands->settings, 'destination_scope'));
         $this->assertSame(12, $mainland->rates->count());
         $this->assertSame(12, $islands->rates->count());
-        $this->assertFalse($pickup->is_active);
+        $this->assertTrue($pickup->is_active);
         $this->assertSame('pickup', $pickup->service_type);
         $this->assertSame('free', $pickup->pricing_type);
         $this->assertSame('Lapovačka 11A, 32100 Vinkovci', data_get($pickup->settings, 'pickup_address'));
         $this->assertSame('Radnim danom 08:00–16:00', data_get($pickup->settings, 'pickup_opening_hours'));
+        $this->assertTrue($missingWeightQuote->is_active);
+        $this->assertSame('quote', $missingWeightQuote->pricing_type);
+        $this->assertTrue((bool) data_get($missingWeightQuote->settings, 'fallback_for_missing_weight'));
+        $this->assertSame(
+            ['hr_mainland', 'hr_islands'],
+            data_get($missingWeightQuote->settings, 'destination_scopes'),
+        );
 
         $this->assertGaplessRates($mainland);
         $this->assertGaplessRates($islands);
@@ -171,6 +184,215 @@ class TermolMbeShippingConfigurationTest extends TestCase
         $this->assertNotNull($pickupQuote);
         $this->assertSame('free', $pickupQuote['pricing_type']);
         $this->assertSame(0.0, $pickupQuote['price']);
+    }
+
+    public function test_missing_weight_quote_is_used_only_when_cart_weight_is_unknown(): void
+    {
+        $method = ShippingMethod::query()
+            ->with('rates')
+            ->where('code', 'mbe_missing_weight_quote_hr')
+            ->firstOrFail();
+        $product = new Product([
+            'code' => 'missing-weight-product',
+            'sku' => 'MISSING-WEIGHT',
+            'is_active' => true,
+            'base_price' => 100,
+            'stock_qty' => 1,
+            'weight_kg' => null,
+            'shipping_labels' => [],
+        ]);
+        $product->forceFill(['id' => 300]);
+        $product->setRelation('packages', collect());
+        $product->setRelation('categories', collect());
+        $lines = collect([['product' => $product, 'quantity' => 1]]);
+
+        $quote = app(ShippingCalculator::class)->quote($method, $lines, 100);
+
+        $this->assertNotNull($quote);
+        $this->assertTrue($quote['requires_quote']);
+
+        $product->weight_kg = 2;
+        $this->assertNull(app(ShippingCalculator::class)->quote($method, $lines, 100));
+
+        $product->weight_kg = null;
+        $product->shipping_labels = ['quote_shipping'];
+        $this->assertNull(app(ShippingCalculator::class)->quote($method, $lines, 100));
+    }
+
+    public function test_activation_migration_localizes_methods_without_overwriting_boxnow_or_admin_policy(): void
+    {
+        ShippingMethod::query()->create([
+            'code' => 'standard',
+            'name' => 'Standard Shipping',
+            'price' => 4.99,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        ShippingMethod::query()->create([
+            'code' => 'express',
+            'name' => 'Express Shipping',
+            'price' => 8.99,
+            'is_active' => true,
+            'sort_order' => 2,
+        ]);
+        $boxNow = ShippingMethod::query()->create([
+            'code' => 'boxnow',
+            'name' => 'BOX NOW Locker',
+            'carrier' => 'boxnow',
+            'service_type' => 'parcel_locker',
+            'pricing_type' => 'flat',
+            'price' => 3.77,
+            'is_active' => true,
+            'sort_order' => 3,
+            'settings' => [
+                'boxnow_partner_id' => 'partner-existing',
+                'merchant_flag' => 'preserve-me',
+            ],
+        ]);
+        $legacyBoxNow = ShippingMethod::query()->create([
+            'code' => 'box_now',
+            'name' => 'Duplicate legacy locker',
+            'price' => 2.99,
+            'is_active' => true,
+            'sort_order' => 4,
+            'settings' => [
+                'boxnow_partner_id' => 'legacy-partner',
+            ],
+        ]);
+        app(SystemSettingsService::class)->put(
+            CroatianIslandDestinationClassifier::SETTING_KEY,
+            CroatianIslandDestinationClassifier::POLICY_ALL_ISLANDS,
+        );
+        $rateIds = ShippingMethod::query()
+            ->whereIn('code', ['mbe_mainland_hr', 'mbe_islands_hr'])
+            ->with('rates')
+            ->get()
+            ->flatMap->rates
+            ->pluck('id')
+            ->sort()
+            ->values()
+            ->all();
+
+        $migration = require database_path('migrations/2026_08_30_083000_enable_hr_destination_shipping.php');
+        $migration->up();
+        $migration->up();
+
+        $this->assertDatabaseHas('shipping_methods', [
+            'code' => 'standard',
+            'name' => 'Standardna dostava',
+            'is_active' => false,
+            'price' => 4.99,
+        ]);
+        $this->assertDatabaseHas('shipping_methods', [
+            'code' => 'express',
+            'name' => 'Ekspresna dostava',
+            'is_active' => false,
+            'price' => 8.99,
+        ]);
+        $this->assertSame('BOX NOW paketomat', $boxNow->refresh()->name);
+        $this->assertTrue($boxNow->is_active);
+        $this->assertSame('3.77', $boxNow->price);
+        $this->assertSame('partner-existing', data_get($boxNow->settings, 'boxnow_partner_id'));
+        $this->assertSame('preserve-me', data_get($boxNow->settings, 'merchant_flag'));
+        $this->assertFalse($legacyBoxNow->refresh()->is_active);
+        $this->assertSame(1, ShippingMethod::query()
+            ->whereIn('code', ['boxnow', 'box_now'])
+            ->where('is_active', true)
+            ->count());
+        $this->assertSame(
+            CroatianIslandDestinationClassifier::POLICY_ALL_ISLANDS,
+            app(SystemSettingsService::class)->get(CroatianIslandDestinationClassifier::SETTING_KEY),
+        );
+        $this->assertSame(
+            $rateIds,
+            ShippingMethod::query()
+                ->whereIn('code', ['mbe_mainland_hr', 'mbe_islands_hr'])
+                ->with('rates')
+                ->get()
+                ->flatMap->rates
+                ->pluck('id')
+                ->sort()
+                ->values()
+                ->all(),
+        );
+    }
+
+    public function test_local_settings_seeder_creates_a_fully_configured_boxnow_method(): void
+    {
+        ShippingMethod::query()->whereIn('code', ['boxnow', 'box_now'])->delete();
+
+        $this->seed(SettingsLocalSeeder::class);
+
+        $boxNow = ShippingMethod::query()->where('code', 'boxnow')->firstOrFail();
+
+        $this->assertSame('BOX NOW paketomat', $boxNow->name);
+        $this->assertSame('boxnow', $boxNow->carrier);
+        $this->assertSame('parcel_locker', $boxNow->service_type);
+        $this->assertSame('flat', $boxNow->pricing_type);
+        $this->assertSame('20.000', $boxNow->max_weight_kg);
+        $this->assertSame('60.00', $boxNow->max_length_cm);
+        $this->assertSame('45.00', $boxNow->max_width_cm);
+        $this->assertSame('36.00', $boxNow->max_height_cm);
+        $this->assertFalse($boxNow->allows_fragile);
+        $this->assertFalse($boxNow->allows_oversized);
+        $this->assertFalse($boxNow->allows_heavy);
+        $this->assertSame('block', $boxNow->missing_measurements_policy);
+        $this->assertFalse($boxNow->is_active);
+        $this->assertSame('', data_get($boxNow->settings, 'boxnow_partner_id'));
+    }
+
+    public function test_local_settings_seeder_reuses_legacy_boxnow_alias_and_preserves_merchant_settings(): void
+    {
+        ShippingMethod::query()->whereIn('code', ['boxnow', 'box_now'])->delete();
+        $legacy = ShippingMethod::query()->create([
+            'code' => 'box_now',
+            'name' => 'Legacy locker',
+            'price' => 4.25,
+            'is_active' => false,
+            'sort_order' => 99,
+            'settings' => [
+                'boxnow_partner_id' => 'partner-existing',
+                'merchant_flag' => 'preserve-me',
+            ],
+        ]);
+
+        $this->seed(SettingsLocalSeeder::class);
+
+        $this->assertDatabaseMissing('shipping_methods', ['code' => 'boxnow']);
+        $this->assertSame('BOX NOW paketomat', $legacy->refresh()->name);
+        $this->assertSame('boxnow', $legacy->carrier);
+        $this->assertSame('parcel_locker', $legacy->service_type);
+        $this->assertFalse($legacy->is_active);
+        $this->assertSame('block', $legacy->missing_measurements_policy);
+        $this->assertSame('partner-existing', data_get($legacy->settings, 'boxnow_partner_id'));
+        $this->assertSame('preserve-me', data_get($legacy->settings, 'merchant_flag'));
+    }
+
+    public function test_local_settings_seeder_deactivates_a_duplicate_boxnow_alias(): void
+    {
+        ShippingMethod::query()->whereIn('code', ['boxnow', 'box_now'])->delete();
+        $canonical = ShippingMethod::query()->create([
+            'code' => 'boxnow',
+            'name' => 'Canonical locker',
+            'price' => 2.99,
+            'is_active' => true,
+            'sort_order' => 6,
+            'settings' => ['boxnow_partner_id' => 'canonical-partner'],
+        ]);
+        $legacy = ShippingMethod::query()->create([
+            'code' => 'box_now',
+            'name' => 'Legacy duplicate locker',
+            'price' => 2.99,
+            'is_active' => true,
+            'sort_order' => 7,
+            'settings' => ['boxnow_partner_id' => 'legacy-partner'],
+        ]);
+
+        $this->seed(SettingsLocalSeeder::class);
+
+        $this->assertTrue($canonical->refresh()->is_active);
+        $this->assertFalse($legacy->refresh()->is_active);
+        $this->assertSame('canonical-partner', data_get($canonical->settings, 'boxnow_partner_id'));
     }
 
     public function test_rollback_removes_only_methods_created_by_the_configuration(): void

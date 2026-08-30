@@ -381,13 +381,11 @@ class StorefrontFrontFeatureTest extends TestCase
             'status' => 'received',
         ]);
 
-        Mail::assertSent(ContractWithdrawalReceiptMail::class, static fn ($mail): bool =>
-            $mail->hasTo('buyer@example.test')
+        Mail::assertSent(ContractWithdrawalReceiptMail::class, static fn ($mail): bool => $mail->hasTo('buyer@example.test')
             && $mail->withdrawal->order_number === 'R-1001'
             && $mail->withdrawal->consumer_notified_at !== null
         );
-        Mail::assertSent(ContractWithdrawalAdminMail::class, static fn ($mail): bool =>
-            $mail->hasTo('withdrawals@example.test')
+        Mail::assertSent(ContractWithdrawalAdminMail::class, static fn ($mail): bool => $mail->hasTo('withdrawals@example.test')
             && $mail->withdrawal->order_number === 'R-1001'
         );
     }
@@ -2394,6 +2392,22 @@ class StorefrontFrontFeatureTest extends TestCase
             'is_active' => false,
             'sort_order' => 2,
         ]);
+        ShippingMethod::query()->create([
+            'code' => 'product-page-weight-shipping',
+            'name' => 'Weight based product page shipping',
+            'pricing_type' => 'weight_tiers',
+            'price' => 0,
+            'is_active' => true,
+            'sort_order' => 3,
+        ]);
+        ShippingMethod::query()->create([
+            'code' => 'product-page-quote-shipping',
+            'name' => 'Quote product page shipping',
+            'pricing_type' => 'quote',
+            'price' => 0,
+            'is_active' => true,
+            'sort_order' => 4,
+        ]);
         PaymentMethod::query()->create([
             'code' => 'product-page-active-payment',
             'name' => 'Enabled product page payment',
@@ -2413,6 +2427,32 @@ class StorefrontFrontFeatureTest extends TestCase
             'is_active' => false,
             'sort_order' => 2,
         ]);
+        PaymentMethod::query()->updateOrCreate(
+            ['code' => 'quote_request'],
+            [
+                'name' => 'Checkout-only quote request',
+                'provider' => 'manual_quote',
+                'fee_type' => 'fixed',
+                'fee_value' => 0,
+                'is_active' => true,
+                'sort_order' => 3,
+            ],
+        );
+        PaymentMethod::query()->updateOrCreate(
+            ['code' => 'corvus'],
+            [
+                'name' => 'Configured CorvusPay',
+                'provider' => 'corvuspay',
+                'fee_type' => 'fixed',
+                'fee_value' => 0,
+                'is_active' => true,
+                'sort_order' => 4,
+                'settings' => [
+                    'corvus_store_id' => 'test-store',
+                    'corvus_secret_key' => 'test-secret',
+                ],
+            ],
+        );
 
         $this->get('/product/'.$slug)
             ->assertOk()
@@ -2421,9 +2461,19 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('Enabled product page shipping')
             ->assertSee('Visible delivery description.')
             ->assertDontSee('Disabled product page shipping')
+            ->assertSeeInOrder([
+                'Weight based product page shipping',
+                'Calculated at checkout based on the address and weight.',
+            ])
+            ->assertSeeInOrder([
+                'Quote product page shipping',
+                'The shipping price is confirmed after the request is submitted.',
+            ])
             ->assertSee('Enabled product page payment')
             ->assertSee('Visible payment description.')
-            ->assertDontSee('Disabled product page payment');
+            ->assertDontSee('Disabled product page payment')
+            ->assertDontSee('Checkout-only quote request')
+            ->assertSee('Configured CorvusPay');
     }
 
     public function test_product_detail_renders_material_feature_labels_under_icons(): void

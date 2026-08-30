@@ -162,10 +162,10 @@ class SettingsLocalSeeder extends Seeder
         PaymentMethod::updateOrCreate(
             ['code' => 'cod'],
             [
-                'name' => 'Cash on Delivery',
+                'name' => 'Plaćanje pouzećem',
                 'provider' => 'cod',
                 'geo_zone_id' => $hr->id,
-                'description' => 'Pay in cash when receiving the package.',
+                'description' => 'Plaćanje gotovinom dostavljaču prilikom preuzimanja pošiljke.',
                 'fee_type' => 'fixed',
                 'fee_value' => 0,
                 'is_active' => true,
@@ -175,10 +175,10 @@ class SettingsLocalSeeder extends Seeder
         PaymentMethod::updateOrCreate(
             ['code' => 'bank'],
             [
-                'name' => 'Bank Transfer',
+                'name' => 'Uplata na račun',
                 'provider' => 'bank',
                 'geo_zone_id' => null,
-                'description' => 'Manual transfer by bank wire.',
+                'description' => 'Plaćanje prema podacima za uplatu koji se prikazuju nakon narudžbe.',
                 'fee_type' => 'fixed',
                 'fee_value' => 0,
                 'is_active' => true,
@@ -188,27 +188,40 @@ class SettingsLocalSeeder extends Seeder
         PaymentMethod::updateOrCreate(
             ['code' => 'pickup'],
             [
-                'name' => 'Pay on Pickup',
+                'name' => 'Plaćanje pri osobnom preuzimanju',
                 'provider' => 'pickup',
                 'geo_zone_id' => $hr->id,
-                'description' => 'Payment in store pickup location.',
+                'description' => 'Plaćanje prilikom osobnog preuzimanja robe na lokaciji Termola.',
                 'fee_type' => 'fixed',
                 'fee_value' => 0,
                 'is_active' => true,
                 'sort_order' => 3,
             ]
         );
+        $quoteRequest = PaymentMethod::query()->firstOrNew(['code' => 'quote_request']);
+        $quoteRequestWasExisting = $quoteRequest->exists;
+        $quoteRequestWasActive = (bool) $quoteRequest->is_active;
+        $quoteRequest->fill([
+            'name' => 'Plaćanje nakon potvrde ponude',
+            'provider' => 'manual_quote',
+            'geo_zone_id' => null,
+            'description' => 'Narudžba se šalje bez naplate; Termol naknadno potvrđuje konačnu cijenu dostave i način plaćanja.',
+            'fee_type' => 'fixed',
+            'fee_value' => 0,
+            'is_active' => $quoteRequestWasExisting ? $quoteRequestWasActive : true,
+            'sort_order' => 4,
+        ])->save();
         PaymentMethod::updateOrCreate(
             ['code' => 'wspay'],
             [
                 'name' => 'WSPay',
                 'provider' => 'wspay',
                 'geo_zone_id' => null,
-                'description' => 'Card payment via WSPay form redirect.',
+                'description' => 'Neaktivna kartična integracija; Termol za kartično plaćanje koristi CorvusPay.',
                 'fee_type' => 'fixed',
                 'fee_value' => 0,
                 'is_active' => false,
-                'sort_order' => 4,
+                'sort_order' => 5,
                 'settings' => [
                     'wspay_mode' => 'test',
                     'wspay_form_url' => 'https://formtest.wspay.biz/authorization.aspx',
@@ -216,26 +229,67 @@ class SettingsLocalSeeder extends Seeder
                 ],
             ]
         );
-        PaymentMethod::updateOrCreate(
-            ['code' => 'corvus'],
-            [
-                'name' => 'CorvusPay',
-                'provider' => 'corvuspay',
-                'geo_zone_id' => null,
-                'description' => 'Card payment via CorvusPay form redirect.',
-                'fee_type' => 'fixed',
-                'fee_value' => 0,
-                'is_active' => false,
-                'sort_order' => 5,
-                'settings' => [
-                    'corvus_mode' => 'test',
-                    'corvus_form_url' => 'https://wallet.test.corvuspay.com/checkout/',
-                    'corvus_language' => 'hr',
-                    'corvus_currency' => 'EUR',
-                    'corvus_require_complete' => 'false',
-                ],
-            ]
-        );
+        $legacyCorvusMethods = PaymentMethod::query()
+            ->whereIn('code', ['corvuspay', 'corvus_pay'])
+            ->orderBy('id')
+            ->get();
+        $corvus = PaymentMethod::query()->where('code', 'corvus')->first()
+            ?? $legacyCorvusMethods->first()
+            ?? new PaymentMethod;
+        $corvusWasExisting = $corvus->exists;
+        $corvusWasActive = (bool) $corvus->is_active;
+        $corvus->code = 'corvus';
+        $legacyCorvusSettings = $legacyCorvusMethods
+            ->map(static fn (PaymentMethod $method): array => is_array($method->settings) ? $method->settings : [])
+            ->first(fn (array $settings): bool => $this->hasCorvusCredentials($settings))
+            ?? $legacyCorvusMethods
+                ->map(static fn (PaymentMethod $method): array => is_array($method->settings) ? $method->settings : [])
+                ->first()
+            ?? [];
+        $currentCorvusSettings = is_array($corvus->settings) ? $corvus->settings : [];
+        $corvusSettings = array_replace([
+            'corvus_mode' => 'test',
+            'corvus_form_url' => 'https://wallet.test.corvuspay.com/checkout/',
+            'corvus_language' => 'hr',
+            'corvus_currency' => 'EUR',
+            'corvus_require_complete' => 'false',
+        ], $legacyCorvusSettings, $currentCorvusSettings);
+        if (! $this->hasCorvusCredentials($currentCorvusSettings) && $this->hasCorvusCredentials($legacyCorvusSettings)) {
+            $corvusSettings = array_replace($corvusSettings, $legacyCorvusSettings);
+        }
+        foreach ($legacyCorvusSettings as $key => $value) {
+            if ($this->isBlankSetting($corvusSettings[$key] ?? null) && ! $this->isBlankSetting($value)) {
+                $corvusSettings[$key] = $value;
+            }
+        }
+        $corvusMode = strtolower(trim((string) ($corvusSettings['corvus_mode'] ?? 'test')));
+        if (! in_array($corvusMode, ['test', 'live'], true)) {
+            $corvusMode = 'test';
+        }
+        $corvusSettings['corvus_mode'] = $corvusMode;
+        $corvusSettings['corvus_form_url'] = $corvusMode === 'live'
+            ? 'https://wallet.corvuspay.com/checkout/'
+            : 'https://wallet.test.corvuspay.com/checkout/';
+        $corvusSettings['corvus_language'] = 'hr';
+        $corvusSettings['corvus_currency'] = 'EUR';
+        $corvusReady = trim((string) ($corvusSettings['corvus_store_id'] ?? '')) !== ''
+            && trim((string) ($corvusSettings['corvus_secret_key'] ?? '')) !== '';
+
+        $corvus->fill([
+            'name' => 'Kartično plaćanje (CorvusPay)',
+            'provider' => 'corvuspay',
+            'geo_zone_id' => null,
+            'description' => 'Sigurno kartično plaćanje putem CorvusPay obrasca.',
+            'fee_type' => 'fixed',
+            'fee_value' => 0,
+            'is_active' => $corvusWasExisting ? $corvusWasActive : $corvusReady,
+            'sort_order' => 6,
+            'settings' => $corvusSettings,
+        ])->save();
+        PaymentMethod::query()
+            ->whereIn('code', ['corvuspay', 'corvus_pay'])
+            ->where('id', '!=', $corvus->id)
+            ->update(['is_active' => false]);
         PaymentMethod::updateOrCreate(
             ['code' => 'keks'],
             [
@@ -246,7 +300,7 @@ class SettingsLocalSeeder extends Seeder
                 'fee_type' => 'fixed',
                 'fee_value' => 0,
                 'is_active' => false,
-                'sort_order' => 6,
+                'sort_order' => 7,
                 'settings' => [
                     'keks_mode' => 'test',
                     'keks_qr_type' => 1,
@@ -259,21 +313,21 @@ class SettingsLocalSeeder extends Seeder
         ShippingMethod::updateOrCreate(
             ['code' => 'standard'],
             [
-                'name' => 'Standard Shipping',
+                'name' => 'Standardna dostava',
                 'geo_zone_id' => $hr->id,
-                'description' => 'Standard home delivery.',
+                'description' => 'Standardna dostava na adresu u Hrvatskoj.',
                 'price' => 4.99,
                 'free_over' => 60,
-                'is_active' => true,
+                'is_active' => false,
                 'sort_order' => 1,
             ]
         );
         ShippingMethod::updateOrCreate(
             ['code' => 'standard_eu'],
             [
-                'name' => 'Standard Shipping (EU)',
+                'name' => 'Standardna dostava – EU',
                 'geo_zone_id' => $eu->id,
-                'description' => 'Standard shipping for EU countries (excluding Croatia).',
+                'description' => 'Standardna dostava u države Europske unije izvan Hrvatske.',
                 'price' => 9.99,
                 'free_over' => 120,
                 'is_active' => true,
@@ -283,9 +337,9 @@ class SettingsLocalSeeder extends Seeder
         ShippingMethod::updateOrCreate(
             ['code' => 'standard_world'],
             [
-                'name' => 'Standard Shipping (World)',
+                'name' => 'Standardna dostava – svijet',
                 'geo_zone_id' => $world->id,
-                'description' => 'Standard international shipping outside EU.',
+                'description' => 'Standardna međunarodna dostava izvan Europske unije.',
                 'price' => 19.99,
                 'free_over' => 200,
                 'is_active' => true,
@@ -295,9 +349,9 @@ class SettingsLocalSeeder extends Seeder
         ShippingMethod::updateOrCreate(
             ['code' => 'pickup'],
             [
-                'name' => 'Store Pickup',
+                'name' => 'Osobno preuzimanje – Vinkovci',
                 'geo_zone_id' => $hr->id,
-                'description' => 'Pickup in store.',
+                'description' => 'Preuzimanje na adresi Lapovačka 11A, 32100 Vinkovci, radnim danom 08:00–16:00 ili prema prethodnom dogovoru s korisničkom službom.',
                 'price' => 0,
                 'free_over' => null,
                 'is_active' => true,
@@ -307,30 +361,65 @@ class SettingsLocalSeeder extends Seeder
         ShippingMethod::updateOrCreate(
             ['code' => 'express'],
             [
-                'name' => 'Express Shipping',
+                'name' => 'Ekspresna dostava',
                 'geo_zone_id' => $hr->id,
-                'description' => 'Priority next-day delivery.',
+                'description' => 'Prioritetna dostava na adresu.',
                 'price' => 8.99,
                 'free_over' => null,
-                'is_active' => true,
+                'is_active' => false,
                 'sort_order' => 5,
             ]
         );
-        ShippingMethod::updateOrCreate(
-            ['code' => 'boxnow'],
-            [
-                'name' => 'BOX NOW Locker',
-                'geo_zone_id' => $hr->id,
-                'description' => 'BOX NOW paketomat dostava.',
-                'price' => 2.99,
-                'free_over' => null,
-                'is_active' => true,
-                'sort_order' => 6,
-                'settings' => [
-                    'boxnow_partner_id' => '',
-                ],
-            ]
-        );
+        $boxNowCandidates = ShippingMethod::query()
+            ->whereIn('code', ['boxnow', 'box_now'])
+            ->orderBy('id')
+            ->get();
+        $boxNow = $boxNowCandidates->firstWhere('code', 'boxnow')
+            ?? $boxNowCandidates->firstWhere('code', 'box_now')
+            ?? new ShippingMethod(['code' => 'boxnow']);
+        $boxNowWasExisting = $boxNow->exists;
+        $boxNowWasActive = (bool) $boxNow->is_active;
+        $boxNowSettings = is_array($boxNow->settings) ? $boxNow->settings : [];
+        foreach ($boxNowCandidates as $candidate) {
+            if ($boxNowWasExisting && (int) $candidate->id === (int) $boxNow->id) {
+                continue;
+            }
+
+            $candidateSettings = is_array($candidate->settings) ? $candidate->settings : [];
+            foreach ($candidateSettings as $key => $value) {
+                if ($this->isBlankSetting($boxNowSettings[$key] ?? null) && ! $this->isBlankSetting($value)) {
+                    $boxNowSettings[$key] = $value;
+                }
+            }
+        }
+        $boxNowSettings['boxnow_partner_id'] ??= '';
+        $boxNowConfigured = trim((string) $boxNowSettings['boxnow_partner_id']) !== '';
+        $boxNow->fill([
+            'name' => 'BOX NOW paketomat',
+            'carrier' => 'boxnow',
+            'service_type' => 'parcel_locker',
+            'pricing_type' => 'flat',
+            'geo_zone_id' => $hr->id,
+            'description' => 'Dostava u odabrani BOX NOW paketomat.',
+            'price' => 2.99,
+            'free_over' => null,
+            'min_weight_kg' => null,
+            'max_weight_kg' => 20,
+            'max_length_cm' => 60,
+            'max_width_cm' => 45,
+            'max_height_cm' => 36,
+            'allows_fragile' => false,
+            'allows_oversized' => false,
+            'allows_heavy' => false,
+            'missing_measurements_policy' => 'block',
+            'is_active' => $boxNowConfigured && ($boxNowWasExisting ? $boxNowWasActive : true),
+            'sort_order' => 6,
+            'settings' => $boxNowSettings,
+        ])->save();
+        ShippingMethod::query()
+            ->whereIn('code', ['boxnow', 'box_now'])
+            ->where('id', '!=', $boxNow->id)
+            ->update(['is_active' => false]);
     }
 
     private function seedRegions(): void
@@ -374,5 +463,17 @@ class SettingsLocalSeeder extends Seeder
         if ($payload !== []) {
             Region::query()->insert($payload);
         }
+    }
+
+    /** @param array<string, mixed> $settings */
+    private function hasCorvusCredentials(array $settings): bool
+    {
+        return trim((string) ($settings['corvus_store_id'] ?? '')) !== ''
+            && trim((string) ($settings['corvus_secret_key'] ?? '')) !== '';
+    }
+
+    private function isBlankSetting(mixed $value): bool
+    {
+        return $value === null || (is_string($value) && trim($value) === '');
     }
 }

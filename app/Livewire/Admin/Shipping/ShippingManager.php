@@ -4,6 +4,8 @@ namespace App\Livewire\Admin\Shipping;
 
 use App\Models\Settings\Local\GeoZone;
 use App\Models\Settings\Local\ShippingMethod;
+use App\Services\Settings\SystemSettingsService;
+use App\Services\Shipping\CroatianIslandDestinationClassifier;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
@@ -17,6 +19,8 @@ class ShippingManager extends Component
 
     public ?int $editingId = null;
 
+    public string $islandPolicy = CroatianIslandDestinationClassifier::POLICY_UNCONNECTED_ONLY;
+
     /**
      * @var array<string, mixed>
      */
@@ -29,6 +33,14 @@ class ShippingManager extends Component
 
     public function mount(): void
     {
+        $storedPolicy = (string) app(SystemSettingsService::class)->get(
+            CroatianIslandDestinationClassifier::SETTING_KEY,
+            config('termol_shipping.islands.default_policy', CroatianIslandDestinationClassifier::POLICY_UNCONNECTED_ONLY),
+        );
+        $this->islandPolicy = in_array($storedPolicy, CroatianIslandDestinationClassifier::validPolicies(), true)
+            ? $storedPolicy
+            : CroatianIslandDestinationClassifier::POLICY_UNCONNECTED_ONLY;
+
         $this->resetForm();
 
         $requestedId = (int) request()->query('edit', 0);
@@ -45,6 +57,24 @@ class ShippingManager extends Component
     public function create(): void
     {
         $this->resetForm();
+    }
+
+    public function saveIslandPolicy(): void
+    {
+        $validated = $this->validate([
+            'islandPolicy' => ['required', Rule::in(CroatianIslandDestinationClassifier::validPolicies())],
+        ]);
+
+        app(SystemSettingsService::class)->put(
+            CroatianIslandDestinationClassifier::SETTING_KEY,
+            (string) $validated['islandPolicy'],
+        );
+
+        $this->dispatch(
+            'notify',
+            type: 'success',
+            message: __('Pravilo za otočnu dostavu je spremljeno.'),
+        );
     }
 
     public function edit(int $id): void
@@ -142,33 +172,33 @@ class ShippingManager extends Component
             return;
         }
 
-        if (
-            ($form['carrier'] ?? '') === 'boxnow'
-            && (bool) ($form['is_active'] ?? false)
-            && trim((string) ($form['boxnow_partner_id'] ?? '')) === ''
-        ) {
-            $this->addError('form.boxnow_partner_id', __('BOX NOW partner ID obavezan je za aktivnu BOX NOW dostavu.'));
+        $isBoxNow = $this->formIsBoxNow($form);
 
+        if (
+            $isBoxNow
+            && (bool) ($form['is_active'] ?? false)
+            && ! $this->boxNowFormIsReady($form)
+        ) {
             return;
         }
 
-        DB::transaction(function () use ($form, $rates): void {
+        DB::transaction(function () use ($form, $isBoxNow, $rates): void {
             $method = $this->editingId
                 ? ShippingMethod::query()->lockForUpdate()->findOrFail($this->editingId)
                 : new ShippingMethod;
 
             $settings = is_array($method->settings) ? $method->settings : [];
             $partnerId = trim((string) ($form['boxnow_partner_id'] ?? ''));
-            if (($form['carrier'] ?? '') === 'boxnow' && $partnerId !== '') {
+            if ($isBoxNow && $partnerId !== '') {
                 $settings['boxnow_partner_id'] = $partnerId;
-            } elseif (($form['carrier'] ?? '') !== 'boxnow') {
+            } elseif (! $isBoxNow) {
                 unset($settings['boxnow_partner_id']);
             }
 
             $method->fill([
                 'code' => strtolower(trim((string) $form['code'])),
                 'name' => trim((string) $form['name']),
-                'carrier' => (string) $form['carrier'],
+                'carrier' => $isBoxNow ? 'boxnow' : (string) $form['carrier'],
                 'service_type' => (string) $form['service_type'],
                 'pricing_type' => (string) $form['pricing_type'],
                 'geo_zone_id' => $form['geo_zone_id'] ?: null,
@@ -241,6 +271,18 @@ class ShippingManager extends Component
     public function toggleActive(int $id): void
     {
         $method = ShippingMethod::query()->findOrFail($id);
+
+        if (! $method->is_active && $this->methodIsBoxNow($method) && ! $this->boxNowMethodIsReady($method)) {
+            $this->addError('form.boxnow_partner_id', __('BOX NOW se može uključiti tek nakon Partner ID-a, svih limita i pravila „Sakrij dostavu” za artikle bez mjera.'));
+            $this->dispatch(
+                'notify',
+                type: 'error',
+                message: __('Dovršite sigurnosne postavke BOX NOW-a prije uključivanja.'),
+            );
+
+            return;
+        }
+
         $method->update(['is_active' => ! $method->is_active]);
 
         $this->dispatch(
@@ -284,6 +326,10 @@ class ShippingManager extends Component
             'carrierOptions' => ShippingMethod::carrierOptions(),
             'serviceTypeOptions' => ShippingMethod::serviceTypeOptions(),
             'pricingTypeOptions' => ShippingMethod::pricingTypeOptions(),
+            'islandPolicyOptions' => [
+                CroatianIslandDestinationClassifier::POLICY_UNCONNECTED_ONLY => __('Samo otoci bez cestovne veze'),
+                CroatianIslandDestinationClassifier::POLICY_ALL_ISLANDS => __('Svi hrvatski otoci'),
+            ],
         ]);
     }
 
@@ -320,6 +366,78 @@ class ShippingManager extends Component
             'is_active' => true,
             'sort_order' => 0,
         ];
+    }
+
+    /** @param array<string, mixed> $form */
+    private function boxNowFormIsReady(array $form): bool
+    {
+        $ready = true;
+
+        if (trim((string) ($form['boxnow_partner_id'] ?? '')) === '') {
+            $this->addError('form.boxnow_partner_id', __('BOX NOW partner ID obavezan je za aktivnu BOX NOW dostavu.'));
+            $ready = false;
+        }
+
+        if (($form['service_type'] ?? null) !== 'parcel_locker') {
+            $this->addError('form.service_type', __('BOX NOW mora koristiti vrstu usluge „Paketomat”.'));
+            $ready = false;
+        }
+
+        if (($form['pricing_type'] ?? null) !== 'flat') {
+            $this->addError('form.pricing_type', __('BOX NOW mora koristiti fiksni način obračuna.'));
+            $ready = false;
+        }
+
+        foreach (['max_weight_kg', 'max_length_cm', 'max_width_cm', 'max_height_cm'] as $field) {
+            if (! is_numeric($form[$field] ?? null) || (float) $form[$field] <= 0) {
+                $this->addError('form.'.$field, __('BOX NOW limit mora biti veći od nule.'));
+                $ready = false;
+            }
+        }
+
+        if (($form['missing_measurements_policy'] ?? null) !== 'block') {
+            $this->addError('form.missing_measurements_policy', __('Za BOX NOW artikli bez mjera moraju biti skriveni.'));
+            $ready = false;
+        }
+
+        foreach (['allows_fragile', 'allows_oversized', 'allows_heavy'] as $field) {
+            if ((bool) ($form[$field] ?? false)) {
+                $this->addError('form.'.$field, __('BOX NOW ne smije prihvaćati lomljive, prevelike ni teške artikle.'));
+                $ready = false;
+            }
+        }
+
+        return $ready;
+    }
+
+    private function boxNowMethodIsReady(ShippingMethod $method): bool
+    {
+        $settings = is_array($method->settings) ? $method->settings : [];
+
+        return trim((string) ($settings['boxnow_partner_id'] ?? '')) !== ''
+            && (string) $method->service_type === 'parcel_locker'
+            && (string) $method->pricing_type === 'flat'
+            && (string) $method->missing_measurements_policy === 'block'
+            && (float) $method->max_weight_kg > 0
+            && (float) $method->max_length_cm > 0
+            && (float) $method->max_width_cm > 0
+            && (float) $method->max_height_cm > 0
+            && ! (bool) $method->allows_fragile
+            && ! (bool) $method->allows_oversized
+            && ! (bool) $method->allows_heavy;
+    }
+
+    /** @param array<string, mixed> $form */
+    private function formIsBoxNow(array $form): bool
+    {
+        return strtolower(trim((string) ($form['carrier'] ?? ''))) === 'boxnow'
+            || in_array(strtolower(trim((string) ($form['code'] ?? ''))), ['boxnow', 'box_now'], true);
+    }
+
+    private function methodIsBoxNow(ShippingMethod $method): bool
+    {
+        return strtolower(trim((string) $method->carrier)) === 'boxnow'
+            || in_array(strtolower(trim((string) $method->code)), ['boxnow', 'box_now'], true);
     }
 
     private function resetForm(): void

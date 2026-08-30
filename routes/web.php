@@ -143,23 +143,27 @@ Route::middleware(['front.locale', 'front.device'])
             ->where('orderNumber', '[A-Za-z0-9\-]+')
             ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
             ->name('checkout.wspay.cancel');
-        Route::get('checkout/corvus/{orderNumber}', [CheckoutController::class, 'corvusStart'])
-            ->where('orderNumber', '[A-Za-z0-9\-]+')
-            ->name('checkout.corvus.start');
         Route::match(['GET', 'POST'], 'checkout/corvus/success', [CheckoutController::class, 'corvusSuccessStatic'])
+            ->middleware('throttle:30,1')
             ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
             ->name('checkout.corvus.success.static');
         Route::match(['GET', 'POST'], 'checkout/corvus/cancel', [CheckoutController::class, 'corvusCancelStatic'])
+            ->middleware('throttle:30,1')
             ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
             ->name('checkout.corvus.cancel.static');
         Route::match(['GET', 'POST'], 'checkout/corvus/success/{orderNumber}', [CheckoutController::class, 'corvusSuccess'])
             ->where('orderNumber', '[A-Za-z0-9\-]+')
+            ->middleware('throttle:30,1')
             ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
             ->name('checkout.corvus.success');
         Route::match(['GET', 'POST'], 'checkout/corvus/cancel/{orderNumber}', [CheckoutController::class, 'corvusCancel'])
             ->where('orderNumber', '[A-Za-z0-9\-]+')
+            ->middleware('throttle:30,1')
             ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
             ->name('checkout.corvus.cancel');
+        Route::get('checkout/corvus/{orderNumber}', [CheckoutController::class, 'corvusStart'])
+            ->where('orderNumber', '[A-Za-z0-9\-]+')
+            ->name('checkout.corvus.start');
         Route::get('checkout/keks/{orderNumber}', [CheckoutController::class, 'keksStart'])
             ->where('orderNumber', '[A-Za-z0-9\-]+')
             ->name('checkout.keks.start');

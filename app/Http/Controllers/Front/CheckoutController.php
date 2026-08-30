@@ -22,6 +22,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -52,22 +53,28 @@ class CheckoutController extends Controller
         $shippingCountry = (string) ($shipping?->country_code ?: $billing?->country_code ?: 'HR');
         $shippingState = '';
         $shippingPostal = (string) ($shipping?->postal_code ?: $billing?->postal_code ?: '');
+        $shippingCity = (string) ($shipping?->city ?: $billing?->city ?: '');
         $billingCountry = (string) ($billing?->country_code ?: $shippingCountry);
         $billingState = '';
         $billingPostal = (string) ($billing?->postal_code ?: '');
+        $billingCity = (string) ($billing?->city ?: '');
 
         $addressDirectory = app(AddressDirectoryService::class);
-        $defaultShippingCode = (string) ($shippingMethods = $this->checkout->availableShippingMethods(
+        $shippingMethods = $this->checkout->availableShippingMethods(
             (float) ($summary['subtotal_after_discount'] ?? $summary['subtotal']),
             $shippingCountry,
             $shippingState,
-            $shippingPostal
-        ))->first()?->code;
+            $shippingPostal,
+            $shippingCity,
+        );
+        $defaultShippingMethod = $shippingMethods->first();
+        $defaultShippingCode = (string) $defaultShippingMethod?->code;
         $defaultPaymentCode = (string) ($paymentMethods = $this->checkout->availablePaymentMethods(
             (float) ($summary['subtotal_after_discount'] ?? $summary['subtotal']),
             $billingCountry,
             $billingState,
-            $billingPostal
+            $billingPostal,
+            $defaultShippingMethod,
         ))->first()?->code;
         $checkoutTotals = $this->checkout->estimateCheckoutTotals(
             (float) ($summary['subtotal'] ?? 0),
@@ -81,7 +88,9 @@ class CheckoutController extends Controller
             $shippingPostal,
             $billingCountry,
             $billingState,
-            $billingPostal
+            $billingPostal,
+            $shippingCity,
+            $billingCity,
         );
 
         return view($this->frontendView($request, 'checkout.create'), [
@@ -200,6 +209,19 @@ class CheckoutController extends Controller
             ? ! ((bool) $validated['ship_to_different_address'])
             : (bool) ($validated['use_billing_for_shipping'] ?? false);
 
+        if (! $shippingFromBilling) {
+            $request->validate([
+                'shipping_first_name' => ['required', 'string', 'max:120'],
+                'shipping_last_name' => ['required', 'string', 'max:120'],
+                'shipping_address_line_1' => ['required', 'string', 'max:191'],
+                'shipping_postal_code' => ['required', 'string', 'max:32'],
+                'shipping_city' => ['required', 'string', 'max:120'],
+                'shipping_country_code' => ['required', 'string', 'size:2'],
+            ], [
+                'required' => __('ui.checkout.validation.required'),
+            ]);
+        }
+
         if ($shippingFromBilling) {
             $validated['shipping_first_name'] = $validated['billing_first_name'];
             $validated['shipping_last_name'] = $validated['billing_last_name'];
@@ -295,25 +317,30 @@ class CheckoutController extends Controller
         $billingCountry = strtoupper((string) $request->query('billing_country_code', 'HR'));
         $billingState = '';
         $billingPostal = (string) $request->query('billing_postal_code', '');
+        $billingCity = (string) $request->query('billing_city', '');
 
         $shipToDifferent = filter_var((string) $request->query('ship_to_different_address', '0'), FILTER_VALIDATE_BOOL);
         $shippingCountry = strtoupper((string) $request->query('shipping_country_code', $billingCountry));
         $shippingState = '';
         $shippingPostal = (string) $request->query('shipping_postal_code', '');
+        $shippingCity = (string) $request->query('shipping_city', '');
 
         if (! $shipToDifferent) {
             $shippingCountry = $billingCountry;
             $shippingPostal = $billingPostal;
+            $shippingCity = $billingCity;
         }
 
         $shippingMethods = $this->checkout
-            ->availableShippingMethods($subtotal, $shippingCountry, $shippingState, $shippingPostal)
+            ->availableShippingMethods($subtotal, $shippingCountry, $shippingState, $shippingPostal, $shippingCity)
             ->values();
 
-        $paymentMethods = $this->checkout
-            ->availablePaymentMethods($subtotal, $billingCountry, $billingState, $billingPostal)
-            ->values();
         $selectedShippingCode = (string) $request->query('shipping_method_code', '');
+        $effectiveShippingMethod = $shippingMethods->firstWhere('code', $selectedShippingCode)
+            ?? $shippingMethods->first();
+        $paymentMethods = $this->checkout
+            ->availablePaymentMethods($subtotal, $billingCountry, $billingState, $billingPostal, $effectiveShippingMethod)
+            ->values();
         $selectedPaymentCode = (string) $request->query('payment_method_code', '');
         $totals = $this->checkout->estimateCheckoutTotals(
             (float) ($summary['subtotal'] ?? 0),
@@ -327,7 +354,9 @@ class CheckoutController extends Controller
             $shippingPostal,
             $billingCountry,
             $billingState,
-            $billingPostal
+            $billingPostal,
+            $shippingCity,
+            $billingCity,
         );
 
         return response()->json([
@@ -748,14 +777,20 @@ class CheckoutController extends Controller
         $corvus = app(CorvusPayFormService::class);
         $result = $corvus->handleCallback($order, $request->all(), $context);
 
-        if (strtolower($context) === 'cancel' && ! (bool) ($result['paid'] ?? false)) {
-            $corvus->handleCancellationEffects($order);
+        $cancellationAuthorized = strtolower($context) === 'cancel'
+            && ($result['status'] ?? null) === 'cancelled'
+            && (bool) ($result['callback_authorized'] ?? false)
+            && (bool) ($result['cancellation_applied'] ?? false);
+
+        if ($cancellationAuthorized) {
             $freshOrder = Order::query()->with('items')->find($order->id);
             if ($freshOrder) {
                 $this->restoreCartFromOrder($freshOrder);
             }
         }
 
+        // The locked notification marker prevents duplicate sends while allowing
+        // a callback replay to retry after a transient notification failure.
         if ((bool) ($result['paid'] ?? false)) {
             $freshOrder = Order::query()->find($order->id);
             if ($freshOrder) {
@@ -763,7 +798,9 @@ class CheckoutController extends Controller
             }
         }
 
-        $request->session()->put('front.checkout.last_order_id', (int) $order->id);
+        if ((bool) ($result['callback_authorized'] ?? false)) {
+            $request->session()->put('front.checkout.last_order_id', (int) $order->id);
+        }
 
         $statusKey = match ((string) ($result['status'] ?? '')) {
             'approved' => 'ui.checkout.corvus.status.approved',
@@ -775,7 +812,9 @@ class CheckoutController extends Controller
         if (strtolower($context) === 'cancel') {
             return redirect()
                 ->route('cart.index')
-                ->with('status', __('ui.checkout.corvus.status.cancelled_to_cart'));
+                ->with('status', $cancellationAuthorized
+                    ? __('ui.checkout.corvus.status.cancelled_to_cart')
+                    : __($statusKey));
         }
 
         return redirect()
@@ -785,17 +824,20 @@ class CheckoutController extends Controller
 
     private function sendCorvusNotificationOnce(Order $order): void
     {
-        $payload = is_array($order->payload) ? $order->payload : [];
-        $corvusPayload = is_array($payload['corvuspay'] ?? null) ? $payload['corvuspay'] : [];
-        if (! empty($corvusPayload['notification_sent_at'])) {
-            return;
-        }
+        DB::transaction(function () use ($order): void {
+            $locked = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $payload = is_array($locked->payload) ? $locked->payload : [];
+            $corvusPayload = is_array($payload['corvuspay'] ?? null) ? $payload['corvuspay'] : [];
+            if (! empty($corvusPayload['notification_sent_at'])) {
+                return;
+            }
 
-        $this->notifications->sendOrderNotification($order);
+            $this->notifications->sendOrderNotification($locked);
 
-        $corvusPayload['notification_sent_at'] = now()->toIso8601String();
-        $payload['corvuspay'] = $corvusPayload;
-        $order->forceFill(['payload' => $payload])->save();
+            $corvusPayload['notification_sent_at'] = now()->toIso8601String();
+            $payload['corvuspay'] = $corvusPayload;
+            $locked->forceFill(['payload' => $payload])->save();
+        });
     }
 
     private function sendKeksNotificationOnce(Order $order): void

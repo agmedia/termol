@@ -21,6 +21,15 @@ class SystemSettingsSeeder extends Seeder
             ]
         );
 
-        app(SystemSettingsService::class)->putMany($defaults);
+        $settings = app(SystemSettingsService::class);
+        $settings->putMany($defaults);
+
+        $islandPolicyKey = (string) config('termol_shipping.islands.setting_key', 'shipping_hr_island_policy');
+        if (! array_key_exists($islandPolicyKey, $settings->all())) {
+            $settings->put(
+                $islandPolicyKey,
+                (string) config('termol_shipping.islands.default_policy', 'unconnected_only'),
+            );
+        }
     }
 }

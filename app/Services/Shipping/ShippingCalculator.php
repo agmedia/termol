@@ -154,12 +154,21 @@ class ShippingCalculator
         }
 
         $labels = $profile['labels'] ?? [];
+        $settings = is_array($method->settings) ? $method->settings : [];
+        $isQuoteMethod = (string) $method->pricing_type === 'quote';
+        $hasQuoteLabel = in_array('quote_shipping', $labels, true);
+        $isMissingWeightFallback = $isQuoteMethod
+            && (bool) ($settings['fallback_for_missing_weight'] ?? false);
 
-        if (in_array('quote_shipping', $labels, true) && (string) $method->pricing_type !== 'quote') {
+        if ($hasQuoteLabel && ! $isQuoteMethod) {
             return false;
         }
 
-        if ((string) $method->pricing_type === 'quote' && ! in_array('quote_shipping', $labels, true)) {
+        if ($isMissingWeightFallback && ($hasQuoteLabel || ! (bool) ($profile['has_missing_weight'] ?? false))) {
+            return false;
+        }
+
+        if ($isQuoteMethod && ! $hasQuoteLabel && ! $isMissingWeightFallback) {
             return false;
         }
 

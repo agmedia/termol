@@ -14,6 +14,8 @@ use App\Models\Settings\Local\OrderStatus;
 use App\Models\Settings\Local\PaymentMethod;
 use App\Models\Settings\Local\ShippingMethod;
 use App\Models\User;
+use App\Services\Payments\CorvusPayFormService;
+use App\Services\Shipping\CroatianIslandDestinationClassifier;
 use App\Services\Shipping\ShippingCalculator;
 use App\Support\GlsShipping;
 use Illuminate\Support\Collection;
@@ -22,10 +24,16 @@ use Illuminate\Validation\ValidationException;
 
 class CheckoutService
 {
+    private readonly CroatianIslandDestinationClassifier $islandDestinationClassifier;
+
     public function __construct(
         private readonly CartService $cart,
         private readonly ShippingCalculator $shippingCalculator,
-    ) {}
+        ?CroatianIslandDestinationClassifier $islandDestinationClassifier = null,
+    ) {
+        $this->islandDestinationClassifier = $islandDestinationClassifier
+            ?? app(CroatianIslandDestinationClassifier::class);
+    }
 
     /**
      * @return Collection<int, PaymentMethod>
@@ -34,15 +42,19 @@ class CheckoutService
         float $subtotal,
         ?string $countryCode = null,
         ?string $regionCode = null,
-        ?string $postalCode = null
+        ?string $postalCode = null,
+        ?ShippingMethod $shippingMethod = null,
     ): Collection {
         $zoneIds = $this->resolveGeoZoneIdsForAddress($countryCode, $regionCode, $postalCode);
+        $corvusPay = app(CorvusPayFormService::class);
 
         return PaymentMethod::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
+            ->filter(fn (PaymentMethod $method) => $corvusPay->canBeOffered($method))
+            ->filter(fn (PaymentMethod $method) => $this->paymentMethodMatchesShippingMethod($method, $shippingMethod))
             ->filter(fn (PaymentMethod $method) => $this->methodMatchesGeoZones($method->geo_zone_id, $zoneIds))
             ->filter(fn (PaymentMethod $method) => $this->subtotalFits($subtotal, $method->min_subtotal, $method->max_subtotal))
             ->values();
@@ -55,10 +67,12 @@ class CheckoutService
         float $subtotal,
         ?string $countryCode = null,
         ?string $regionCode = null,
-        ?string $postalCode = null
+        ?string $postalCode = null,
+        ?string $city = null,
     ): Collection {
         $zoneIds = $this->resolveGeoZoneIdsForAddress($countryCode, $regionCode, $postalCode);
         $lines = $this->cart->lines();
+        $destination = $this->islandDestinationClassifier->classify($countryCode, $postalCode, $city);
 
         return ShippingMethod::query()
             ->where('is_active', true)
@@ -66,7 +80,13 @@ class CheckoutService
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
+            ->filter(fn (ShippingMethod $method) => $this->shippingMethodIsConfigured($method))
             ->filter(fn (ShippingMethod $method) => $this->methodMatchesGeoZones($method->geo_zone_id, $zoneIds))
+            ->filter(fn (ShippingMethod $method) => $this->methodMatchesDestinationScope(
+                $method,
+                $destination->scope,
+                $countryCode,
+            ))
             ->filter(fn (ShippingMethod $method) => $this->subtotalFits($subtotal, $method->min_subtotal, $method->max_subtotal))
             ->filter(function (ShippingMethod $method) use ($lines, $subtotal): bool {
                 $quote = $this->shippingCalculator->quote($method, $lines, $subtotal);
@@ -105,13 +125,20 @@ class CheckoutService
         $shippingCountryCode = (string) ($payload['shipping_country_code'] ?? $payload['billing_country_code'] ?? 'HR');
         $shippingRegionCode = (string) ($payload['shipping_state'] ?? $payload['billing_state'] ?? '');
         $shippingPostalCode = (string) ($payload['shipping_postal_code'] ?? $payload['billing_postal_code'] ?? '');
+        $shippingCity = (string) ($payload['shipping_city'] ?? $payload['billing_city'] ?? '');
+        $shippingDestination = $this->islandDestinationClassifier->classify(
+            $shippingCountryCode,
+            $shippingPostalCode,
+            $shippingCity,
+        );
 
         /** @var ShippingMethod|null $shippingMethod */
         $shippingMethod = $this->availableShippingMethods(
             $subtotalAfterDiscount,
             $shippingCountryCode,
             $shippingRegionCode,
-            $shippingPostalCode
+            $shippingPostalCode,
+            $shippingCity,
         )
             ->firstWhere('code', (string) ($payload['shipping_method_code'] ?? ''));
 
@@ -124,7 +151,8 @@ class CheckoutService
             $subtotalAfterDiscount,
             $billingCountryCode,
             $billingRegionCode,
-            $billingPostalCode
+            $billingPostalCode,
+            $shippingMethod,
         )
             ->firstWhere('code', (string) ($payload['payment_method_code'] ?? ''));
 
@@ -190,7 +218,8 @@ class CheckoutService
             $grandTotal,
             $currency,
             $status,
-            $locale
+            $locale,
+            $shippingDestination,
         ): Order {
             $customerFirst = (string) ($payload['customer_first_name'] ?? '');
             $customerLast = (string) ($payload['customer_last_name'] ?? '');
@@ -251,6 +280,7 @@ class CheckoutService
                     'placed_from' => 'frontend_checkout',
                     'coupon_code' => (string) ($summary['coupon_code'] ?? ''),
                     'shipping' => [
+                        'destination' => $shippingDestination->toArray(),
                         'calculation' => is_array($shippingMethod->getAttribute('shipping_quote'))
                             ? $shippingMethod->getAttribute('shipping_quote')
                             : null,
@@ -454,20 +484,24 @@ class CheckoutService
         ?string $shippingPostalCode,
         ?string $billingCountryCode,
         ?string $billingRegionCode,
-        ?string $billingPostalCode
+        ?string $billingPostalCode,
+        ?string $shippingCity = null,
+        ?string $billingCity = null,
     ): array {
         $shippingMethod = $this->availableShippingMethods(
             $subtotalAfterDiscount,
             $shippingCountryCode,
             $shippingRegionCode,
-            $shippingPostalCode
+            $shippingPostalCode,
+            $shippingCity,
         )->firstWhere('code', (string) $shippingMethodCode);
         if (! $shippingMethod) {
             $shippingMethod = $this->availableShippingMethods(
                 $subtotalAfterDiscount,
                 $shippingCountryCode,
                 $shippingRegionCode,
-                $shippingPostalCode
+                $shippingPostalCode,
+                $shippingCity,
             )->first();
         }
 
@@ -475,14 +509,16 @@ class CheckoutService
             $subtotalAfterDiscount,
             $billingCountryCode,
             $billingRegionCode,
-            $billingPostalCode
+            $billingPostalCode,
+            $shippingMethod,
         )->firstWhere('code', (string) $paymentMethodCode);
         if (! $paymentMethod) {
             $paymentMethod = $this->availablePaymentMethods(
                 $subtotalAfterDiscount,
                 $billingCountryCode,
                 $billingRegionCode,
-                $billingPostalCode
+                $billingPostalCode,
+                $shippingMethod,
             )->first();
         }
 
@@ -564,6 +600,96 @@ class CheckoutService
         $zoneId = (int) $methodGeoZoneId;
 
         return in_array($zoneId, $zoneIds, true);
+    }
+
+    private function methodMatchesDestinationScope(
+        ShippingMethod $method,
+        ?string $destinationScope,
+        ?string $countryCode,
+    ): bool {
+        $settings = is_array($method->settings) ? $method->settings : [];
+        $countryCodes = array_values(array_filter(
+            is_array($settings['destination_country_codes'] ?? null) ? $settings['destination_country_codes'] : [],
+            static fn (mixed $code): bool => is_string($code) && strlen(trim($code)) === 2,
+        ));
+        $countryCodes = array_map(static fn (string $code): string => strtoupper(trim($code)), $countryCodes);
+        if ($countryCodes !== [] && ! in_array(strtoupper(trim((string) $countryCode)), $countryCodes, true)) {
+            return false;
+        }
+
+        $methodScope = trim((string) ($settings['destination_scope'] ?? ''));
+        $methodScopes = array_values(array_filter(
+            is_array($settings['destination_scopes'] ?? null) ? $settings['destination_scopes'] : [],
+            static fn (mixed $scope): bool => is_string($scope) && in_array($scope, ['hr_mainland', 'hr_islands'], true),
+        ));
+
+        if ($methodScopes !== []) {
+            return $destinationScope === null
+                ? (bool) ($settings['allow_incomplete_destination'] ?? false)
+                : in_array($destinationScope, $methodScopes, true);
+        }
+
+        if (! in_array($methodScope, ['hr_mainland', 'hr_islands'], true)) {
+            return true;
+        }
+
+        return $destinationScope !== null && $methodScope === $destinationScope;
+    }
+
+    private function paymentMethodMatchesShippingMethod(
+        PaymentMethod $paymentMethod,
+        ?ShippingMethod $shippingMethod,
+    ): bool {
+        $paymentCode = strtolower(trim((string) $paymentMethod->code));
+        $paymentProvider = strtolower(trim((string) $paymentMethod->provider));
+        $isQuotePayment = in_array($paymentCode, ['quote_request', 'manual_quote'], true)
+            || in_array($paymentProvider, ['quote_request', 'manual_quote'], true);
+        $isQuoteShipping = $shippingMethod !== null
+            && strtolower(trim((string) $shippingMethod->pricing_type)) === 'quote';
+        $isPickupPayment = $paymentCode === 'pickup' || $paymentProvider === 'pickup';
+        $isCashOnDelivery = in_array($paymentCode, ['cod', 'cash_on_delivery', 'cash-on-delivery'], true)
+            || in_array($paymentProvider, ['cod', 'cash_on_delivery', 'cash-on-delivery'], true);
+        $isPickupShipping = $shippingMethod !== null
+            && strtolower(trim((string) $shippingMethod->service_type)) === 'pickup';
+
+        if ($isQuoteShipping) {
+            return $isQuotePayment;
+        }
+
+        if ($isQuotePayment) {
+            return false;
+        }
+
+        if ($isPickupPayment) {
+            return $isPickupShipping;
+        }
+
+        if ($isCashOnDelivery) {
+            return $shippingMethod !== null && ! $isPickupShipping;
+        }
+
+        return true;
+    }
+
+    private function shippingMethodIsConfigured(ShippingMethod $method): bool
+    {
+        if (! $this->isBoxNowCode((string) $method->code)) {
+            return true;
+        }
+
+        $settings = is_array($method->settings) ? $method->settings : [];
+
+        return trim((string) ($settings['boxnow_partner_id'] ?? '')) !== ''
+            && (string) $method->service_type === 'parcel_locker'
+            && (string) $method->pricing_type === 'flat'
+            && (string) $method->missing_measurements_policy === 'block'
+            && (float) $method->max_weight_kg > 0
+            && (float) $method->max_length_cm > 0
+            && (float) $method->max_width_cm > 0
+            && (float) $method->max_height_cm > 0
+            && ! (bool) $method->allows_fragile
+            && ! (bool) $method->allows_oversized
+            && ! (bool) $method->allows_heavy;
     }
 
     private function nextOrderNumber(): string

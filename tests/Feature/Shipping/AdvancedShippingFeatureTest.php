@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Shipping;
 
+use App\Livewire\Admin\Settings\Local\ResourceManager;
 use App\Livewire\Admin\Shipping\ShippingManager;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Product\Product;
@@ -17,7 +18,10 @@ use App\Services\Front\CartService;
 use App\Services\Front\CheckoutService;
 use App\Services\Integrations\Gls\GlsApiService;
 use App\Services\Integrations\Gls\GlsShipmentService;
+use App\Services\Settings\SystemSettingsService;
+use App\Services\Shipping\CroatianIslandDestinationClassifier;
 use App\Services\Shipping\ShippingCalculator;
+use Database\Seeders\SystemSettingsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -154,6 +158,138 @@ class AdvancedShippingFeatureTest extends TestCase
         ]);
         $savedMethod = ShippingMethod::query()->where('code', 'test_weight')->firstOrFail();
         $this->assertSame(2, $savedMethod->rates()->count());
+    }
+
+    public function test_admin_cannot_activate_boxnow_until_all_safety_settings_are_ready(): void
+    {
+        $admin = User::factory()->create();
+        $boxNow = ShippingMethod::query()->updateOrCreate(
+            ['code' => 'boxnow'],
+            [
+                'name' => 'BOX NOW paketomat',
+                'carrier' => 'boxnow',
+                'service_type' => 'parcel_locker',
+                'pricing_type' => 'flat',
+                'max_weight_kg' => 20,
+                'max_length_cm' => 60,
+                'max_width_cm' => 45,
+                'max_height_cm' => 36,
+                'allows_fragile' => false,
+                'allows_oversized' => false,
+                'allows_heavy' => false,
+                'missing_measurements_policy' => 'block',
+                'is_active' => false,
+                'settings' => ['boxnow_partner_id' => ''],
+            ],
+        );
+
+        Livewire::actingAs($admin)
+            ->test(ShippingManager::class)
+            ->call('toggleActive', $boxNow->id)
+            ->assertHasErrors(['form.boxnow_partner_id']);
+        $this->assertFalse($boxNow->refresh()->is_active);
+
+        $boxNow->update(['settings' => ['boxnow_partner_id' => 'partner-test']]);
+        Livewire::actingAs($admin)
+            ->test(ShippingManager::class)
+            ->call('toggleActive', $boxNow->id)
+            ->assertHasNoErrors();
+        $this->assertTrue($boxNow->refresh()->is_active);
+
+        Livewire::actingAs($admin)
+            ->test(ShippingManager::class)
+            ->call('edit', $boxNow->id)
+            ->set('form.service_type', 'home_delivery')
+            ->set('form.allows_fragile', true)
+            ->call('save')
+            ->assertHasErrors(['form.service_type', 'form.allows_fragile']);
+        $this->assertSame('parcel_locker', $boxNow->refresh()->service_type);
+        $this->assertFalse($boxNow->allows_fragile);
+
+        $boxNow->update([
+            'is_active' => false,
+            'settings' => ['boxnow_partner_id' => ''],
+        ]);
+        Livewire::actingAs($admin)
+            ->test(ResourceManager::class, ['resource' => 'shipping-methods'])
+            ->call('toggleActive', $boxNow->id)
+            ->assertHasErrors(['form.boxnow_partner_id']);
+        $this->assertFalse($boxNow->refresh()->is_active);
+
+        $legacyBoxNow = ShippingMethod::query()->create([
+            'code' => 'box_now',
+            'name' => 'Legacy BOX NOW',
+            'carrier' => 'manual',
+            'service_type' => 'parcel_locker',
+            'pricing_type' => 'flat',
+            'max_weight_kg' => 20,
+            'max_length_cm' => 60,
+            'max_width_cm' => 45,
+            'max_height_cm' => 36,
+            'missing_measurements_policy' => 'block',
+            'is_active' => false,
+            'settings' => ['boxnow_partner_id' => ''],
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(ShippingManager::class)
+            ->call('toggleActive', $legacyBoxNow->id)
+            ->assertHasErrors(['form.boxnow_partner_id']);
+        $this->assertFalse($legacyBoxNow->refresh()->is_active);
+    }
+
+    public function test_admin_sets_the_shared_island_policy_without_changing_method_activation(): void
+    {
+        $admin = User::factory()->create();
+        $activationBefore = ShippingMethod::query()
+            ->whereIn('code', ['mbe_mainland_hr', 'mbe_islands_hr', 'boxnow'])
+            ->pluck('is_active', 'code')
+            ->map(fn ($active): bool => (bool) $active)
+            ->all();
+
+        Livewire::actingAs($admin)
+            ->test(ShippingManager::class)
+            ->set('islandPolicy', CroatianIslandDestinationClassifier::POLICY_ALL_ISLANDS)
+            ->call('saveIslandPolicy')
+            ->assertHasNoErrors()
+            ->assertDispatched('notify');
+
+        $this->assertSame(
+            CroatianIslandDestinationClassifier::POLICY_ALL_ISLANDS,
+            app(\App\Services\Settings\SystemSettingsService::class)->get(
+                CroatianIslandDestinationClassifier::SETTING_KEY,
+            ),
+        );
+        $this->assertSame(
+            $activationBefore,
+            ShippingMethod::query()
+                ->whereIn('code', ['mbe_mainland_hr', 'mbe_islands_hr', 'boxnow'])
+                ->pluck('is_active', 'code')
+                ->map(fn ($active): bool => (bool) $active)
+                ->all(),
+        );
+
+        Livewire::actingAs($admin)
+            ->test(ShippingManager::class)
+            ->set('islandPolicy', 'customer_decides')
+            ->call('saveIslandPolicy')
+            ->assertHasErrors(['islandPolicy']);
+    }
+
+    public function test_system_settings_seeder_does_not_reset_the_admin_island_policy(): void
+    {
+        $settings = app(SystemSettingsService::class);
+        $settings->put(
+            CroatianIslandDestinationClassifier::SETTING_KEY,
+            CroatianIslandDestinationClassifier::POLICY_ALL_ISLANDS,
+        );
+
+        $this->seed(SystemSettingsSeeder::class);
+
+        $this->assertSame(
+            CroatianIslandDestinationClassifier::POLICY_ALL_ISLANDS,
+            $settings->get(CroatianIslandDestinationClassifier::SETTING_KEY),
+        );
     }
 
     public function test_gls_connector_hashes_password_stores_label_and_logs_retry_state(): void

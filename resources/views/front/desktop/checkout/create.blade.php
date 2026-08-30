@@ -811,8 +811,10 @@
                 const shipDifferent = !!toggle?.checked;
                 const billingCountry = checkoutForm.querySelector('[name="billing_country_code"]')?.value || '';
                 const billingPostal = checkoutForm.querySelector('[name="billing_postal_code"]')?.value || '';
+                const billingCity = checkoutForm.querySelector('[name="billing_city"]')?.value || '';
                 const shippingCountry = checkoutForm.querySelector('[name="shipping_country_code"]')?.value || '';
                 const shippingPostal = checkoutForm.querySelector('[name="shipping_postal_code"]')?.value || '';
+                const shippingCity = checkoutForm.querySelector('[name="shipping_city"]')?.value || '';
                 const selectedShippingCode = shippingOptionsRoot?.querySelector('input[name="shipping_method_code"]:checked')?.value || '';
                 const selectedPaymentCode = paymentOptionsRoot?.querySelector('input[name="payment_method_code"]:checked')?.value || '';
 
@@ -820,8 +822,10 @@
                     ship_to_different_address: shipDifferent ? '1' : '0',
                     billing_country_code: billingCountry,
                     billing_postal_code: billingPostal,
+                    billing_city: billingCity,
                     shipping_country_code: shippingCountry,
                     shipping_postal_code: shippingPostal,
+                    shipping_city: shippingCity,
                     shipping_method_code: selectedShippingCode,
                     payment_method_code: selectedPaymentCode,
                 });
@@ -1045,7 +1049,7 @@
             billingFirst?.addEventListener('input', syncCustomerNames);
             billingLast?.addEventListener('input', syncCustomerNames);
             checkoutForm?.addEventListener('submit', syncCustomerNames);
-            checkoutForm?.querySelectorAll('[data-address-country], [name="billing_postal_code"], [name="shipping_postal_code"]').forEach(function (node) {
+            checkoutForm?.querySelectorAll('[data-address-country], [name="billing_postal_code"], [name="shipping_postal_code"], [name="billing_city"], [name="shipping_city"]').forEach(function (node) {
                 node.addEventListener('change', function () {
                     scheduleOptionsRefresh();
                 });

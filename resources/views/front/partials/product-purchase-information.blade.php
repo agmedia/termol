@@ -64,7 +64,11 @@
                         <p>{{ $method->description }}</p>
                     @endif
                     <div class="product-method-meta">
-                        @if ((float) $method->price <= 0)
+                        @if (strtolower((string) $method->pricing_type) === 'quote')
+                            <span>{{ __('ui.product.shipping_quote') }}</span>
+                        @elseif (strtolower((string) $method->pricing_type) === 'weight_tiers')
+                            <span>{{ __('ui.product.shipping_calculated_at_checkout') }}</span>
+                        @elseif ((float) $method->price <= 0)
                             <span>{{ __('ui.product.shipping_free') }}</span>
                         @else
                             <span>{{ __('ui.product.shipping_price', ['price' => number_format((float) $method->price, 2).' €']) }}</span>
