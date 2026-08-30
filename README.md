@@ -86,6 +86,20 @@ Super-admin users are intentionally not listed in this table.
 php artisan wholesale:token user@example.com client-name
 ```
 
+## Nabava.net XML feed
+
+The outgoing product feed is available at `/feeds/nabava.xml` and is disabled until its environment-backed credentials are configured:
+
+```dotenv
+NABAVA_NET_FEED_ENABLED=true
+NABAVA_NET_FEED_USERNAME=replace-with-feed-username
+NABAVA_NET_FEED_PASSWORD=replace-with-feed-password
+NABAVA_NET_FEED_LOCALE=hr
+NABAVA_NET_STOREFRONT_URL=https://www.example.hr
+```
+
+Nabava.net can access it using `?username=...&password=...`. Keep the credentials in the server environment and never commit them to the repository.
+
 ## Useful Commands
 
 ```bash

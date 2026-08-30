@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'nabava_net' => [
+        'enabled' => env('NABAVA_NET_FEED_ENABLED', false),
+        'username' => env('NABAVA_NET_FEED_USERNAME'),
+        'password' => env('NABAVA_NET_FEED_PASSWORD'),
+        'locale' => env('NABAVA_NET_FEED_LOCALE', 'hr'),
+        'storefront_url' => env('NABAVA_NET_STOREFRONT_URL', env('APP_URL')),
+    ],
+
 ];

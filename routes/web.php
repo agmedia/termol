@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminAiController;
 use App\Http\Controllers\Admin\ContractWithdrawalController;
 use App\Http\Controllers\Admin\OrderGlsController;
 use App\Http\Controllers\Admin\SystemToolsController;
+use App\Http\Controllers\Feed\NabavaNetFeedController;
 use App\Http\Controllers\Front\AccountController;
 use App\Http\Controllers\Front\AuthController;
 use App\Http\Controllers\Front\B2BController;
@@ -46,6 +47,10 @@ use Spatie\Activitylog\Models\Activity;
 
 Route::get('storefront-settings.css', StorefrontStylesController::class)
     ->name('front.storefront.styles');
+
+Route::get('feeds/nabava.xml', NabavaNetFeedController::class)
+    ->middleware('throttle:10,1')
+    ->name('feeds.nabava');
 
 Route::middleware(['front.locale', 'front.device'])
     ->group(function (): void {
