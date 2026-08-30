@@ -38,6 +38,7 @@ class SystemSettingsService
     public function get(string $key, mixed $default = null): mixed
     {
         $all = $this->all();
+
         return array_key_exists($key, $all) ? $all[$key] : $default;
     }
 
@@ -55,7 +56,7 @@ class SystemSettingsService
     }
 
     /**
-     * @param array<string, mixed> $entries
+     * @param  array<string, mixed>  $entries
      */
     public function putMany(array $entries): void
     {
@@ -76,9 +77,20 @@ class SystemSettingsService
 
     public function flush(): void
     {
-        $this->settingsCache = null;
+        $this->clearRuntimeCache();
 
         Cache::forget(self::CACHE_KEY);
+    }
+
+    /**
+     * Clear only the cache held by the current PHP process.
+     *
+     * Queue workers keep singleton services alive between jobs, so this must be
+     * reset before each job to pick up settings changed from an admin request.
+     */
+    public function clearRuntimeCache(): void
+    {
+        $this->settingsCache = null;
     }
 
     private function encodeValue(mixed $value): string

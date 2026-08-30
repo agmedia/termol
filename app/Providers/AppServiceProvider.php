@@ -34,8 +34,10 @@ use App\Support\AssetVersion;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -66,6 +68,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Queue::before(static function (JobProcessing $event): void {
+            app(SystemSettingsService::class)->clearRuntimeCache();
+        });
+
         $this->syncAppLocaleFromLocalSettings();
 
         if ((bool) config('app.force_https', false)) {
