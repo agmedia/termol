@@ -8,6 +8,7 @@ use App\Models\Catalog\Product\ProductOptionValue;
 use App\Services\Catalog\ActionResolverService;
 use App\Services\Pricing\ProductGroupPriceResolver;
 use App\Services\Pricing\TaxPricingService;
+use App\Support\ProductEnergyLabelPresenter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Session;
 
@@ -21,6 +22,7 @@ class CartService
         private readonly ActionResolverService $actionResolver,
         private readonly TaxPricingService $taxPricing,
         private readonly ProductGroupPriceResolver $groupPriceResolver,
+        private readonly ProductEnergyLabelPresenter $energyLabelPresenter,
     ) {}
 
     /**
@@ -89,6 +91,7 @@ class CartService
         ))));
 
         $products = Product::query()
+            ->withStorefrontEnergyData()
             ->whereIn('id', $productIds)
             ->where('is_active', true)
             ->with([
@@ -202,6 +205,7 @@ class CartService
                     default => 'base',
                 },
                 'is_b2b_price' => $groupPrice !== null,
+                'energy_declaration' => $this->energyLabelPresenter->primaryDeclaration($product),
                 'has_promotional_discount' => $resolvedAction !== null && $unitDiscount > 0,
                 'group_price_id' => $groupPrice?->group_price_id,
                 'b2b_rule_id' => $groupPrice?->rule_id,

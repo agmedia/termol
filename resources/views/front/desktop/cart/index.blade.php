@@ -81,6 +81,8 @@
                                             <span class="text-xs text-slate-500 line-through">{{ number_format($displayBase, 2) }} €</span>
                                         @endif
                                         <span class="font-semibold text-slate-900">{{ number_format($displayCurrent, 2) }} €</span>
+                                        <x-front.energy-label-arrow :declaration="$line['energy_declaration'] ?? null" class="mt-1 self-start" />
+                                        <x-front.energy-information-sheet-link :declaration="$line['energy_declaration'] ?? null" class="self-start" />
                                     </div>
                                 </div>
                                 <div>
@@ -214,6 +216,8 @@
                                         <span class="cart-price-value text-xs text-slate-500 line-through">{{ number_format($displayBase, 2) }} €</span>
                                     @endif
                                     <span class="cart-price-value font-semibold text-slate-900">{{ number_format($displayCurrent, 2) }} €</span>
+                                    <x-front.energy-label-arrow :declaration="$line['energy_declaration'] ?? null" class="mt-1 self-start" />
+                                    <x-front.energy-information-sheet-link :declaration="$line['energy_declaration'] ?? null" class="self-start" />
                                 </div>
                             </td>
                             <td class="px-4 py-3.5">

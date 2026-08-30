@@ -33,7 +33,13 @@ class MsanImportCoordinator
     private function queueSelectedLocked(?int $userId): MsanSyncRun
     {
         $activeRun = MsanSyncRun::query()
-            ->whereIn('kind', [MsanSyncRun::KIND_FULL, MsanSyncRun::KIND_IMPORT])
+            ->whereIn('kind', [
+                MsanSyncRun::KIND_FULL,
+                MsanSyncRun::KIND_IMPORT,
+                MsanSyncRun::KIND_AVAILABILITY,
+                MsanSyncRun::KIND_SPECIFICATIONS,
+                MsanSyncRun::KIND_EPREL,
+            ])
             ->whereIn('status', [MsanSyncRun::STATUS_PENDING, MsanSyncRun::STATUS_RUNNING])
             ->exists();
         if ($activeRun) {

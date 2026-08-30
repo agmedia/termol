@@ -20,6 +20,10 @@ class MsanSyncRun extends Model
 
     public const KIND_IMPORT = 'import';
 
+    public const KIND_SPECIFICATIONS = 'specifications';
+
+    public const KIND_EPREL = 'eprel';
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_RUNNING = 'running';

@@ -6,10 +6,12 @@ use App\Models\Catalog\Attribute\Attribute;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Product\Product;
+use App\Models\Catalog\Product\ProductEnergyDeclaration;
 use App\Models\Catalog\Product\ProductGroupPrice;
 use App\Models\Catalog\Product\ProductOptionValue;
 use App\Models\Catalog\Product\ProductPackage;
 use App\Models\Catalog\Product\ProductTranslation;
+use App\Models\Integrations\Msan\MsanProduct;
 use App\Models\Settings\Local\TaxRate;
 use App\Models\User\CustomerGroup;
 use App\Services\Catalog\CatalogFeatureService;
@@ -37,6 +39,8 @@ class Form extends Component
 
     public array $groupPrices = [];
 
+    public array $energyDeclarations = [];
+
     public array $form = [
         'code' => '',
         'sku' => '',
@@ -54,6 +58,7 @@ class Form extends Component
         'width_cm' => null,
         'height_cm' => null,
         'shipping_labels' => [],
+        'energy_label_required' => false,
         'payload_text' => '',
         'locale' => 'en',
         'name' => '',
@@ -94,7 +99,7 @@ class Form extends Component
 
     public function setTab(string $tab): void
     {
-        if (! in_array($tab, ['content', 'seo', 'media', 'catalog', 'attributes', 'logistics', 'b2b'], true)) {
+        if (! in_array($tab, ['content', 'seo', 'media', 'energy', 'catalog', 'attributes', 'logistics', 'b2b'], true)) {
             return;
         }
 
@@ -113,7 +118,7 @@ class Form extends Component
         }
 
         $validated = $this->validate($this->rules());
-        if (! $this->validateCommerceRows($validated)) {
+        if (! $this->validateCommerceRows($validated) || ! $this->validateEnergyRows($validated)) {
             return null;
         }
 
@@ -150,6 +155,7 @@ class Form extends Component
                 'width_cm' => $validated['form']['width_cm'] ?? null,
                 'height_cm' => $validated['form']['height_cm'] ?? null,
                 'shipping_labels' => array_values($validated['form']['shipping_labels'] ?? []),
+                'energy_label_required' => (bool) ($validated['form']['energy_label_required'] ?? false),
                 'payload' => $payload,
                 'updated_by' => $userId,
             ];
@@ -208,6 +214,10 @@ class Form extends Component
                 $packageIdsByCode,
                 $userId,
             );
+            $this->syncEnergyDeclarations(
+                $product,
+                $validated['energyDeclarations'] ?? [],
+            );
 
             activity('catalog_products')
                 ->performedOn($product)
@@ -242,6 +252,33 @@ class Form extends Component
     public function backToList()
     {
         return redirect()->route('admin.products', ['locale' => $this->form['locale']]);
+    }
+
+    public function addEnergyDeclaration(): void
+    {
+        $this->energyDeclarations[] = $this->blankEnergyDeclarationRow();
+    }
+
+    public function removeEnergyDeclaration(int $index): void
+    {
+        $row = $this->energyDeclarations[$index] ?? null;
+        if (! is_array($row) || (string) ($row['source'] ?? ProductEnergyDeclaration::SOURCE_MANUAL) !== ProductEnergyDeclaration::SOURCE_MANUAL) {
+            return;
+        }
+
+        unset($this->energyDeclarations[$index]);
+        $this->energyDeclarations = array_values($this->energyDeclarations);
+    }
+
+    public function setPrimaryEnergyDeclaration(int $index): void
+    {
+        if (! isset($this->energyDeclarations[$index])) {
+            return;
+        }
+
+        foreach ($this->energyDeclarations as $rowIndex => $row) {
+            $this->energyDeclarations[$rowIndex]['is_primary'] = $rowIndex === $index;
+        }
     }
 
     public function getCategoryOptionsProperty(): Collection
@@ -464,6 +501,28 @@ class Form extends Component
             ->get();
     }
 
+    /**
+     * @return array<int, string>
+     */
+    public function getEnergyMediaCollectionsProperty(): array
+    {
+        if (! $this->productId) {
+            return [];
+        }
+
+        $product = Product::query()->find($this->productId);
+        if (! $product) {
+            return [];
+        }
+
+        return $product->media()
+            ->whereIn('collection_name', ['product_energy_label', 'product_information_sheet'])
+            ->pluck('collection_name')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function render()
     {
         return view('livewire.admin.catalog.product.form', [
@@ -474,6 +533,7 @@ class Form extends Component
             'unitOptions' => Product::unitOptions(),
             'shippingLabelOptions' => Product::shippingLabelOptions(),
             'packageTypeOptions' => ProductPackage::typeOptions(),
+            'energyClassOptions' => ProductEnergyDeclaration::energyClassOptions(),
         ]);
     }
 
@@ -514,6 +574,7 @@ class Form extends Component
             'form.height_cm' => ['nullable', 'numeric', 'min:0'],
             'form.shipping_labels' => ['nullable', 'array'],
             'form.shipping_labels.*' => [Rule::in(array_keys(Product::shippingLabelOptions()))],
+            'form.energy_label_required' => ['boolean'],
             'form.payload_text' => ['nullable', 'string'],
             'form.manufacturer_id' => ['nullable'],
 
@@ -564,6 +625,24 @@ class Form extends Component
             'groupPrices.*.starts_at' => ['nullable', 'date'],
             'groupPrices.*.ends_at' => ['nullable', 'date'],
             'groupPrices.*.is_active' => ['boolean'],
+            'energyDeclarations' => ['array'],
+            'energyDeclarations.*.id' => ['nullable', 'integer'],
+            'energyDeclarations.*.context_code' => ['required', 'string', 'max:120', 'regex:/^[a-z0-9][a-z0-9_-]*$/'],
+            'energyDeclarations.*.label' => ['nullable', 'string', 'max:255'],
+            'energyDeclarations.*.energy_class' => ['nullable', Rule::in(ProductEnergyDeclaration::energyClassOptions())],
+            'energyDeclarations.*.scale_min' => ['nullable', Rule::in(ProductEnergyDeclaration::energyClassOptions())],
+            'energyDeclarations.*.scale_max' => ['nullable', Rule::in(ProductEnergyDeclaration::energyClassOptions())],
+            'energyDeclarations.*.eprel_registration_number' => ['nullable', 'string', 'max:64'],
+            'energyDeclarations.*.eprel_product_group' => ['nullable', 'string', 'max:100'],
+            'energyDeclarations.*.energy_label_image' => ['nullable', 'string', 'max:191'],
+            'energyDeclarations.*.energy_label_url' => ['nullable', 'url', 'starts_with:https://', 'max:2048'],
+            'energyDeclarations.*.product_information_sheet_url' => ['nullable', 'url', 'starts_with:https://', 'max:2048'],
+            'energyDeclarations.*.is_primary' => ['boolean'],
+            'energyDeclarations.*.source' => ['required', Rule::in([
+                ProductEnergyDeclaration::SOURCE_MANUAL,
+                ProductEnergyDeclaration::SOURCE_MSAN,
+                ProductEnergyDeclaration::SOURCE_EPREL,
+            ])],
         ];
 
         if ($this->useManufacturers()) {
@@ -593,6 +672,7 @@ class Form extends Component
         $productQuery = Product::query()
             ->with('translations')
             ->with(['packages', 'groupPrices.productPackage'])
+            ->with('energyDeclarations')
             ->with(['categories' => fn ($q) => $q->orderBy('category_product.sort_order')]);
 
         if ($this->useAttributes()) {
@@ -621,6 +701,7 @@ class Form extends Component
         $this->form['width_cm'] = $product->width_cm;
         $this->form['height_cm'] = $product->height_cm;
         $this->form['shipping_labels'] = $product->shipping_labels ?? [];
+        $this->form['energy_label_required'] = (bool) $product->energy_label_required;
         if ($this->useManufacturers()) {
             $this->form['manufacturer_id'] = $product->manufacturer_id ? (int) $product->manufacturer_id : null;
         }
@@ -676,6 +757,26 @@ class Form extends Component
                 'starts_at' => $price->starts_at?->format('Y-m-d\TH:i') ?? '',
                 'ends_at' => $price->ends_at?->format('Y-m-d\TH:i') ?? '',
                 'is_active' => (bool) $price->is_active,
+            ])
+            ->values()
+            ->all();
+
+        $this->energyDeclarations = $product->energyDeclarations
+            ->map(fn (ProductEnergyDeclaration $declaration): array => [
+                'id' => (int) $declaration->id,
+                'context_code' => (string) $declaration->context_code,
+                'label' => (string) ($declaration->label ?? ''),
+                'energy_class' => (string) ($declaration->energy_class ?? ''),
+                'scale_min' => (string) ($declaration->scale_min ?? ''),
+                'scale_max' => (string) ($declaration->scale_max ?? ''),
+                'eprel_registration_number' => (string) ($declaration->eprel_registration_number ?? ''),
+                'eprel_product_group' => (string) ($declaration->eprel_product_group ?? ''),
+                'energy_label_image' => (string) ($declaration->energy_label_image ?? ''),
+                'energy_label_url' => (string) ($declaration->energy_label_url ?? ''),
+                'product_information_sheet_url' => (string) ($declaration->product_information_sheet_url ?? ''),
+                'is_primary' => (bool) $declaration->is_primary,
+                'source' => (string) $declaration->source,
+                'synced_at' => $declaration->synced_at?->toIso8601String(),
             ])
             ->values()
             ->all();
@@ -921,6 +1022,97 @@ class Form extends Component
     }
 
     /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function validateEnergyRows(array $validated): bool
+    {
+        $valid = true;
+        $contexts = [];
+        $primaryCount = 0;
+        $rows = array_values($validated['energyDeclarations'] ?? []);
+        $ids = collect($rows)->pluck('id')->map(fn ($id): int => (int) $id)->filter()->all();
+        $persistedById = $this->productId && $ids !== []
+            ? ProductEnergyDeclaration::query()
+                ->where('product_id', $this->productId)
+                ->whereIn('id', $ids)
+                ->get()
+                ->keyBy('id')
+            : collect();
+
+        foreach ($rows as $index => $row) {
+            $context = strtolower(trim((string) ($row['context_code'] ?? '')));
+            if (isset($contexts[$context])) {
+                $this->addError("energyDeclarations.{$index}.context_code", __('Kontekst energetske oznake mora biti jedinstven za proizvod.'));
+                $valid = false;
+            }
+            $contexts[$context] = true;
+
+            $id = (int) ($row['id'] ?? 0);
+            if ($id > 0) {
+                $persisted = $persistedById->get($id);
+                if (! $persisted || (string) $persisted->source !== (string) ($row['source'] ?? '')) {
+                    $this->addError("energyDeclarations.{$index}.id", __('Energetska deklaracija ne pripada ovom proizvodu.'));
+                    $valid = false;
+                }
+            }
+
+            if ((bool) ($row['is_primary'] ?? false)) {
+                $primaryCount++;
+            }
+
+            if ((string) ($row['source'] ?? '') !== ProductEnergyDeclaration::SOURCE_MANUAL) {
+                continue;
+            }
+
+            $energyClass = trim((string) ($row['energy_class'] ?? ''));
+            $scaleMin = trim((string) ($row['scale_min'] ?? ''));
+            $scaleMax = trim((string) ($row['scale_max'] ?? ''));
+            if ($energyClass !== '' && ($scaleMin === '' || $scaleMax === '')) {
+                $this->addError("energyDeclarations.{$index}.scale_min", __('Za energetsku klasu unesite cijeli raspon oznake.'));
+                $valid = false;
+            }
+            if (($scaleMin !== '' || $scaleMax !== '') && $energyClass === '') {
+                $this->addError("energyDeclarations.{$index}.energy_class", __('Energetska klasa je obavezna uz raspon oznake.'));
+                $valid = false;
+            }
+            if ($energyClass !== '' && $scaleMin !== '' && $scaleMax !== '') {
+                $classIndex = array_search($energyClass, ProductEnergyDeclaration::ENERGY_CLASSES, true);
+                $minimumIndex = array_search($scaleMin, ProductEnergyDeclaration::ENERGY_CLASSES, true);
+                $maximumIndex = array_search($scaleMax, ProductEnergyDeclaration::ENERGY_CLASSES, true);
+                if ($classIndex === false
+                    || $minimumIndex === false
+                    || $maximumIndex === false
+                    || $minimumIndex > $classIndex
+                    || $classIndex > $maximumIndex) {
+                    $this->addError("energyDeclarations.{$index}.energy_class", __('Energetska klasa mora biti unutar unesenog raspona oznake.'));
+                    $valid = false;
+                }
+            }
+
+            $conflict = ProductEnergyDeclaration::query()
+                ->where('product_id', $this->productId ?: 0)
+                ->where('context_code', $context)
+                ->when($id > 0, fn ($query) => $query->whereKeyNot($id))
+                ->exists();
+            if ($conflict) {
+                $this->addError("energyDeclarations.{$index}.context_code", __('Taj kontekst energetske oznake već postoji.'));
+                $valid = false;
+            }
+        }
+
+        if ($primaryCount > 1) {
+            $this->addError('energyDeclarations', __('Odaberite samo jednu primarnu energetsku deklaraciju.'));
+            $valid = false;
+        }
+
+        if (! $valid) {
+            $this->dispatch('notify', type: 'danger', message: __('Provjerite podatke energetskih deklaracija.'));
+        }
+
+        return $valid;
+    }
+
+    /**
      * @param  array<int, array<string, mixed>>  $rows
      * @return array<string, int>
      */
@@ -1020,6 +1212,112 @@ class Form extends Component
     }
 
     /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function syncEnergyDeclarations(Product $product, array $rows): void
+    {
+        $previousEprelIdentity = [
+            trim((string) $product->eprel_registration_number),
+            trim((string) $product->eprel_product_group),
+        ];
+        $existing = $product->energyDeclarations()->get()->keyBy('id');
+        $retainedManualIds = [];
+        $savedIdsByIndex = [];
+
+        foreach (array_values($rows) as $index => $row) {
+            $id = (int) ($row['id'] ?? 0);
+            $persisted = $existing->get($id);
+            $source = $persisted
+                ? (string) $persisted->source
+                : (string) ($row['source'] ?? ProductEnergyDeclaration::SOURCE_MANUAL);
+
+            if ($source !== ProductEnergyDeclaration::SOURCE_MANUAL) {
+                if ($persisted) {
+                    $savedIdsByIndex[$index] = (int) $persisted->id;
+                }
+
+                continue;
+            }
+
+            $declaration = $persisted instanceof ProductEnergyDeclaration
+                && $persisted->source === ProductEnergyDeclaration::SOURCE_MANUAL
+                    ? $persisted
+                    : new ProductEnergyDeclaration(['product_id' => $product->id]);
+            $declaration->fill([
+                'product_id' => $product->id,
+                'context_code' => strtolower(trim((string) $row['context_code'])),
+                'label' => trim((string) ($row['label'] ?? '')) ?: null,
+                'energy_class' => trim((string) ($row['energy_class'] ?? '')) ?: null,
+                'scale_min' => trim((string) ($row['scale_min'] ?? '')) ?: null,
+                'scale_max' => trim((string) ($row['scale_max'] ?? '')) ?: null,
+                'eprel_registration_number' => trim((string) ($row['eprel_registration_number'] ?? '')) ?: null,
+                'eprel_product_group' => trim((string) ($row['eprel_product_group'] ?? '')) ?: null,
+                'energy_label_image' => null,
+                'energy_label_url' => trim((string) ($row['energy_label_url'] ?? '')) ?: null,
+                'product_information_sheet_url' => trim((string) ($row['product_information_sheet_url'] ?? '')) ?: null,
+                'is_primary' => false,
+                'source' => ProductEnergyDeclaration::SOURCE_MANUAL,
+                'synced_at' => null,
+            ])->save();
+
+            $retainedManualIds[] = (int) $declaration->id;
+            $savedIdsByIndex[$index] = (int) $declaration->id;
+        }
+
+        $product->energyDeclarations()
+            ->where('source', ProductEnergyDeclaration::SOURCE_MANUAL)
+            ->when($retainedManualIds !== [], fn ($query) => $query->whereNotIn('id', $retainedManualIds))
+            ->get()
+            ->each
+            ->delete();
+
+        $selectedIndex = collect(array_values($rows))
+            ->search(fn (array $row): bool => (bool) ($row['is_primary'] ?? false));
+        $selectedId = $selectedIndex !== false
+            ? ($savedIdsByIndex[(int) $selectedIndex] ?? null)
+            : null;
+
+        if ($selectedId) {
+            $product->energyDeclarations()->update(['is_primary' => false]);
+            $product->energyDeclarations()->whereKey($selectedId)->update(['is_primary' => true]);
+        } elseif (! $product->energyDeclarations()->where('is_primary', true)->exists()) {
+            $fallback = $product->energyDeclarations()->orderBy('id')->first();
+            $fallback?->forceFill(['is_primary' => true])->save();
+        }
+
+        $primary = $product->energyDeclarations()
+            ->orderByDesc('is_primary')
+            ->orderBy('id')
+            ->first();
+        $product->forceFill([
+            'energy_efficiency_class' => $primary?->energy_class,
+            'energy_efficiency_scale' => $primary && ($primary->scale_min || $primary->scale_max)
+                ? trim((string) $primary->scale_min.'-'.(string) $primary->scale_max, '-')
+                : null,
+            'eprel_registration_number' => $primary?->eprel_registration_number,
+            'eprel_product_group' => $primary?->eprel_product_group,
+            'eprel_energy_label_image' => $primary?->energy_label_image,
+            'energy_label_url' => $primary?->energy_label_url,
+            'product_information_sheet_url' => $primary?->product_information_sheet_url,
+            'energy_data_synced_at' => $primary?->synced_at,
+        ])->save();
+
+        $currentEprelIdentity = [
+            trim((string) $product->eprel_registration_number),
+            trim((string) $product->eprel_product_group),
+        ];
+        if ($previousEprelIdentity !== $currentEprelIdentity) {
+            MsanProduct::query()
+                ->where('local_product_id', $product->id)
+                ->update([
+                    'eprel_match_status' => MsanProduct::EPREL_PENDING,
+                    'eprel_identifier_checksum' => null,
+                    'eprel_checked_at' => null,
+                ]);
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function blankPackageRow(): array
@@ -1056,6 +1354,29 @@ class Form extends Component
             'starts_at' => '',
             'ends_at' => '',
             'is_active' => true,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function blankEnergyDeclarationRow(): array
+    {
+        return [
+            'id' => null,
+            'context_code' => 'manual-'.Str::lower(Str::random(8)),
+            'label' => '',
+            'energy_class' => '',
+            'scale_min' => 'A',
+            'scale_max' => 'G',
+            'eprel_registration_number' => '',
+            'eprel_product_group' => '',
+            'energy_label_image' => '',
+            'energy_label_url' => '',
+            'product_information_sheet_url' => '',
+            'is_primary' => $this->energyDeclarations === [],
+            'source' => ProductEnergyDeclaration::SOURCE_MANUAL,
+            'synced_at' => null,
         ];
     }
 

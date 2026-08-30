@@ -6,6 +6,7 @@ use App\Models\Integrations\Msan\MsanCategory;
 use App\Models\Integrations\Msan\MsanProduct;
 use App\Services\Integrations\Msan\MsanCatalogSyncService;
 use App\Services\Integrations\Msan\MsanImportCoordinator;
+use App\Services\Integrations\Msan\MsanSettingsService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
@@ -229,6 +230,7 @@ class ProductSelectionManager extends Component
     {
         $this->authorizeView();
         $filterOptions = $this->filterOptions();
+        $msanSettings = app(MsanSettingsService::class);
 
         $perPage = app(SystemSettingsService::class)->getInt(
             'admin_items_per_page',
@@ -283,6 +285,8 @@ class ProductSelectionManager extends Component
             'canManageImport' => $this->canImport(),
             'selectedEligibleCount' => $this->selectedEligibleCount(),
             'perPage' => $perPage,
+            'availabilityLevelLabels' => MsanSettingsService::AVAILABILITY_LEVEL_LABELS,
+            'stockLevelQuantities' => $msanSettings->stockLevelQuantities(),
         ]);
     }
 

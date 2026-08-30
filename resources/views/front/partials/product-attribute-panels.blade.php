@@ -5,7 +5,11 @@
         'kvaliteta' => 'Kvaliteta',
         'garancija' => 'Garancija',
     ];
-    $attributes = $product->relationLoaded('attributes') ? $product->attributes : collect();
+    $attributes = $product->relationLoaded('attributes')
+        ? $product->attributes->reject(
+            fn ($attribute): bool => (string) data_get($attribute->payload, 'source') === 'msan_specification',
+        )
+        : collect();
     $attributeOrder = collect($preferredAttributeOrder)
         ->merge($attributes->pluck('group_code')->map(fn ($groupCode): string => (string) $groupCode))
         ->filter()

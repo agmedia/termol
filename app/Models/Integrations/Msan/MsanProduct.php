@@ -6,6 +6,7 @@ use App\Models\Catalog\Product\Product;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MsanProduct extends Model
 {
@@ -28,6 +29,14 @@ class MsanProduct extends Model
     public const IMPORT_FAILED = 'failed';
 
     public const IMPORT_SKIPPED = 'skipped';
+
+    public const EPREL_PENDING = 'pending';
+
+    public const EPREL_EXACT = 'exact';
+
+    public const EPREL_NO_MATCH = 'no_match';
+
+    public const EPREL_INVALID = 'invalid';
 
     protected $fillable = [
         'external_code',
@@ -57,12 +66,17 @@ class MsanProduct extends Model
         'local_product_id',
         'match_status',
         'import_status',
+        'eprel_match_status',
+        'eprel_identifier_checksum',
+        'eprel_checked_at',
         'catalog_checksum',
         'price_checksum',
         'availability_checksum',
+        'specifications_checksum',
         'catalog_synced_at',
         'price_synced_at',
         'availability_synced_at',
+        'specifications_synced_at',
         'last_seen_at',
         'last_imported_at',
         'last_error',
@@ -87,9 +101,11 @@ class MsanProduct extends Model
             'selected' => 'bool',
             'is_stale' => 'bool',
             'local_product_id' => 'int',
+            'eprel_checked_at' => 'datetime',
             'catalog_synced_at' => 'datetime',
             'price_synced_at' => 'datetime',
             'availability_synced_at' => 'datetime',
+            'specifications_synced_at' => 'datetime',
             'last_seen_at' => 'datetime',
             'last_imported_at' => 'datetime',
             'payload' => 'array',
@@ -109,5 +125,12 @@ class MsanProduct extends Model
             'msan_product_id',
             'msan_category_id'
         )->withPivot('last_seen_at')->withTimestamps();
+    }
+
+    public function specifications(): HasMany
+    {
+        return $this->hasMany(MsanProductSpecification::class, 'msan_product_id')
+            ->orderBy('item_order')
+            ->orderBy('id');
     }
 }

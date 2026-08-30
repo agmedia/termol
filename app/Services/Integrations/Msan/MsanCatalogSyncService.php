@@ -286,6 +286,22 @@ class MsanCatalogSyncService
             return;
         }
 
+        $existing = DB::table('msan_products')
+            ->whereIn('external_code', array_column($rows, 'external_code'))
+            ->get(['id', 'external_code', 'model', 'part_number'])
+            ->keyBy('external_code');
+        $changedEprelIdentifierIds = [];
+        foreach ($rows as $row) {
+            $current = $existing->get((string) $row['external_code']);
+            if (! $current) {
+                continue;
+            }
+            if (trim((string) $current->model) !== trim((string) ($row['model'] ?? ''))
+                || trim((string) $current->part_number) !== trim((string) ($row['part_number'] ?? ''))) {
+                $changedEprelIdentifierIds[] = (int) $current->id;
+            }
+        }
+
         DB::table('msan_products')->upsert(
             $rows,
             ['external_code'],
@@ -296,6 +312,16 @@ class MsanCatalogSyncService
                 'catalog_checksum', 'catalog_synced_at', 'last_seen_at', 'payload', 'updated_at',
             ],
         );
+
+        if ($changedEprelIdentifierIds !== []) {
+            DB::table('msan_products')
+                ->whereIn('id', $changedEprelIdentifierIds)
+                ->update([
+                    'eprel_match_status' => MsanProduct::EPREL_PENDING,
+                    'eprel_identifier_checksum' => null,
+                    'eprel_checked_at' => null,
+                ]);
+        }
     }
 
     private function syncPrices(string $path, mixed $seenAt): int

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Session;
 class WishlistService
 {
     private const SESSION_KEY = 'front.wishlist.product_ids';
+
     /** @var array<string, array<int, int>> */
     private static array $idsCache = [];
 
@@ -165,6 +166,7 @@ class WishlistService
         $orderMap = array_flip($ids);
 
         return Product::query()
+            ->withStorefrontEnergyData()
             ->whereIn('id', $ids)
             ->where('is_active', true)
             ->with([

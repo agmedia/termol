@@ -60,8 +60,8 @@ class MsanSettingsAndCertificateTest extends TestCase
         $this->assertSame(0, $admin['msan_stock_level_0']);
         $this->assertSame(12, $admin['msan_stock_level_1']);
         $this->assertSame(999999, $admin['msan_stock_level_2']);
-        $this->assertSame(1, $admin['msan_stock_level_3']);
-        $this->assertSame(1, $admin['msan_stock_level_4']);
+        $this->assertSame(5, $admin['msan_stock_level_3']);
+        $this->assertSame(10, $admin['msan_stock_level_4']);
 
         $service->saveAdminValues([
             'msan_p12_pin' => '   ',
@@ -82,6 +82,32 @@ class MsanSettingsAndCertificateTest extends TestCase
                 ->get(MsanSettingsService::KEY_FTP_PASSWORD_ENCRYPTED),
         );
         $this->assertFalse(SystemSetting::query()->where('key', 'unrelated_setting')->exists());
+    }
+
+    public function test_default_availability_mapping_uses_clear_semantic_levels_and_local_sellable_limits(): void
+    {
+        $service = app(MsanSettingsService::class);
+
+        $this->assertSame([0, 1, 3, 5, 10], array_values($service->stockLevelQuantities()));
+        $this->assertSame('Nije dostupno', MsanSettingsService::availabilityLevelLabel(0));
+        $this->assertSame('Niska dostupnost', MsanSettingsService::availabilityLevelLabel(1));
+        $this->assertSame('Srednja dostupnost', MsanSettingsService::availabilityLevelLabel(2));
+        $this->assertSame('Visoka dostupnost', MsanSettingsService::availabilityLevelLabel(3));
+        $this->assertSame('Vrlo visoka dostupnost', MsanSettingsService::availabilityLevelLabel(4));
+        $this->assertSame('Nepoznata dostupnost', MsanSettingsService::availabilityLevelLabel(null));
+    }
+
+    public function test_default_limit_migration_updates_only_the_complete_untouched_legacy_profile(): void
+    {
+        $migration = require database_path('migrations/2026_08_30_088000_update_msan_stock_level_defaults.php');
+
+        $this->storeStockLevelProfile([0, 1, 1, 1, 1]);
+        $migration->up();
+        $this->assertSame([0, 1, 3, 5, 10], $this->storedStockLevelProfile());
+
+        $this->storeStockLevelProfile([0, 1, 1, 7, 20]);
+        $migration->up();
+        $this->assertSame([0, 1, 1, 7, 20], $this->storedStockLevelProfile());
     }
 
     public function test_certificate_is_validated_stored_privately_and_failed_replacement_keeps_existing_file(): void
@@ -157,5 +183,26 @@ class MsanSettingsAndCertificateTest extends TestCase
         $this->assertNotFalse(file_put_contents($path, $pkcs12));
 
         return $path;
+    }
+
+    /** @param array<int, int> $profile */
+    private function storeStockLevelProfile(array $profile): void
+    {
+        foreach ($profile as $level => $quantity) {
+            SystemSetting::query()->updateOrCreate(
+                ['key' => MsanSettingsService::KEY_STOCK_LEVEL_PREFIX.$level],
+                ['value' => json_encode($quantity, JSON_THROW_ON_ERROR)],
+            );
+        }
+    }
+
+    /** @return array<int, int> */
+    private function storedStockLevelProfile(): array
+    {
+        return collect(range(0, 4))
+            ->map(fn (int $level): int => (int) json_decode((string) SystemSetting::query()
+                ->where('key', MsanSettingsService::KEY_STOCK_LEVEL_PREFIX.$level)
+                ->value('value'), true, 512, JSON_THROW_ON_ERROR))
+            ->all();
     }
 }

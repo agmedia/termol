@@ -486,6 +486,7 @@ class CatalogController extends Controller
         $this->queueGridColsCookie($gridCols);
 
         $query = Product::query()
+            ->withStorefrontEnergyData()
             ->select([
                 'products.id',
                 'products.code',
@@ -800,6 +801,7 @@ class CatalogController extends Controller
 
         if ($showCategoryProducts) {
             $productsQuery = Product::query()
+                ->withStorefrontEnergyData()
                 ->visibleOnStorefront($this->hideOutOfStockProducts())
                 ->whereHas('categories', function ($categoryQuery) use ($categoryTreeIds): void {
                     $categoryQuery

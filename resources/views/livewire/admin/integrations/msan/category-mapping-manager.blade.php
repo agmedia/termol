@@ -74,39 +74,54 @@
             $editingCategory = $categories->getCollection()->firstWhere('id', $editingCategoryId);
         @endphp
         <section class="admin-panel admin-form-panel p-6" wire:key="msan-category-editor-{{ $editingCategoryId }}">
-            <form wire:submit="saveMapping" class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                <div class="min-w-0 flex-1">
-                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-800">{{ __('Uredi mapiranje') }}</p>
-                    <h3 class="mt-1 text-lg font-semibold text-slate-900">
-                        {{ $editingCategory?->name ?? __('M SAN kategorija #:id', ['id' => $editingCategoryId]) }}
-                    </h3>
-                    @if ($editingCategory?->path)
-                        <p class="mt-1 text-sm text-slate-600">{{ $editingCategory->path }}</p>
-                    @endif
+            <form wire:submit="saveMapping" class="space-y-5">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-800">{{ __('Uredi mapiranje') }}</p>
+                        <h3 class="mt-1 text-lg font-semibold text-slate-900">
+                            {{ $editingCategory?->name ?? __('M SAN kategorija #:id', ['id' => $editingCategoryId]) }}
+                        </h3>
+                        @if ($editingCategory?->path)
+                            <p class="mt-1 text-sm text-slate-600">{{ $editingCategory->path }}</p>
+                        @endif
+                    </div>
+                    <div class="flex shrink-0 gap-2">
+                        <button type="button" wire:click="cancelEdit" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">{{ __('Odustani') }}</button>
+                        <button type="submit" wire:loading.attr="disabled" wire:target="saveMapping" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-wait disabled:opacity-60">{{ __('Spremi mapiranje') }}</button>
+                    </div>
                 </div>
 
-                <div class="w-full xl:max-w-2xl">
-                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500" for="msan-local-category">
-                        {{ __('Kategorija webshopa') }}
-                    </label>
-                    <select id="msan-local-category" wire:model="localCategoryId" class="admin-select w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
-                        <option value="">{{ __('Odaberite kategoriju...') }}</option>
-                        @foreach ($localCategoryOptions as $option)
-                            <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>
-                        @endforeach
-                    </select>
-                    @error('localCategoryId')
-                        <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="flex shrink-0 gap-2">
-                    <button type="button" wire:click="cancelEdit" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-                        {{ __('Odustani') }}
-                    </button>
-                    <button type="submit" wire:loading.attr="disabled" wire:target="saveMapping" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-wait disabled:opacity-60">
-                        {{ __('Spremi mapiranje') }}
-                    </button>
+                <div class="grid gap-4 lg:grid-cols-3">
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500" for="msan-local-category">{{ __('Kategorija webshopa') }}</label>
+                        <select id="msan-local-category" wire:model="localCategoryId" class="admin-select w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                            <option value="">{{ __('Odaberite kategoriju...') }}</option>
+                            @foreach ($localCategoryOptions as $option)
+                                <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>
+                            @endforeach
+                        </select>
+                        @error('localCategoryId') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500" for="msan-eprel-group">{{ __('EPREL grupa proizvoda') }}</label>
+                        <select id="msan-eprel-group" wire:model="eprelProductGroup" class="admin-select w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                            <option value="">{{ __('Bez EPREL grupe') }}</option>
+                            @foreach ($eprelProductGroupOptions as $groupSlug => $groupCode)
+                                <option value="{{ $groupSlug }}">{{ str_replace('_', ' ', $groupCode) }} · {{ $groupSlug }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-slate-500">{{ __('Popis je ograničen na grupe koje podržava EPREL servis.') }}</p>
+                        @error('eprelProductGroup') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500" for="msan-energy-requirement">{{ __('Pravilo energetske oznake') }}</label>
+                        <select id="msan-energy-requirement" wire:model="energyRequirement" class="admin-select w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                            @foreach ($energyRequirementOptions as $requirementValue => $requirementLabel)
+                                <option value="{{ $requirementValue }}">{{ __($requirementLabel) }}</option>
+                            @endforeach
+                        </select>
+                        @error('energyRequirement') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
                 </div>
             </form>
         </section>
@@ -125,13 +140,14 @@
         </div>
 
         <div class="mt-4 overflow-x-auto">
-            <table class="admin-items-table min-w-[70rem] text-sm">
+            <table class="admin-items-table min-w-[82rem] text-sm">
                 <thead class="text-slate-600">
                     <tr>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('M SAN kategorija') }}</th>
                         <th class="px-3 py-2 text-center font-semibold">{{ __('Artikli') }}</th>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Status') }}</th>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Kategorija webshopa') }}</th>
+                        <th class="px-3 py-2 text-left font-semibold">{{ __('Energetski podaci') }}</th>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Zadnje viđeno') }}</th>
                         @if ($canManageMapping)
                             <th class="px-3 py-2 text-right font-semibold">{{ __('Radnje') }}</th>
@@ -184,6 +200,10 @@
                                 @endif
                             </td>
                             <td class="px-3 py-3 text-xs text-slate-600">
+                                <div class="font-medium text-slate-700">{{ __($energyRequirementOptions[$mapping?->energy_requirement ?? 'inherit'] ?? __('Automatski prema dostupnim podacima')) }}</div>
+                                <div class="mt-1 font-mono text-[11px] text-slate-400">{{ $mapping?->eprel_product_group ?: __('EPREL grupa nije zadana') }}</div>
+                            </td>
+                            <td class="px-3 py-3 text-xs text-slate-600">
                                 <div>{{ $category->last_seen_at?->format('d.m.Y. H:i') ?? '—' }}</div>
                                 @if ($category->is_stale)
                                     <span class="mt-1 inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">{{ __('Zastarjelo') }}</span>
@@ -211,7 +231,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $canManageMapping ? 6 : 5 }}" class="px-3 py-10 text-center text-sm text-slate-500">
+                            <td colspan="{{ $canManageMapping ? 7 : 6 }}" class="px-3 py-10 text-center text-sm text-slate-500">
                                 {{ __('Nema M SAN kategorija prema odabranim filtrima. Najprije pokrenite sinkronizaciju kataloga.') }}
                             </td>
                         </tr>

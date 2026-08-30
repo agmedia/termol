@@ -25,6 +25,9 @@
                 <button type="button" wire:click="setTab('media')" class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] {{ $activeTab === 'media' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}">
                     {{ __('Media') }}
                 </button>
+                <button type="button" wire:click="setTab('energy')" class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] {{ $activeTab === 'energy' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}">
+                    {{ __('Energetske oznake') }}
+                </button>
                 <button type="button" wire:click="setTab('catalog')" class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] {{ $activeTab === 'catalog' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}">
                     {{ __('Kategorije') }}
                 </button>
@@ -189,6 +192,180 @@
             :locale="$form['locale']"
             :wire:key="'product-media-manager-'.($productId ?? 'new').'-'.$form['locale']"
         />
+        @endif
+
+        @if ($activeTab === 'energy')
+        @php
+            $primaryEnergyRow = collect($energyDeclarations)->first(fn ($row) => (bool) ($row['is_primary'] ?? false))
+                ?? collect($energyDeclarations)->first();
+            $energyMediaCollections = $this->energyMediaCollections;
+            $eprelGroup = strtolower(trim((string) ($primaryEnergyRow['eprel_product_group'] ?? '')));
+            $eprelRegistration = trim((string) ($primaryEnergyRow['eprel_registration_number'] ?? ''));
+            $hasEprelAssetIdentity = preg_match('/^[a-z0-9-]{2,100}$/', $eprelGroup) === 1
+                && preg_match('/^\d{3,20}$/', $eprelRegistration) === 1;
+            $isValidHttpsUrl = static function ($value): bool {
+                $value = trim((string) $value);
+                $parts = filter_var($value, FILTER_VALIDATE_URL) !== false ? parse_url($value) : false;
+
+                return is_array($parts)
+                    && strtolower((string) ($parts['scheme'] ?? '')) === 'https'
+                    && ! isset($parts['user'], $parts['pass']);
+            };
+            $hasSavedEnergyLabel = in_array('product_energy_label', $energyMediaCollections, true)
+                || $isValidHttpsUrl($primaryEnergyRow['energy_label_url'] ?? '')
+                || $hasEprelAssetIdentity;
+            $hasSavedInformationSheet = in_array('product_information_sheet', $energyMediaCollections, true)
+                || $isValidHttpsUrl($primaryEnergyRow['product_information_sheet_url'] ?? '')
+                || $hasEprelAssetIdentity;
+        @endphp
+        <div class="admin-panel admin-form-panel p-6">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <p class="admin-section-title">{{ __('Energetske oznake i informacijski listovi') }}</p>
+                    <p class="mt-1 max-w-3xl text-sm text-slate-600">{{ __('Za svaki kontekst proizvoda možete spremiti zasebnu energetsku klasu. Uvezene M SAN/EPREL deklaracije su samo za čitanje; ručne deklaracije ostaju sačuvane pri sljedećoj sinkronizaciji.') }}</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button
+                        type="button"
+                        wire:click="$toggle('form.energy_label_required')"
+                        class="rounded-xl border px-3 py-2 text-xs font-semibold {{ $form['energy_label_required'] ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-300 bg-white text-slate-700' }}"
+                        role="switch"
+                        aria-checked="{{ $form['energy_label_required'] ? 'true' : 'false' }}"
+                    >
+                        {{ $form['energy_label_required'] ? __('Energetska oznaka: obavezna') : __('Energetska oznaka: nije obavezna') }}
+                    </button>
+                    <button type="button" wire:click="addEnergyDeclaration" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                        {{ __('Dodaj ručnu deklaraciju') }}
+                    </button>
+                </div>
+            </div>
+
+            @if ($form['energy_label_required'] && (! $hasSavedEnergyLabel || ! $hasSavedInformationSheet))
+                <div class="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="alert" data-energy-compliance-warning>
+                    <p class="font-semibold">{{ __('Energetska dokumentacija nije potpuna.') }}</p>
+                    <p class="mt-1">
+                        @if (! $hasSavedEnergyLabel && ! $hasSavedInformationSheet)
+                            {{ __('Nedostaju službena energetska oznaka i informacijski list proizvoda (PIS).') }}
+                        @elseif (! $hasSavedEnergyLabel)
+                            {{ __('Nedostaje službena energetska oznaka.') }}
+                        @else
+                            {{ __('Nedostaje informacijski list proizvoda (PIS).') }}
+                        @endif
+                    </p>
+                </div>
+            @endif
+
+            <div class="mt-4 rounded-xl border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-950">
+                {{ __('Lokalnu službenu oznaku i PIS učitajte u kartici Media. Datoteke se ne koriste kao glavna slika proizvoda. Za više konteksta unesite zaseban HTTPS URL u odgovarajuću deklaraciju.') }}
+                <button type="button" wire:click="setTab('media')" class="ml-1 font-semibold underline underline-offset-2">{{ __('Otvori Media') }}</button>
+            </div>
+
+            <div class="mt-5 space-y-4">
+                @forelse ($energyDeclarations as $index => $row)
+                    @php
+                        $isManualEnergyRow = (string) ($row['source'] ?? 'manual') === \App\Models\Catalog\Product\ProductEnergyDeclaration::SOURCE_MANUAL;
+                    @endphp
+                    <section wire:key="product-energy-row-{{ $row['id'] ?? $index }}" class="rounded-xl border {{ $row['is_primary'] ? 'border-cyan-300 bg-cyan-50/40' : 'border-slate-200 bg-white' }} p-4">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h3 class="font-semibold text-slate-900">{{ $row['label'] ?: ($row['context_code'] ?: __('Energetska deklaracija')) }}</h3>
+                                    <span class="admin-chip">{{ strtoupper((string) ($row['source'] ?? 'manual')) }}</span>
+                                    @if ($row['is_primary'])
+                                        <span class="admin-chip">{{ __('Primarna') }}</span>
+                                    @endif
+                                </div>
+                                @if (! empty($row['synced_at']))
+                                    <p class="mt-1 text-xs text-slate-500">{{ __('Sinkronizirano') }}: {{ $row['synced_at'] }}</p>
+                                @endif
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                @if (! $row['is_primary'])
+                                    <button type="button" wire:click="setPrimaryEnergyDeclaration({{ $index }})" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Postavi kao primarnu') }}</button>
+                                @endif
+                                @if ($isManualEnergyRow)
+                                    <button type="button" wire:click="removeEnergyDeclaration({{ $index }})" wire:confirm="{{ __('Obrisati ručnu energetsku deklaraciju?') }}" class="rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50">{{ __('Obriši') }}</button>
+                                @endif
+                            </div>
+                        </div>
+
+                        @if ($isManualEnergyRow)
+                            <div class="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Kontekst') }}</label>
+                                    <input type="text" wire:model="energyDeclarations.{{ $index }}.context_code" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono">
+                                    @error("energyDeclarations.$index.context_code") <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="lg:col-span-2">
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Naziv / opis konteksta') }}</label>
+                                    <input type="text" wire:model="energyDeclarations.{{ $index }}.label" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Energetska klasa') }}</label>
+                                    <select wire:model="energyDeclarations.{{ $index }}.energy_class" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                        <option value="">{{ __('Nije uneseno') }}</option>
+                                        @foreach ($energyClassOptions as $energyClass)
+                                            <option value="{{ $energyClass }}">{{ $energyClass }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error("energyDeclarations.$index.energy_class") <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Raspon od') }}</label>
+                                    <select wire:model="energyDeclarations.{{ $index }}.scale_min" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                        <option value="">{{ __('Nije uneseno') }}</option>
+                                        @foreach ($energyClassOptions as $energyClass)
+                                            <option value="{{ $energyClass }}">{{ $energyClass }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error("energyDeclarations.$index.scale_min") <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Raspon do') }}</label>
+                                    <select wire:model="energyDeclarations.{{ $index }}.scale_max" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                        <option value="">{{ __('Nije uneseno') }}</option>
+                                        @foreach ($energyClassOptions as $energyClass)
+                                            <option value="{{ $energyClass }}">{{ $energyClass }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error("energyDeclarations.$index.scale_max") <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('EPREL broj') }}</label>
+                                    <input type="text" wire:model="energyDeclarations.{{ $index }}.eprel_registration_number" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono">
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('EPREL grupa') }}</label>
+                                    <input type="text" wire:model="energyDeclarations.{{ $index }}.eprel_product_group" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono">
+                                </div>
+                                <div class="md:col-span-2 lg:col-span-3">
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('HTTPS URL službene energetske oznake') }}</label>
+                                    <input type="url" wire:model="energyDeclarations.{{ $index }}.energy_label_url" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                    @error("energyDeclarations.$index.energy_label_url") <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="md:col-span-2 lg:col-span-4">
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('HTTPS URL informacijskog lista proizvoda (PIS)') }}</label>
+                                    <input type="url" wire:model="energyDeclarations.{{ $index }}.product_information_sheet_url" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                    @error("energyDeclarations.$index.product_information_sheet_url") <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+                            </div>
+                        @else
+                            <dl class="mt-4 grid gap-3 text-sm md:grid-cols-2 lg:grid-cols-4">
+                                <div><dt class="text-xs uppercase text-slate-500">{{ __('Kontekst') }}</dt><dd class="mt-1 font-mono text-slate-800">{{ $row['context_code'] }}</dd></div>
+                                <div><dt class="text-xs uppercase text-slate-500">{{ __('Klasa / raspon') }}</dt><dd class="mt-1 font-semibold text-slate-800">{{ $row['energy_class'] ?: '—' }} / {{ ($row['scale_min'] && $row['scale_max']) ? $row['scale_min'].'–'.$row['scale_max'] : '—' }}</dd></div>
+                                <div><dt class="text-xs uppercase text-slate-500">{{ __('EPREL broj') }}</dt><dd class="mt-1 font-mono text-slate-800">{{ $row['eprel_registration_number'] ?: '—' }}</dd></div>
+                                <div><dt class="text-xs uppercase text-slate-500">{{ __('EPREL grupa') }}</dt><dd class="mt-1 font-mono text-slate-800">{{ $row['eprel_product_group'] ?: '—' }}</dd></div>
+                            </dl>
+                        @endif
+                    </section>
+                @empty
+                    <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                        {{ __('Nema energetskih deklaracija. Ako je oznaka obavezna, dodajte ručni unos ili prvo sinkronizirajte EPREL podatke.') }}
+                    </div>
+                @endforelse
+            </div>
+            @error('energyDeclarations') <p class="mt-3 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
         @endif
 
         @if ($activeTab === 'logistics')

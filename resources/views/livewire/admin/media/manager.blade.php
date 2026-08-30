@@ -22,6 +22,7 @@
                     $previewConversion = (string) ($collectionConfig['preview_conversion'] ?? '');
                     $mainCollection = (string) ($modelProfile['main_collection'] ?? '');
                     $isMainCollection = $mainCollection !== '' && $mainCollection === $collectionName;
+                    $mayPromoteToMain = (bool) ($collectionConfig['promote_to_main'] ?? true);
                     $isDesktopSliderCollection = $isLinkableSliderBlock && $collectionName === 'block_slides';
                     $isMobileSliderCollection = $isLinkableSliderBlock && $collectionName === 'block_slides_mobile';
                     $collectionLabel = $isDesktopSliderCollection
@@ -137,10 +138,11 @@
                                             ? $media->getUrl($previewConversion)
                                             : $media->getUrl();
                                         $previewUrl .= (str_contains($previewUrl, '?') ? '&' : '?').'v='.$cacheBuster;
+                                        $isImageMedia = str_starts_with(strtolower((string) $media->mime_type), 'image/');
                                     @endphp
                                     <tr wire:key="media-{{ $collectionName }}-{{ $media->id }}">
                                         <td class="px-3 py-3 align-top">
-                                            @if (($isBlogPostMedia && $collectionName === 'blog_gallery') || ($isLinkableSliderBlock && $collectionName === 'block_slides'))
+                                            @if ($isImageMedia && (($isBlogPostMedia && $collectionName === 'blog_gallery') || ($isLinkableSliderBlock && $collectionName === 'block_slides')))
                                                 <div
                                                     class="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
                                                     style="width: 280px; max-width: 100%;"
@@ -176,8 +178,13 @@
                                                         </button>
                                                     @endfor
                                                 </div>
-                                            @else
+                                            @elseif ($isImageMedia)
                                                 <img src="{{ $previewUrl }}" alt="" class="h-20 w-28 rounded-lg border border-slate-200 bg-slate-100 object-cover" />
+                                            @else
+                                                <a href="{{ $media->getUrl() }}" target="_blank" rel="noopener noreferrer" class="flex h-20 w-28 flex-col items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-center text-[10px] font-semibold uppercase text-slate-600 hover:bg-slate-100">
+                                                    <span aria-hidden="true" class="text-lg">PDF</span>
+                                                    <span>{{ __('Open document') }}</span>
+                                                </a>
                                             @endif
                                             <p class="mt-1 text-[11px] text-slate-500">{{ $media->file_name }}</p>
                                         </td>
@@ -308,14 +315,16 @@
                                                     | {{ $media->width }}x{{ $media->height }}
                                                 @endif
                                             </p>
-                                            <div class="mt-2 flex flex-wrap items-center gap-1 text-[11px]">
-                                                <span class="admin-chip">{{ __('Focal:') }} {{ number_format($focalX, 1) }} / {{ number_format($focalY, 1) }}</span>
-                                                @if ($cropEnabled)
-                                                    <span class="admin-chip">{{ __('Crop:') }} {{ number_format($cropX, 1) }},{{ number_format($cropY, 1) }} / {{ number_format($cropWidth, 1) }}x{{ number_format($cropHeight, 1) }}</span>
-                                                @else
-                                                    <span class="admin-chip">{{ __('Crop: Off') }}</span>
-                                                @endif
-                                            </div>
+                                            @if ($isImageMedia)
+                                                <div class="mt-2 flex flex-wrap items-center gap-1 text-[11px]">
+                                                    <span class="admin-chip">{{ __('Focal:') }} {{ number_format($focalX, 1) }} / {{ number_format($focalY, 1) }}</span>
+                                                    @if ($cropEnabled)
+                                                        <span class="admin-chip">{{ __('Crop:') }} {{ number_format($cropX, 1) }},{{ number_format($cropY, 1) }} / {{ number_format($cropWidth, 1) }}x{{ number_format($cropHeight, 1) }}</span>
+                                                    @else
+                                                        <span class="admin-chip">{{ __('Crop: Off') }}</span>
+                                                    @endif
+                                                </div>
+                                            @endif
                                         </td>
                                         <td class="px-3 py-3 align-top text-center">
                                             <div class="inline-flex items-center gap-1">
@@ -326,26 +335,28 @@
                                         <td class="px-3 py-3 align-top">
                                             <div class="flex flex-wrap justify-end gap-1">
                                                 <button type="button" wire:click="saveMeta({{ $media->id }})" class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Save Meta') }}</button>
-                                                <button
-                                                    type="button"
-                                                    data-image-edit-open
-                                                    data-media-id="{{ $media->id }}"
-                                                    data-image-url="{{ $media->getUrl() }}"
-                                                    data-focal-x="{{ $focalX }}"
-                                                    data-focal-y="{{ $focalY }}"
-                                                    data-crop-enabled="{{ $cropEnabled ? '1' : '0' }}"
-                                                    data-crop-x="{{ $cropX }}"
-                                                    data-crop-y="{{ $cropY }}"
-                                                    data-crop-width="{{ $cropWidth }}"
-                                                    data-crop-height="{{ $cropHeight }}"
-                                                    class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                                                >
-                                                    {{ __('Edit Crop/Focus') }}
-                                                </button>
-                                                @if ($mainCollection !== '' && ! $isMainCollection)
+                                                @if ($isImageMedia)
+                                                    <button
+                                                        type="button"
+                                                        data-image-edit-open
+                                                        data-media-id="{{ $media->id }}"
+                                                        data-image-url="{{ $media->getUrl() }}"
+                                                        data-focal-x="{{ $focalX }}"
+                                                        data-focal-y="{{ $focalY }}"
+                                                        data-crop-enabled="{{ $cropEnabled ? '1' : '0' }}"
+                                                        data-crop-x="{{ $cropX }}"
+                                                        data-crop-y="{{ $cropY }}"
+                                                        data-crop-width="{{ $cropWidth }}"
+                                                        data-crop-height="{{ $cropHeight }}"
+                                                        class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                                                    >
+                                                        {{ __('Edit Crop/Focus') }}
+                                                    </button>
+                                                @endif
+                                                @if ($mayPromoteToMain && $isImageMedia && $mainCollection !== '' && ! $isMainCollection)
                                                     <button type="button" wire:click="copyToMain({{ $media->id }})" class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Copy to Main') }}</button>
                                                 @endif
-                                                <a href="{{ $media->getUrl() }}" target="_blank" class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Open') }}</a>
+                                                <a href="{{ $media->getUrl() }}" target="_blank" rel="noopener noreferrer" class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Open') }}</a>
                                                 <button
                                                     type="button"
                                                     wire:click="delete({{ $media->id }})"

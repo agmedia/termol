@@ -97,6 +97,8 @@ class RunHistoryManager extends Component
             MsanSyncRun::KIND_CATEGORIES => __('Kategorije'),
             MsanSyncRun::KIND_FULL => __('Puna sinkronizacija'),
             MsanSyncRun::KIND_IMPORT => __('Uvoz'),
+            MsanSyncRun::KIND_SPECIFICATIONS => __('Tehničke specifikacije'),
+            MsanSyncRun::KIND_EPREL => __('EPREL energetski podaci'),
             'connection_test' => __('Provjera B2B veze'),
             'ftp_connection_test' => __('Provjera FTPS veze'),
             default => $kind,

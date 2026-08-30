@@ -158,6 +158,10 @@ return [
             'view' => ['integrations.msan.view'],
             'mutate' => ['integrations.msan.mapping.manage'],
         ],
+        'admin.integrations.msan.specifications' => [
+            'view' => ['integrations.msan.view'],
+            'mutate' => ['integrations.msan.mapping.manage'],
+        ],
         'admin.integrations.msan.products' => [
             'view' => ['integrations.msan.view'],
             'mutate' => ['integrations.msan.import.manage'],

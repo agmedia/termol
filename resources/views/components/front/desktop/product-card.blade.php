@@ -175,6 +175,8 @@
                         <p class="text-[11px] leading-none text-slate-500 line-through sm:text-[12px]">{{ $oldPrice }}</p>
                     @endif
                     <p class="text-[14px] font-extrabold leading-none text-slate-900 sm:text-[15px]">{{ $price }}</p>
+                    <x-front.energy-label-arrow :declaration="$energyDeclaration ?? null" />
+                    <x-front.energy-information-sheet-link :declaration="$energyDeclaration ?? null" />
                 </div>
                 @if (! empty($lowest30DaysPrice))
                     <p class="mt-1 text-[9px] leading-tight text-slate-500 sm:text-[10px]">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
@@ -299,6 +301,8 @@
                         <p class="text-[11px] leading-none text-slate-500 line-through sm:text-[13px]">{{ $oldPrice }}</p>
                     @endif
                     <p class="text-[13px] font-bold leading-none text-slate-900 sm:text-[15px]">{{ $price }}</p>
+                    <x-front.energy-label-arrow :declaration="$energyDeclaration ?? null" />
+                    <x-front.energy-information-sheet-link :declaration="$energyDeclaration ?? null" />
                 </div>
                 @if (! empty($lowest30DaysPrice))
                     <p class="text-[10px] leading-tight text-slate-500 sm:text-[11px]">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>
@@ -336,6 +340,8 @@
                         <p class="text-[11px] leading-none text-slate-500 line-through sm:text-[13px]">{{ $oldPrice }}</p>
                     @endif
                     <p class="text-[13px] font-bold leading-none text-slate-900 sm:text-[15px]">{{ $price }}</p>
+                    <x-front.energy-label-arrow :declaration="$energyDeclaration ?? null" />
+                    <x-front.energy-information-sheet-link :declaration="$energyDeclaration ?? null" />
                 </div>
                 @if (! empty($lowest30DaysPrice))
                     <p class="text-[10px] leading-tight text-slate-500 sm:text-[11px]">{{ __('ui.product.lowest_price_30_days', ['price' => $lowest30DaysPrice]) }}</p>

@@ -103,6 +103,7 @@ class ProductController extends Controller
         $variant = $this->frontendVariant($request);
 
         $product = Product::query()
+            ->withStorefrontEnergyData()
             ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active', 'payload'])
             ->withApprovedCommentSummary([$locale, $fallbackLocale])
             ->where('is_active', true)
@@ -131,6 +132,15 @@ class ProductController extends Controller
                             ->select(['id', 'attribute_id', 'locale', 'group_name', 'name'])
                             ->whereIn('locale', [$locale, $fallbackLocale]),
                     ]),
+                'technicalSpecificationRows' => fn ($q) => $q->select([
+                    'id',
+                    'product_id',
+                    'group_name',
+                    'item_name',
+                    'values',
+                    'measure',
+                    'sort_order',
+                ]),
                 'optionValues' => fn ($q) => $q
                     ->select(['id', 'product_id', 'option_value_id', 'parent_option_value_id', 'sku', 'stock_qty', 'price_override', 'is_active', 'sort_order'])
                     ->where('is_active', true)
@@ -182,6 +192,7 @@ class ProductController extends Controller
         $relatedLimit = max(4, $this->resolveGridCols($request, $this->defaultDesktopGridCols($request)));
 
         $relatedBaseQuery = Product::query()
+            ->withStorefrontEnergyData()
             ->select(['id', 'code', 'sku', 'base_price', 'stock_qty', 'tax_rate_id', 'manufacturer_id', 'is_active'])
             ->withApprovedCommentSummary([$locale, $fallbackLocale])
             ->visibleOnStorefront($this->hideOutOfStockProducts())

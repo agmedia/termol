@@ -37,6 +37,7 @@
         $products = collect();
         if ($productIds !== []) {
             $products = \App\Models\Catalog\Product\Product::query()
+                ->withStorefrontEnergyData()
                 ->visibleOnStorefront($hideOutOfStockProducts)
                 ->whereIn('id', $productIds)
                 ->with([
@@ -158,6 +159,7 @@
                     ->groupBy('product_id');
 
                 $productQuery = \App\Models\Catalog\Product\Product::query()
+                    ->withStorefrontEnergyData()
                     ->visibleOnStorefront($hideOutOfStockProducts)
                     ->whereHas('categories', function ($categoryQuery) use ($categoryScopeIds): void {
                         $categoryQuery

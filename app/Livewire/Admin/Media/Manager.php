@@ -121,9 +121,10 @@ class Manager extends Component
         }
 
         $mainCollection = (string) ($this->modelProfile['main_collection'] ?? '');
-        if ($mainCollection !== '' && $collectionName !== $mainCollection && ! $record->getFirstMedia($mainCollection)) {
+        $canPromoteToMain = (bool) ($collectionConfig['promote_to_main'] ?? true);
+        if ($canPromoteToMain && $mainCollection !== '' && $collectionName !== $mainCollection && ! $record->getFirstMedia($mainCollection)) {
             $firstUploaded = $record->getMedia($collectionName)->first();
-            if ($firstUploaded) {
+            if ($firstUploaded && $this->canCopyMediaToMain($firstUploaded, $mainCollection)) {
                 $firstUploaded->copy($record, $mainCollection);
             }
         }
@@ -222,6 +223,14 @@ class Manager extends Component
         }
 
         if ($media->collection_name === $mainCollection) {
+            return;
+        }
+
+        $sourceConfig = (array) ($this->collections[$media->collection_name] ?? []);
+        if (! (bool) ($sourceConfig['promote_to_main'] ?? true)
+            || ! $this->canCopyMediaToMain($media, $mainCollection)) {
+            $this->dispatch('notify', type: 'warning', message: __('Only supported images can be copied to the main image collection.'));
+
             return;
         }
 
@@ -417,6 +426,12 @@ class Manager extends Component
         $media = $this->findMedia($mediaId);
         if (! $media) {
             $this->dispatch('notify', type: 'warning', message: __('Image not found.'));
+
+            return;
+        }
+
+        if (! $this->isImageMedia($media)) {
+            $this->dispatch('notify', type: 'warning', message: __('Crop and focus are available only for images.'));
 
             return;
         }
@@ -687,6 +702,24 @@ class Manager extends Component
         return $record->media()
             ->whereKey($mediaId)
             ->first();
+    }
+
+    private function isImageMedia(Media $media): bool
+    {
+        return Str::startsWith(strtolower((string) $media->mime_type), 'image/');
+    }
+
+    private function canCopyMediaToMain(Media $media, string $mainCollection): bool
+    {
+        if (! $this->isImageMedia($media)) {
+            return false;
+        }
+
+        $mainConfig = (array) ($this->collections[$mainCollection] ?? []);
+        $acceptedMimeTypes = array_values(array_filter((array) ($mainConfig['accept_mime_types'] ?? [])));
+
+        return $acceptedMimeTypes === []
+            || in_array((string) $media->mime_type, $acceptedMimeTypes, true);
     }
 
     private function reorderInCollection(int $mediaId, int $direction): void

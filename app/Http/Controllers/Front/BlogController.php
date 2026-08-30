@@ -107,6 +107,7 @@ class BlogController extends Controller
         $relatedProducts = collect();
         if ($relatedProductIds !== []) {
             $relatedProducts = Product::query()
+                ->withStorefrontEnergyData()
                 ->visibleOnStorefront($this->catalogFeatures->hideOutOfStockProducts())
                 ->whereIn('id', $relatedProductIds)
                 ->with([

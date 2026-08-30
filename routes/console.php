@@ -10,11 +10,20 @@ use App\Services\Import\OpenCartPathProductImageImportService;
 use App\Services\Import\OpenCartSizeOptionImportService;
 use App\Services\Import\TermolProductAttributeImportService;
 use App\Services\Import\TermolProductSnapshotImportService;
+use App\Services\Integrations\Msan\MsanCatalogSyncCoordinator;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::call(static function (): void {
+    app(MsanCatalogSyncCoordinator::class)->queueAvailability(scheduled: true);
+})
+    ->name('msan-availability-sync')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(15);
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

@@ -60,6 +60,8 @@
                             <span>{{ (int) $line['quantity'] }} × {{ number_format($unitPrice, 2, ',', '.') }} €</span>
                             <strong>{{ number_format($lineTotal, 2, ',', '.') }} €</strong>
                         </div>
+                        <x-front.energy-label-arrow :declaration="$line['energy_declaration'] ?? null" class="mt-1" />
+                        <x-front.energy-information-sheet-link :declaration="$line['energy_declaration'] ?? null" class="mt-1" />
                     </div>
 
                     <form

@@ -42,6 +42,7 @@ class MsanClient
         'prices' => 256 * 1024 * 1024,
         'availability' => 256 * 1024 * 1024,
         'specifications' => 1024 * 1024 * 1024,
+        'specifications_icecat' => 1024 * 1024 * 1024,
         'product_categories' => 256 * 1024 * 1024,
         'barcodes' => 256 * 1024 * 1024,
         'product_image' => 16 * 1024 * 1024,
@@ -69,6 +70,11 @@ class MsanClient
         'specifications' => [
             'method' => 'GET',
             'url' => 'https://b2b.msan.hr/B2BService/HTTP/Product/GetProductsSpecification.aspx',
+        ],
+        'specifications_icecat' => [
+            'method' => 'POST',
+            'soap_action' => 'GetProductsSpecificationIceCat',
+            'soap_parameters' => ['ProductCode' => '', 'ProductType' => ''],
         ],
         'product_categories' => [
             'method' => 'POST',
@@ -118,7 +124,9 @@ class MsanClient
             $body = $this->soapEnvelope($action, $definition['soap_parameters'] ?? []);
         }
 
-        $this->withEndpointGuard($dataset, function () use (
+        $endpoint = $dataset === 'specifications_icecat' ? 'specifications' : $dataset;
+
+        $this->withEndpointGuard($endpoint, function () use (
             $dataset,
             $method,
             $url,
@@ -221,7 +229,9 @@ class MsanClient
             'certificate_pin' => $this->settings->p12Pin(),
             'ca_path' => $this->certificates->caAbsolutePath(),
             'connect_timeout' => $this->settings->connectTimeout(),
-            'timeout' => $this->settings->requestTimeout(),
+            'timeout' => str_starts_with($operation, 'specifications')
+                ? $this->settings->specificationsTimeout()
+                : $this->settings->requestTimeout(),
             'headers' => $headers,
             'query' => $query,
             'max_bytes' => self::DOWNLOAD_LIMITS[$operation] ?? 256 * 1024 * 1024,
@@ -272,7 +282,9 @@ class MsanClient
         /** @var Lock $lock */
         $lock = Cache::lock(
             'integrations:msan:endpoint:'.$dataset,
-            max(60, $this->settings->requestTimeout() + 60),
+            max(60, ($dataset === 'specifications'
+                ? $this->settings->specificationsTimeout()
+                : $this->settings->requestTimeout()) + 60),
         );
 
         if (! $lock->get()) {

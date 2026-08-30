@@ -7,6 +7,7 @@ use App\Services\Front\WishlistService;
 use App\Services\Pricing\ProductPricePresentationService;
 use App\Services\Settings\SystemSettingsService;
 use App\Support\Media\MediaUrl;
+use App\Support\ProductEnergyLabelPresenter;
 use App\Support\ProductMaterialLabel;
 use Illuminate\View\Component;
 use Illuminate\View\View;
@@ -165,6 +166,8 @@ class ProductCard extends Component
                 ?? '');
         }
 
+        $energyDeclaration = app(ProductEnergyLabelPresenter::class)->primaryDeclaration($this->product);
+
         return view('components.front.desktop.product-card', [
             'cardDomId' => 'pc-'.(int) $this->product->id.'-'.substr(str_replace('.', '', uniqid('', true)), -10),
             'productId' => (int) $this->product->id,
@@ -198,6 +201,7 @@ class ProductCard extends Component
             'lowest30DaysPrice' => $priceData['lowest_30_days_price'],
             'isB2BPrice' => $priceData['is_b2b_price'],
             'reviewSummary' => $this->product->approvedCommentSummary([$locale, $fallbackLocale]),
+            'energyDeclaration' => $energyDeclaration,
             'flat' => $this->flat,
             'lined' => $this->lined,
             'priorityImage' => $this->priorityImage,

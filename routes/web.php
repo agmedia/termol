@@ -424,6 +424,7 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
                         Route::view('/', 'admin.integrations.msan.overview')->name('overview');
                         Route::view('settings', 'admin.integrations.msan.settings')->name('settings');
                         Route::view('categories', 'admin.integrations.msan.categories')->name('categories');
+                        Route::view('specifications', 'admin.integrations.msan.specifications')->name('specifications');
                         Route::view('products', 'admin.integrations.msan.products')->name('products');
                         Route::view('runs', 'admin.integrations.msan.runs')->name('runs');
                     });

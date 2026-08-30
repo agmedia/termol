@@ -85,6 +85,89 @@
             </div>
 
             <div class="border-t border-slate-200 pt-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 class="text-base font-semibold text-slate-900">{{ __('Tehničke specifikacije') }}</h2>
+                        <p class="mt-1 text-sm text-slate-600">{{ __('Specifikacije se dohvaćaju u pozadini, spremaju u lokalni snapshot i tek zatim objavljuju na uvezenim artiklima.') }}</p>
+                    </div>
+                    <button type="button" wire:click="$toggle('form.msan_import_specifications')" class="admin-switch" data-state="{{ ($form['msan_import_specifications'] ?? false) ? 'on' : 'off' }}" role="switch" aria-checked="{{ ($form['msan_import_specifications'] ?? false) ? 'true' : 'false' }}">
+                        <span class="admin-switch-track"><span class="admin-switch-thumb"></span></span>
+                        <span class="admin-switch-label">{{ ($form['msan_import_specifications'] ?? false) ? __('Uključeno') : __('Isključeno') }}</span>
+                    </button>
+                </div>
+                @error('form.msan_import_specifications') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+
+                <div class="mt-4 grid gap-4 lg:grid-cols-3">
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-600" for="msan-specifications-source">{{ __('Izvor specifikacija') }}</label>
+                        <select id="msan-specifications-source" wire:model="form.msan_specifications_source" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                            <option value="standard">{{ __('Standardni M SAN skup') }}</option>
+                            <option value="icecat">{{ __('M SAN Icecat skup') }}</option>
+                        </select>
+                        <p class="mt-1 text-xs text-slate-500">{{ __('Odaberite samo izvor koji je M SAN omogućio za ovaj certifikat.') }}</p>
+                        @error('form.msan_specifications_source') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-600" for="msan-specifications-timeout">{{ __('Vremensko ograničenje dohvata (sekunde)') }}</label>
+                        <input id="msan-specifications-timeout" type="number" min="300" max="7200" wire:model="form.msan_specifications_timeout" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                        <p class="mt-1 text-xs text-slate-500">{{ __('Veliki skup može trajati do dva sata; obrada ne blokira admin sučelje.') }}</p>
+                        @error('form.msan_specifications_timeout') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="rounded-xl border border-slate-200 bg-white p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <strong class="text-sm text-slate-900">{{ __('Samo odabrani ili uvezeni artikli') }}</strong>
+                                <p class="mt-1 text-xs text-slate-600">{{ __('Smanjuje količinu podataka i ubrzava objavu. Isključite samo kada trebate sve M SAN artikle.') }}</p>
+                            </div>
+                            <button type="button" wire:click="$toggle('form.msan_specifications_selected_only')" class="admin-switch" data-state="{{ ($form['msan_specifications_selected_only'] ?? false) ? 'on' : 'off' }}" role="switch" aria-checked="{{ ($form['msan_specifications_selected_only'] ?? false) ? 'true' : 'false' }}">
+                                <span class="admin-switch-track"><span class="admin-switch-thumb"></span></span>
+                                <span class="sr-only">{{ __('Samo odabrani ili uvezeni artikli') }}</span>
+                            </button>
+                        </div>
+                        @error('form.msan_specifications_selected_only') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="text-base font-semibold text-slate-900">{{ __('EPREL energetski podaci') }}</h2>
+                            <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ ($form['msan_eprel_api_key_configured'] ?? false) ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
+                                {{ ($form['msan_eprel_api_key_configured'] ?? false) ? __('API ključ spremljen') : __('API ključ nije spremljen') }}
+                            </span>
+                        </div>
+                        <p class="mt-1 text-sm text-slate-600">{{ __('EPREL se poziva samo u pozadinskoj obradi za artikle s mapiranom grupom i pouzdanim registracijskim brojem ili modelom; webshop ga nikad ne poziva pri otvaranju stranice.') }}</p>
+                    </div>
+                    <button type="button" wire:click="$toggle('form.msan_eprel_enabled')" class="admin-switch" data-state="{{ ($form['msan_eprel_enabled'] ?? false) ? 'on' : 'off' }}" role="switch" aria-checked="{{ ($form['msan_eprel_enabled'] ?? false) ? 'true' : 'false' }}">
+                        <span class="admin-switch-track"><span class="admin-switch-thumb"></span></span>
+                        <span class="admin-switch-label">{{ ($form['msan_eprel_enabled'] ?? false) ? __('Uključeno') : __('Isključeno') }}</span>
+                    </button>
+                </div>
+                @error('form.msan_eprel_enabled') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+
+                <div class="mt-4 grid gap-4 lg:grid-cols-2">
+                    <div class="lg:col-span-2">
+                        <label class="mb-1 block text-xs font-semibold text-slate-600" for="msan-eprel-api-key">{{ __('EPREL API ključ') }}</label>
+                        <input id="msan-eprel-api-key" type="password" maxlength="2048" wire:model="form.msan_eprel_api_key" autocomplete="new-password" placeholder="{{ ($form['msan_eprel_api_key_configured'] ?? false) ? __('API ključ je spremljen — prazno ga zadržava') : __('Unesite EPREL API ključ') }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                        <p class="mt-1 text-xs text-slate-500">{{ __('Ključ se sprema šifrirano i nakon spremanja se više ne prikazuje.') }}</p>
+                        @error('form.msan_eprel_api_key') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-600" for="msan-eprel-connect-timeout">{{ __('Vremensko ograničenje spajanja (sekunde)') }}</label>
+                        <input id="msan-eprel-connect-timeout" type="number" min="2" max="30" wire:model="form.msan_eprel_connect_timeout" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                        @error('form.msan_eprel_connect_timeout') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-600" for="msan-eprel-timeout">{{ __('Vremensko ograničenje odgovora (sekunde)') }}</label>
+                        <input id="msan-eprel-timeout" type="number" min="5" max="120" wire:model="form.msan_eprel_timeout" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                        @error('form.msan_eprel_timeout') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6">
                 <h2 class="text-base font-semibold text-slate-900">{{ __('Pravila uvoza') }}</h2>
                 <div class="mt-4 grid gap-3 md:grid-cols-2">
                     @foreach ([
@@ -99,10 +182,26 @@
                         </div>
                     @endforeach
                 </div>
-                <p class="mt-4 text-xs text-slate-500">{{ __('M SAN daje razinu dostupnosti 0–4, ne stvarnu količinu. Ovdje definirate sigurnu lokalnu količinu za svaku razinu.') }}</p>
-                <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
-                    @foreach (range(0, 4) as $level)
-                        <div><label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('Razina') }} {{ $level }}</label><input type="number" min="0" max="999999" wire:model="form.msan_stock_level_{{ $level }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">@error('form.msan_stock_level_'.$level) <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror</div>
+                <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <h3 class="text-sm font-semibold text-slate-900">{{ __('Maksimalna prodajna količina prema M SAN dostupnosti') }}</h3>
+                    <p class="mt-1 text-xs leading-5 text-slate-600">
+                        {{ __('M SAN šalje samo razinu dostupnosti 0–4, a ne stvaran broj komada. Za svaku razinu odredite maksimalnu lokalnu količinu koju webshop smije nuditi. To je prodajni limit, ne potvrđena zaliha dobavljača.') }}
+                    </p>
+                </div>
+                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    @foreach ($availabilityLevelLabels as $level => $levelLabel)
+                        <div class="rounded-xl border border-slate-200 bg-white p-3">
+                            <label for="msan-stock-level-{{ $level }}" class="block">
+                                <span class="block text-xs font-semibold text-slate-700">{{ __($levelLabel) }}</span>
+                                <span class="mt-0.5 block text-[11px] text-slate-500">{{ __('M SAN razina :level', ['level' => $level]) }}</span>
+                            </label>
+                            <div class="mt-2 flex items-center gap-2">
+                                <input id="msan-stock-level-{{ $level }}" type="number" min="0" max="999999" wire:model="form.msan_stock_level_{{ $level }}" aria-label="{{ __('Maksimalna lokalna količina za M SAN razinu :level', ['level' => $level]) }}" class="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                <span class="shrink-0 text-xs font-medium text-slate-500">{{ __('kom.') }}</span>
+                            </div>
+                            <p class="mt-1 text-[11px] text-slate-500">{{ __('Maksimalno za prodaju') }}</p>
+                            @error('form.msan_stock_level_'.$level) <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
                     @endforeach
                 </div>
             </div>

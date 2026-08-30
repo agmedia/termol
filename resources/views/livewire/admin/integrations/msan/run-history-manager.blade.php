@@ -96,6 +96,34 @@
                                 'last_attempt_failed_at' => __('Zadnji neuspjeli pokušaj'),
                                 'connection' => __('B2B veza'),
                                 'ftp_connection' => __('FTPS veza'),
+                                'dataset' => __('Skup podataka'),
+                                'staging_products' => __('Artikli u privremenom katalogu'),
+                                'availability_rows_matched' => __('Usklađeni redovi dostupnosti'),
+                                'local_products_eligible' => __('Lokalni artikli za ažuriranje'),
+                                'local_stock_updated' => __('Ažurirane lokalne zalihe'),
+                                'local_stock_unchanged' => __('Nepromijenjene lokalne zalihe'),
+                                'local_products_not_msan_owned' => __('Artikli čija zaliha nije M SAN'),
+                                'source' => __('Izvor specifikacija'),
+                                'source_bytes' => __('Veličina izvora u bajtovima'),
+                                'rows' => __('Redovi u izvoru'),
+                                'relevant_rows' => __('Relevantni redovi'),
+                                'products_with_specifications' => __('Artikli sa specifikacijama'),
+                                'definitions' => __('Definicije specifikacija'),
+                                'published_products' => __('Objavljeni artikli'),
+                                'published_specifications' => __('Objavljene specifikacije'),
+                                'energy_declarations' => __('Energetske deklaracije'),
+                                'filter_attributes' => __('Svojstva za filtre'),
+                                'eligible_products' => __('Artikli prikladni za EPREL'),
+                                'run_limit' => __('Ograničenje po izvršavanju'),
+                                'deferred_products' => __('Odgođeni artikli'),
+                                'exact_matches' => __('Točna EPREL podudaranja'),
+                                'not_matched_or_invalid' => __('Bez podudaranja ili nevaljani'),
+                                'fresh_for_days' => __('Podaci vrijede dana'),
+                            ];
+                            $summaryValueLabels = [
+                                'standard' => __('Standardni M SAN skup'),
+                                'icecat' => __('M SAN Icecat skup'),
+                                'availability' => __('Raspoloživost'),
                             ];
                             $duration = $run->started_at && $run->completed_at
                                 ? $run->started_at->diffForHumans($run->completed_at, true)
@@ -107,6 +135,8 @@
                                 'categories' => __('Kategorije'),
                                 'full' => __('Puna sinkronizacija'),
                                 'import' => __('Uvoz'),
+                                'specifications' => __('Tehničke specifikacije'),
+                                'eprel' => __('EPREL energetski podaci'),
                                 'connection_test' => __('Provjera B2B veze'),
                                 'ftp_connection_test' => __('Provjera FTPS veze'),
                                 default => (string) $run->kind,
@@ -167,10 +197,15 @@
                                 @elseif ($summary !== [])
                                     <dl class="max-w-[28rem] space-y-1 text-slate-600">
                                         @foreach (array_slice($summary, 0, 4, true) as $summaryKey => $summaryValue)
+                                            @php
+                                                $displaySummaryValue = is_scalar($summaryValue)
+                                                    ? ($summaryValueLabels[(string) $summaryValue] ?? $summaryValue)
+                                                    : json_encode($summaryValue, JSON_UNESCAPED_UNICODE);
+                                            @endphp
                                             <div class="flex gap-2">
                                                 <dt class="shrink-0 font-medium">{{ $summaryLabels[(string) $summaryKey] ?? str_replace('_', ' ', (string) $summaryKey) }}:</dt>
-                                                <dd class="truncate" title="{{ is_scalar($summaryValue) ? (string) $summaryValue : json_encode($summaryValue, JSON_UNESCAPED_UNICODE) }}">
-                                                    {{ is_scalar($summaryValue) ? $summaryValue : json_encode($summaryValue, JSON_UNESCAPED_UNICODE) }}
+                                                <dd class="truncate" title="{{ (string) $displaySummaryValue }}">
+                                                    {{ $displaySummaryValue }}
                                                 </dd>
                                             </div>
                                         @endforeach

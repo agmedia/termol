@@ -143,6 +143,40 @@ class MsanClientTest extends TestCase
         $client->downloadDataset('availability', Storage::disk('local')->path('html.xml'));
     }
 
+    public function test_icecat_specifications_use_the_documented_soap_action_large_stream_limit_and_shared_cooldown(): void
+    {
+        Storage::fake('local');
+        $settings = app(MsanSettingsService::class);
+        $settings->saveAdminValues([
+            'msan_enabled' => true,
+            'msan_p12_pin' => 'synthetic-pin',
+            'msan_specifications_timeout' => 1234,
+        ]);
+        Storage::disk('local')->put(MsanCertificateService::STORAGE_PATH, 'synthetic-certificate-file');
+        $transport = new RecordingMsanTransport;
+        $client = new MsanClient($settings, app(MsanCertificateService::class), $transport);
+
+        $client->downloadDataset(
+            'specifications_icecat',
+            Storage::disk('local')->path('integrations/msan/test/specifications.xml'),
+        );
+
+        $call = $transport->calls[0];
+        $this->assertSame('POST', $call['method']);
+        $this->assertSame('https://b2b.msan.hr/B2BService/B2BProductService.asmx', $call['url']);
+        $this->assertSame('"http://www.msan.hr/B2B/GetProductsSpecificationIceCat"', $call['options']['headers']['SOAPAction']);
+        $this->assertStringContainsString('<ProductCode></ProductCode>', $call['options']['body']);
+        $this->assertStringContainsString('<ProductType></ProductType>', $call['options']['body']);
+        $this->assertSame(1234, $call['options']['timeout']);
+        $this->assertSame(1024 * 1024 * 1024, $call['options']['max_bytes']);
+        $state = MsanEndpointState::query()->where('endpoint', 'specifications')->firstOrFail();
+        $this->assertSame(3600, data_get($state->metadata, 'cooldown_seconds'));
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('ponovno dostupan');
+        $client->downloadDataset('specifications', Storage::disk('local')->path('blocked-specifications.xml'));
+    }
+
     public function test_connection_check_streams_a_dataset_and_returns_only_safe_metadata(): void
     {
         Storage::fake('local');

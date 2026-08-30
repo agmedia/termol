@@ -5,6 +5,8 @@ namespace App\Livewire\Admin\Integrations\Msan;
 use App\Models\Catalog\Category\Category;
 use App\Models\Integrations\Msan\MsanCategory;
 use App\Models\Integrations\Msan\MsanCategoryMapping;
+use App\Models\Integrations\Msan\MsanProduct;
+use App\Services\Integrations\Msan\EprelClient;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +31,10 @@ class CategoryMappingManager extends Component
     public ?int $editingCategoryId = null;
 
     public string $localCategoryId = '';
+
+    public string $eprelProductGroup = '';
+
+    public string $energyRequirement = MsanCategoryMapping::ENERGY_REQUIREMENT_INHERIT;
 
     public function mount(): void
     {
@@ -74,13 +80,16 @@ class CategoryMappingManager extends Component
         $this->authorizeManage();
 
         $category = MsanCategory::query()
-            ->with('mapping:id,msan_category_id,local_category_id,status')
+            ->with('mapping:id,msan_category_id,local_category_id,status,eprel_product_group,energy_requirement')
             ->findOrFail($categoryId);
 
         $this->editingCategoryId = (int) $category->getKey();
         $this->localCategoryId = $category->mapping?->local_category_id
             ? (string) $category->mapping->local_category_id
             : '';
+        $this->eprelProductGroup = (string) ($category->mapping?->eprel_product_group ?? '');
+        $this->energyRequirement = (string) ($category->mapping?->energy_requirement
+            ?? MsanCategoryMapping::ENERGY_REQUIREMENT_INHERIT);
         $this->resetValidation();
     }
 
@@ -102,16 +111,42 @@ class CategoryMappingManager extends Component
                     static fn ($query) => $query->where('scope', Category::SCOPE_CATALOG)
                 ),
             ],
+            'eprelProductGroup' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::in(array_keys(EprelClient::productGroupOptions())),
+            ],
+            'energyRequirement' => [
+                'required',
+                'string',
+                Rule::in(array_keys(MsanCategoryMapping::energyRequirementOptions())),
+            ],
         ]);
 
-        MsanCategoryMapping::query()->updateOrCreate(
-            ['msan_category_id' => (int) $validated['editingCategoryId']],
-            [
-                'local_category_id' => (int) $validated['localCategoryId'],
-                'status' => 'mapped',
-                'updated_by' => auth()->id(),
-            ],
-        );
+        $categoryId = (int) $validated['editingCategoryId'];
+        $eprelProductGroup = $this->nullableText((string) ($validated['eprelProductGroup'] ?? ''));
+        $energyRequirement = (string) $validated['energyRequirement'];
+        DB::transaction(function () use ($categoryId, $eprelProductGroup, $energyRequirement, $validated): void {
+            $mapping = MsanCategoryMapping::query()->where('msan_category_id', $categoryId)->first();
+            $eprelMappingChanged = ($mapping?->eprel_product_group ?? null) !== $eprelProductGroup
+                || (string) ($mapping?->energy_requirement ?? MsanCategoryMapping::ENERGY_REQUIREMENT_INHERIT) !== $energyRequirement;
+
+            MsanCategoryMapping::query()->updateOrCreate(
+                ['msan_category_id' => $categoryId],
+                [
+                    'local_category_id' => (int) $validated['localCategoryId'],
+                    'status' => 'mapped',
+                    'eprel_product_group' => $eprelProductGroup,
+                    'energy_requirement' => $energyRequirement,
+                    'updated_by' => auth()->id(),
+                ],
+            );
+
+            if ($eprelMappingChanged) {
+                $this->resetEprelStateForCategory($categoryId);
+            }
+        });
 
         $this->resetEditor();
         $this->dispatch('notify', type: 'success', message: __('M SAN kategorija je mapirana.'));
@@ -127,9 +162,12 @@ class CategoryMappingManager extends Component
             [
                 'local_category_id' => null,
                 'status' => 'ignored',
+                'eprel_product_group' => null,
+                'energy_requirement' => MsanCategoryMapping::ENERGY_REQUIREMENT_INHERIT,
                 'updated_by' => auth()->id(),
             ],
         );
+        $this->resetEprelStateForCategory($categoryId);
 
         if ($this->editingCategoryId === $categoryId) {
             $this->resetEditor();
@@ -146,6 +184,7 @@ class CategoryMappingManager extends Component
         MsanCategoryMapping::query()
             ->where('msan_category_id', $categoryId)
             ->delete();
+        $this->resetEprelStateForCategory($categoryId);
 
         if ($this->editingCategoryId === $categoryId) {
             $this->resetEditor();
@@ -234,7 +273,7 @@ class CategoryMappingManager extends Component
 
         $categories = $this->filteredQuery()
             ->with([
-                'mapping:id,msan_category_id,local_category_id,status,updated_by,updated_at',
+                'mapping:id,msan_category_id,local_category_id,status,eprel_product_group,energy_requirement,updated_by,updated_at',
                 'mapping.localCategory.translations' => fn ($query) => $query
                     ->whereIn('locale', $this->preferredLocales()),
             ])
@@ -247,6 +286,8 @@ class CategoryMappingManager extends Component
         return view('livewire.admin.integrations.msan.category-mapping-manager', [
             'categories' => $categories,
             'localCategoryOptions' => $this->editingCategoryId ? $this->localCategoryOptions() : [],
+            'energyRequirementOptions' => MsanCategoryMapping::energyRequirementOptions(),
+            'eprelProductGroupOptions' => EprelClient::productGroupOptions(),
             'canManageMapping' => $this->canManage(),
             'perPage' => $perPage,
         ]);
@@ -403,7 +444,29 @@ class CategoryMappingManager extends Component
     {
         $this->editingCategoryId = null;
         $this->localCategoryId = '';
+        $this->eprelProductGroup = '';
+        $this->energyRequirement = MsanCategoryMapping::ENERGY_REQUIREMENT_INHERIT;
         $this->resetValidation();
+    }
+
+    private function nullableText(string $value): ?string
+    {
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
+    }
+
+    private function resetEprelStateForCategory(int $categoryId): void
+    {
+        MsanProduct::query()
+            ->whereIn('id', DB::table('msan_product_categories')
+                ->select('msan_product_id')
+                ->where('msan_category_id', $categoryId))
+            ->update([
+                'eprel_match_status' => MsanProduct::EPREL_PENDING,
+                'eprel_identifier_checksum' => null,
+                'eprel_checked_at' => null,
+            ]);
     }
 
     private function authorizeView(): void

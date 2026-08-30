@@ -419,6 +419,8 @@
                                 <span class="text-slate-600">{{ __('ui.checkout.labels.qty') }} {{ $line['quantity'] }}</span>
                                 <span class="font-semibold text-slate-900">{{ \App\Support\Currency::format((float) ($line['display_line_total'] ?? $line['line_total'])) }}</span>
                             </div>
+                            <x-front.energy-label-arrow :declaration="$line['energy_declaration'] ?? null" class="mt-1" />
+                            <x-front.energy-information-sheet-link :declaration="$line['energy_declaration'] ?? null" class="mt-1" />
                         </div>
                     </div>
                 @endforeach

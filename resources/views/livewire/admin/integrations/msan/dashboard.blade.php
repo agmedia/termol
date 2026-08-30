@@ -1,11 +1,12 @@
 <div class="space-y-5" @if($pollFrequently) wire:poll.visible.10s @else wire:poll.visible.60s @endif>
-    <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         @foreach ([
             ['label' => __('Artikli u privremenom katalogu'), 'value' => $counts['products']],
             ['label' => __('Odabrani artikli'), 'value' => $counts['selected']],
             ['label' => __('Uvezeni artikli'), 'value' => $counts['imported']],
             ['label' => __('M SAN kategorije'), 'value' => $counts['categories']],
             ['label' => __('Nemapirane kategorije'), 'value' => $counts['unmapped']],
+            ['label' => __('Aktualne specifikacije'), 'value' => $counts['specifications']],
         ] as $card)
             <div class="admin-panel p-4"><p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ $card['label'] }}</p><p class="mt-2 text-2xl font-semibold text-slate-900">{{ number_format($card['value'], 0, ',', '.') }}</p></div>
         @endforeach
@@ -15,15 +16,21 @@
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <h2 class="text-lg font-semibold text-slate-900">{{ __('Sinkronizacija kataloga') }}</h2>
+                    <h2 class="text-lg font-semibold text-slate-900">{{ __('Sinkronizacija M SAN podataka') }}</h2>
                     <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $ready ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">{{ $ready ? __('Spremno') : __('Nije konfigurirano') }}</span>
                 </div>
                 <p class="mt-2 max-w-3xl text-sm text-slate-600">{{ __('Dohvat radi u pozadini, puni XML čita streamingom i ažurira lokalnu radnu kopiju u paketima. Dohvat sam po sebi ne objavljuje niti uvozi artikle.') }}</p>
                 @if (! $enabled)<p class="mt-2 text-xs text-amber-700">{{ __('Integracija je isključena u Postavkama.') }}</p>@endif
+                @if ($ready && ! $specificationsEnabled)<p class="mt-2 text-xs text-amber-700">{{ __('Dohvat specifikacija isključen je u Postavkama.') }}</p>@endif
+                @if ($ready && $specificationsEnabled && $counts['specification_targets'] === 0)<p class="mt-2 text-xs text-amber-700">{{ __('Za specifikacije najprije odaberite ili uvezite barem jedan M SAN artikl.') }}</p>@endif
+                @if ($ready && ! $eprelEnabled)<p class="mt-2 text-xs text-slate-500">{{ __('EPREL dohvat je isključen u Postavkama.') }}</p>@endif
             </div>
             @if ($canSync)
                 <div class="flex shrink-0 flex-wrap gap-2">
                     <button type="button" wire:click="testConnection" wire:loading.attr="disabled" @disabled(!$ready) class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">{{ __('Provjeri vezu') }}</button>
+                    <button type="button" wire:click="syncAvailability" wire:loading.attr="disabled" @disabled(!$ready || $counts['products'] === 0) class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">{{ __('Osvježi dostupnost') }}</button>
+                    <button type="button" wire:click="syncSpecifications" wire:loading.attr="disabled" @disabled(!$specificationsReady) class="rounded-xl border border-cyan-300 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-100 disabled:opacity-50">{{ __('Dohvati specifikacije') }}</button>
+                    <button type="button" wire:click="syncEprel" wire:loading.attr="disabled" @disabled(!$eprelReady) class="rounded-xl border border-cyan-300 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-100 disabled:opacity-50">{{ __('Osvježi EPREL') }}</button>
                     <button type="button" wire:click="syncCatalog" wire:confirm="{{ __('Pokrenuti puni M SAN dohvat u lokalni privremeni katalog?') }}" wire:loading.attr="disabled" @disabled(!$ready) class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-50">{{ __('Dohvati katalog') }}</button>
                 </div>
             @endif
@@ -35,6 +42,12 @@
             $latestKindLabel = match ((string) $latestRun->kind) {
                 'full' => __('Puna sinkronizacija'),
                 'import' => __('Uvoz'),
+                'catalog' => __('Katalog'),
+                'prices' => __('Cijene'),
+                'availability' => __('Raspoloživost'),
+                'categories' => __('Kategorije'),
+                'specifications' => __('Tehničke specifikacije'),
+                'eprel' => __('EPREL energetski podaci'),
                 'connection_test' => __('Provjera B2B veze'),
                 'ftp_connection_test' => __('Provjera FTPS veze'),
                 default => (string) $latestRun->kind,
@@ -68,7 +81,7 @@
                 <thead><tr><th class="px-4 py-3 text-left">{{ __('Skup podataka') }}</th><th class="px-4 py-3 text-left">{{ __('Zadnji uspjeh') }}</th><th class="px-4 py-3 text-left">{{ __('Sljedeći dopušteni poziv') }}</th><th class="px-4 py-3 text-left">{{ __('Status') }}</th></tr></thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($endpointStates as $state)
-                        <tr><td class="px-4 py-3 font-mono text-xs">{{ $state->endpoint }}</td><td class="px-4 py-3">{{ $state->last_success_at?->format('d.m.Y. H:i:s') ?? '—' }}</td><td class="px-4 py-3">{{ $state->next_allowed_at?->format('d.m.Y. H:i:s') ?? 'odmah' }}</td><td class="px-4 py-3 text-xs {{ $state->last_error ? 'text-rose-700' : 'text-emerald-700' }}">{{ $state->last_error ?: __('OK') }}</td></tr>
+                        <tr><td class="px-4 py-3"><div class="font-medium text-slate-800">{{ $endpointLabels[$state->endpoint] ?? $state->endpoint }}</div><div class="mt-0.5 font-mono text-[10px] text-slate-400">{{ $state->endpoint }}</div></td><td class="px-4 py-3">{{ $state->last_success_at?->format('d.m.Y. H:i:s') ?? '—' }}</td><td class="px-4 py-3">{{ $state->next_allowed_at?->format('d.m.Y. H:i:s') ?? __('Odmah') }}</td><td class="px-4 py-3 text-xs {{ $state->last_error ? 'text-rose-700' : 'text-emerald-700' }}">{{ $state->last_error ?: __('U redu') }}</td></tr>
                     @empty
                         <tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">{{ __('Još nema zabilježenih M SAN poziva.') }}</td></tr>
                     @endforelse

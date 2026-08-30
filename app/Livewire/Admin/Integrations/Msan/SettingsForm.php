@@ -5,6 +5,7 @@ namespace App\Livewire\Admin\Integrations\Msan;
 use App\Services\Integrations\Msan\MsanCatalogSyncCoordinator;
 use App\Services\Integrations\Msan\MsanCertificateService;
 use App\Services\Integrations\Msan\MsanSettingsService;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -61,6 +62,14 @@ class SettingsForm extends Component
                 && (trim((string) ($form['msan_ftp_username'] ?? '')) === '' || ! $ftpPasswordConfigured)
             ) {
                 $this->addError('form.msan_ftp_username', __('Za FTP slike unesite korisničko ime i lozinku.'));
+
+                return;
+            }
+
+            $eprelApiKeyConfigured = $settings->hasEprelApiKey()
+                || trim((string) ($form['msan_eprel_api_key'] ?? '')) !== '';
+            if ((bool) ($form['msan_eprel_enabled'] ?? false) && ! $eprelApiKeyConfigured) {
+                $this->addError('form.msan_eprel_api_key', __('Za uključivanje EPREL dohvata unesite API ključ.'));
 
                 return;
             }
@@ -152,6 +161,7 @@ class SettingsForm extends Component
         return view('livewire.admin.integrations.msan.settings-form', [
             'productEndpoint' => 'https://b2b.msan.hr/B2BService/B2BProductService.asmx',
             'ftpHost' => 'b2b.msan.hr',
+            'availabilityLevelLabels' => MsanSettingsService::AVAILABILITY_LEVEL_LABELS,
         ]);
     }
 
@@ -171,6 +181,21 @@ class SettingsForm extends Component
             'form.msan_ftp_timeout' => ['required', 'integer', 'min:15', 'max:120'],
             'form.msan_import_images' => ['required', 'boolean'],
             'form.msan_import_products_active' => ['required', 'boolean'],
+            'form.msan_import_specifications' => ['required', 'boolean'],
+            'form.msan_specifications_selected_only' => ['required', 'boolean'],
+            'form.msan_specifications_source' => [
+                'required',
+                'string',
+                Rule::in([
+                    MsanSettingsService::SPECIFICATIONS_SOURCE_STANDARD,
+                    MsanSettingsService::SPECIFICATIONS_SOURCE_ICECAT,
+                ]),
+            ],
+            'form.msan_specifications_timeout' => ['required', 'integer', 'min:300', 'max:7200'],
+            'form.msan_eprel_enabled' => ['required', 'boolean'],
+            'form.msan_eprel_api_key' => ['nullable', 'string', 'max:2048'],
+            'form.msan_eprel_connect_timeout' => ['required', 'integer', 'min:2', 'max:30'],
+            'form.msan_eprel_timeout' => ['required', 'integer', 'min:5', 'max:120'],
             'form.msan_stock_level_0' => ['required', 'integer', 'min:0', 'max:999999'],
             'form.msan_stock_level_1' => ['required', 'integer', 'min:0', 'max:999999'],
             'form.msan_stock_level_2' => ['required', 'integer', 'min:0', 'max:999999'],

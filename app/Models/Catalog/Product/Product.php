@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Product extends Model implements HasMedia
 {
@@ -47,6 +48,16 @@ class Product extends Model implements HasMedia
         'width_cm',
         'height_cm',
         'shipping_labels',
+        'technical_specifications',
+        'energy_label_required',
+        'energy_efficiency_class',
+        'energy_efficiency_scale',
+        'eprel_registration_number',
+        'eprel_product_group',
+        'eprel_energy_label_image',
+        'energy_label_url',
+        'product_information_sheet_url',
+        'energy_data_synced_at',
         'payload',
         'created_by',
         'updated_by',
@@ -68,6 +79,9 @@ class Product extends Model implements HasMedia
         'width_cm' => 'decimal:2',
         'height_cm' => 'decimal:2',
         'shipping_labels' => 'array',
+        'technical_specifications' => 'array',
+        'energy_label_required' => 'bool',
+        'energy_data_synced_at' => 'datetime',
         'payload' => 'array',
     ];
 
@@ -163,6 +177,56 @@ class Product extends Model implements HasMedia
     public function groupPrices(): HasMany
     {
         return $this->hasMany(ProductGroupPrice::class);
+    }
+
+    public function energyDeclarations(): HasMany
+    {
+        return $this->hasMany(ProductEnergyDeclaration::class)
+            ->orderByDesc('is_primary')
+            ->orderBy('id');
+    }
+
+    public function technicalSpecificationRows(): HasMany
+    {
+        return $this->hasMany(CatalogProductSpecification::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function energyMedia(): MorphMany
+    {
+        return $this->morphMany(Media::class, 'model')
+            ->whereIn('collection_name', ['product_energy_label', 'product_information_sheet'])
+            ->orderBy('order_column')
+            ->orderBy('id');
+    }
+
+    /**
+     * Eager-loads all locally persisted data needed to render the EU energy
+     * label next to a storefront price. Rendering never calls a supplier API.
+     */
+    public function scopeWithStorefrontEnergyData(Builder $query): Builder
+    {
+        return $query->with([
+            'energyDeclarations' => fn ($declarations) => $declarations->select([
+                'id',
+                'product_id',
+                'context_code',
+                'label',
+                'energy_class',
+                'scale_min',
+                'scale_max',
+                'eprel_registration_number',
+                'eprel_product_group',
+                'energy_label_image',
+                'energy_label_url',
+                'product_information_sheet_url',
+                'is_primary',
+                'source',
+                'synced_at',
+            ]),
+            'energyMedia',
+        ]);
     }
 
     public function priceHistory(): HasMany

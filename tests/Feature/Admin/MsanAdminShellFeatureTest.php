@@ -16,6 +16,7 @@ class MsanAdminShellFeatureTest extends TestCase
         'admin.integrations.msan.overview' => 'admin/integrations/msan',
         'admin.integrations.msan.settings' => 'admin/integrations/msan/settings',
         'admin.integrations.msan.categories' => 'admin/integrations/msan/categories',
+        'admin.integrations.msan.specifications' => 'admin/integrations/msan/specifications',
         'admin.integrations.msan.products' => 'admin/integrations/msan/products',
         'admin.integrations.msan.runs' => 'admin/integrations/msan/runs',
     ];
@@ -84,6 +85,7 @@ class MsanAdminShellFeatureTest extends TestCase
 
         $settingsUrl = route('admin.integrations.msan.settings');
         $overviewUrl = route('admin.integrations.msan.overview');
+        $specificationsUrl = route('admin.integrations.msan.specifications');
 
         $this->actingAs($user)
             ->get($settingsUrl)
@@ -92,10 +94,11 @@ class MsanAdminShellFeatureTest extends TestCase
             ->assertDontSee('href="'.$overviewUrl.'"', false)
             ->assertSee(__('Postavke'))
             ->assertDontSee(__('Mapiranje kategorija'))
+            ->assertDontSee('href="'.$specificationsUrl.'"', false)
             ->assertDontSee(__('Odabir artikala'))
             ->assertDontSee(__('Izvršavanja'));
 
-        foreach (['overview', 'categories', 'products', 'runs'] as $route) {
+        foreach (['overview', 'categories', 'specifications', 'products', 'runs'] as $route) {
             $this->actingAs($user)
                 ->get(route('admin.integrations.msan.'.$route))
                 ->assertForbidden();

@@ -70,6 +70,49 @@ class MsanCatalogSyncAndImportTest extends TestCase
         $this->assertSame(MsanSyncRun::STATUS_COMPLETED, $run->fresh()->status);
     }
 
+    public function test_catalog_identifier_change_invalidates_a_fresh_eprel_match(): void
+    {
+        $source = MsanProduct::query()->create([
+            'external_code' => 'P-EPREL-CHANGE',
+            'name' => 'Stari model',
+            'model' => 'OLD-MODEL',
+            'part_number' => 'OLD-PART',
+            'eprel_match_status' => MsanProduct::EPREL_EXACT,
+            'eprel_identifier_checksum' => str_repeat('a', 64),
+            'eprel_checked_at' => now(),
+            'last_seen_at' => now()->subDay(),
+            'is_stale' => false,
+        ]);
+        $run = MsanSyncRun::query()->create([
+            'kind' => MsanSyncRun::KIND_FULL,
+            'status' => MsanSyncRun::STATUS_PENDING,
+        ]);
+        $service = new MsanCatalogSyncService(
+            $this->fixtureClient([
+                'categories' => $this->xml([['CategoryID' => 'C-EPREL', 'CategoryName' => 'Hladnjaci']]),
+                'catalog' => $this->xml([[
+                    'ProductCode' => 'P-EPREL-CHANGE',
+                    'ProductName' => 'Novi model',
+                    'Model' => 'NEW-MODEL',
+                    'PartNo' => 'NEW-PART',
+                ]]),
+                'prices' => $this->xml([['ProductCode' => 'P-EPREL-CHANGE', 'RecommendedRetailPrice' => '125.00']]),
+                'availability' => $this->xml([['ProductCode' => 'P-EPREL-CHANGE', 'ProductAvailability' => '3']]),
+                'product_categories' => $this->xml([['ProductCode' => 'P-EPREL-CHANGE', 'CategoryID' => 'C-EPREL']]),
+                'barcodes' => $this->xml([]),
+            ]),
+            app(MsanXmlStreamReader::class),
+        );
+
+        $service->sync($run);
+
+        $source->refresh();
+        $this->assertSame('NEW-MODEL', $source->model);
+        $this->assertSame(MsanProduct::EPREL_PENDING, $source->eprel_match_status);
+        $this->assertNull($source->eprel_identifier_checksum);
+        $this->assertNull($source->eprel_checked_at);
+    }
+
     public function test_failed_incomplete_snapshot_rolls_back_every_staging_change(): void
     {
         $oldCategory = MsanCategory::query()->create([
@@ -192,6 +235,7 @@ class MsanCatalogSyncAndImportTest extends TestCase
         $this->assertSame(1, $item->attempts);
         $this->assertSame(MsanImportRunItem::STATUS_SUCCEEDED, $item->status);
         $this->assertSame(1, Product::query()->where('code', 'MSAN-100')->count());
+        $this->assertSame(7, Product::query()->where('code', 'MSAN-100')->value('stock_qty'));
     }
 
     public function test_import_preserves_non_msan_owned_catalog_fields(): void
@@ -300,6 +344,31 @@ class MsanCatalogSyncAndImportTest extends TestCase
 
         $this->expectException(DomainException::class);
         app(MsanImportCoordinator::class)->queueSelected();
+    }
+
+    public function test_specification_and_eprel_runs_also_block_import(): void
+    {
+        $this->configureImport();
+        $this->eligibleSource('MSAN-BLOCKED-NEW-RUNS', 'Blokirani artikl');
+
+        foreach ([MsanSyncRun::KIND_SPECIFICATIONS, MsanSyncRun::KIND_EPREL] as $kind) {
+            $active = MsanSyncRun::query()->create([
+                'kind' => $kind,
+                'status' => MsanSyncRun::STATUS_RUNNING,
+            ]);
+
+            try {
+                app(MsanImportCoordinator::class)->queueSelected();
+                $this->fail("Aktivna {$kind} obrada mora blokirati uvoz.");
+            } catch (DomainException) {
+                $this->assertDatabaseMissing('msan_sync_runs', [
+                    'kind' => MsanSyncRun::KIND_IMPORT,
+                    'status' => MsanSyncRun::STATUS_PENDING,
+                ]);
+            } finally {
+                $active->delete();
+            }
+        }
     }
 
     private function configureImport(): void

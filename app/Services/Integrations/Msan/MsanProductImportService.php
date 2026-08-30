@@ -24,6 +24,8 @@ class MsanProductImportService
     public function __construct(
         private readonly SystemSettingsService $settings,
         private readonly ImportedDescriptionHtmlCleaner $descriptionCleaner,
+        private readonly MsanSettingsService $msanSettings,
+        private readonly MsanSpecificationPublisher $specificationPublisher,
     ) {}
 
     /**
@@ -258,6 +260,12 @@ class MsanProductImportService
         if (($result['image'] ?? false) && isset($result['source_id'])) {
             ImportMsanProductImageJob::dispatch((int) $result['source_id'])->onQueue('integrations');
         }
+        if ($this->msanSettings->importSpecifications() && isset($result['source_id'])) {
+            $source = MsanProduct::query()->find((int) $result['source_id']);
+            if ($source) {
+                $this->specificationPublisher->publishProductFromActiveSnapshot($source);
+            }
+        }
 
         return (string) $result['status'];
     }
@@ -280,10 +288,9 @@ class MsanProductImportService
 
     private function stockQuantityForLevel(?int $level): int
     {
-        $level = max(0, min(4, (int) ($level ?? 0)));
-        $defaults = [0, 1, 1, 1, 1];
-
-        return max(0, min(999999, (int) $this->settings->get('msan_stock_level_'.$level, $defaults[$level])));
+        return $this->msanSettings->stockLevelQuantity(
+            max(0, min(4, (int) ($level ?? 0))),
+        );
     }
 
     private function defaultTaxRateId(): ?int

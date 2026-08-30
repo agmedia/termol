@@ -4,8 +4,13 @@
         || $errors->has('body')
         || $errors->has('rating');
     $commentUser = auth()->user();
-    $hasSpecificationAttributes = $product->relationLoaded('attributes')
-        && $product->attributes->isNotEmpty();
+    $hasAttributeSpecifications = $product->relationLoaded('attributes')
+        && $product->attributes->contains(
+            fn ($attribute): bool => (string) data_get($attribute->payload, 'source') !== 'msan_specification',
+        );
+    $hasImportedSpecifications = $product->relationLoaded('technicalSpecificationRows')
+        && $product->technicalSpecificationRows->isNotEmpty();
+    $hasSpecificationAttributes = $hasAttributeSpecifications || $hasImportedSpecifications;
     $firstDetailSectionId = $hasProductStory
         ? 'product-description'
         : ($hasSpecificationAttributes ? 'product-specifications' : 'product-comments');
@@ -67,12 +72,19 @@
             </header>
 
             <div class="product-detail-section-body">
-                @include('front.partials.product-attribute-panels', [
-                    'product' => $product,
-                    'locale' => $locale,
-                    'fallbackLocale' => $fallbackLocale,
-                    'containerClass' => 'product-detail-attribute-panels',
-                ])
+                @if ($hasAttributeSpecifications)
+                    @include('front.partials.product-attribute-panels', [
+                        'product' => $product,
+                        'locale' => $locale,
+                        'fallbackLocale' => $fallbackLocale,
+                        'containerClass' => 'product-detail-attribute-panels',
+                    ])
+                @endif
+                @if ($hasImportedSpecifications)
+                    @include('front.partials.product-technical-specifications', [
+                        'rows' => $product->technicalSpecificationRows,
+                    ])
+                @endif
             </div>
         </section>
     @endif

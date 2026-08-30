@@ -8,6 +8,7 @@
         ? [
             ['route' => 'admin.integrations.msan.overview', 'label' => __('Pregled')],
             ['route' => 'admin.integrations.msan.categories', 'label' => __('Mapiranje kategorija')],
+            ['route' => 'admin.integrations.msan.specifications', 'label' => __('Specifikacije')],
             ['route' => 'admin.integrations.msan.products', 'label' => __('Odabir artikala')],
             ['route' => 'admin.integrations.msan.runs', 'label' => __('Izvršavanja')],
         ]

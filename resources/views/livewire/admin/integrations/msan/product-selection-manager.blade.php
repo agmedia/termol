@@ -138,7 +138,7 @@
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Artikl') }}</th>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Proizvođač / kategorije') }}</th>
                         <th class="px-3 py-2 text-right font-semibold">{{ __('Cijene') }}</th>
-                        <th class="px-3 py-2 text-center font-semibold">{{ __('Raspoloživost') }}</th>
+                        <th class="px-3 py-2 text-center font-semibold">{{ __('M SAN dostupnost / lokalni limit') }}</th>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Lokalni artikl') }}</th>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Uvoz') }}</th>
                         <th class="px-3 py-2 text-left font-semibold">{{ __('Zadnje viđeno') }}</th>
@@ -173,6 +173,20 @@
                                 'conflict' => __('Konflikt'),
                                 'ignored' => __('Ignorirano'),
                                 default => __('Nije povezano'),
+                            };
+                            $availabilityLevel = $product->availability_level === null
+                                ? null
+                                : (int) $product->availability_level;
+                            $availabilityLabel = $availabilityLevel === null
+                                ? __('Nepoznata dostupnost')
+                                : __($availabilityLevelLabels[$availabilityLevel] ?? 'Nepoznata dostupnost');
+                            $localSellableLimit = $availabilityLevel === null
+                                ? 0
+                                : (int) ($stockLevelQuantities[$availabilityLevel] ?? 0);
+                            $availabilityClass = match (true) {
+                                $availabilityLevel === null => 'bg-slate-200 text-slate-700',
+                                $availabilityLevel === 0 => 'bg-rose-100 text-rose-800',
+                                default => 'bg-emerald-100 text-emerald-800',
                             };
                         @endphp
                         <tr wire:key="msan-product-row-{{ $product->id }}" @class(['bg-cyan-50/50' => $product->selected])>
@@ -232,13 +246,16 @@
                                 </div>
                             </td>
                             <td class="px-3 py-3 text-center">
-                                @if ($product->availability_level === null)
-                                    <span class="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ __('Nepoznato') }}</span>
-                                @elseif ($product->availability_level > 0)
-                                    <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">{{ __('Razina :level', ['level' => $product->availability_level]) }}</span>
-                                @else
-                                    <span class="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">{{ __('Nema') }}</span>
-                                @endif
+                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $availabilityClass }}">
+                                    {{ $availabilityLabel }}
+                                    @if ($availabilityLevel !== null)
+                                        <span class="ml-1 font-normal opacity-75">({{ __('razina :level', ['level' => $availabilityLevel]) }})</span>
+                                    @endif
+                                </span>
+                                <div class="mt-1 text-[11px] font-medium text-slate-600">
+                                    {{ __('Lokalni prodajni limit: :count kom.', ['count' => number_format($localSellableLimit, 0, ',', '.')]) }}
+                                </div>
+                                <div class="mt-0.5 text-[10px] text-slate-400">{{ __('Nije stvarna M SAN zaliha') }}</div>
                             </td>
                             <td class="px-3 py-3 text-slate-700">
                                 @if ($product->localProduct)

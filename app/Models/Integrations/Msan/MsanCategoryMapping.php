@@ -15,10 +15,18 @@ class MsanCategoryMapping extends Model
 
     public const STATUS_IGNORED = 'ignored';
 
+    public const ENERGY_REQUIREMENT_INHERIT = 'inherit';
+
+    public const ENERGY_REQUIREMENT_REQUIRED = 'required';
+
+    public const ENERGY_REQUIREMENT_NOT_APPLICABLE = 'not_applicable';
+
     protected $fillable = [
         'msan_category_id',
         'local_category_id',
         'status',
+        'eprel_product_group',
+        'energy_requirement',
         'updated_by',
     ];
 
@@ -28,6 +36,16 @@ class MsanCategoryMapping extends Model
             'msan_category_id' => 'int',
             'local_category_id' => 'int',
             'updated_by' => 'int',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public static function energyRequirementOptions(): array
+    {
+        return [
+            self::ENERGY_REQUIREMENT_INHERIT => 'Automatski prema dostupnim podacima',
+            self::ENERGY_REQUIREMENT_REQUIRED => 'Energetska oznaka je obavezna',
+            self::ENERGY_REQUIREMENT_NOT_APPLICABLE => 'Energetska oznaka nije primjenjiva',
         ];
     }
 
