@@ -6,6 +6,9 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
+        "ext-curl": "*",
+        "ext-openssl": "*",
+        "ext-xmlreader": "*",
         "php": "^8.4",
         "kalnoy/nestedset": "^6.0",
         "laravel/ai": "^0.1.5",

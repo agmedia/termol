@@ -85,6 +85,7 @@ class EnsureAdminAbility
             $calls = Arr::get($payload, 'calls', []);
             if (! is_array($calls) || $calls === []) {
                 $this->authorizeAny($user, $this->normalizeAbilityList($routeRule['view'] ?? []));
+
                 continue;
             }
 
@@ -131,7 +132,13 @@ class EnsureAdminAbility
             return true;
         }
 
-        return in_array($method, config('admin_authorization.livewire_readonly_methods', []), true);
+        foreach ((array) config('admin_authorization.livewire_readonly_methods', []) as $readonlyMethod) {
+            if (strtolower((string) $readonlyMethod) === $method) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isDeleteLikeMethod(string $method): bool

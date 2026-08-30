@@ -1,0 +1,432 @@
+<?php
+
+namespace App\Livewire\Admin\Integrations\Msan;
+
+use App\Models\Catalog\Category\Category;
+use App\Models\Integrations\Msan\MsanCategory;
+use App\Models\Integrations\Msan\MsanCategoryMapping;
+use App\Services\Settings\SystemSettingsService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Livewire\Component;
+use Livewire\WithPagination;
+use Silber\Bouncer\BouncerFacade as Bouncer;
+
+class CategoryMappingManager extends Component
+{
+    use WithPagination;
+
+    private const PAGE_NAME = 'msanCategoryMappingsPage';
+
+    public string $search = '';
+
+    public string $searchInput = '';
+
+    public string $status = 'all';
+
+    public ?int $editingCategoryId = null;
+
+    public string $localCategoryId = '';
+
+    public function mount(): void
+    {
+        $this->authorizeView();
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage(pageName: self::PAGE_NAME);
+    }
+
+    public function applySearch(): void
+    {
+        $search = trim(Str::limit($this->searchInput, 120, ''));
+
+        if ($search !== '' && mb_strlen($search) < 2) {
+            $this->addError('searchInput', __('Za pretragu unesite najmanje 2 znaka.'));
+
+            return;
+        }
+
+        $this->resetErrorBag('searchInput');
+        $this->searchInput = $search;
+        $this->search = $search;
+        $this->resetPage(pageName: self::PAGE_NAME);
+    }
+
+    public function updatedStatus(): void
+    {
+        $this->resetPage(pageName: self::PAGE_NAME);
+    }
+
+    public function clearFilters(): void
+    {
+        $this->search = '';
+        $this->searchInput = '';
+        $this->status = 'all';
+        $this->resetPage(pageName: self::PAGE_NAME);
+    }
+
+    public function openEditor(int $categoryId): void
+    {
+        $this->authorizeManage();
+
+        $category = MsanCategory::query()
+            ->with('mapping:id,msan_category_id,local_category_id,status')
+            ->findOrFail($categoryId);
+
+        $this->editingCategoryId = (int) $category->getKey();
+        $this->localCategoryId = $category->mapping?->local_category_id
+            ? (string) $category->mapping->local_category_id
+            : '';
+        $this->resetValidation();
+    }
+
+    public function cancelEdit(): void
+    {
+        $this->resetEditor();
+    }
+
+    public function saveMapping(): void
+    {
+        $this->authorizeManage();
+
+        $validated = $this->validate([
+            'editingCategoryId' => ['required', 'integer', Rule::exists('msan_categories', 'id')],
+            'localCategoryId' => [
+                'required',
+                'integer',
+                Rule::exists('categories', 'id')->where(
+                    static fn ($query) => $query->where('scope', Category::SCOPE_CATALOG)
+                ),
+            ],
+        ]);
+
+        MsanCategoryMapping::query()->updateOrCreate(
+            ['msan_category_id' => (int) $validated['editingCategoryId']],
+            [
+                'local_category_id' => (int) $validated['localCategoryId'],
+                'status' => 'mapped',
+                'updated_by' => auth()->id(),
+            ],
+        );
+
+        $this->resetEditor();
+        $this->dispatch('notify', type: 'success', message: __('M SAN kategorija je mapirana.'));
+    }
+
+    public function ignoreCategory(int $categoryId): void
+    {
+        $this->authorizeManage();
+        MsanCategory::query()->findOrFail($categoryId);
+
+        MsanCategoryMapping::query()->updateOrCreate(
+            ['msan_category_id' => $categoryId],
+            [
+                'local_category_id' => null,
+                'status' => 'ignored',
+                'updated_by' => auth()->id(),
+            ],
+        );
+
+        if ($this->editingCategoryId === $categoryId) {
+            $this->resetEditor();
+        }
+
+        $this->dispatch('notify', type: 'warning', message: __('M SAN kategorija će se preskakati.'));
+    }
+
+    public function clearMapping(int $categoryId): void
+    {
+        $this->authorizeManage();
+        MsanCategory::query()->findOrFail($categoryId);
+
+        MsanCategoryMapping::query()
+            ->where('msan_category_id', $categoryId)
+            ->delete();
+
+        if ($this->editingCategoryId === $categoryId) {
+            $this->resetEditor();
+        }
+
+        $this->dispatch('notify', type: 'success', message: __('Mapiranje M SAN kategorije je uklonjeno.'));
+    }
+
+    public function autoMatchExactNames(): void
+    {
+        $this->authorizeManage();
+
+        $localByName = $this->uniqueLocalCategoriesByName();
+        $uniqueMsanNames = $this->uniqueMsanCategoryNames();
+        if ($localByName === [] || $uniqueMsanNames === []) {
+            $this->dispatch('notify', type: 'warning', message: __('Nema jedinstvenih naziva na obje strane za automatsko mapiranje.'));
+
+            return;
+        }
+
+        $matched = 0;
+        DB::transaction(function () use ($localByName, $uniqueMsanNames, &$matched): void {
+            MsanCategory::query()
+                ->select(['id', 'name'])
+                ->where('is_stale', false)
+                ->where(function (Builder $query): void {
+                    $query
+                        ->whereDoesntHave('mapping')
+                        ->orWhereHas('mapping', static function (Builder $mappingQuery): void {
+                            $mappingQuery
+                                ->where('status', 'unmapped')
+                                ->orWhere(function (Builder $invalidMappedQuery): void {
+                                    $invalidMappedQuery
+                                        ->where('status', 'mapped')
+                                        ->whereNull('local_category_id');
+                                });
+                        });
+                })
+                ->orderBy('id')
+                ->chunkById(200, function ($categories) use ($localByName, $uniqueMsanNames, &$matched): void {
+                    foreach ($categories as $category) {
+                        $key = $this->normalizedName((string) $category->name);
+                        if (! isset($uniqueMsanNames[$key])) {
+                            continue;
+                        }
+
+                        $localCategoryId = $localByName[$key] ?? null;
+                        if (! $localCategoryId) {
+                            continue;
+                        }
+
+                        MsanCategoryMapping::query()->updateOrCreate(
+                            ['msan_category_id' => (int) $category->getKey()],
+                            [
+                                'local_category_id' => $localCategoryId,
+                                'status' => 'mapped',
+                                'updated_by' => auth()->id(),
+                            ],
+                        );
+                        $matched++;
+                    }
+                });
+        });
+
+        $this->dispatch(
+            'notify',
+            type: $matched > 0 ? 'success' : 'info',
+            message: trans_choice(
+                '{0} Nije pronađeno sigurno automatsko mapiranje.|{1} Automatski je mapirana :count kategorija.|[2,*] Automatski su mapirane :count kategorije.',
+                $matched,
+                ['count' => $matched],
+            ),
+        );
+    }
+
+    public function render()
+    {
+        $this->authorizeView();
+
+        $perPage = app(SystemSettingsService::class)->getInt(
+            'admin_items_per_page',
+            (int) config('admin_ui.pagination.admin_items_per_page', 20),
+            5,
+            200,
+        );
+
+        $categories = $this->filteredQuery()
+            ->with([
+                'mapping:id,msan_category_id,local_category_id,status,updated_by,updated_at',
+                'mapping.localCategory.translations' => fn ($query) => $query
+                    ->whereIn('locale', $this->preferredLocales()),
+            ])
+            ->orderByRaw('CASE WHEN path IS NULL OR path = ? THEN 1 ELSE 0 END', [''])
+            ->orderBy('path')
+            ->orderBy('name')
+            ->orderBy('id')
+            ->paginate($perPage, pageName: self::PAGE_NAME);
+
+        return view('livewire.admin.integrations.msan.category-mapping-manager', [
+            'categories' => $categories,
+            'localCategoryOptions' => $this->editingCategoryId ? $this->localCategoryOptions() : [],
+            'canManageMapping' => $this->canManage(),
+            'perPage' => $perPage,
+        ]);
+    }
+
+    private function filteredQuery(): Builder
+    {
+        $search = trim(Str::limit($this->search, 120, ''));
+
+        return MsanCategory::query()
+            ->select([
+                'id',
+                'external_id',
+                'name',
+                'path',
+                'product_count',
+                'last_seen_at',
+                'is_stale',
+            ])
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $prefix = $search.'%';
+                $query->where(function (Builder $nested) use ($prefix): void {
+                    $nested
+                        ->where('external_id', 'like', $prefix)
+                        ->orWhere('name', 'like', $prefix);
+                });
+            })
+            ->when($this->status === 'mapped', function (Builder $query): void {
+                $query->whereHas('mapping', static function (Builder $mappingQuery): void {
+                    $mappingQuery
+                        ->where('status', 'mapped')
+                        ->whereNotNull('local_category_id');
+                });
+            })
+            ->when($this->status === 'ignored', function (Builder $query): void {
+                $query->whereHas('mapping', static fn (Builder $mappingQuery) => $mappingQuery->where('status', 'ignored'));
+            })
+            ->when($this->status === 'unmapped', function (Builder $query): void {
+                $query->where(function (Builder $nested): void {
+                    $nested
+                        ->whereDoesntHave('mapping')
+                        ->orWhereHas('mapping', static function (Builder $mappingQuery): void {
+                            $mappingQuery
+                                ->where('status', 'unmapped')
+                                ->orWhere(function (Builder $invalidMappedQuery): void {
+                                    $invalidMappedQuery
+                                        ->where('status', 'mapped')
+                                        ->whereNull('local_category_id');
+                                });
+                        });
+                });
+            });
+    }
+
+    /** @return array<int, array{id:int,label:string}> */
+    private function localCategoryOptions(): array
+    {
+        return Category::query()
+            ->select(['categories.id', 'categories.code', 'categories.parent_id', 'categories._lft', 'categories._rgt'])
+            ->where('scope', Category::SCOPE_CATALOG)
+            ->withDepth()
+            ->with([
+                'translations' => fn ($query) => $query->whereIn('locale', $this->preferredLocales()),
+            ])
+            ->orderBy('_lft')
+            ->get()
+            ->map(function (Category $category): array {
+                $translation = $this->preferredTranslation($category->translations);
+                $name = trim((string) ($translation?->name ?? $category->code));
+                $depth = max(0, (int) ($category->depth ?? 0));
+
+                return [
+                    'id' => (int) $category->getKey(),
+                    'label' => str_repeat('— ', $depth).$name,
+                ];
+            })
+            ->all();
+    }
+
+    /** @return array<string, int> */
+    private function uniqueLocalCategoriesByName(): array
+    {
+        $grouped = Category::query()
+            ->select(['categories.id', 'categories.code'])
+            ->where('scope', Category::SCOPE_CATALOG)
+            ->with([
+                'translations' => fn ($query) => $query->whereIn('locale', $this->preferredLocales()),
+            ])
+            ->whereHas('translations', fn (Builder $query) => $query->whereIn('locale', $this->preferredLocales()))
+            ->get()
+            ->map(function (Category $category): array {
+                $translation = $this->preferredTranslation($category->translations);
+
+                return [
+                    'id' => (int) $category->getKey(),
+                    'name' => $this->normalizedName((string) ($translation?->name ?? '')),
+                ];
+            })
+            ->filter(static fn (array $row): bool => $row['name'] !== '')
+            ->groupBy('name');
+
+        $result = [];
+        foreach ($grouped as $name => $rows) {
+            if ($rows->count() === 1) {
+                $result[(string) $name] = (int) $rows->first()['id'];
+            }
+        }
+
+        return $result;
+    }
+
+    /** @return array<string, true> */
+    private function uniqueMsanCategoryNames(): array
+    {
+        return MsanCategory::query()
+            ->where('is_stale', false)
+            ->pluck('name')
+            ->map(fn ($name): string => $this->normalizedName((string) $name))
+            ->filter()
+            ->countBy()
+            ->filter(static fn (int $count): bool => $count === 1)
+            ->map(static fn (): bool => true)
+            ->all();
+    }
+
+    private function preferredTranslation($translations): mixed
+    {
+        foreach ($this->preferredLocales() as $locale) {
+            $translation = $translations->firstWhere('locale', $locale);
+            if ($translation) {
+                return $translation;
+            }
+        }
+
+        return $translations->first();
+    }
+
+    /** @return array<int, string> */
+    private function preferredLocales(): array
+    {
+        return array_values(array_unique(array_filter([
+            'hr',
+            strtolower((string) config('app.locale', 'hr')),
+            strtolower((string) config('app.fallback_locale', 'hr')),
+        ])));
+    }
+
+    private function normalizedName(string $name): string
+    {
+        return (string) Str::of($name)->squish()->lower();
+    }
+
+    private function resetEditor(): void
+    {
+        $this->editingCategoryId = null;
+        $this->localCategoryId = '';
+        $this->resetValidation();
+    }
+
+    private function authorizeView(): void
+    {
+        abort_unless($this->canView(), 403);
+    }
+
+    private function authorizeManage(): void
+    {
+        abort_unless($this->canManage(), 403);
+    }
+
+    private function canView(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) ($user && (Bouncer::is($user)->an('superadmin') || $user->can('integrations.msan.view')));
+    }
+
+    private function canManage(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) ($user && (Bouncer::is($user)->an('superadmin') || $user->can('integrations.msan.mapping.manage')));
+    }
+}

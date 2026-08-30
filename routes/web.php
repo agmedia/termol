@@ -415,6 +415,20 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
         })->name('users.edit');
         Route::view('profile', 'profile')->name('profile');
 
+        Route::prefix('integrations')
+            ->as('integrations.')
+            ->group(function (): void {
+                Route::prefix('msan')
+                    ->as('msan.')
+                    ->group(function (): void {
+                        Route::view('/', 'admin.integrations.msan.overview')->name('overview');
+                        Route::view('settings', 'admin.integrations.msan.settings')->name('settings');
+                        Route::view('categories', 'admin.integrations.msan.categories')->name('categories');
+                        Route::view('products', 'admin.integrations.msan.products')->name('products');
+                        Route::view('runs', 'admin.integrations.msan.runs')->name('runs');
+                    });
+            });
+
         Route::prefix('content')
             ->as('content.')
             ->group(function (): void {

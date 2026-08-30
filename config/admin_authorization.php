@@ -150,6 +150,27 @@ return [
             'delete' => ['settings.local.manage'],
         ],
 
+        'admin.integrations.msan.settings' => [
+            'view' => ['integrations.msan.settings.manage'],
+            'mutate' => ['integrations.msan.settings.manage'],
+        ],
+        'admin.integrations.msan.categories' => [
+            'view' => ['integrations.msan.view'],
+            'mutate' => ['integrations.msan.mapping.manage'],
+        ],
+        'admin.integrations.msan.products' => [
+            'view' => ['integrations.msan.view'],
+            'mutate' => ['integrations.msan.import.manage'],
+        ],
+        'admin.integrations.msan.runs' => [
+            'view' => ['integrations.msan.view'],
+            'mutate' => ['integrations.msan.sync.run'],
+        ],
+        'admin.integrations.msan.overview' => [
+            'view' => ['integrations.msan.view'],
+            'mutate' => ['integrations.msan.sync.run'],
+        ],
+
         'admin.content.blog.create' => [
             'view' => ['content.blog.create'],
             'mutate' => ['content.blog.create'],
@@ -331,6 +352,12 @@ return [
         'toggleGroup',
         'toggleExpand',
         'refreshState',
+        '$refresh',
+        'refresh',
+        'gotoPage',
+        'nextPage',
+        'previousPage',
+        'setPage',
     ],
 
     'livewire_delete_keywords' => [

@@ -1205,6 +1205,17 @@
                     $contentNavigationActive = request()->routeIs('admin.content.navigation*');
                     $contentSlotsActive = request()->routeIs('admin.content.slots*');
                     $contentOpen = $contentBlogActive || $contentPagesActive || $contentFaqsActive || $contentCommentsActive || $contentBlocksActive || $contentNavigationActive || $contentSlotsActive;
+                    $integrationsMsanActive = request()->routeIs('admin.integrations.msan.*');
+                    $integrationsOpen = $integrationsMsanActive;
+                    $canViewMsanIntegration = auth()->user() && (
+                        auth()->user()->isA('superadmin')
+                        || auth()->user()->can('integrations.msan.view')
+                    );
+                    $canManageMsanSettings = auth()->user() && (
+                        auth()->user()->isA('superadmin')
+                        || auth()->user()->can('integrations.msan.settings.manage')
+                    );
+                    $canAccessMsanIntegration = $canViewMsanIntegration || $canManageMsanSettings;
                     $settingsOpen = request()->routeIs('admin.settings.*');
                     $settingsLocalOpen = request()->routeIs('admin.settings.local.*');
                     $settingsSystemOpen = request()->routeIs('admin.settings.system.*');
@@ -1592,6 +1603,30 @@
                             </a>
                         </div>
                     </details>
+
+                    @if ($canAccessMsanIntegration)
+                        <details class="group rounded-lg" @if($integrationsOpen) open @endif>
+                            <summary class="sidebar-dropdown-summary flex cursor-pointer list-none items-center justify-between rounded-lg font-medium [&::-webkit-details-marker]:hidden [&::marker]:content-[''] {{ $integrationsOpen ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                <span class="flex items-center gap-2">
+                                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                                        <path d="M7 3.5v4M13 3.5v4M5 7.5h10v2.25a5 5 0 0 1-5 5v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <span>{{ __('Integracije') }}</span>
+                                </span>
+                            </summary>
+                            <div class="ml-3 mt-1 space-y-1 border-l border-slate-200 pl-4">
+                                <a
+                                    href="{{ route($canViewMsanIntegration ? 'admin.integrations.msan.overview' : 'admin.integrations.msan.settings') }}"
+                                    class="sidebar-dropdown-link block rounded-lg font-medium {{ $integrationsMsanActive ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
+                                >
+                                    <span class="flex items-center gap-2">
+                                        <span class="sidebar-dot"></span>
+                                        <span>{{ __('M SAN') }}</span>
+                                    </span>
+                                </a>
+                            </div>
+                        </details>
+                    @endif
 
                     <details class="group rounded-lg" @if($settingsOpen) open @endif>
                         <summary class="sidebar-dropdown-summary flex cursor-pointer list-none items-center justify-between rounded-lg font-medium [&::-webkit-details-marker]:hidden [&::marker]:content-[''] {{ $settingsOpen ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">

@@ -107,6 +107,12 @@ return [
         ['name' => 'settings.api.manage', 'title' => 'Manage API settings', 'group' => 'settings.api'],
         ['name' => 'settings.user.manage', 'title' => 'Manage user settings', 'group' => 'settings.user'],
 
+        ['name' => 'integrations.msan.view', 'title' => 'Pregled M SAN integracije', 'group' => 'integrations.msan'],
+        ['name' => 'integrations.msan.settings.manage', 'title' => 'Upravljanje M SAN postavkama', 'group' => 'integrations.msan'],
+        ['name' => 'integrations.msan.sync.run', 'title' => 'Pokretanje M SAN sinkronizacije', 'group' => 'integrations.msan'],
+        ['name' => 'integrations.msan.mapping.manage', 'title' => 'Upravljanje M SAN mapiranjem', 'group' => 'integrations.msan'],
+        ['name' => 'integrations.msan.import.manage', 'title' => 'Upravljanje M SAN uvozom', 'group' => 'integrations.msan'],
+
         ['name' => 'ai.admin.use', 'title' => 'Use admin AI assistant', 'group' => 'system.ai'],
     ],
 
@@ -194,6 +200,11 @@ return [
             'settings.system.store.manage',
             'settings.api.manage',
             'settings.user.manage',
+            'integrations.msan.view',
+            'integrations.msan.settings.manage',
+            'integrations.msan.sync.run',
+            'integrations.msan.mapping.manage',
+            'integrations.msan.import.manage',
             'ai.admin.use',
         ],
         'editor' => [

@@ -632,5 +632,32 @@ return [
                 ],
             ],
         ],
+        'admin.integrations.msan.*' => [
+            'title' => 'Integracije / M SAN',
+            'summary' => 'Upravljanje vezom prema M SAN-u, lokalnom radnom kopijom kataloga te kontroliranim uvozom odabranih artikala.',
+            'sections' => [
+                [
+                    'title' => 'Preporučeni redoslijed',
+                    'items' => [
+                        '1) U Postavkama spremite certifikat i PIN te provjerite vezu.',
+                        '2) Na Pregledu dohvatite katalog u lokalnu radnu kopiju.',
+                        '3) Mapirajte ili zanemarite dobavljačke kategorije.',
+                        '4) U Artiklima odaberite proizvode koji smiju ući u webshop.',
+                        '5) U Artiklima pokrenite uvoz samo prethodno odabranih proizvoda.',
+                        '6) U Izvršavanjima provjerite sažetak i eventualne pogreške.',
+                    ],
+                ],
+                [
+                    'title' => 'Sigurnost i kontrola',
+                    'items' => [
+                        'PIN i privatni ključ nikada se ne prikazuju nakon spremanja.',
+                        'Dohvat kataloga ne objavljuje proizvode na webshopu.',
+                        'Novi artikli trebaju ostati neaktivni dok ih administrator ne provjeri.',
+                        'Početna sinkronizacija ne uvozi zasebni M SAN skup strukturiranih karakteristika za filtre; on je predviđen za drugu fazu zbog veličine do 1 GB i ograničenja jednog poziva na sat.',
+                        'Sinkronizaciju nemojte pokretati češće od ograničenja M SAN servisa.',
+                    ],
+                ],
+            ],
+        ],
     ],
 ];
