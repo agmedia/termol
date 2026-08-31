@@ -106,16 +106,12 @@ class Form extends Component
 
     public function updatedEprelLookupGroup(): void
     {
-        $this->resetErrorBag('eprelLookup');
-        $group = strtolower(trim($this->eprelLookupGroup));
-        if ($group !== '' && ! array_key_exists($group, EprelClient::productGroupOptions())) {
-            $this->addError('eprelLookup', __('Odabrana EPREL grupa proizvoda nije podržana.'));
-            $this->eprelLookupGroup = $this->storedEprelLookupGroup();
+        $this->storeEprelLookupGroupSelection($this->eprelLookupGroup);
+    }
 
-            return;
-        }
-
-        $this->persistEprelLookupGroup($group);
+    public function saveEprelLookupGroup(string $group): void
+    {
+        $this->storeEprelLookupGroupSelection($group, notify: true);
     }
 
     public function updatedEprelLookupModel(): void
@@ -1032,18 +1028,54 @@ class Form extends Component
         ];
     }
 
-    private function persistEprelLookupGroup(string $group): void
+    private function storeEprelLookupGroupSelection(string $selection, bool $notify = false): void
     {
-        if (! $this->productId) {
+        $this->resetErrorBag('eprelLookup');
+        $group = strtolower(trim($selection));
+        if ($group !== '' && ! array_key_exists($group, EprelClient::productGroupOptions())) {
+            $this->eprelLookupGroup = $this->storedEprelLookupGroup();
+            $this->addError('eprelLookup', __('Odabrana EPREL grupa proizvoda nije podržana.'));
+
             return;
         }
 
-        Product::query()
+        $this->eprelLookupGroup = $group;
+        if (! $this->persistEprelLookupGroup($group)) {
+            $this->eprelLookupGroup = '';
+            $this->addError('eprelLookup', __('Artikl više ne postoji. Osvježite stranicu i pokušajte ponovno.'));
+
+            return;
+        }
+
+        if ($notify) {
+            $this->dispatch(
+                'notify',
+                type: 'success',
+                message: $group === ''
+                    ? __('EPREL grupa vraćena je na automatsko određivanje.')
+                    : __('Odabrana EPREL grupa odmah je spremljena uz artikl.'),
+            );
+        }
+    }
+
+    private function persistEprelLookupGroup(string $group): bool
+    {
+        if (! $this->productId) {
+            return false;
+        }
+
+        $value = $group !== '' ? $group : null;
+        $updated = Product::query()
             ->whereKey($this->productId)
             ->update([
-                'eprel_lookup_product_group' => $group !== '' ? $group : null,
+                'eprel_lookup_product_group' => $value,
                 'updated_at' => now(),
             ]);
+
+        return $updated === 1 || Product::query()
+            ->whereKey($this->productId)
+            ->where('eprel_lookup_product_group', $value)
+            ->exists();
     }
 
     private function storedEprelLookupGroup(): string

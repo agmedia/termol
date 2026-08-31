@@ -19,6 +19,8 @@ class EprelClient
 
     public const SEARCH_GTIN_IDENTIFIER = 'GTIN_IDENTIFIER';
 
+    public const SEARCH_REGISTRATION_NUMBER = 'REGISTRATION_NUMBER';
+
     /** @var array<string, string> Official EPREL genericField value => query parameter. */
     private const SEARCH_FIELDS = [
         self::SEARCH_MODEL_IDENTIFIER => 'modelIdentifier',
@@ -80,10 +82,11 @@ class EprelClient
         return self::PRODUCT_GROUPS;
     }
 
-    /** @return array<string, string> Official genericField value => admin label. */
+    /** @return array<string, string> Admin search mode => Croatian label. */
     public static function searchByOptions(): array
     {
         return [
+            self::SEARCH_REGISTRATION_NUMBER => 'EPREL registracijski broj',
             self::SEARCH_MODEL_IDENTIFIER => 'Identifikator modela',
             self::SEARCH_BRAND_OR_TRADEMARK => 'Marka ili zaštitni znak',
             self::SEARCH_COMMERCIAL_NAME => 'Komercijalni naziv modela',

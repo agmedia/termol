@@ -262,7 +262,7 @@
                 </div>
             </div>
 
-            <section class="mt-5 overflow-hidden rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50 shadow-sm" data-eprel-lookup>
+            <section class="mt-5 overflow-visible rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50 shadow-sm" data-eprel-lookup>
                 <div class="p-5">
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div class="max-w-3xl">
@@ -307,29 +307,41 @@
                     <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)_minmax(0,1.15fr)_auto] xl:items-end">
                         <div>
                             <label for="eprel-lookup-search-by" class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Pretraži prema') }}</label>
-                            <select id="eprel-lookup-search-by" wire:model.live="eprelLookupSearchBy" aria-describedby="eprel-lookup-search-by-help" @disabled(! $isEdit || ! $eprelLookupReady) class="admin-select w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-slate-100" data-eprel-search-by>
-                                <option value="{{ \App\Services\Integrations\Msan\EprelProductLookupService::SEARCH_AUTO }}">{{ __('Automatski kriteriji') }}</option>
+                            <select id="eprel-lookup-search-by" wire:model.live="eprelLookupSearchBy" aria-describedby="eprel-lookup-search-by-help" @disabled(! $isEdit || ! $eprelLookupReady) class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-slate-100" data-native-select data-eprel-search-by>
+                                <option value="{{ \App\Services\Integrations\Msan\EprelProductLookupService::SEARCH_AUTO }}" @selected($eprelLookupSearchBy === \App\Services\Integrations\Msan\EprelProductLookupService::SEARCH_AUTO)>{{ __('Automatski kriteriji') }}</option>
                                 @foreach ($eprelSearchByOptions as $searchValue => $searchLabel)
-                                    <option value="{{ $searchValue }}">{{ $searchLabel }}</option>
+                                    <option value="{{ $searchValue }}" @selected($eprelLookupSearchBy === $searchValue)>{{ $searchLabel }}</option>
                                 @endforeach
                             </select>
-                            <p id="eprel-lookup-search-by-help" class="mt-1.5 text-xs text-slate-500">{{ __('Iste vrste pretrage kao na službenom EPREL portalu.') }}</p>
+                            <p id="eprel-lookup-search-by-help" class="mt-1.5 text-xs text-slate-500">
+                                @if ($eprelLookupSearchBy === \App\Services\Integrations\Msan\EprelClient::SEARCH_REGISTRATION_NUMBER)
+                                    {{ __('Najbrži izbor kada već imate broj sa službene EPREL stranice.') }}
+                                @else
+                                    {{ __('Iste vrste pretrage kao na službenom EPREL portalu.') }}
+                                @endif
+                            </p>
                         </div>
                         <div>
                             <label for="eprel-lookup-query" class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Pojam za pretragu') }}</label>
-                            <input id="eprel-lookup-query" type="text" maxlength="191" wire:model.blur="eprelLookupQuery" placeholder="{{ $eprelLookupSearchBy === \App\Services\Integrations\Msan\EprelProductLookupService::SEARCH_AUTO ? __('Koriste se kriteriji iznad') : __('Unesite potpuno točnu vrijednost') }}" aria-describedby="eprel-lookup-query-help" @disabled(! $isEdit || ! $eprelLookupReady || $eprelLookupSearchBy === \App\Services\Integrations\Msan\EprelProductLookupService::SEARCH_AUTO) class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-slate-100" data-eprel-search-query>
-                            <p id="eprel-lookup-query-help" class="mt-1.5 text-xs text-slate-500">{{ __('Ručna pretraga prihvaća samo potpuno točan i jednoznačan rezultat.') }}</p>
+                            <input id="eprel-lookup-query" type="text" maxlength="191" wire:model.blur="eprelLookupQuery" placeholder="{{ $eprelLookupSearchBy === \App\Services\Integrations\Msan\EprelProductLookupService::SEARCH_AUTO ? __('Koriste se kriteriji iznad') : ($eprelLookupSearchBy === \App\Services\Integrations\Msan\EprelClient::SEARCH_REGISTRATION_NUMBER ? __('npr. 2210952') : __('Unesite potpuno točnu vrijednost')) }}" aria-describedby="eprel-lookup-query-help" @disabled(! $isEdit || ! $eprelLookupReady || $eprelLookupSearchBy === \App\Services\Integrations\Msan\EprelProductLookupService::SEARCH_AUTO) class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-slate-100" data-eprel-search-query>
+                            <p id="eprel-lookup-query-help" class="mt-1.5 text-xs text-slate-500">
+                                {{ $eprelLookupSearchBy === \App\Services\Integrations\Msan\EprelClient::SEARCH_REGISTRATION_NUMBER
+                                    ? __('Upišite samo broj; grupa će se pronaći i spremiti automatski.')
+                                    : __('Ručna pretraga prihvaća samo potpuno točan i jednoznačan rezultat.') }}
+                            </p>
                         </div>
                         <div>
                             <label for="eprel-lookup-group" class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Grupa proizvoda') }}</label>
-                            <select id="eprel-lookup-group" wire:model.live="eprelLookupGroup" aria-describedby="eprel-lookup-group-help" @disabled(! $isEdit || ! $eprelLookupReady) class="admin-select w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-slate-100">
-                                <option value="">{{ __('Automatski — iz barkoda ili mapirane kategorije') }}</option>
+                            <select id="eprel-lookup-group" wire:change="saveEprelLookupGroup($event.target.value)" wire:loading.attr="disabled" wire:target="saveEprelLookupGroup" aria-describedby="eprel-lookup-group-help" @disabled(! $isEdit || ! $eprelLookupReady) class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-slate-100" data-native-select data-eprel-lookup-group>
+                                <option value="" @selected($eprelLookupGroup === '')>{{ __('Automatski — iz barkoda ili mapirane kategorije') }}</option>
                                 @foreach ($eprelProductGroupOptions as $groupSlug => $groupCode)
-                                    <option value="{{ $groupSlug }}">{{ str_replace('_', ' ', $groupCode) }} · {{ $groupSlug }}</option>
+                                    <option value="{{ $groupSlug }}" @selected($eprelLookupGroup === $groupSlug)>{{ str_replace('_', ' ', $groupCode) }} · {{ $groupSlug }}</option>
                                 @endforeach
                             </select>
                             <p id="eprel-lookup-group-help" class="mt-1.5 text-xs text-slate-500">
-                                @if (($eprelLookupContext['groups'] ?? []) !== [] && $eprelLookupGroup === '')
+                                @if ($eprelLookupSearchBy === \App\Services\Integrations\Msan\EprelClient::SEARCH_REGISTRATION_NUMBER)
+                                    {{ __('Za pretragu po EPREL broju ne morate odabrati grupu.') }}
+                                @elseif (($eprelLookupContext['groups'] ?? []) !== [] && $eprelLookupGroup === '')
                                     {{ __('Automatski prepoznato: :groups', ['groups' => implode(', ', $eprelLookupContext['groups'])]) }}
                                 @else
                                     {{ __('Odabrana grupa odmah se sprema uz artikl. Ostavite prazno za automatsko određivanje.') }}
@@ -370,7 +382,7 @@
                         <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900" role="alert" data-eprel-lookup-error>{{ $message }}</div>
                     @enderror
                 </div>
-                <div class="border-t border-cyan-100 bg-white/60 px-5 py-3 text-xs leading-5 text-slate-500">
+                <div class="rounded-b-2xl border-t border-cyan-100 bg-white/60 px-5 py-3 text-xs leading-5 text-slate-500">
                     {{ __('Radi sigurnosti prihvaća se samo potpuno točan i jednoznačan zapis iste marke. Potvrđeni službeni zapis sprema se odmah; promjene u deklaracijama zato prvo spremite tipkom „Ažuriraj artikl”. Ostale nespremljene izmjene obrasca ostaju netaknute.') }}
                 </div>
             </section>

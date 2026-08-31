@@ -12,6 +12,7 @@ use App\Models\Integrations\Msan\MsanSyncRun;
 use App\Services\Integrations\Msan\EprelClient;
 use App\Services\Integrations\Msan\EprelDeclarationWriter;
 use App\Services\Integrations\Msan\EprelEnergySyncService;
+use App\Services\Integrations\Msan\EprelProductLookupService;
 use App\Services\Integrations\Msan\MsanCatalogSyncCoordinator;
 use App\Services\Integrations\Msan\MsanSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -111,6 +112,76 @@ class EprelEnergySyncTest extends TestCase
             === EprelClient::BASE_URL.'/api/product/1234567');
         Http::assertSent(static fn (Request $request): bool => $request->url()
             === EprelClient::BASE_URL.'/api/product/7654321');
+    }
+
+    public function test_manual_registration_search_needs_no_group_and_accepts_only_the_exact_number(): void
+    {
+        $this->assertSame(
+            'EPREL registracijski broj',
+            EprelClient::searchByOptions()[EprelClient::SEARCH_REGISTRATION_NUMBER],
+        );
+
+        $product = Product::query()->create([
+            'code' => 'MANUAL-EPREL-REGISTRATION',
+            'sku' => 'MANUAL-EPREL-REGISTRATION',
+            'is_active' => true,
+            'base_price' => 100,
+            'stock_qty' => 1,
+        ]);
+        Http::fake([
+            EprelClient::BASE_URL.'/api/product/2210952' => Http::response([
+                'eprelRegistrationNumber' => '2210952',
+                'productGroup' => self::GROUP_CODE,
+                'modelIdentifier' => 'DD-235E S',
+                'energyClass' => 'E',
+            ]),
+        ]);
+
+        $result = app(EprelProductLookupService::class)->lookup($product, [
+            'search_by' => EprelClient::SEARCH_REGISTRATION_NUMBER,
+            'search_query' => ' 2210952 ',
+            'eprel_product_group' => '',
+        ]);
+
+        $this->assertSame(EprelProductLookupService::STATUS_MATCHED, $result['status']);
+        $this->assertSame('registration_number', $result['matched_by']);
+        $this->assertSame('2210952', $result['data']['eprel_registration_number']);
+        $this->assertSame(self::GROUP, $result['data']['eprel_product_group']);
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'product_id' => $product->id,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+            'eprel_registration_number' => '2210952',
+            'eprel_product_group' => self::GROUP,
+        ]);
+        Http::assertSentCount(1);
+        Http::assertSent(static fn (Request $request): bool => $request->url()
+            === EprelClient::BASE_URL.'/api/product/2210952');
+
+        $otherProduct = Product::query()->create([
+            'code' => 'MANUAL-EPREL-MISMATCH',
+            'sku' => 'MANUAL-EPREL-MISMATCH',
+            'is_active' => true,
+            'base_price' => 100,
+            'stock_qty' => 1,
+        ]);
+        Http::fake([
+            EprelClient::BASE_URL.'/api/product/7654321' => Http::response([
+                'eprelRegistrationNumber' => '9999999',
+                'productGroup' => self::GROUP_CODE,
+                'modelIdentifier' => 'WRONG-REGISTRATION',
+            ]),
+        ]);
+
+        $mismatch = app(EprelProductLookupService::class)->lookup($otherProduct, [
+            'search_by' => EprelClient::SEARCH_REGISTRATION_NUMBER,
+            'search_query' => '7654321',
+        ]);
+
+        $this->assertSame(EprelProductLookupService::STATUS_NOT_FOUND, $mismatch['status']);
+        $this->assertDatabaseMissing('product_energy_declarations', [
+            'product_id' => $otherProduct->id,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+        ]);
     }
 
     public function test_gtin_lookup_validates_the_check_digit_and_accepts_one_unique_exact_product(): void

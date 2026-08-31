@@ -308,7 +308,7 @@ class ProductEnergyDeclarationsFeatureTest extends TestCase
             && $request->header('x-api-key') === ['synthetic-product-form-eprel-key']);
     }
 
-    public function test_selected_lookup_group_is_persisted_without_changing_existing_declaration_identity(): void
+    public function test_explicit_lookup_group_action_persists_and_reloads_without_changing_existing_declaration_identity(): void
     {
         $user = User::factory()->create();
         $product = $this->product();
@@ -325,10 +325,23 @@ class ProductEnergyDeclarationsFeatureTest extends TestCase
             'eprel_product_group' => self::EPREL_GROUP,
         ])->save();
 
-        Livewire::actingAs($user)
+        $component = Livewire::actingAs($user)
             ->test(ProductForm::class, ['productId' => $product->id])
-            ->set('eprelLookupGroup', 'lightsources')
-            ->assertHasNoErrors('eprelLookup');
+            ->call('setTab', 'energy')
+            ->assertSee('data-native-select data-eprel-lookup-group', false);
+
+        foreach (['eprel-lookup-search-by', 'eprel-lookup-group'] as $selectId) {
+            $this->assertMatchesRegularExpression(
+                '/<select\b(?=[^>]*\bid="'.preg_quote($selectId, '/').'"\s)(?=[^>]*\bdata-native-select\b)(?![^>]*\bclass="[^"]*\badmin-select\b)[^>]*>/u',
+                $component->html(),
+            );
+        }
+
+        $component
+            ->call('saveEprelLookupGroup', 'lightsources')
+            ->assertSet('eprelLookupGroup', 'lightsources')
+            ->assertHasNoErrors('eprelLookup')
+            ->assertDispatched('notify', type: 'success');
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
@@ -345,8 +358,10 @@ class ProductEnergyDeclarationsFeatureTest extends TestCase
         Livewire::actingAs($user)
             ->test(ProductForm::class, ['productId' => $product->id])
             ->assertSet('eprelLookupGroup', 'lightsources')
-            ->set('eprelLookupGroup', '')
-            ->assertHasNoErrors('eprelLookup');
+            ->call('saveEprelLookupGroup', '')
+            ->assertSet('eprelLookupGroup', '')
+            ->assertHasNoErrors('eprelLookup')
+            ->assertDispatched('notify', type: 'success');
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
@@ -357,6 +372,57 @@ class ProductEnergyDeclarationsFeatureTest extends TestCase
             'id' => $declaration->id,
             'eprel_product_group' => self::EPREL_GROUP,
         ]);
+    }
+
+    public function test_admin_can_lookup_an_eprel_registration_number_without_selecting_a_group(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->product();
+        Http::fake([
+            EprelClient::BASE_URL.'/api/product/2210952' => Http::response([
+                'eprelRegistrationNumber' => '2210952',
+                'productGroup' => self::EPREL_GROUP_CODE,
+                'modelIdentifier' => 'DD-235E S',
+                'supplierOrTrademark' => 'VIVAX',
+                'energyClass' => 'E',
+            ]),
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->assertSee('EPREL registracijski broj')
+            ->assertSet('eprelLookupGroup', '')
+            ->set('eprelLookupSearchBy', EprelClient::SEARCH_REGISTRATION_NUMBER)
+            ->set('eprelLookupQuery', '2210952')
+            ->call('lookupEprel')
+            ->assertHasNoErrors('eprelLookup')
+            ->assertSet('eprelLookupGroup', self::EPREL_GROUP)
+            ->assertSet('energyDeclarations.0.source', ProductEnergyDeclaration::SOURCE_EPREL)
+            ->assertSet('energyDeclarations.0.eprel_registration_number', '2210952')
+            ->assertSet('energyDeclarations.0.energy_class', 'E')
+            ->assertDispatched('notify', type: 'success');
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'eprel_lookup_product_group' => self::EPREL_GROUP,
+            'eprel_registration_number' => '2210952',
+            'eprel_product_group' => self::EPREL_GROUP,
+        ]);
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'product_id' => $product->id,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+            'eprel_registration_number' => '2210952',
+            'eprel_product_group' => self::EPREL_GROUP,
+            'energy_class' => 'E',
+        ]);
+        Http::assertSentCount(1);
+        Http::assertSent(static fn (Request $request): bool => $request->url()
+            === EprelClient::BASE_URL.'/api/product/2210952');
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->assertSet('eprelLookupGroup', self::EPREL_GROUP);
     }
 
     public function test_manual_commercial_name_search_uses_the_official_mode_and_stores_one_exact_result(): void

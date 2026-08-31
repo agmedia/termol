@@ -176,6 +176,28 @@ class EprelProductLookupService
             if ($searchQuery === '') {
                 throw new InvalidArgumentException('Unesite pojam za ručnu EPREL pretragu.');
             }
+            if ($searchBy === EprelClient::SEARCH_REGISTRATION_NUMBER) {
+                if (! EprelClient::isValidRegistrationNumber($searchQuery)) {
+                    throw new InvalidArgumentException('EPREL registracijski broj nije ispravan.');
+                }
+
+                $registration = trim($searchQuery);
+                $result = $this->client->findByRegistrationNumber($registration);
+                if ($result === null
+                    || ! isset($result['eprel_registration_number'])
+                    || ! hash_equals($registration, (string) $result['eprel_registration_number'])) {
+                    return $this->outcome(self::STATUS_NOT_FOUND, null, null, $criteria);
+                }
+
+                $this->storeMatch($product, $result, $criteria, $overrides);
+
+                return $this->outcome(
+                    self::STATUS_MATCHED,
+                    strtolower($searchBy),
+                    $result,
+                    $criteria,
+                );
+            }
             $requestedGroup = strtolower(trim((string) ($overrides['eprel_product_group'] ?? '')));
             if ($requestedGroup === '') {
                 return $this->outcome(self::STATUS_NEEDS_GROUP, null, null, $criteria);
