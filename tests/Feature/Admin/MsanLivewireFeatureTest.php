@@ -133,6 +133,100 @@ class MsanLivewireFeatureTest extends TestCase
         ]);
     }
 
+    public function test_category_branch_import_creates_hidden_local_tree_and_maps_zero_item_descendants(): void
+    {
+        $admin = $this->makeAdmin();
+        $root = $this->createMsanCategory('MSAN-TREE', 'Kućanski uređaji');
+        $root->update(['product_count' => 4]);
+        $child = $this->createMsanCategory('MSAN-TREE-OVENS', 'Pećnice');
+        $child->update([
+            'parent_external_id' => $root->external_id,
+            'path' => 'Kućanski uređaji > Pećnice',
+            'product_count' => 0,
+        ]);
+        $grandchild = $this->createMsanCategory('MSAN-TREE-BUILTIN', 'Ugradbene pećnice');
+        $grandchild->update([
+            'parent_external_id' => $child->external_id,
+            'path' => 'Kućanski uređaji > Pećnice > Ugradbene pećnice',
+            'product_count' => 1,
+        ]);
+        $product = $this->createMsanProduct('TREE-PRODUCT', 'Testna pećnica', 'Test');
+        $product->categories()->attach([$child->id, $grandchild->id]);
+
+        $component = Livewire::actingAs($admin)
+            ->test(CategoryMappingManager::class)
+            ->call('openEditor', $root->id)
+            ->assertSee('Nema jednake kategorije u webshopu')
+            ->assertSee('Uvezi kategoriju i podkategorije');
+
+        $this->assertSame(3, $component->viewData('branchImportSuggestion')['category_count']);
+        $this->assertSame(2, $component->viewData('branchImportSuggestion')['descendant_count']);
+        $this->assertSame(1, $component->viewData('branchImportSuggestion')['product_count']);
+
+        $component
+            ->call('importCategoryBranch')
+            ->assertHasNoErrors()
+            ->assertSet('editingCategoryId', null)
+            ->assertDispatched('notify');
+
+        $rootLocal = $root->fresh()->mapping->localCategory;
+        $childLocal = $child->fresh()->mapping->localCategory;
+        $grandchildLocal = $grandchild->fresh()->mapping->localCategory;
+
+        $this->assertNull($rootLocal->parent_id);
+        $this->assertSame($rootLocal->id, $childLocal->parent_id);
+        $this->assertSame($childLocal->id, $grandchildLocal->parent_id);
+        $this->assertFalse($rootLocal->is_active);
+        $this->assertFalse($rootLocal->show_in_menu);
+        $this->assertSame('MSAN-TREE', data_get($rootLocal->payload, 'supplier_sources.msan.external_id'));
+        $this->assertDatabaseHas('category_translations', [
+            'category_id' => $rootLocal->id,
+            'scope' => Category::SCOPE_CATALOG,
+            'locale' => 'hr',
+            'name' => 'Kućanski uređaji',
+        ]);
+
+        foreach ([$root, $child, $grandchild] as $source) {
+            $this->assertDatabaseHas('msan_category_mappings', [
+                'msan_category_id' => $source->id,
+                'status' => MsanCategoryMapping::STATUS_MAPPED,
+                'updated_by' => $admin->id,
+            ]);
+        }
+    }
+
+    public function test_category_branch_import_uses_the_mapped_msan_parent_as_destination(): void
+    {
+        $admin = $this->makeAdmin();
+        $localParent = $this->createLocalCategory('racunala', 'Računala');
+        $sourceParent = $this->createMsanCategory('MSAN-COMPUTERS', 'Računala');
+        $sourceChild = $this->createMsanCategory('MSAN-LAPTOPS', 'Prijenosna računala');
+        $sourceChild->update([
+            'parent_external_id' => $sourceParent->external_id,
+            'path' => 'Računala > Prijenosna računala',
+        ]);
+        MsanCategoryMapping::query()->create([
+            'msan_category_id' => $sourceParent->id,
+            'local_category_id' => $localParent->id,
+            'status' => MsanCategoryMapping::STATUS_MAPPED,
+            'updated_by' => $admin->id,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(CategoryMappingManager::class)
+            ->call('openEditor', $sourceChild->id)
+            ->assertSet('branchImportParentId', (string) $localParent->id)
+            ->assertSee('Smjesti ispod kategorije')
+            ->call('importCategoryBranch')
+            ->assertHasNoErrors()
+            ->assertDispatched('notify');
+
+        $this->assertSame(
+            $localParent->id,
+            $sourceChild->fresh()->mapping->localCategory->parent_id,
+        );
+    }
+
     public function test_category_mapping_rejects_an_unsupported_eprel_product_group(): void
     {
         $admin = $this->makeAdmin();
@@ -233,6 +327,49 @@ class MsanLivewireFeatureTest extends TestCase
         $this->assertSame([$current->id], $component->viewData('categories')->pluck('id')->all());
         $this->assertSame(1, $component->viewData('statusCounts')['all']);
         $this->assertSame(1, $component->viewData('statusCounts')['unmapped']);
+    }
+
+    public function test_category_product_filter_excludes_empty_categories_persists_and_resets_pagination(): void
+    {
+        $admin = $this->makeAdmin();
+        app(\App\Services\Settings\SystemSettingsService::class)->put('admin_items_per_page', 1);
+        $empty = $this->createMsanCategory('MSAN-EMPTY', 'Alfa prazna kategorija');
+        $withProducts = $this->createMsanCategory('MSAN-WITH-PRODUCTS', 'Beta kategorija s artiklima');
+        $withProducts->update(['product_count' => 3]);
+
+        $component = Livewire::actingAs($admin)
+            ->test(CategoryMappingManager::class)
+            ->call('clearFilters')
+            ->assertSet('withProductsOnly', false)
+            ->assertSee('Samo s artiklima')
+            ->assertSeeHtml('id="msan-categories-with-products-only"')
+            ->assertSeeHtml('type="checkbox"')
+            ->assertSeeHtml('wire:model.live="withProductsOnly"');
+
+        $this->assertSame(2, $component->viewData('categories')->total());
+        $component
+            ->set('paginators.msanCategoryMappingsPage', 2)
+            ->set('withProductsOnly', true)
+            ->assertSet('paginators.msanCategoryMappingsPage', 1)
+            ->assertDontSee($empty->name)
+            ->assertSee($withProducts->name);
+
+        $this->assertSame(
+            [$withProducts->id],
+            $component->viewData('categories')->getCollection()->pluck('id')->all(),
+        );
+
+        Livewire::actingAs($admin)
+            ->test(CategoryMappingManager::class)
+            ->assertSet('withProductsOnly', true)
+            ->assertDontSee($empty->name)
+            ->assertSee($withProducts->name)
+            ->call('clearFilters')
+            ->assertSet('withProductsOnly', false);
+
+        Livewire::actingAs($admin)
+            ->test(CategoryMappingManager::class)
+            ->assertSet('withProductsOnly', false);
     }
 
     public function test_category_results_follow_alphabetical_tree_order_instead_of_product_count(): void

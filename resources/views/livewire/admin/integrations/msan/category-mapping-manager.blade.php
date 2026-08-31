@@ -95,6 +95,10 @@
                 </form>
                 <div class="flex flex-wrap items-center justify-end gap-2">
                     <p class="mr-1 text-xs text-slate-500">{{ __('Primijenjeni filtri pamte se u ovoj administratorskoj sesiji.') }}</p>
+                    <label for="msan-categories-with-products-only" class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                        <input id="msan-categories-with-products-only" type="checkbox" wire:model.live="withProductsOnly" class="h-4 w-4 rounded border-slate-300 text-cyan-700 focus:ring-cyan-600">
+                        <span>{{ __('Samo s artiklima') }}</span>
+                    </label>
                     @if ($search !== '')<button type="button" wire:click="clearSearch" class="min-h-11 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100">{{ __('Ukloni pretragu') }} <span aria-hidden="true">×</span></button>@endif
                     <button type="button" wire:click="clearFilters" @disabled($activeFilterCount === 0) class="min-h-11 rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">{{ __('Prikaži sve') }}</button>
                 </div>
@@ -273,6 +277,39 @@
                 <form wire:submit="saveMapping" class="flex min-h-0 flex-1 flex-col">
                     <div class="flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
                         <div><label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500" for="msan-local-category">{{ __('Kategorija webshopa') }}</label><select x-ref="initialFocus" id="msan-local-category" wire:model="localCategoryId" data-tom-select data-tom-preserve-order="1" data-tom-placeholder="{{ __('Pretražite kategorije webshopa...') }}" class="admin-select w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">{{ __('Odaberite kategoriju...') }}</option>@foreach($localCategoryOptions as $option)<option value="{{ $option['id'] }}">{{ $option['label'] }}</option>@endforeach</select><p class="mt-1 text-xs text-slate-500">{{ __('Možete upisati dio naziva; hijerarhija kategorija ostaje u izvornom redoslijedu.') }}</p>@error('localCategoryId')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</div>
+                        @if ($branchImportSuggestion)
+                            <section class="rounded-xl border border-cyan-200 bg-cyan-50 p-4" aria-labelledby="msan-category-branch-import-title">
+                                <p id="msan-category-branch-import-title" class="font-semibold text-cyan-950">{{ __('Nema jednake kategorije u webshopu') }}</p>
+                                <p class="mt-1 text-sm leading-5 text-cyan-900">{{ __('Možete uvesti „:name” i pripadajuće M SAN podkategorije. Hijerarhija će se sačuvati, a sve uvezene kategorije odmah mapirati.', ['name' => $editingCategory?->name]) }}</p>
+                                <div class="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-cyan-900">
+                                    <span class="rounded-full bg-white/80 px-2.5 py-1">{{ __('Kategorije: :count', ['count' => (int) $branchImportSuggestion['category_count']]) }}</span>
+                                    <span class="rounded-full bg-white/80 px-2.5 py-1">{{ __('Podkategorije: :count', ['count' => (int) $branchImportSuggestion['descendant_count']]) }}</span>
+                                    <span class="rounded-full bg-white/80 px-2.5 py-1">{{ __('Jedinstveni artikli: :count', ['count' => (int) $branchImportSuggestion['product_count']]) }}</span>
+                                </div>
+                                @if (! $branchImportSuggestion['source_is_root'])
+                                    <div class="mt-4">
+                                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-cyan-900" for="msan-category-branch-parent">{{ __('Smjesti ispod kategorije') }}</label>
+                                        <select id="msan-category-branch-parent" wire:model="branchImportParentId" data-tom-select data-tom-preserve-order="1" data-tom-placeholder="{{ __('Kao glavna kategorija webshopa') }}" class="admin-select w-full rounded-xl border border-cyan-300 bg-white px-3 py-2 text-sm">
+                                            <option value="">{{ __('Kao glavna kategorija webshopa') }}</option>
+                                            @foreach($localCategoryOptions as $option)<option value="{{ $option['id'] }}">{{ $option['label'] }}</option>@endforeach
+                                        </select>
+                                    </div>
+                                @endif
+                                <p class="mt-3 text-xs leading-5 text-cyan-800">{{ __('Nove kategorije bit će neaktivne i skrivene iz izbornika dok ih ne pregledate. Artikli se i dalje uvoze zasebno.') }}</p>
+                                <button
+                                    type="button"
+                                    wire:click="importCategoryBranch"
+                                    wire:confirm="{{ __('Uvesti M SAN stablo „:name” i spremiti mapiranja? Postojeća valjana mapiranja i ignorirane grane neće se mijenjati.', ['name' => $editingCategory?->name]) }}"
+                                    wire:loading.attr="disabled"
+                                    wire:target="importCategoryBranch"
+                                    class="mt-4 min-h-11 w-full rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-wait disabled:opacity-60"
+                                >
+                                    <span wire:loading.remove wire:target="importCategoryBranch">{{ (int) $branchImportSuggestion['descendant_count'] > 0 ? __('Uvezi kategoriju i podkategorije') : __('Uvezi i mapiraj kategoriju') }}</span>
+                                    <span wire:loading wire:target="importCategoryBranch" role="status">{{ __('Uvozim i mapiram...') }}</span>
+                                </button>
+                                @error('categoryBranchImport')<p class="mt-2 text-xs font-medium text-rose-700" role="alert">{{ $message }}</p>@enderror
+                            </section>
+                        @endif
                         <div><label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500" for="msan-eprel-group">{{ __('EPREL grupa proizvoda') }}</label><select id="msan-eprel-group" wire:model="eprelProductGroup" data-tom-select data-tom-placeholder="{{ __('Bez EPREL grupe') }}" class="admin-select w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">{{ __('Bez EPREL grupe') }}</option>@foreach($eprelProductGroupOptions as $groupSlug => $groupCode)<option value="{{ $groupSlug }}">{{ str_replace('_', ' ', $groupCode) }} · {{ $groupSlug }}</option>@endforeach</select><p class="mt-1 text-xs text-slate-500">{{ __('Opcionalno; odaberite samo grupu koju podržava EPREL servis.') }}</p>@error('eprelProductGroup')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</div>
                         <div><label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500" for="msan-energy-requirement">{{ __('Pravilo energetske oznake') }}</label><select id="msan-energy-requirement" wire:model="energyRequirement" data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">@foreach($energyRequirementOptions as $requirementValue => $requirementLabel)<option value="{{ $requirementValue }}">{{ __($requirementLabel) }}</option>@endforeach</select>@error('energyRequirement')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</div>
                         <div class="rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-xs leading-5 text-cyan-900"><strong>{{ __('Važno:') }}</strong> {{ __('Artikli ove M SAN kategorije postaju spremni za odabir čim spremite valjano mapiranje. Odabiri artikala koji su već bili uključeni ostaju zapamćeni.') }}</div>

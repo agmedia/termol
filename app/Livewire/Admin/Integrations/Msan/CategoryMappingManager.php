@@ -7,6 +7,7 @@ use App\Models\Integrations\Msan\MsanCategory;
 use App\Models\Integrations\Msan\MsanCategoryMapping;
 use App\Models\Integrations\Msan\MsanProduct;
 use App\Services\Integrations\Msan\EprelClient;
+use App\Services\Integrations\Msan\MsanCategoryBranchImportService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -31,9 +32,14 @@ class CategoryMappingManager extends Component
     #[Session(key: 'admin.msan.categories.status')]
     public string $status = 'unmapped';
 
+    #[Session(key: 'admin.msan.categories.with-products-only')]
+    public bool $withProductsOnly = false;
+
     public ?int $editingCategoryId = null;
 
     public string $localCategoryId = '';
+
+    public string $branchImportParentId = '';
 
     public string $eprelProductGroup = '';
 
@@ -77,11 +83,17 @@ class CategoryMappingManager extends Component
         $this->resetPage(pageName: self::PAGE_NAME);
     }
 
+    public function updatedWithProductsOnly(): void
+    {
+        $this->resetPage(pageName: self::PAGE_NAME);
+    }
+
     public function clearFilters(): void
     {
         $this->search = '';
         $this->searchInput = '';
         $this->status = 'all';
+        $this->withProductsOnly = false;
         $this->resetPage(pageName: self::PAGE_NAME);
     }
 
@@ -105,6 +117,7 @@ class CategoryMappingManager extends Component
         $this->localCategoryId = $category->mapping?->local_category_id
             ? (string) $category->mapping->local_category_id
             : '';
+        $this->branchImportParentId = $this->mappedLocalParentId($category);
         $this->eprelProductGroup = (string) ($category->mapping?->eprel_product_group ?? '');
         $this->energyRequirement = (string) ($category->mapping?->energy_requirement
             ?? MsanCategoryMapping::ENERGY_REQUIREMENT_INHERIT);
@@ -124,6 +137,46 @@ class CategoryMappingManager extends Component
     public function saveMappingAndContinue(): void
     {
         $this->persistMapping(true);
+    }
+
+    public function importCategoryBranch(MsanCategoryBranchImportService $importer): void
+    {
+        $this->authorizeManage();
+
+        if ($this->editingCategoryId === null || $this->localCategoryId !== '') {
+            return;
+        }
+
+        $category = MsanCategory::query()
+            ->where('is_stale', false)
+            ->findOrFail($this->editingCategoryId);
+        $parentId = $this->branchImportParentId !== '' ? (int) $this->branchImportParentId : null;
+
+        try {
+            $result = $importer->import(
+                $category,
+                auth()->id(),
+                'hr',
+                $this->preferredLocales(),
+                $parentId,
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+            $this->addError('categoryBranchImport', __('Kategorije nije moguće uvesti. Ništa nije promijenjeno; pokušajte ponovno.'));
+
+            return;
+        }
+
+        $this->forgetDashboardCounts();
+        $this->resetEditor();
+        $this->dispatch(
+            'notify',
+            type: 'success',
+            message: __('Uvezeno i mapirano :count kategorija (:descendants podkategorija).', [
+                'count' => (int) ($result['mapped_count'] ?? $result['category_count'] ?? 0),
+                'descendants' => (int) ($result['descendant_count'] ?? 0),
+            ]),
+        );
     }
 
     private function persistMapping(bool $continue): void
@@ -327,6 +380,23 @@ class CategoryMappingManager extends Component
             ]);
         $categories = $this->applyHierarchyOrder($categoriesQuery)
             ->paginate($perPage, pageName: self::PAGE_NAME);
+        $editingCategory = $this->editingCategory();
+        $branchImportSuggestion = null;
+        if ($this->canManage() && $editingCategory && $this->localCategoryId === '') {
+            try {
+                $preview = app(MsanCategoryBranchImportService::class)->preview(
+                    $editingCategory,
+                    'hr',
+                    $this->preferredLocales(),
+                    $this->branchImportParentId !== '' ? (int) $this->branchImportParentId : null,
+                );
+                if ((bool) ($preview['can_import'] ?? false)) {
+                    $branchImportSuggestion = $preview;
+                }
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
 
         return view('livewire.admin.integrations.msan.category-mapping-manager', [
             'categories' => $categories,
@@ -336,8 +406,11 @@ class CategoryMappingManager extends Component
             'canManageMapping' => $this->canManage(),
             'perPage' => $perPage,
             'statusCounts' => $this->statusCounts(),
-            'activeFilterCount' => ($this->search !== '' ? 1 : 0) + ($this->status !== 'all' ? 1 : 0),
-            'editingCategory' => $this->editingCategory(),
+            'activeFilterCount' => ($this->search !== '' ? 1 : 0)
+                + ($this->status !== 'all' ? 1 : 0)
+                + ($this->withProductsOnly ? 1 : 0),
+            'editingCategory' => $editingCategory,
+            'branchImportSuggestion' => $branchImportSuggestion,
         ]);
     }
 
@@ -357,6 +430,7 @@ class CategoryMappingManager extends Component
                 'is_stale',
             ])
             ->where('is_stale', false)
+            ->when($this->withProductsOnly, static fn (Builder $query) => $query->where('product_count', '>', 0))
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $prefix = $search.'%';
                 $query->where(function (Builder $nested) use ($prefix): void {
@@ -445,8 +519,27 @@ class CategoryMappingManager extends Component
         }
 
         return MsanCategory::query()
-            ->select(['id', 'external_id', 'name', 'path', 'product_count', 'is_stale'])
+            ->select(['id', 'external_id', 'parent_external_id', 'name', 'path', 'product_count', 'is_stale'])
             ->find($this->editingCategoryId);
+    }
+
+    private function mappedLocalParentId(MsanCategory $category): string
+    {
+        if (blank($category->parent_external_id)) {
+            return '';
+        }
+
+        $localCategoryId = MsanCategory::query()
+            ->where('external_id', $category->parent_external_id)
+            ->whereHas('mapping', static fn (Builder $query) => $query
+                ->where('status', MsanCategoryMapping::STATUS_MAPPED)
+                ->whereNotNull('local_category_id'))
+            ->with('mapping:id,msan_category_id,local_category_id')
+            ->first()
+            ?->mapping
+            ?->local_category_id;
+
+        return $localCategoryId ? (string) $localCategoryId : '';
     }
 
     /** @return array<int, array{id:int,label:string}> */
@@ -551,6 +644,7 @@ class CategoryMappingManager extends Component
     {
         $this->editingCategoryId = null;
         $this->localCategoryId = '';
+        $this->branchImportParentId = '';
         $this->eprelProductGroup = '';
         $this->energyRequirement = MsanCategoryMapping::ENERGY_REQUIREMENT_INHERIT;
         $this->resetValidation();
