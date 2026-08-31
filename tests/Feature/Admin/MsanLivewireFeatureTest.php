@@ -17,6 +17,7 @@ use App\Models\Integrations\Msan\MsanSpecificationDefinition;
 use App\Models\Integrations\Msan\MsanSyncRun;
 use App\Models\User;
 use App\Services\Integrations\Msan\MsanCatalogSyncCoordinator;
+use App\Services\Integrations\Msan\MsanCatalogSyncService;
 use App\Services\Integrations\Msan\MsanCertificateService;
 use App\Services\Integrations\Msan\MsanImportCoordinator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -363,6 +364,29 @@ class MsanLivewireFeatureTest extends TestCase
             ->assertSet('availability', 'all')
             ->assertSet('selection', 'all')
             ->assertSet('importStatus', 'all');
+    }
+
+    public function test_product_category_filter_exposes_every_current_category_without_a_backend_display_limit(): void
+    {
+        $admin = $this->makeAdmin();
+        $currentCategoryIds = collect(range(1, 12))
+            ->map(fn (int $index): int => $this->createMsanCategory(
+                'MSAN-FILTER-CATEGORY-'.$index,
+                'Aktualna kategorija '.$index,
+            )->id)
+            ->all();
+        $staleCategory = $this->createMsanCategory('MSAN-STALE-FILTER-CATEGORY', 'Zastarjela kategorija');
+        $staleCategory->update(['is_stale' => true]);
+
+        Cache::forget(MsanCatalogSyncService::ADMIN_FILTER_OPTIONS_CACHE_KEY);
+
+        $categories = Livewire::actingAs($admin)
+            ->test(ProductSelectionManager::class)
+            ->viewData('categories');
+
+        $this->assertCount(12, $categories);
+        $this->assertEqualsCanonicalizing($currentCategoryIds, collect($categories)->pluck('id')->all());
+        $this->assertNotContains($staleCategory->id, collect($categories)->pluck('id')->all());
     }
 
     public function test_product_search_waits_for_submit_and_uses_index_friendly_prefix_matching(): void

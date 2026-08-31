@@ -97,7 +97,7 @@
                 </form>
                 <div>
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500" for="msan-product-category">{{ __('Kategorija') }}</label>
-                    <select id="msan-product-category" wire:model.live="categoryId" data-tom-placeholder="{{ __('Sve kategorije') }}" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                    <select id="msan-product-category" wire:model.live="categoryId" data-tom-placeholder="{{ __('Pretraži M SAN kategorije...') }}" class="msan-product-category-select admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
                         <option value="">{{ __('Sve kategorije') }}</option>
                         @foreach ($categories as $category)<option value="{{ $category['id'] }}">{{ $category['label'] }}</option>@endforeach
                     </select>

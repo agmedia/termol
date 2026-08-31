@@ -74,6 +74,18 @@ class MsanAdminShellFeatureTest extends TestCase
         }
     }
 
+    public function test_product_category_filter_exposes_a_clear_search_prompt(): void
+    {
+        $admin = $this->makeUserWithRole('admin');
+
+        $this->actingAs($admin)
+            ->get(route('admin.integrations.msan.products'))
+            ->assertOk()
+            ->assertSee('data-tom-placeholder="'.__('Pretraži M SAN kategorije...').'"', false)
+            ->assertSee('msan-product-category-select', false)
+            ->assertSee('.ts-wrapper.msan-product-category-select .ts-dropdown-content', false);
+    }
+
     public function test_settings_only_user_sees_msan_settings_navigation_but_cannot_open_read_pages(): void
     {
         $user = User::factory()->create();

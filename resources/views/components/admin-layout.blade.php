@@ -221,6 +221,9 @@
                 overflow: hidden;
                 box-shadow: 0 12px 24px -16px rgba(15, 23, 42, 0.5);
             }
+            .ts-wrapper.msan-product-category-select .ts-dropdown-content {
+                max-height: min(24rem, 50vh);
+            }
             .ts-dropdown .option,
             .ts-dropdown .create {
                 padding: 0.5rem 0.65rem;
