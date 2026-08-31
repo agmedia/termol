@@ -46,7 +46,7 @@
                         <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">{{ __('Mapiranja se trajno spremaju') }}</span>
                     </div>
                     <h1 class="mt-2 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">{{ __('Mapiranje kategorija') }}</h1>
-                    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{{ __('Povežite M SAN kategorije s kategorijama webshopa. Prikazuju se samo aktualne kategorije, a početni prikaz daje prednost nemapiranima s najviše artikala.') }}</p>
+                    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{{ __('Povežite M SAN kategorije s kategorijama webshopa. Aktualne kategorije složene su po stablu: svaka glavna kategorija i njezine podkategorije prikazuju se abecednim redom.') }}</p>
                 </div>
                 @if ($canManageMapping)
                     <button type="button" wire:click="autoMatchExactNames" wire:confirm="{{ __('Automatski mapirati samo M SAN i lokalne kategorije s potpuno jednakim, jedinstvenim nazivom? Postojeća mapiranja neće se mijenjati.') }}" wire:loading.attr="disabled" wire:target="autoMatchExactNames" class="min-h-11 shrink-0 rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"><span wire:loading.remove wire:target="autoMatchExactNames">{{ __('Sigurno spoji jednake nazive') }}</span><span wire:loading wire:target="autoMatchExactNames">{{ __('Mapiram...') }}</span></button>

@@ -11,13 +11,22 @@
         'unselected' => __('Nisu uključeni'),
     ];
     $productState = static function ($product) use ($availabilityLevelLabels, $stockLevelQuantities): array {
-        $eligible = (int) $product->mapped_categories_count > 0
+        $readyForImport = in_array((string) $product->import_status, \App\Models\Integrations\Msan\MsanProduct::IMPORT_READY_STATUSES, true);
+        $eligible = $readyForImport
+            && (int) $product->mapped_categories_count > 0
             && ! $product->is_stale
             && ! in_array((string) $product->match_status, ['conflict', 'ignored'], true);
         $availabilityLevel = $product->availability_level === null ? null : (int) $product->availability_level;
 
         return [
             'eligible' => $eligible,
+            'readyForImport' => $readyForImport,
+            'selectionStatusLabel' => match ((string) $product->import_status) {
+                'imported' => __('Već uvezen'),
+                'queued' => __('U redu čekanja'),
+                'importing' => __('Uvoz u tijeku'),
+                default => __('Nije za uvoz'),
+            },
             'currency' => strtoupper((string) ($product->currency_code ?: 'EUR')),
             'importClass' => match ((string) $product->import_status) {
                 'imported' => 'bg-emerald-100 text-emerald-800',
@@ -53,11 +62,13 @@
                 $availabilityLevel === 0 => 'bg-rose-100 text-rose-800',
                 default => 'bg-emerald-100 text-emerald-800',
             },
-            'blockedReason' => $product->is_stale
-                ? __('Zastarjeli artikl')
-                : (in_array((string) $product->match_status, ['conflict', 'ignored'], true)
-                    ? __('Konflikt ili ignoriran artikl')
-                    : __('Najprije mapirajte barem jednu kategoriju')),
+            'blockedReason' => match (true) {
+                (string) $product->import_status === 'imported' => __('Artikl je već uvezen'),
+                in_array((string) $product->import_status, ['queued', 'importing'], true) => __('Artikl je već u obradi'),
+                $product->is_stale => __('Zastarjeli artikl'),
+                in_array((string) $product->match_status, ['conflict', 'ignored'], true) => __('Konflikt ili ignoriran artikl'),
+                default => __('Najprije mapirajte barem jednu kategoriju'),
+            },
         ];
     };
 @endphp
@@ -167,7 +178,7 @@
                     <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-100 font-bold text-cyan-800">{{ number_format($selectedEligibleCount, 0, ',', '.') }}</span>
                     <div>
                         <p class="text-sm font-semibold text-slate-900">{{ __('Spremno za uvoz: :count', ['count' => number_format($selectedEligibleCount, 0, ',', '.')]) }}</p>
-                        <p class="mt-0.5 text-xs text-slate-500">{{ __('Ukupno uključeno: :total.', ['total' => number_format($selectedTotalCount, 0, ',', '.')]) }} @if ($selectedIneligibleCount > 0)<span class="font-semibold text-amber-700">{{ __('Blokirano: :count — provjerite mapiranje, konflikt ili zastarjelost.', ['count' => number_format($selectedIneligibleCount, 0, ',', '.')]) }}</span>@endif</p>
+                        <p class="mt-0.5 text-xs text-slate-500">{{ __('Ukupno uključeno: :total.', ['total' => number_format($selectedTotalCount, 0, ',', '.')]) }} @if ($selectedIneligibleCount > 0)<span class="font-semibold text-amber-700">{{ __('Nije za novi uvoz: :count — već je uvezeno, u obradi ili blokirano.', ['count' => number_format($selectedIneligibleCount, 0, ',', '.')]) }}</span>@endif</p>
                     </div>
                 </div>
                 @if ($canManageImport)
@@ -193,10 +204,14 @@
                         <tr wire:key="msan-product-row-{{ $product->id }}" @class(['bg-cyan-50/60' => $product->selected])>
                             <td class="px-3 py-3 align-top">
                                 @if ($canManageImport)
-                                    <label class="inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $product->selected ? 'border-cyan-300 bg-cyan-100 text-cyan-900' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }} {{ ! $state['eligible'] && ! $product->selected ? 'cursor-not-allowed opacity-60' : 'cursor-pointer' }}">
-                                        <input type="checkbox" @checked($product->selected) wire:click="toggleSelection({{ $product->id }})" wire:loading.attr="disabled" wire:target="toggleSelection({{ $product->id }})" @disabled(!($product->selected || $state['eligible'])) class="h-4 w-4 rounded border-slate-300 text-cyan-700 focus:ring-cyan-600" aria-label="{{ $product->selected ? __('Isključi :name iz M SAN uvoza', ['name' => $product->name]) : __('Uključi :name za M SAN uvoz', ['name' => $product->name]) }}">
-                                        <span>{{ $product->selected ? __('Uključen') : __('Uključi') }}</span>
-                                    </label>
+                                    @if (! $product->selected && ! $state['readyForImport'])
+                                        <span class="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">{{ $state['selectionStatusLabel'] }}</span>
+                                    @else
+                                        <label class="inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $product->selected ? 'border-cyan-300 bg-cyan-100 text-cyan-900' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }} {{ ! $state['eligible'] && ! $product->selected ? 'cursor-not-allowed opacity-60' : 'cursor-pointer' }}">
+                                            <input type="checkbox" @checked($product->selected) wire:click="toggleSelection({{ $product->id }})" wire:loading.attr="disabled" wire:target="toggleSelection({{ $product->id }})" @disabled(!($product->selected || $state['eligible'])) class="h-4 w-4 rounded border-slate-300 text-cyan-700 focus:ring-cyan-600" aria-label="{{ $product->selected ? __('Isključi :name iz M SAN uvoza', ['name' => $product->name]) : __('Uključi :name za M SAN uvoz', ['name' => $product->name]) }}">
+                                            <span>{{ $product->selected ? __('Uključen') : __('Uključi') }}</span>
+                                        </label>
+                                    @endif
                                 @else
                                     <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $product->selected ? 'bg-cyan-100 text-cyan-800' : 'bg-slate-200 text-slate-600' }}">{{ $product->selected ? __('Uključen') : __('Nije uključen') }}</span>
                                 @endif
@@ -233,7 +248,11 @@
                         <div class="min-w-0 flex-1"><h3 class="font-semibold leading-5 text-slate-900">{{ $product->name }}</h3><p class="mt-1 break-all font-mono text-[11px] text-slate-500">{{ $product->external_code }}@if($product->part_number) · {{ $product->part_number }}@endif</p></div>
                     </div>
                     @if ($canManageImport)
-                        <label class="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold sm:w-auto {{ $product->selected ? 'border-cyan-300 bg-cyan-100 text-cyan-900' : 'border-slate-300 bg-white text-slate-700' }} {{ ! $state['eligible'] && ! $product->selected ? 'cursor-not-allowed opacity-60' : 'cursor-pointer' }}"><input type="checkbox" @checked($product->selected) wire:click="toggleSelection({{ $product->id }})" wire:loading.attr="disabled" wire:target="toggleSelection({{ $product->id }})" @disabled(!($product->selected || $state['eligible'])) class="h-4 w-4 rounded border-slate-300 text-cyan-700 focus:ring-cyan-600" aria-label="{{ $product->selected ? __('Isključi :name iz M SAN uvoza', ['name' => $product->name]) : __('Uključi :name za M SAN uvoz', ['name' => $product->name]) }}"><span>{{ $product->selected ? __('Uključen') : __('Uključi') }}</span></label>
+                        @if (! $product->selected && ! $state['readyForImport'])
+                            <span class="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 sm:w-auto">{{ $state['selectionStatusLabel'] }}</span>
+                        @else
+                            <label class="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold sm:w-auto {{ $product->selected ? 'border-cyan-300 bg-cyan-100 text-cyan-900' : 'border-slate-300 bg-white text-slate-700' }} {{ ! $state['eligible'] && ! $product->selected ? 'cursor-not-allowed opacity-60' : 'cursor-pointer' }}"><input type="checkbox" @checked($product->selected) wire:click="toggleSelection({{ $product->id }})" wire:loading.attr="disabled" wire:target="toggleSelection({{ $product->id }})" @disabled(!($product->selected || $state['eligible'])) class="h-4 w-4 rounded border-slate-300 text-cyan-700 focus:ring-cyan-600" aria-label="{{ $product->selected ? __('Isključi :name iz M SAN uvoza', ['name' => $product->name]) : __('Uključi :name za M SAN uvoz', ['name' => $product->name]) }}"><span>{{ $product->selected ? __('Uključen') : __('Uključi') }}</span></label>
+                        @endif
                     @else
                         <span class="mt-3 inline-flex min-h-11 items-center rounded-xl border px-3 py-2 text-xs font-semibold {{ $product->selected ? 'border-cyan-200 bg-cyan-100 text-cyan-800' : 'border-slate-200 bg-slate-100 text-slate-600' }}">{{ $product->selected ? __('Uključen za uvoz') : __('Nije uključen za uvoz') }}</span>
                     @endif

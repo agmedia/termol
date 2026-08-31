@@ -48,6 +48,7 @@ class MsanImportCoordinator
 
         $query = MsanProduct::query()
             ->where('selected', true)
+            ->whereIn('import_status', MsanProduct::IMPORT_READY_STATUSES)
             ->where('is_stale', false)
             ->whereNotIn('match_status', [MsanProduct::MATCH_CONFLICT, MsanProduct::MATCH_IGNORED])
             ->whereHas('categories.mapping', fn ($mappingQuery) => $mappingQuery
@@ -83,7 +84,7 @@ class MsanImportCoordinator
             });
 
             if ($stagedCount === 0) {
-                throw new DomainException('Nema odabranih artikala s mapiranom kategorijom.');
+                throw new DomainException('Nema odabranih artikala spremnih za novi uvoz.');
             }
 
             $run->forceFill([

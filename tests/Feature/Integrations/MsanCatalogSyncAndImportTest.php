@@ -280,8 +280,66 @@ class MsanCatalogSyncAndImportTest extends TestCase
         $this->assertSame(1, $run->succeeded_count);
         $this->assertSame(1, $item->attempts);
         $this->assertSame(MsanImportRunItem::STATUS_SUCCEEDED, $item->status);
+        $this->assertFalse($source->fresh()->selected);
+        $this->assertSame(MsanProduct::IMPORT_IMPORTED, $source->fresh()->import_status);
         $this->assertSame(1, Product::query()->where('code', 'MSAN-100')->count());
         $this->assertSame(7, Product::query()->where('code', 'MSAN-100')->value('stock_qty'));
+    }
+
+    public function test_import_coordinator_only_stages_retryable_import_statuses(): void
+    {
+        Queue::fake();
+        $this->configureImport();
+        $products = collect([
+            MsanProduct::IMPORT_PENDING,
+            MsanProduct::IMPORT_FAILED,
+            MsanProduct::IMPORT_SKIPPED,
+            MsanProduct::IMPORT_IMPORTED,
+            MsanProduct::IMPORT_QUEUED,
+            MsanProduct::IMPORT_IMPORTING,
+        ])->mapWithKeys(function (string $status): array {
+            [$product] = $this->eligibleSource('MSAN-'.strtoupper($status), 'Artikl '.$status);
+            $product->update(['import_status' => $status]);
+
+            return [$status => $product];
+        });
+
+        $run = app(MsanImportCoordinator::class)->queueSelected();
+
+        $this->assertSame(3, $run->total_count);
+        foreach (MsanProduct::IMPORT_READY_STATUSES as $status) {
+            $this->assertDatabaseHas('msan_import_run_items', [
+                'msan_sync_run_id' => $run->id,
+                'msan_product_id' => $products->get($status)->id,
+            ]);
+        }
+        foreach ([MsanProduct::IMPORT_IMPORTED, MsanProduct::IMPORT_QUEUED, MsanProduct::IMPORT_IMPORTING] as $status) {
+            $this->assertDatabaseMissing('msan_import_run_items', [
+                'msan_sync_run_id' => $run->id,
+                'msan_product_id' => $products->get($status)->id,
+            ]);
+            $this->assertSame($status, $products->get($status)->fresh()->import_status);
+        }
+    }
+
+    public function test_import_coordinator_does_not_create_an_empty_run_for_nonready_products(): void
+    {
+        Queue::fake();
+        $this->configureImport();
+        foreach ([MsanProduct::IMPORT_IMPORTED, MsanProduct::IMPORT_QUEUED, MsanProduct::IMPORT_IMPORTING] as $status) {
+            [$product] = $this->eligibleSource('MSAN-NOT-READY-'.strtoupper($status), 'Artikl '.$status);
+            $product->update(['import_status' => $status]);
+        }
+
+        try {
+            app(MsanImportCoordinator::class)->queueSelected();
+            $this->fail('Artikli koji su već uvezeni ili aktivno u obradi ne smiju stvoriti novi red uvoza.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Nema odabranih artikala spremnih za novi uvoz.', $exception->getMessage());
+        }
+
+        $this->assertSame(0, MsanSyncRun::query()->count());
+        $this->assertSame(0, MsanImportRunItem::query()->count());
     }
 
     public function test_import_preserves_non_msan_owned_catalog_fields(): void

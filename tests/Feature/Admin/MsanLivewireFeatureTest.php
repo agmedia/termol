@@ -227,12 +227,54 @@ class MsanLivewireFeatureTest extends TestCase
             ->assertHasNoErrors('searchInput')
             ->assertSee('Aktualne pećnice')
             ->assertDontSee('Zastarjele pećnice')
-            ->assertSee('Prikazuju se samo aktualne kategorije')
+            ->assertSee('Aktualne kategorije složene su po stablu')
             ->assertSee('Primijenjeni filtri pamte se');
 
         $this->assertSame([$current->id], $component->viewData('categories')->pluck('id')->all());
         $this->assertSame(1, $component->viewData('statusCounts')['all']);
         $this->assertSame(1, $component->viewData('statusCounts')['unmapped']);
+    }
+
+    public function test_category_results_follow_alphabetical_tree_order_instead_of_product_count(): void
+    {
+        $admin = $this->makeAdmin();
+        app(\App\Services\Settings\SystemSettingsService::class)->put('admin_items_per_page', 5);
+        $rows = [
+            ['A', 'Alfa', null, 'Alfa', 1],
+            ['A-2', 'Zadnja Alfa grana', 'A', 'Alfa > Zadnja Alfa grana', 900],
+            ['A-1', 'Prva Alfa grana', 'A', 'Alfa > Prva Alfa grana', 2],
+            ['A-1-1', 'Duboka Alfa grana', 'A-1', 'Alfa > Prva Alfa grana > Duboka Alfa grana', 800],
+            ['B', 'Beta', null, 'Beta', 999],
+            ['B-1', 'Beta grana', 'B', 'Beta > Beta grana', 700],
+        ];
+
+        foreach ($rows as [$externalId, $name, $parentExternalId, $path, $productCount]) {
+            MsanCategory::query()->create([
+                'external_id' => $externalId,
+                'name' => $name,
+                'parent_external_id' => $parentExternalId,
+                'path' => $path,
+                'product_count' => $productCount,
+                'last_seen_at' => now(),
+                'is_stale' => false,
+            ]);
+        }
+
+        $component = Livewire::actingAs($admin)
+            ->test(CategoryMappingManager::class)
+            ->set('status', 'unmapped');
+
+        $this->assertSame(
+            ['A', 'A-1', 'A-1-1', 'A-2', 'B'],
+            $component->viewData('categories')->getCollection()->pluck('external_id')->all(),
+        );
+
+        $component->set('paginators.msanCategoryMappingsPage', 2);
+
+        $this->assertSame(
+            ['B-1'],
+            $component->viewData('categories')->getCollection()->pluck('external_id')->all(),
+        );
     }
 
     public function test_product_bulk_selection_persists_only_filtered_products_with_a_mapped_category(): void
@@ -252,9 +294,12 @@ class MsanLivewireFeatureTest extends TestCase
         $eligible->update(['image_url' => 'https://b2b.msan.hr/private/admin-tracker.jpg']);
         $filteredOut = $this->createMsanProduct('AC-200', 'Klima Beta', 'Beta');
         $unmapped = $this->createMsanProduct('OTHER-100', 'Klima bez kategorije', 'Alpha');
+        $alreadyImported = $this->createMsanProduct('AC-IMPORTED', 'Već uvezena klima', 'Alpha');
+        $alreadyImported->update(['import_status' => MsanProduct::IMPORT_IMPORTED]);
         $eligible->categories()->attach($mappedCategory->id);
         $filteredOut->categories()->attach($mappedCategory->id);
         $unmapped->categories()->attach($unmappedCategory->id);
+        $alreadyImported->categories()->attach($mappedCategory->id);
 
         $component = Livewire::actingAs($admin)
             ->test(ProductSelectionManager::class)
@@ -266,6 +311,14 @@ class MsanLivewireFeatureTest extends TestCase
         $this->assertTrue($eligible->fresh()->selected);
         $this->assertFalse($filteredOut->fresh()->selected);
         $this->assertFalse($unmapped->fresh()->selected);
+        $this->assertFalse($alreadyImported->fresh()->selected);
+        $this->assertSame(1, $component->viewData('filteredEligibleCount'));
+
+        $component->call('toggleSelection', $alreadyImported->id)
+            ->assertDispatched('notify', type: 'info')
+            ->assertSee('Artikl je već uvezen');
+
+        $this->assertFalse($alreadyImported->fresh()->selected);
 
         $coordinator = Mockery::mock(MsanImportCoordinator::class);
         $coordinator->shouldReceive('queueSelected')
@@ -319,6 +372,58 @@ class MsanLivewireFeatureTest extends TestCase
             [$alphabeticallyFirst->name, $selectedLater->name],
             $renderedProducts->pluck('name')->all(),
         );
+    }
+
+    public function test_product_selection_only_offers_retryable_import_statuses(): void
+    {
+        $admin = $this->makeAdmin();
+        $localCategory = $this->createLocalCategory('statusi-uvoza', 'Statusi uvoza');
+        $mappedCategory = $this->createMsanCategory('MSAN-IMPORT-STATUSES', 'Statusi uvoza');
+        MsanCategoryMapping::query()->create([
+            'msan_category_id' => $mappedCategory->id,
+            'local_category_id' => $localCategory->id,
+            'status' => MsanCategoryMapping::STATUS_MAPPED,
+            'updated_by' => $admin->id,
+        ]);
+
+        $products = collect([
+            MsanProduct::IMPORT_PENDING,
+            MsanProduct::IMPORT_FAILED,
+            MsanProduct::IMPORT_SKIPPED,
+            MsanProduct::IMPORT_IMPORTED,
+            MsanProduct::IMPORT_QUEUED,
+            MsanProduct::IMPORT_IMPORTING,
+        ])->mapWithKeys(function (string $status) use ($mappedCategory): array {
+            $product = $this->createMsanProduct('STATUS-'.strtoupper($status), 'Artikl '.$status, 'Statusi');
+            $product->update(['import_status' => $status]);
+            $product->categories()->attach($mappedCategory->id);
+
+            return [$status => $product];
+        });
+
+        $component = Livewire::actingAs($admin)
+            ->test(ProductSelectionManager::class)
+            ->call('clearFilters')
+            ->set('brand', 'Statusi')
+            ->call('selectFiltered')
+            ->assertDispatched('notify')
+            ->assertSee('Već uvezen');
+
+        $this->assertSame(6, $component->viewData('filteredCount'));
+        $this->assertSame(3, $component->viewData('filteredEligibleCount'));
+        $this->assertSame(3, $component->viewData('filteredSelectedCount'));
+
+        foreach (MsanProduct::IMPORT_READY_STATUSES as $status) {
+            $this->assertTrue($products->get($status)->fresh()->selected, $status);
+        }
+        foreach ([MsanProduct::IMPORT_IMPORTED, MsanProduct::IMPORT_QUEUED, MsanProduct::IMPORT_IMPORTING] as $status) {
+            $this->assertFalse($products->get($status)->fresh()->selected, $status);
+        }
+
+        $component->call('toggleSelection', $products->get(MsanProduct::IMPORT_IMPORTED)->id)
+            ->assertDispatched('notify', type: 'info');
+
+        $this->assertFalse($products->get(MsanProduct::IMPORT_IMPORTED)->fresh()->selected);
     }
 
     public function test_product_filters_survive_remount_and_clear_filters_resets_the_session_state(): void

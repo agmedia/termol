@@ -30,6 +30,13 @@ class MsanProduct extends Model
 
     public const IMPORT_SKIPPED = 'skipped';
 
+    /** @var list<string> */
+    public const IMPORT_READY_STATUSES = [
+        self::IMPORT_PENDING,
+        self::IMPORT_FAILED,
+        self::IMPORT_SKIPPED,
+    ];
+
     public const EPREL_PENDING = 'pending';
 
     public const EPREL_EXACT = 'exact';

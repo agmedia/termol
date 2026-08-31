@@ -174,6 +174,18 @@ class ProductSelectionManager extends Component
             return;
         }
 
+        if (! in_array($product->import_status, MsanProduct::IMPORT_READY_STATUSES, true)) {
+            $this->dispatch(
+                'notify',
+                type: 'info',
+                message: $product->import_status === MsanProduct::IMPORT_IMPORTED
+                    ? __('Artikl je već uvezen i ne treba ga ponovno uključivati za uvoz.')
+                    : __('Artikl je već u redu čekanja ili se trenutačno uvozi.'),
+            );
+
+            return;
+        }
+
         if (! $this->productHasMappedCategory($product)) {
             $this->dispatch(
                 'notify',
@@ -192,14 +204,7 @@ class ProductSelectionManager extends Component
     {
         $this->authorizeImport();
 
-        $query = $this->filteredQuery()
-            ->where('is_stale', false)
-            ->whereNotIn('match_status', [MsanProduct::MATCH_CONFLICT, MsanProduct::MATCH_IGNORED])
-            ->whereHas('categories.mapping', static function (Builder $mappingQuery): void {
-                $mappingQuery
-                    ->where('status', 'mapped')
-                    ->whereNotNull('local_category_id');
-            });
+        $query = $this->eligibleQuery($this->filteredQuery());
 
         $eligibleCount = (clone $query)->count();
         $alreadySelectedCount = (clone $query)->where('selected', true)->count();
@@ -236,22 +241,14 @@ class ProductSelectionManager extends Component
     {
         $this->authorizeImport();
 
-        $eligibleCount = MsanProduct::query()
-            ->where('selected', true)
-            ->where('is_stale', false)
-            ->whereNotIn('match_status', [MsanProduct::MATCH_CONFLICT, MsanProduct::MATCH_IGNORED])
-            ->whereHas('categories.mapping', static function (Builder $mappingQuery): void {
-                $mappingQuery
-                    ->where('status', 'mapped')
-                    ->whereNotNull('local_category_id');
-            })
+        $eligibleCount = $this->eligibleQuery(MsanProduct::query()->where('selected', true))
             ->count();
 
         if ($eligibleCount === 0) {
             $this->dispatch(
                 'notify',
                 type: 'warning',
-                message: __('Nema odabranih artikala s mapiranom kategorijom za uvoz.'),
+                message: __('Nema odabranih artikala spremnih za novi uvoz.'),
             );
 
             return;
@@ -393,9 +390,7 @@ class ProductSelectionManager extends Component
                 'categories' => MsanCategory::query()
                     ->select(['id', 'name', 'path'])
                     ->where('is_stale', false)
-                    ->orderByRaw('CASE WHEN path IS NULL OR path = ? THEN 1 ELSE 0 END', [''])
-                    ->orderBy('path')
-                    ->orderBy('name')
+                    ->inTreeOrder()
                     ->get()
                     ->map(static fn (MsanCategory $category): array => [
                         'id' => (int) $category->getKey(),
@@ -454,6 +449,7 @@ class ProductSelectionManager extends Component
     private function eligibleQuery(Builder $query): Builder
     {
         return $query
+            ->whereIn('import_status', MsanProduct::IMPORT_READY_STATUSES)
             ->where('is_stale', false)
             ->whereNotIn('match_status', [MsanProduct::MATCH_CONFLICT, MsanProduct::MATCH_IGNORED])
             ->whereHas('categories.mapping', static function (Builder $mappingQuery): void {

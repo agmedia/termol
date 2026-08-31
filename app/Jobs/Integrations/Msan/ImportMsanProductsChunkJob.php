@@ -156,6 +156,10 @@ class ImportMsanProductsChunkJob implements ShouldQueue
                     'import_status' => MsanProduct::IMPORT_SKIPPED,
                     'last_error' => null,
                 ]);
+            } elseif ($status === MsanImportRunItem::STATUS_SUCCEEDED) {
+                MsanProduct::query()->whereKey($productId)->update([
+                    'selected' => false,
+                ]);
             }
 
             if ($run->status === MsanSyncRun::STATUS_FAILED) {

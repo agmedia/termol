@@ -319,17 +319,13 @@ class CategoryMappingManager extends Component
             200,
         );
 
-        $categories = $this->filteredQuery()
+        $categoriesQuery = $this->filteredQuery()
             ->with([
                 'mapping:id,msan_category_id,local_category_id,status,eprel_product_group,energy_requirement,updated_by,updated_at',
                 'mapping.localCategory.translations' => fn ($query) => $query
                     ->whereIn('locale', $this->preferredLocales()),
-            ])
-            ->when($this->status === 'unmapped', fn (Builder $query) => $query->orderByDesc('product_count'))
-            ->orderByRaw('CASE WHEN path IS NULL OR path = ? THEN 1 ELSE 0 END', [''])
-            ->orderBy('path')
-            ->orderBy('name')
-            ->orderBy('id')
+            ]);
+        $categories = $this->applyHierarchyOrder($categoriesQuery)
             ->paginate($perPage, pageName: self::PAGE_NAME);
 
         return view('livewire.admin.integrations.msan.category-mapping-manager', [
@@ -430,14 +426,15 @@ class CategoryMappingManager extends Component
             ->whereKeyNot($exceptCategoryId);
         $this->applyUnmappedConstraint($query);
 
-        $id = $query
-            ->orderByDesc('product_count')
-            ->orderByRaw('CASE WHEN path IS NULL OR path = ? THEN 1 ELSE 0 END', [''])
-            ->orderBy('path')
-            ->orderBy('name')
+        $id = $this->applyHierarchyOrder($query)
             ->value('id');
 
         return $id === null ? null : (int) $id;
+    }
+
+    private function applyHierarchyOrder(Builder $query): Builder
+    {
+        return $query->inTreeOrder();
     }
 
     private function editingCategory(): ?MsanCategory
