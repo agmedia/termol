@@ -209,8 +209,25 @@
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="inline-flex items-center gap-1">
-                                    <a href="{{ route('admin.products.edit', ['product' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
-                                        {{ __('admin.common.edit') }}
+                                    @if ($tr?->slug)
+                                        <a
+                                            href="{{ route('products.show', ['slug' => $tr->slug]) }}"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            aria-label="{{ __('Preview') }}: {{ $tr?->name ?? $row->code }}"
+                                            title="{{ __('Preview') }}"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-200 text-cyan-800 hover:bg-cyan-50"
+                                        >
+                                            <x-fa-icon name="eye" class="h-4 w-4" />
+                                        </a>
+                                    @endif
+                                    <a
+                                        href="{{ route('admin.products.edit', ['product' => $row->id, 'locale' => $locale]) }}"
+                                        aria-label="{{ __('admin.common.edit') }}: {{ $tr?->name ?? $row->code }}"
+                                        title="{{ __('admin.common.edit') }}"
+                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                    >
+                                        <x-fa-icon name="pen-to-square" class="h-4 w-4" />
                                     </a>
                                     @if ($features['catalog_use_options'])
                                         <a href="{{ route('admin.products.options', ['product' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
@@ -221,9 +238,11 @@
                                         type="button"
                                         wire:click="delete({{ (int) $row->id }})"
                                         wire:confirm="{{ __('Delete product \':name\'?', ['name' => $tr?->name ?? $row->code]) }}"
-                                        class="rounded-lg border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                                        aria-label="{{ __('admin.common.delete') }}: {{ $tr?->name ?? $row->code }}"
+                                        title="{{ __('admin.common.delete') }}"
+                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50"
                                     >
-                                        {{ __('admin.common.delete') }}
+                                        <x-fa-icon name="trash" class="h-4 w-4" />
                                     </button>
                                 </div>
                             </td>

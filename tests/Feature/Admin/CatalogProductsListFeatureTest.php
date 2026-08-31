@@ -121,7 +121,7 @@ class CatalogProductsListFeatureTest extends TestCase
             ->assertSeeInOrder(['Price High', 'Price Mid', 'Price Low']);
     }
 
-    public function test_product_list_shows_category_name_instead_of_product_slug(): void
+    public function test_product_list_shows_category_name_and_icon_actions(): void
     {
         $user = $this->makeAdminUser();
         $category = new Category([
@@ -154,7 +154,16 @@ class CatalogProductsListFeatureTest extends TestCase
             ->test(ProductManager::class)
             ->set('locale', 'en')
             ->assertSee('Toplinske pumpe')
-            ->assertDontSee('skriveni-slug-artikla')
+            ->assertSee(__('Preview'))
+            ->assertSeeHtml('href="'.route('products.show', ['slug' => 'skriveni-slug-artikla']).'"')
+            ->assertSeeHtml('target="_blank"')
+            ->assertSeeHtml('rel="noopener noreferrer"')
+            ->assertSeeHtml('aria-label="'.__('Preview').': Category Name Product"')
+            ->assertSeeHtml(asset('front-theme/fonts/sprites/solid.svg').'#eye')
+            ->assertSeeHtml('aria-label="'.__('admin.common.edit').': Category Name Product"')
+            ->assertSeeHtml(asset('front-theme/fonts/sprites/solid.svg').'#pen-to-square')
+            ->assertSeeHtml('aria-label="'.__('admin.common.delete').': Category Name Product"')
+            ->assertSeeHtml(asset('front-theme/fonts/sprites/solid.svg').'#trash')
             ->assertDontSee('skriveni-slug-kategorije');
     }
 
