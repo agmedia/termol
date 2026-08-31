@@ -77,14 +77,14 @@
                     </p>
                 </div>
 
-                <dl class="grid shrink-0 grid-cols-3 gap-2 text-center">
-                    <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5"><dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{{ __('Rezultati') }}</dt><dd class="mt-1 text-lg font-bold tabular-nums text-slate-900">{{ number_format($filteredCount, 0, ',', '.') }}</dd></div>
-                    <div class="rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2.5"><dt class="text-[11px] font-semibold uppercase tracking-wide text-cyan-700">{{ __('Uključeno') }}</dt><dd class="mt-1 text-lg font-bold tabular-nums text-cyan-900">{{ number_format($selectedTotalCount, 0, ',', '.') }}</dd></div>
-                    <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5"><dt class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">{{ __('Spremno') }}</dt><dd class="mt-1 text-lg font-bold tabular-nums text-emerald-900">{{ number_format($selectedEligibleCount, 0, ',', '.') }}</dd></div>
+                <dl class="flex shrink-0 flex-wrap gap-2 text-center xl:justify-end">
+                    <div class="min-w-28 rounded-xl border border-slate-200 bg-white px-3 py-2.5"><dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{{ __('Rezultati') }}</dt><dd class="mt-1 text-lg font-bold tabular-nums text-slate-900">{{ number_format($filteredCount, 0, ',', '.') }}</dd></div>
+                    <div class="min-w-28 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2.5"><dt class="text-[11px] font-semibold uppercase tracking-wide text-cyan-700">{{ __('Uključeno') }}</dt><dd class="mt-1 text-lg font-bold tabular-nums text-cyan-900">{{ number_format($selectedTotalCount, 0, ',', '.') }}</dd></div>
+                    <div class="min-w-28 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5"><dt class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">{{ __('Spremno') }}</dt><dd class="mt-1 text-lg font-bold tabular-nums text-emerald-900">{{ number_format($selectedEligibleCount, 0, ',', '.') }}</dd></div>
                 </dl>
             </div>
 
-            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
                 <form wire:submit="applySearch" class="md:col-span-2 xl:col-span-2">
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500" for="msan-product-search">{{ __('Pretraga') }}</label>
                     <div class="flex gap-2">
@@ -183,7 +183,7 @@
             <p class="text-xs text-slate-500">{{ __('Prikazano :from–:to od :total', ['from' => $products->firstItem() ?? 0, 'to' => $products->lastItem() ?? 0, 'total' => $products->total()]) }} · {{ __(':count po stranici', ['count' => $perPage]) }}</p>
         </div>
 
-        <div class="mt-4 hidden overflow-x-auto 2xl:block" tabindex="0" aria-label="{{ __('Tablica M SAN artikala; pomičite vodoravno za sve podatke') }}">
+        <div class="mt-4 hidden overflow-x-auto xl:block" tabindex="0" aria-label="{{ __('Tablica M SAN artikala; pomičite vodoravno za sve podatke') }}">
             <table class="admin-items-table min-w-[76rem] text-sm">
                 <caption class="sr-only">{{ __('M SAN artikli i njihov trajno spremljen status uvoza') }}</caption>
                 <thead class="text-slate-600"><tr><th scope="col" class="px-3 py-3 text-left font-semibold">{{ __('Uvoz') }}</th><th scope="col" class="px-3 py-3 text-left font-semibold">{{ __('Artikl') }}</th><th scope="col" class="px-3 py-3 text-right font-semibold">{{ __('Cijene') }}</th><th scope="col" class="px-3 py-3 text-center font-semibold">{{ __('Dostupnost / limit') }}</th><th scope="col" class="px-3 py-3 text-left font-semibold">{{ __('Lokalni artikl') }}</th><th scope="col" class="px-3 py-3 text-left font-semibold">{{ __('Status') }}</th></tr></thead>
@@ -224,7 +224,7 @@
             </table>
         </div>
 
-        <div class="mt-4 grid gap-3 lg:grid-cols-2 2xl:hidden">
+        <div class="mt-4 grid gap-3 md:grid-cols-2 xl:hidden">
             @forelse ($products as $product)
                 @php($state = $productState($product))
                 <article wire:key="msan-product-card-{{ $product->id }}" class="rounded-xl border p-4 {{ $product->selected ? 'border-cyan-200 bg-cyan-50/60' : 'border-slate-200 bg-white' }}">

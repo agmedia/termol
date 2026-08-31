@@ -198,6 +198,9 @@
                 box-shadow: 0 0 0 2px rgba(8, 145, 178, 0.14);
                 background: #f8fcff;
             }
+            .admin-search-panel .ts-wrapper.dropdown-active {
+                z-index: 70;
+            }
             .admin-form .ts-wrapper.single .ts-control .item,
             .admin-form-panel .ts-wrapper.single .ts-control .item,
             .admin-search-panel .ts-wrapper.single .ts-control .item {
@@ -212,6 +215,7 @@
                 padding: 0 !important;
             }
             .ts-dropdown {
+                z-index: 70;
                 border: 1px solid #cbd5e1;
                 border-radius: 0.75rem;
                 overflow: hidden;

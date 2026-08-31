@@ -86,7 +86,7 @@
             <p class="text-xs text-slate-500">{{ __('Prikazano :from–:to od :total', ['from' => $categories->firstItem() ?? 0, 'to' => $categories->lastItem() ?? 0, 'total' => $categories->total()]) }} · {{ __(':count po stranici', ['count' => $perPage]) }}</p>
         </div>
 
-        <div class="mt-4 hidden overflow-x-auto 2xl:block" tabindex="0" aria-label="{{ __('Tablica M SAN kategorija') }}">
+        <div class="mt-4 hidden overflow-x-auto xl:block" tabindex="0" aria-label="{{ __('Tablica M SAN kategorija') }}">
             <table class="admin-items-table min-w-[68rem] text-sm">
                 <caption class="sr-only">{{ __('M SAN kategorije i trajno spremljena mapiranja prema kategorijama webshopa') }}</caption>
                 <thead class="text-slate-600"><tr><th scope="col" class="px-3 py-3 text-left font-semibold">{{ __('M SAN kategorija') }}</th><th scope="col" class="px-3 py-3 text-right font-semibold">{{ __('Artikli') }}</th><th scope="col" class="px-3 py-3 text-left font-semibold">{{ __('Status / kategorija webshopa') }}</th><th scope="col" class="px-3 py-3 text-left font-semibold">{{ __('Energetski podaci') }}</th><th scope="col" class="px-3 py-3 text-left font-semibold">{{ __('Zadnje viđeno') }}</th>@if($canManageMapping)<th scope="col" class="px-3 py-3 text-right font-semibold">{{ __('Radnje') }}</th>@endif</tr></thead>
@@ -108,7 +108,7 @@
             </table>
         </div>
 
-        <div class="mt-4 grid gap-3 lg:grid-cols-2 2xl:hidden">
+        <div class="mt-4 grid gap-3 md:grid-cols-2 xl:hidden">
             @forelse($categories as $category)
                 @php($state = $categoryState($category))
                 <article wire:key="msan-category-card-{{ $category->id }}" class="rounded-xl border p-4 {{ $editingCategoryId === $category->id ? 'border-cyan-300 bg-cyan-50/60' : 'border-slate-200 bg-white' }}">
