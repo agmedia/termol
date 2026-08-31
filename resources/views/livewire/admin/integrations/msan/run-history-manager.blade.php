@@ -1,9 +1,9 @@
-<div class="space-y-6">
+<div class="space-y-6" @if($pollFrequently) wire:poll.visible.10s @endif>
     <section class="admin-panel admin-search-panel p-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{{ __('M SAN obrada') }}</p>
-                <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-900">{{ __('Povijest izvršavanja') }}</h2>
+                <h1 class="mt-2 text-xl font-semibold tracking-tight text-slate-900">{{ __('Povijest izvršavanja') }}</h1>
                 <p class="mt-2 max-w-3xl text-sm text-slate-600">
                     {{ __('Pregled sinkronizacija i uvoza je samo za čitanje. Neuspješno izvršavanje prvo provjerite u stupcu Greška.') }}
                 </p>
@@ -170,7 +170,7 @@
                             </td>
                             <td class="px-3 py-3">
                                 <div class="flex min-w-40 items-center gap-2">
-                                    <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+                                    <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="{{ __('Napredak izvršavanja #:id', ['id' => $run->id]) }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $progress }}">
                                         <div class="h-full rounded-full bg-cyan-600" style="width: {{ $progress }}%"></div>
                                     </div>
                                     <span class="w-10 text-right text-xs font-semibold tabular-nums text-slate-700">{{ $progress }}%</span>

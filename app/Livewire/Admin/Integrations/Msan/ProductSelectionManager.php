@@ -11,6 +11,7 @@ use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use Livewire\Attributes\Session;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -22,23 +23,50 @@ class ProductSelectionManager extends Component
 
     private const PAGE_NAME = 'msanProductsPage';
 
+    #[Session(key: 'admin.msan.products.search')]
     public string $search = '';
 
+    #[Session(key: 'admin.msan.products.search-input')]
     public string $searchInput = '';
 
+    #[Session(key: 'admin.msan.products.category')]
     public string $categoryId = '';
 
+    #[Session(key: 'admin.msan.products.brand')]
     public string $brand = '';
 
+    #[Session(key: 'admin.msan.products.availability')]
     public string $availability = 'all';
 
+    #[Session(key: 'admin.msan.products.selection')]
     public string $selection = 'all';
 
+    #[Session(key: 'admin.msan.products.import-status')]
     public string $importStatus = 'all';
 
     public function mount(): void
     {
         $this->authorizeView();
+
+        $query = request()->query();
+        if (array_key_exists('selection', $query) && in_array((string) $query['selection'], ['all', 'selected', 'unselected'], true)) {
+            $this->selection = (string) $query['selection'];
+        }
+        if (array_key_exists('importStatus', $query) && in_array((string) $query['importStatus'], [
+            'all',
+            MsanProduct::IMPORT_PENDING,
+            MsanProduct::IMPORT_QUEUED,
+            MsanProduct::IMPORT_IMPORTING,
+            MsanProduct::IMPORT_IMPORTED,
+            MsanProduct::IMPORT_FAILED,
+            MsanProduct::IMPORT_SKIPPED,
+        ], true)) {
+            $this->importStatus = (string) $query['importStatus'];
+        }
+
+        if ($this->searchInput === '') {
+            $this->searchInput = $this->search;
+        }
     }
 
     public function updatedSearch(): void
@@ -99,6 +127,21 @@ class ProductSelectionManager extends Component
         $this->resetProductsPage();
     }
 
+    public function clearFilter(string $filter): void
+    {
+        match ($filter) {
+            'search' => $this->clearSearchFilter(),
+            'category' => $this->categoryId = '',
+            'brand' => $this->brand = '',
+            'availability' => $this->availability = 'all',
+            'selection' => $this->selection = 'all',
+            'importStatus' => $this->importStatus = 'all',
+            default => null,
+        };
+
+        $this->resetProductsPage();
+    }
+
     public function toggleSelection(int $productId): void
     {
         $this->authorizeImport();
@@ -106,6 +149,7 @@ class ProductSelectionManager extends Component
         $product = MsanProduct::query()->findOrFail($productId);
         if ((bool) $product->selected) {
             $product->update(['selected' => false]);
+            $this->forgetDashboardCounts();
 
             return;
         }
@@ -141,6 +185,7 @@ class ProductSelectionManager extends Component
         }
 
         $product->update(['selected' => true]);
+        $this->forgetDashboardCounts();
     }
 
     public function selectFiltered(): void
@@ -156,13 +201,18 @@ class ProductSelectionManager extends Component
                     ->whereNotNull('local_category_id');
             });
 
-        $count = (clone $query)->count();
-        $query->update(['selected' => true]);
+        $eligibleCount = (clone $query)->count();
+        $alreadySelectedCount = (clone $query)->where('selected', true)->count();
+        $changedCount = (clone $query)->where('selected', false)->update(['selected' => true]);
+        $this->forgetDashboardCounts();
 
         $this->dispatch(
             'notify',
-            type: $count > 0 ? 'success' : 'info',
-            message: __('Odabrano artikala prema trenutnim filtrima: :count.', ['count' => $count]),
+            type: $eligibleCount > 0 ? 'success' : 'info',
+            message: __('Novo uključeno: :changed. Već uključeno: :existing.', [
+                'changed' => $changedCount,
+                'existing' => $alreadySelectedCount,
+            ]),
         );
     }
 
@@ -173,6 +223,7 @@ class ProductSelectionManager extends Component
         $query = $this->filteredQuery();
         $count = (clone $query)->where('selected', true)->count();
         $query->update(['selected' => false]);
+        $this->forgetDashboardCounts();
 
         $this->dispatch(
             'notify',
@@ -244,6 +295,8 @@ class ProductSelectionManager extends Component
                 'id',
                 'external_code',
                 'name',
+                'image_url',
+                'catalog_checksum',
                 'brand',
                 'part_number',
                 'currency_code',
@@ -272,10 +325,16 @@ class ProductSelectionManager extends Component
                 'categories:id,name,path',
                 'localProduct:id,code,sku',
             ])
-            ->orderByDesc('selected')
             ->orderBy('name')
             ->orderBy('external_code')
             ->paginate($perPage, pageName: self::PAGE_NAME);
+
+        $filteredStatsQuery = $this->filteredQuery();
+        $filteredCount = (clone $filteredStatsQuery)->count();
+        $filteredSelectedCount = (clone $filteredStatsQuery)->where('selected', true)->count();
+        $filteredEligibleCount = $this->eligibleQuery(clone $filteredStatsQuery)->count();
+        $selectedTotalCount = MsanProduct::query()->where('selected', true)->count();
+        $selectedEligibleCount = $this->selectedEligibleCount();
 
         return view('livewire.admin.integrations.msan.product-selection-manager', [
             'products' => $products,
@@ -283,7 +342,13 @@ class ProductSelectionManager extends Component
             'brands' => $filterOptions['brands'],
             'importStatuses' => $this->importStatusOptions(),
             'canManageImport' => $this->canImport(),
-            'selectedEligibleCount' => $this->selectedEligibleCount(),
+            'selectedEligibleCount' => $selectedEligibleCount,
+            'selectedTotalCount' => $selectedTotalCount,
+            'selectedIneligibleCount' => max(0, $selectedTotalCount - $selectedEligibleCount),
+            'filteredCount' => $filteredCount,
+            'filteredSelectedCount' => $filteredSelectedCount,
+            'filteredEligibleCount' => $filteredEligibleCount,
+            'activeFilterCount' => $this->activeFilterCount(),
             'perPage' => $perPage,
             'availabilityLevelLabels' => MsanSettingsService::AVAILABILITY_LEVEL_LABELS,
             'stockLevelQuantities' => $msanSettings->stockLevelQuantities(),
@@ -382,16 +447,20 @@ class ProductSelectionManager extends Component
 
     private function selectedEligibleCount(): int
     {
-        return MsanProduct::query()
-            ->where('selected', true)
+        return $this->eligibleQuery(MsanProduct::query()->where('selected', true))
+            ->count();
+    }
+
+    private function eligibleQuery(Builder $query): Builder
+    {
+        return $query
             ->where('is_stale', false)
             ->whereNotIn('match_status', [MsanProduct::MATCH_CONFLICT, MsanProduct::MATCH_IGNORED])
             ->whereHas('categories.mapping', static function (Builder $mappingQuery): void {
                 $mappingQuery
                     ->where('status', 'mapped')
                     ->whereNotNull('local_category_id');
-            })
-            ->count();
+            });
     }
 
     private function productHasMappedCategory(MsanProduct $product): bool
@@ -408,6 +477,30 @@ class ProductSelectionManager extends Component
     private function resetProductsPage(): void
     {
         $this->resetPage(pageName: self::PAGE_NAME);
+    }
+
+    private function clearSearchFilter(): void
+    {
+        $this->search = '';
+        $this->searchInput = '';
+        $this->resetErrorBag('searchInput');
+    }
+
+    private function activeFilterCount(): int
+    {
+        return collect([
+            $this->search !== '',
+            $this->categoryId !== '',
+            $this->brand !== '',
+            $this->availability !== 'all',
+            $this->selection !== 'all',
+            $this->importStatus !== 'all',
+        ])->filter()->count();
+    }
+
+    private function forgetDashboardCounts(): void
+    {
+        Cache::forget(Dashboard::COUNTS_CACHE_KEY);
     }
 
     private function authorizeView(): void

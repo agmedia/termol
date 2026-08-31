@@ -5,6 +5,7 @@ namespace App\Livewire\Admin\Integrations\Msan;
 use App\Models\Integrations\Msan\MsanSyncRun;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Eloquent\Builder;
+use Livewire\Attributes\Session;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -15,8 +16,10 @@ class RunHistoryManager extends Component
 
     private const PAGE_NAME = 'msanRunsPage';
 
+    #[Session(key: 'admin.msan.runs.kind')]
     public string $kind = 'all';
 
+    #[Session(key: 'admin.msan.runs.status')]
     public string $status = 'all';
 
     public function mount(): void
@@ -69,6 +72,9 @@ class RunHistoryManager extends Component
             'kinds' => $this->distinctValues('kind', fn (string $value): string => $this->kindLabel($value)),
             'statuses' => $this->distinctValues('status', fn (string $value): string => $this->statusLabel($value)),
             'perPage' => $perPage,
+            'pollFrequently' => MsanSyncRun::query()
+                ->whereIn('status', [MsanSyncRun::STATUS_PENDING, MsanSyncRun::STATUS_RUNNING])
+                ->exists(),
         ]);
     }
 

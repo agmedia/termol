@@ -320,6 +320,118 @@ const initTomSelect = () => {
         return;
     }
 
+    const selectSelector = 'select[data-tom-select], select.admin-select:not([multiple])';
+
+    const selectSignature = (element) => JSON.stringify(Array.from(element.options).map((option, index) => {
+        const group = option.parentElement instanceof HTMLOptGroupElement
+            ? option.parentElement
+            : null;
+
+        return [
+            index,
+            option.value,
+            option.text,
+            option.disabled,
+            option.selected,
+            group?.label || '',
+            Boolean(group?.disabled),
+        ];
+    }));
+
+    const destroyInstance = (tom) => {
+        if (!tom || tom.__adminDestroying === true) {
+            return;
+        }
+
+        tom.__adminDestroying = true;
+        const element = tom.input instanceof HTMLSelectElement ? tom.input : null;
+        const currentMarkup = element?.innerHTML ?? null;
+        const selectedIndexes = element
+            ? Array.from(element.options)
+                .map((option, index) => (option.selected ? index : -1))
+                .filter((index) => index >= 0)
+            : [];
+        const disabled = element?.disabled;
+        const readOnly = element?.readOnly;
+
+        if (tom.wrapper instanceof HTMLElement) {
+            delete tom.wrapper.__adminTomSelectInstance;
+        }
+
+        try {
+            tom.destroy();
+        } catch (_error) {
+            // The node may already be partially detached by a Livewire morph.
+        }
+
+        if (element) {
+            // Tom Select restores the markup captured at initialization when it is
+            // destroyed. Keep the newer server-rendered options/value instead.
+            if (element.isConnected && currentMarkup !== null) {
+                element.innerHTML = currentMarkup;
+                Array.from(element.options).forEach((option, index) => {
+                    option.selected = selectedIndexes.includes(index);
+                });
+                element.disabled = Boolean(disabled);
+                element.readOnly = Boolean(readOnly);
+            }
+
+            delete element.tomselect;
+            delete element.dataset.tomSelectBound;
+        }
+    };
+
+    const destroyAll = (root) => {
+        if (!(root instanceof HTMLElement) && !(root instanceof HTMLSelectElement)) {
+            return;
+        }
+
+        const instances = new Set();
+        const collectSelect = (select) => {
+            if (select instanceof HTMLSelectElement && select.tomselect) {
+                instances.add(select.tomselect);
+            }
+        };
+        const collectWrapper = (wrapper) => {
+            if (wrapper instanceof HTMLElement && wrapper.__adminTomSelectInstance) {
+                instances.add(wrapper.__adminTomSelectInstance);
+            }
+        };
+
+        collectSelect(root);
+        collectWrapper(root);
+        root.querySelectorAll?.(selectSelector).forEach(collectSelect);
+        root.querySelectorAll?.('.ts-wrapper').forEach(collectWrapper);
+        instances.forEach(destroyInstance);
+    };
+
+    const syncInstance = (element, tom) => {
+        const signature = selectSignature(element);
+        if (tom.__adminSelectSignature === signature) {
+            return true;
+        }
+
+        try {
+            // sync() only adds options. Clear the internal option/optgroup stores
+            // first so removed or renamed server options cannot remain visible.
+            tom.clearOptions(() => false);
+            tom.clearOptionGroups();
+            tom.sync();
+
+            if (element.disabled && !tom.isDisabled) {
+                tom.disable();
+            } else if (!element.disabled && tom.isDisabled) {
+                tom.enable();
+            }
+
+            tom.__adminSelectSignature = selectSignature(element);
+
+            return true;
+        } catch (_error) {
+            return false;
+        }
+    };
+
     const buildTypeRender = () => ({
         option(data, escape) {
             const value = escape(String(data.value ?? ''));
@@ -341,18 +453,11 @@ const initTomSelect = () => {
         if (tom) {
             const wrapperConnected = Boolean(tom.wrapper?.isConnected);
             const controlConnected = Boolean(tom.control?.isConnected);
-            if (wrapperConnected && controlConnected) {
+            if (wrapperConnected && controlConnected && syncInstance(element, tom)) {
                 return;
             }
 
-            try {
-                tom.destroy();
-            } catch (_error) {
-                // Ignore stale instance destroy errors.
-            }
-
-            delete element.tomselect;
-            delete element.dataset.tomSelectBound;
+            destroyInstance(tom);
         }
 
         if (element.dataset.tomSelectBound === '1' && !element.tomselect) {
@@ -365,6 +470,7 @@ const initTomSelect = () => {
 
         const noSearch = element.dataset.tomNoSearch === '1';
         const visual = element.dataset.tomVisual || '';
+        const preserveOrder = element.dataset.tomPreserveOrder === '1';
         const placeholder = element.getAttribute('placeholder') || element.dataset.tomPlaceholder || '';
         const maxItemsRaw = element.dataset.tomMaxItems;
         const maxItems = maxItemsRaw ? Number.parseInt(maxItemsRaw, 10) : (element.multiple ? null : 1);
@@ -384,9 +490,14 @@ const initTomSelect = () => {
             plugins,
             controlInput: noSearch ? null : undefined,
             searchField: noSearch ? [] : ['text'],
-            sortField: [{ field: 'text', direction: 'asc' }],
+            sortField: preserveOrder
+                ? [{ field: '$order', direction: 'asc' }]
+                : [{ field: 'text', direction: 'asc' }],
             placeholder,
             onChange() {
+                if (element.tomselect) {
+                    element.tomselect.__adminSelectSignature = selectSignature(element);
+                }
                 element.dispatchEvent(new Event('input', { bubbles: true }));
                 element.dispatchEvent(new Event('change', { bubbles: true }));
             },
@@ -397,11 +508,12 @@ const initTomSelect = () => {
         }
 
         element.dataset.tomSelectBound = '1';
-        // eslint-disable-next-line no-new
-        new TomSelect(element, config);
+        const instance = new TomSelect(element, config);
+        instance.__adminSelectSignature = selectSignature(element);
+        if (instance.wrapper instanceof HTMLElement) {
+            instance.wrapper.__adminTomSelectInstance = instance;
+        }
     };
-
-    const selectSelector = 'select[data-tom-select], select.admin-select:not([multiple])';
 
     const bindAll = (root) => {
         if (!root) {
@@ -418,6 +530,12 @@ const initTomSelect = () => {
     if (!window.__tomSelectObserver) {
         window.__tomSelectObserver = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
+                mutation.removedNodes.forEach((node) => {
+                    if (node instanceof HTMLElement || node instanceof HTMLSelectElement) {
+                        destroyAll(node);
+                    }
+                });
+
                 if (mutation.target instanceof HTMLElement || mutation.target instanceof HTMLSelectElement) {
                     bindAll(mutation.target);
                 }
@@ -428,9 +546,6 @@ const initTomSelect = () => {
                     }
                 });
 
-                if (mutation.removedNodes.length > 0 && mutation.target instanceof HTMLElement) {
-                    bindAll(mutation.target);
-                }
             });
         });
     }
@@ -442,6 +557,32 @@ const initTomSelect = () => {
             subtree: true,
         });
         window.__tomSelectObserverBody = document.body;
+    }
+
+    if (window.__tomSelectLivewireHooksBound !== '1') {
+        const registerLivewireHooks = () => {
+            if (window.__tomSelectLivewireHooksBound === '1'
+                || !window.Livewire
+                || typeof window.Livewire.hook !== 'function') {
+                return;
+            }
+
+            window.__tomSelectLivewireHooksBound = '1';
+            window.Livewire.hook('morph.removing', ({ el }) => {
+                destroyAll(el);
+            });
+            window.Livewire.hook('morphed', ({ el }) => {
+                // Run after Alpine/Livewire have applied model values to native
+                // selects, then mirror the complete option set into Tom Select.
+                setTimeout(() => bindAll(el), 0);
+            });
+        };
+
+        if (window.Livewire && typeof window.Livewire.hook === 'function') {
+            registerLivewireHooks();
+        } else {
+            document.addEventListener('livewire:init', registerLivewireHooks, { once: true });
+        }
     }
 };
 

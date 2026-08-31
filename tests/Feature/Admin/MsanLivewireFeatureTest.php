@@ -21,6 +21,7 @@ use App\Services\Integrations\Msan\MsanCertificateService;
 use App\Services\Integrations\Msan\MsanImportCoordinator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -150,6 +151,89 @@ class MsanLivewireFeatureTest extends TestCase
         ]);
     }
 
+    public function test_category_filters_and_saved_mappings_but_not_editor_drafts_survive_component_remounts(): void
+    {
+        $admin = $this->makeAdmin();
+        $localCategory = $this->createLocalCategory('dizalice-topline', 'Dizalice topline');
+        $msanCategory = $this->createMsanCategory('MSAN-HEAT-PUMPS', 'Dizalice topline');
+
+        Livewire::actingAs($admin)
+            ->test(CategoryMappingManager::class)
+            ->set('searchInput', 'Dizalice')
+            ->call('applySearch')
+            ->set('status', 'all')
+            ->call('openEditor', $msanCategory->id)
+            ->set('localCategoryId', (string) $localCategory->id)
+            ->set('eprelProductGroup', 'spaceheaters')
+            ->set('energyRequirement', MsanCategoryMapping::ENERGY_REQUIREMENT_REQUIRED)
+            ->set('searchInput', 'Neprimijenjeni nacrt pretrage');
+
+        $remounted = Livewire::actingAs($admin)
+            ->test(CategoryMappingManager::class)
+            ->assertSet('search', 'Dizalice')
+            ->assertSet('searchInput', 'Dizalice')
+            ->assertSet('status', 'all')
+            ->assertSet('editingCategoryId', null)
+            ->assertSet('localCategoryId', '')
+            ->assertSet('eprelProductGroup', '')
+            ->assertSet('energyRequirement', MsanCategoryMapping::ENERGY_REQUIREMENT_INHERIT)
+            ->call('openEditor', $msanCategory->id)
+            ->set('localCategoryId', (string) $localCategory->id)
+            ->set('eprelProductGroup', 'spaceheaters')
+            ->set('energyRequirement', MsanCategoryMapping::ENERGY_REQUIREMENT_REQUIRED)
+            ->call('saveMapping')
+            ->assertHasNoErrors();
+
+        $remounted->assertSet('editingCategoryId', null);
+
+        Livewire::actingAs($admin)
+            ->test(CategoryMappingManager::class)
+            ->assertSet('search', 'Dizalice')
+            ->assertSet('searchInput', 'Dizalice')
+            ->assertSet('status', 'all')
+            ->assertSet('editingCategoryId', null)
+            ->call('openEditor', $msanCategory->id)
+            ->assertSet('localCategoryId', (string) $localCategory->id)
+            ->assertSet('eprelProductGroup', 'spaceheaters')
+            ->assertSet('energyRequirement', MsanCategoryMapping::ENERGY_REQUIREMENT_REQUIRED);
+
+        $this->assertDatabaseHas('msan_category_mappings', [
+            'msan_category_id' => $msanCategory->id,
+            'local_category_id' => $localCategory->id,
+            'status' => MsanCategoryMapping::STATUS_MAPPED,
+            'eprel_product_group' => 'spaceheaters',
+            'energy_requirement' => MsanCategoryMapping::ENERGY_REQUIREMENT_REQUIRED,
+            'updated_by' => $admin->id,
+        ]);
+    }
+
+    public function test_category_results_exclude_stale_rows_and_search_the_category_path(): void
+    {
+        $admin = $this->makeAdmin();
+        $current = $this->createMsanCategory('MSAN-CURRENT-OVEN', 'Aktualne pećnice');
+        $current->update(['path' => 'Kućanski uređaji / Pećnice']);
+        $stale = $this->createMsanCategory('MSAN-STALE-OVEN', 'Zastarjele pećnice');
+        $stale->update([
+            'path' => 'Kućanski uređaji / Stare pećnice',
+            'is_stale' => true,
+        ]);
+
+        $component = Livewire::actingAs($admin)
+            ->test(CategoryMappingManager::class)
+            ->set('status', 'all')
+            ->set('searchInput', 'Kućanski')
+            ->call('applySearch')
+            ->assertHasNoErrors('searchInput')
+            ->assertSee('Aktualne pećnice')
+            ->assertDontSee('Zastarjele pećnice')
+            ->assertSee('Prikazuju se samo aktualne kategorije')
+            ->assertSee('Primijenjeni filtri pamte se');
+
+        $this->assertSame([$current->id], $component->viewData('categories')->pluck('id')->all());
+        $this->assertSame(1, $component->viewData('statusCounts')['all']);
+        $this->assertSame(1, $component->viewData('statusCounts')['unmapped']);
+    }
+
     public function test_product_bulk_selection_persists_only_filtered_products_with_a_mapped_category(): void
     {
         $admin = $this->makeAdmin();
@@ -202,6 +286,83 @@ class MsanLivewireFeatureTest extends TestCase
             ->call('deselectFiltered');
 
         $this->assertFalse($eligible->fresh()->selected);
+    }
+
+    public function test_product_selection_survives_remount_without_moving_selected_rows_ahead_of_name_order(): void
+    {
+        $admin = $this->makeAdmin();
+        $localCategory = $this->createLocalCategory('redoslijed', 'Kategorija redoslijeda');
+        $mappedCategory = $this->createMsanCategory('MSAN-ORDER', 'Kategorija redoslijeda');
+        MsanCategoryMapping::query()->create([
+            'msan_category_id' => $mappedCategory->id,
+            'local_category_id' => $localCategory->id,
+            'status' => MsanCategoryMapping::STATUS_MAPPED,
+            'updated_by' => $admin->id,
+        ]);
+
+        $alphabeticallyFirst = $this->createMsanProduct('ORDER-A', 'Alfa neodabrani artikl', 'Test');
+        $selectedLater = $this->createMsanProduct('ORDER-Z', 'Zulu odabrani artikl', 'Test');
+        $alphabeticallyFirst->categories()->attach($mappedCategory->id);
+        $selectedLater->categories()->attach($mappedCategory->id);
+
+        Livewire::actingAs($admin)
+            ->test(ProductSelectionManager::class)
+            ->call('toggleSelection', $selectedLater->id);
+
+        $remounted = Livewire::actingAs($admin)->test(ProductSelectionManager::class);
+        $renderedProducts = $remounted->viewData('products')->getCollection();
+
+        $this->assertTrue($selectedLater->fresh()->selected);
+        $this->assertTrue((bool) $renderedProducts->firstWhere('id', $selectedLater->id)?->selected);
+        $this->assertSame(
+            [$alphabeticallyFirst->name, $selectedLater->name],
+            $renderedProducts->pluck('name')->all(),
+        );
+    }
+
+    public function test_product_filters_survive_remount_and_clear_filters_resets_the_session_state(): void
+    {
+        $admin = $this->makeAdmin();
+        $category = $this->createMsanCategory('MSAN-FILTERS', 'Filtrirana kategorija');
+        $this->createMsanProduct('FILTER-100', 'Klima Filter', 'Filter Brand');
+
+        Livewire::actingAs($admin)
+            ->test(ProductSelectionManager::class)
+            ->set('searchInput', 'Klima')
+            ->call('applySearch')
+            ->set('categoryId', (string) $category->id)
+            ->set('brand', 'Filter Brand')
+            ->set('availability', 'available')
+            ->set('selection', 'selected')
+            ->set('importStatus', MsanProduct::IMPORT_FAILED);
+
+        $remounted = Livewire::actingAs($admin)
+            ->test(ProductSelectionManager::class)
+            ->assertSet('search', 'Klima')
+            ->assertSet('searchInput', 'Klima')
+            ->assertSet('categoryId', (string) $category->id)
+            ->assertSet('brand', 'Filter Brand')
+            ->assertSet('availability', 'available')
+            ->assertSet('selection', 'selected')
+            ->assertSet('importStatus', MsanProduct::IMPORT_FAILED)
+            ->call('clearFilters')
+            ->assertSet('search', '')
+            ->assertSet('searchInput', '')
+            ->assertSet('categoryId', '')
+            ->assertSet('brand', '')
+            ->assertSet('availability', 'all')
+            ->assertSet('selection', 'all')
+            ->assertSet('importStatus', 'all');
+
+        Livewire::actingAs($admin)
+            ->test(ProductSelectionManager::class)
+            ->assertSet('search', '')
+            ->assertSet('searchInput', '')
+            ->assertSet('categoryId', '')
+            ->assertSet('brand', '')
+            ->assertSet('availability', 'all')
+            ->assertSet('selection', 'all')
+            ->assertSet('importStatus', 'all');
     }
 
     public function test_product_search_waits_for_submit_and_uses_index_friendly_prefix_matching(): void
@@ -330,6 +491,56 @@ class MsanLivewireFeatureTest extends TestCase
         );
     }
 
+    public function test_specification_filters_but_not_editor_drafts_survive_component_remounts(): void
+    {
+        $admin = $this->makeAdmin();
+        $definition = MsanSpecificationDefinition::query()->create([
+            'source_key' => str_repeat('c', 64),
+            'group_name' => 'Energetski podaci',
+            'item_name' => 'Energetski razred',
+            'source_for_filter' => true,
+            'import_enabled' => true,
+            'use_as_filter' => false,
+            'data_role' => MsanSpecificationDefinition::ROLE_SPECIFICATION,
+            'sample_values' => ['A'],
+            'product_count' => 3,
+            'last_seen_at' => now(),
+            'is_stale' => false,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(SpecificationMappingManager::class)
+            ->set('searchInput', 'Energetski')
+            ->call('applySearch')
+            ->set('importState', 'disabled')
+            ->set('staleState', 'all')
+            ->set('role', MsanSpecificationDefinition::ROLE_ENERGY_CLASS)
+            ->call('openEditor', $definition->id)
+            ->set('importEnabled', false)
+            ->set('useAsFilter', true)
+            ->set('dataRole', MsanSpecificationDefinition::ROLE_ENERGY_CLASS)
+            ->set('displayGroupName', 'Nacrt grupe')
+            ->set('displayItemName', 'Nacrt stavke')
+            ->set('displayMeasure', 'nacrt')
+            ->set('searchInput', 'Neprimijenjeni nacrt pretrage');
+
+        Livewire::actingAs($admin)
+            ->test(SpecificationMappingManager::class)
+            ->assertSet('search', 'Energetski')
+            ->assertSet('searchInput', 'Energetski')
+            ->assertSet('importState', 'disabled')
+            ->assertSet('staleState', 'all')
+            ->assertSet('role', MsanSpecificationDefinition::ROLE_ENERGY_CLASS)
+            ->assertSet('editingDefinitionId', null)
+            ->assertSet('editingDefinitionLabel', '')
+            ->assertSet('importEnabled', true)
+            ->assertSet('useAsFilter', false)
+            ->assertSet('dataRole', MsanSpecificationDefinition::ROLE_SPECIFICATION)
+            ->assertSet('displayGroupName', '')
+            ->assertSet('displayItemName', '')
+            ->assertSet('displayMeasure', '');
+    }
+
     public function test_run_history_translates_specification_kind_and_summary(): void
     {
         $admin = $this->makeAdmin();
@@ -373,6 +584,41 @@ class MsanLivewireFeatureTest extends TestCase
             ->assertDispatched('notify', type: 'success')
             ->call('syncEprel')
             ->assertDispatched('notify', type: 'success');
+    }
+
+    public function test_product_selection_and_category_mapping_invalidate_dashboard_counts_cache(): void
+    {
+        $admin = $this->makeAdmin();
+        $localCategory = $this->createLocalCategory('cache', 'Cache kategorija');
+        $selectableCategory = $this->createMsanCategory('MSAN-CACHE-SELECT', 'Odabir za cache');
+        $categoryToMap = $this->createMsanCategory('MSAN-CACHE-MAP', 'Mapiranje za cache');
+        MsanCategoryMapping::query()->create([
+            'msan_category_id' => $selectableCategory->id,
+            'local_category_id' => $localCategory->id,
+            'status' => MsanCategoryMapping::STATUS_MAPPED,
+            'updated_by' => $admin->id,
+        ]);
+        $product = $this->createMsanProduct('CACHE-100', 'Cache artikl', 'Test');
+        $product->categories()->attach($selectableCategory->id);
+
+        Cache::put(Dashboard::COUNTS_CACHE_KEY, ['stale' => true], now()->addMinute());
+
+        Livewire::actingAs($admin)
+            ->test(ProductSelectionManager::class)
+            ->call('toggleSelection', $product->id);
+
+        $this->assertFalse(Cache::has(Dashboard::COUNTS_CACHE_KEY));
+
+        Cache::put(Dashboard::COUNTS_CACHE_KEY, ['stale' => true], now()->addMinute());
+
+        Livewire::actingAs($admin)
+            ->test(CategoryMappingManager::class)
+            ->call('openEditor', $categoryToMap->id)
+            ->set('localCategoryId', (string) $localCategory->id)
+            ->call('saveMapping')
+            ->assertHasNoErrors();
+
+        $this->assertFalse(Cache::has(Dashboard::COUNTS_CACHE_KEY));
     }
 
     public function test_settings_explain_default_local_sellable_limits_for_each_availability_level(): void
@@ -441,6 +687,31 @@ class MsanLivewireFeatureTest extends TestCase
             ->assertSee('Lokalni prodajni limit: 3 kom.')
             ->assertSee('Nije stvarna M SAN zaliha')
             ->assertDontSee('Razina 2');
+    }
+
+    public function test_product_list_lazy_loads_internal_image_previews_without_exposing_the_supplier_url(): void
+    {
+        $admin = $this->makeAdmin();
+        $sourceUrl = 'https://b2b.msan.hr/private/catalog/product.jpg?token=sensitive';
+        $product = $this->createMsanProduct('IMAGE-100', 'Artikl sa slikom', 'Test Brand');
+        $product->update(['image_url' => $sourceUrl]);
+        $previewUrl = route('admin.integrations.msan.products.image', $product);
+
+        $component = Livewire::actingAs($admin)->test(ProductSelectionManager::class);
+        preg_match_all('/<img\b[^>]*>/i', $component->html(), $matches);
+        $previewTags = array_values(array_filter(
+            $matches[0],
+            static fn (string $tag): bool => str_contains($tag, e($previewUrl)),
+        ));
+
+        $this->assertNotEmpty($previewTags, 'The product list does not render an internal M SAN image preview.');
+        foreach ($previewTags as $previewTag) {
+            $this->assertStringContainsString('loading="lazy"', $previewTag);
+            $this->assertStringContainsString('decoding="async"', $previewTag);
+            $this->assertStringContainsString('fetchpriority="low"', $previewTag);
+        }
+        $this->assertStringNotContainsString($sourceUrl, $component->html());
+        $this->assertStringNotContainsString('b2b.msan.hr', $component->html());
     }
 
     public function test_invalid_ftp_form_does_not_replace_certificate_before_full_validation(): void

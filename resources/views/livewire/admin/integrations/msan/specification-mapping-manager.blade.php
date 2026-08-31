@@ -3,7 +3,7 @@
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{{ __('M SAN katalog') }}</p>
-                <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-900">{{ __('Pravila specifikacija') }}</h2>
+                <h1 class="mt-2 text-xl font-semibold tracking-tight text-slate-900">{{ __('Pravila specifikacija') }}</h1>
                 <p class="mt-2 max-w-3xl text-sm text-slate-600">
                     {{ __('Odredite koje se M SAN specifikacije uvoze, koje se koriste kao filtri te kako se njihove oznake prikazuju u webshopu.') }}
                 </p>

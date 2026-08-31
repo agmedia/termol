@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Session;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -22,11 +23,13 @@ class CategoryMappingManager extends Component
 
     private const PAGE_NAME = 'msanCategoryMappingsPage';
 
+    #[Session(key: 'admin.msan.categories.search')]
     public string $search = '';
 
     public string $searchInput = '';
 
-    public string $status = 'all';
+    #[Session(key: 'admin.msan.categories.status')]
+    public string $status = 'unmapped';
 
     public ?int $editingCategoryId = null;
 
@@ -39,6 +42,13 @@ class CategoryMappingManager extends Component
     public function mount(): void
     {
         $this->authorizeView();
+
+        $requestedStatus = (string) request()->query('status', '');
+        if (in_array($requestedStatus, ['all', 'unmapped', 'mapped', 'ignored'], true)) {
+            $this->status = $requestedStatus;
+        }
+
+        $this->searchInput = $this->search;
     }
 
     public function updatedSearch(): void
@@ -75,6 +85,14 @@ class CategoryMappingManager extends Component
         $this->resetPage(pageName: self::PAGE_NAME);
     }
 
+    public function clearSearch(): void
+    {
+        $this->search = '';
+        $this->searchInput = '';
+        $this->resetErrorBag('searchInput');
+        $this->resetPage(pageName: self::PAGE_NAME);
+    }
+
     public function openEditor(int $categoryId): void
     {
         $this->authorizeManage();
@@ -99,6 +117,16 @@ class CategoryMappingManager extends Component
     }
 
     public function saveMapping(): void
+    {
+        $this->persistMapping(false);
+    }
+
+    public function saveMappingAndContinue(): void
+    {
+        $this->persistMapping(true);
+    }
+
+    private function persistMapping(bool $continue): void
     {
         $this->authorizeManage();
 
@@ -147,9 +175,26 @@ class CategoryMappingManager extends Component
                 $this->resetEprelStateForCategory($categoryId);
             }
         });
+        $this->forgetDashboardCounts();
+
+        if ($continue) {
+            $nextCategoryId = $this->nextUnmappedCategoryId($categoryId);
+            if ($nextCategoryId !== null) {
+                $this->openEditor($nextCategoryId);
+                $this->dispatch('notify', type: 'success', message: __('Mapiranje je spremljeno. Otvorena je sljedeća nemapirana kategorija.'));
+
+                return;
+            }
+        }
 
         $this->resetEditor();
-        $this->dispatch('notify', type: 'success', message: __('M SAN kategorija je mapirana.'));
+        $this->dispatch(
+            'notify',
+            type: 'success',
+            message: $continue
+                ? __('Mapiranje je spremljeno. Nema više nemapiranih kategorija.')
+                : __('M SAN kategorija je mapirana.'),
+        );
     }
 
     public function ignoreCategory(int $categoryId): void
@@ -168,6 +213,7 @@ class CategoryMappingManager extends Component
             ],
         );
         $this->resetEprelStateForCategory($categoryId);
+        $this->forgetDashboardCounts();
 
         if ($this->editingCategoryId === $categoryId) {
             $this->resetEditor();
@@ -185,6 +231,7 @@ class CategoryMappingManager extends Component
             ->where('msan_category_id', $categoryId)
             ->delete();
         $this->resetEprelStateForCategory($categoryId);
+        $this->forgetDashboardCounts();
 
         if ($this->editingCategoryId === $categoryId) {
             $this->resetEditor();
@@ -248,6 +295,7 @@ class CategoryMappingManager extends Component
                     }
                 });
         });
+        $this->forgetDashboardCounts();
 
         $this->dispatch(
             'notify',
@@ -277,6 +325,7 @@ class CategoryMappingManager extends Component
                 'mapping.localCategory.translations' => fn ($query) => $query
                     ->whereIn('locale', $this->preferredLocales()),
             ])
+            ->when($this->status === 'unmapped', fn (Builder $query) => $query->orderByDesc('product_count'))
             ->orderByRaw('CASE WHEN path IS NULL OR path = ? THEN 1 ELSE 0 END', [''])
             ->orderBy('path')
             ->orderBy('name')
@@ -290,6 +339,9 @@ class CategoryMappingManager extends Component
             'eprelProductGroupOptions' => EprelClient::productGroupOptions(),
             'canManageMapping' => $this->canManage(),
             'perPage' => $perPage,
+            'statusCounts' => $this->statusCounts(),
+            'activeFilterCount' => ($this->search !== '' ? 1 : 0) + ($this->status !== 'all' ? 1 : 0),
+            'editingCategory' => $this->editingCategory(),
         ]);
     }
 
@@ -307,12 +359,14 @@ class CategoryMappingManager extends Component
                 'last_seen_at',
                 'is_stale',
             ])
+            ->where('is_stale', false)
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $prefix = $search.'%';
                 $query->where(function (Builder $nested) use ($prefix): void {
                     $nested
                         ->where('external_id', 'like', $prefix)
-                        ->orWhere('name', 'like', $prefix);
+                        ->orWhere('name', 'like', $prefix)
+                        ->orWhere('path', 'like', $prefix);
                 });
             })
             ->when($this->status === 'mapped', function (Builder $query): void {
@@ -326,20 +380,75 @@ class CategoryMappingManager extends Component
                 $query->whereHas('mapping', static fn (Builder $mappingQuery) => $mappingQuery->where('status', 'ignored'));
             })
             ->when($this->status === 'unmapped', function (Builder $query): void {
-                $query->where(function (Builder $nested): void {
-                    $nested
-                        ->whereDoesntHave('mapping')
-                        ->orWhereHas('mapping', static function (Builder $mappingQuery): void {
-                            $mappingQuery
-                                ->where('status', 'unmapped')
-                                ->orWhere(function (Builder $invalidMappedQuery): void {
-                                    $invalidMappedQuery
-                                        ->where('status', 'mapped')
-                                        ->whereNull('local_category_id');
-                                });
+                $this->applyUnmappedConstraint($query);
+            });
+    }
+
+    /** @return array{all:int,unmapped:int,mapped:int,ignored:int} */
+    private function statusCounts(): array
+    {
+        $base = MsanCategory::query()->where('is_stale', false);
+        $mapped = (clone $base)
+            ->whereHas('mapping', static fn (Builder $query) => $query
+                ->where('status', MsanCategoryMapping::STATUS_MAPPED)
+                ->whereNotNull('local_category_id'))
+            ->count();
+        $ignored = (clone $base)
+            ->whereHas('mapping', static fn (Builder $query) => $query
+                ->where('status', MsanCategoryMapping::STATUS_IGNORED))
+            ->count();
+
+        return [
+            'all' => (clone $base)->count(),
+            'mapped' => $mapped,
+            'ignored' => $ignored,
+            'unmapped' => (clone $base)->where(fn (Builder $query) => $this->applyUnmappedConstraint($query))->count(),
+        ];
+    }
+
+    private function applyUnmappedConstraint(Builder $query): void
+    {
+        $query->where(function (Builder $nested): void {
+            $nested
+                ->whereDoesntHave('mapping')
+                ->orWhereHas('mapping', static function (Builder $mappingQuery): void {
+                    $mappingQuery
+                        ->where('status', MsanCategoryMapping::STATUS_UNMAPPED)
+                        ->orWhere(function (Builder $invalidMappedQuery): void {
+                            $invalidMappedQuery
+                                ->where('status', MsanCategoryMapping::STATUS_MAPPED)
+                                ->whereNull('local_category_id');
                         });
                 });
-            });
+        });
+    }
+
+    private function nextUnmappedCategoryId(int $exceptCategoryId): ?int
+    {
+        $query = MsanCategory::query()
+            ->where('is_stale', false)
+            ->whereKeyNot($exceptCategoryId);
+        $this->applyUnmappedConstraint($query);
+
+        $id = $query
+            ->orderByDesc('product_count')
+            ->orderByRaw('CASE WHEN path IS NULL OR path = ? THEN 1 ELSE 0 END', [''])
+            ->orderBy('path')
+            ->orderBy('name')
+            ->value('id');
+
+        return $id === null ? null : (int) $id;
+    }
+
+    private function editingCategory(): ?MsanCategory
+    {
+        if ($this->editingCategoryId === null) {
+            return null;
+        }
+
+        return MsanCategory::query()
+            ->select(['id', 'external_id', 'name', 'path', 'product_count', 'is_stale'])
+            ->find($this->editingCategoryId);
     }
 
     /** @return array<int, array{id:int,label:string}> */
@@ -467,6 +576,11 @@ class CategoryMappingManager extends Component
                 'eprel_identifier_checksum' => null,
                 'eprel_checked_at' => null,
             ]);
+    }
+
+    private function forgetDashboardCounts(): void
+    {
+        \Illuminate\Support\Facades\Cache::forget(Dashboard::COUNTS_CACHE_KEY);
     }
 
     private function authorizeView(): void

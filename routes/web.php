@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminAiController;
 use App\Http\Controllers\Admin\ContractWithdrawalController;
+use App\Http\Controllers\Admin\MsanProductImageController;
 use App\Http\Controllers\Admin\OrderGlsController;
 use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Feed\NabavaNetFeedController;
@@ -425,6 +426,10 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
                         Route::view('settings', 'admin.integrations.msan.settings')->name('settings');
                         Route::view('categories', 'admin.integrations.msan.categories')->name('categories');
                         Route::view('specifications', 'admin.integrations.msan.specifications')->name('specifications');
+                        Route::get('products/{product}/image', MsanProductImageController::class)
+                            ->whereNumber('product')
+                            ->middleware('throttle:120,1')
+                            ->name('products.image');
                         Route::view('products', 'admin.integrations.msan.products')->name('products');
                         Route::view('runs', 'admin.integrations.msan.runs')->name('runs');
                     });

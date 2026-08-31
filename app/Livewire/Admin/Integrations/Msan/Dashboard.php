@@ -18,7 +18,7 @@ use Throwable;
 
 class Dashboard extends Component
 {
-    private const COUNTS_CACHE_KEY = 'integrations:msan:admin-dashboard-counts';
+    public const COUNTS_CACHE_KEY = 'integrations:msan:admin-dashboard-counts';
 
     public function mount(): void
     {

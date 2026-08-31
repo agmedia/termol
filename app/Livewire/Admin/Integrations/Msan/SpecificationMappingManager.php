@@ -8,6 +8,7 @@ use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Session;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -19,14 +20,18 @@ class SpecificationMappingManager extends Component
 
     private const PAGE_NAME = 'msanSpecificationMappingsPage';
 
+    #[Session(key: 'admin.msan.specifications.search')]
     public string $search = '';
 
     public string $searchInput = '';
 
+    #[Session(key: 'admin.msan.specifications.import-state')]
     public string $importState = 'all';
 
+    #[Session(key: 'admin.msan.specifications.stale-state')]
     public string $staleState = 'current';
 
+    #[Session(key: 'admin.msan.specifications.role')]
     public string $role = 'all';
 
     public ?int $editingDefinitionId = null;
@@ -48,6 +53,8 @@ class SpecificationMappingManager extends Component
     public function mount(): void
     {
         $this->authorizeView();
+
+        $this->searchInput = $this->search;
     }
 
     public function applySearch(): void
