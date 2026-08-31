@@ -288,7 +288,7 @@ class MsanCatalogSyncService
 
         $existing = DB::table('msan_products')
             ->whereIn('external_code', array_column($rows, 'external_code'))
-            ->get(['id', 'external_code', 'model', 'part_number'])
+            ->get(['id', 'external_code', 'brand', 'model', 'part_number'])
             ->keyBy('external_code');
         $changedEprelIdentifierIds = [];
         foreach ($rows as $row) {
@@ -296,7 +296,8 @@ class MsanCatalogSyncService
             if (! $current) {
                 continue;
             }
-            if (trim((string) $current->model) !== trim((string) ($row['model'] ?? ''))
+            if (trim((string) $current->brand) !== trim((string) ($row['brand'] ?? ''))
+                || trim((string) $current->model) !== trim((string) ($row['model'] ?? ''))
                 || trim((string) $current->part_number) !== trim((string) ($row['part_number'] ?? ''))) {
                 $changedEprelIdentifierIds[] = (int) $current->id;
             }

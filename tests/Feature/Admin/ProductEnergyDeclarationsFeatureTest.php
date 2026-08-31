@@ -6,16 +6,42 @@ use App\Livewire\Admin\Catalog\Product\Form as ProductForm;
 use App\Livewire\Admin\Media\Manager as MediaManager;
 use App\Models\Catalog\Product\Product;
 use App\Models\Catalog\Product\ProductEnergyDeclaration;
+use App\Models\Integrations\Msan\MsanCategory;
+use App\Models\Integrations\Msan\MsanCategoryMapping;
 use App\Models\Integrations\Msan\MsanProduct;
 use App\Models\User;
+use App\Services\Integrations\Msan\EprelClient;
+use App\Services\Integrations\Msan\MsanSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Tests\TestCase;
 
 class ProductEnergyDeclarationsFeatureTest extends TestCase
 {
     use RefreshDatabase;
+
+    private const GTIN = '9120072372216';
+
+    private const EPREL_GROUP = 'electronicdisplays';
+
+    private const EPREL_GROUP_CODE = 'ELECTRONIC_DISPLAY';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        app(MsanSettingsService::class)->saveAdminValues([
+            'msan_enabled' => true,
+            'msan_eprel_enabled' => true,
+            'msan_eprel_api_key' => 'synthetic-product-form-eprel-key',
+            'msan_eprel_connect_timeout' => 5,
+            'msan_eprel_timeout' => 15,
+        ]);
+        Http::preventStrayRequests();
+    }
 
     public function test_admin_saves_manual_primary_declaration_without_overwriting_imported_rows(): void
     {
@@ -140,6 +166,16 @@ class ProductEnergyDeclarationsFeatureTest extends TestCase
         $product->energyDeclarations()->update([
             'eprel_registration_number' => '1713217',
             'eprel_product_group' => 'electronicdisplays',
+            'source' => ProductEnergyDeclaration::SOURCE_MANUAL,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->assertSee('data-energy-compliance-warning', false);
+
+        $product->energyDeclarations()->update([
+            'source' => ProductEnergyDeclaration::SOURCE_MSAN,
         ]);
 
         Livewire::actingAs($user)
@@ -205,6 +241,424 @@ class ProductEnergyDeclarationsFeatureTest extends TestCase
         $this->assertSame(MsanProduct::EPREL_PENDING, $source->eprel_match_status);
         $this->assertNull($source->eprel_identifier_checksum);
         $this->assertNull($source->eprel_checked_at);
+    }
+
+    public function test_local_product_without_msan_link_can_lookup_and_store_an_exact_gtin_declaration(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->product();
+        $product->forceFill(['barcode' => self::GTIN])->save();
+        Http::fake([
+            EprelClient::BASE_URL.'/api/product/gtin/'.self::GTIN => Http::response([
+                'hits' => [[
+                    'eprelRegistrationNumber' => '646868',
+                    'productGroup' => self::EPREL_GROUP_CODE,
+                    'modelIdentifier' => 'M27FC12401',
+                    'supplierOrTrademark' => 'THOMSON',
+                    'gtinIdentifier' => self::GTIN,
+                    'energyClass' => 'F',
+                    'scaleMin' => 'A',
+                    'scaleMax' => 'G',
+                    'energyClassImageWithScale' => 'F-Left-Orange-WithAGScale.svg',
+                    'productInformationSheetUrl' => '/api/products/'.self::EPREL_GROUP.'/646868/product-information-sheet?format=PDF',
+                ]],
+            ]),
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->assertSee('data-eprel-lookup', false)
+            ->assertSee('data-eprel-lookup-criteria', false)
+            ->assertSee('Automatski dohvati iz EPREL-a')
+            ->assertSee('Pretražujem EPREL…')
+            ->assertSee('Barkod')
+            ->assertSee(self::GTIN)
+            ->call('lookupEprel')
+            ->assertHasNoErrors('eprelLookup')
+            ->assertDispatched('notify', type: 'success')
+            ->assertDontSee('data-eprel-lookup-error', false)
+            ->assertSet('energyDeclarations.0.source', ProductEnergyDeclaration::SOURCE_EPREL)
+            ->assertSet('energyDeclarations.0.energy_class', 'F')
+            ->assertSee('Službena EPREL energetska oznaka')
+            ->assertSee('EPREL broj');
+
+        $labelUrl = EprelClient::BASE_URL.'/api/products/'.self::EPREL_GROUP.'/646868/labels?format=PDF';
+        $sheetUrl = EprelClient::BASE_URL.'/fiches/'.self::EPREL_GROUP.'/Fiche_646868_HR.pdf';
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'product_id' => $product->id,
+            'eprel_registration_number' => '646868',
+            'eprel_product_group' => self::EPREL_GROUP,
+            'energy_class' => 'F',
+            'scale_min' => 'A',
+            'scale_max' => 'G',
+            'energy_label_url' => $labelUrl,
+            'product_information_sheet_url' => $sheetUrl,
+            'is_primary' => true,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+        ]);
+        $product->refresh();
+        $this->assertTrue($product->energy_label_required);
+        $this->assertSame('F', $product->energy_efficiency_class);
+        $this->assertSame($labelUrl, $product->energy_label_url);
+        $this->assertSame($sheetUrl, $product->product_information_sheet_url);
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $request): bool => $request->url()
+            === EprelClient::BASE_URL.'/api/product/gtin/'.self::GTIN
+            && $request->header('x-api-key') === ['synthetic-product-form-eprel-key']);
+    }
+
+    public function test_linked_msan_product_falls_back_to_exact_brand_and_model_lookup_in_the_mapped_group(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->product();
+        $category = MsanCategory::query()->create([
+            'external_id' => 'EPREL-DISPLAYS',
+            'name' => 'Zasloni',
+            'is_stale' => false,
+        ]);
+        MsanCategoryMapping::query()->create([
+            'msan_category_id' => $category->id,
+            'status' => MsanCategoryMapping::STATUS_MAPPED,
+            'eprel_product_group' => self::EPREL_GROUP,
+            'energy_requirement' => MsanCategoryMapping::ENERGY_REQUIREMENT_REQUIRED,
+        ]);
+        $source = MsanProduct::query()->create([
+            'external_code' => 'MSAN-MODEL-LOOKUP',
+            'name' => 'THOMSON monitor',
+            'brand' => 'THOMSON',
+            'model' => 'M27FC12401',
+            'selected' => true,
+            'is_stale' => false,
+            'local_product_id' => $product->id,
+            'import_status' => MsanProduct::IMPORT_IMPORTED,
+            'last_seen_at' => now(),
+        ]);
+        $source->categories()->attach($category->id, ['last_seen_at' => now()]);
+
+        Http::fake(function (Request $request) {
+            if ($request->url() === EprelClient::BASE_URL.'/api/products/'.self::EPREL_GROUP.'/646868') {
+                return Http::response([
+                    'eprelRegistrationNumber' => '646868',
+                    'productGroup' => self::EPREL_GROUP_CODE,
+                    'modelIdentifier' => 'M27FC12401',
+                    'supplierOrTrademark' => 'THOMSON',
+                    'energyClass' => 'E',
+                    'energyClassRange' => 'A-G',
+                ]);
+            }
+
+            if (str_starts_with(
+                $request->url(),
+                EprelClient::BASE_URL.'/api/products/'.self::EPREL_GROUP.'?',
+            )) {
+                return Http::response([
+                    'hits' => [[
+                        'eprelRegistrationNumber' => '646868',
+                        'productGroup' => self::EPREL_GROUP_CODE,
+                        'modelIdentifier' => 'M27FC12401',
+                        'supplierOrTrademark' => 'THOMSON',
+                    ]],
+                ]);
+            }
+
+            return Http::response([], 404);
+        });
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->assertSee('M27FC12401')
+            ->assertSee('THOMSON')
+            ->assertSee('Automatski prepoznato: '.self::EPREL_GROUP)
+            ->call('lookupEprel')
+            ->assertHasNoErrors('eprelLookup')
+            ->assertDispatched('notify', type: 'success')
+            ->assertSet('energyDeclarations.0.source', ProductEnergyDeclaration::SOURCE_EPREL)
+            ->assertSet('energyDeclarations.0.energy_class', 'E');
+
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'product_id' => $product->id,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+            'eprel_registration_number' => '646868',
+            'eprel_product_group' => self::EPREL_GROUP,
+            'energy_class' => 'E',
+            'is_primary' => true,
+        ]);
+        Http::assertSentCount(4);
+        Http::assertSent(static fn (Request $request): bool => str_starts_with(
+            $request->url(),
+            EprelClient::BASE_URL.'/api/products/'.self::EPREL_GROUP.'?',
+        )
+            && str_contains($request->url(), 'modelIdentifier=M27FC12401')
+            && str_contains($request->url(), 'supplierOrTrademark=THOMSON'));
+    }
+
+    public function test_gtin_not_found_without_a_group_shows_a_concrete_lookup_error_and_stores_nothing(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->product();
+        $product->forceFill(['barcode' => self::GTIN])->save();
+        Http::fake([
+            EprelClient::BASE_URL.'/api/product/gtin/'.self::GTIN => Http::response([], 404),
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->call('lookupEprel')
+            ->assertHasErrors('eprelLookup')
+            ->assertDispatched('notify', type: 'warning')
+            ->assertSee('data-eprel-lookup-error', false)
+            ->assertSee('Automatska detekcija grupe nije uspjela. Za nastavak pretrage po modelu odaberite EPREL grupu proizvoda.');
+
+        $this->assertDatabaseMissing('product_energy_declarations', [
+            'product_id' => $product->id,
+        ]);
+        Http::assertSentCount(1);
+    }
+
+    public function test_model_lookup_requires_a_brand_when_none_can_be_detected(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->product();
+        Http::fake();
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->set('eprelLookupModel', 'MODEL-WITHOUT-BRAND')
+            ->set('eprelLookupGroup', self::EPREL_GROUP)
+            ->call('lookupEprel')
+            ->assertHasErrors('eprelLookup')
+            ->assertSee('Za sigurnu pretragu po modelu potrebna je marka.');
+
+        Http::assertNothingSent();
+    }
+
+    public function test_model_lookup_rejects_conflicting_exact_source_identifiers_without_storing_either(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->product();
+        $category = MsanCategory::query()->create([
+            'external_id' => 'EPREL-CONFLICT-DISPLAYS',
+            'name' => 'Zasloni s konfliktom',
+            'is_stale' => false,
+        ]);
+        MsanCategoryMapping::query()->create([
+            'msan_category_id' => $category->id,
+            'status' => MsanCategoryMapping::STATUS_MAPPED,
+            'eprel_product_group' => self::EPREL_GROUP,
+            'energy_requirement' => MsanCategoryMapping::ENERGY_REQUIREMENT_REQUIRED,
+        ]);
+        $source = MsanProduct::query()->create([
+            'external_code' => 'MSAN-CONFLICTING-MODELS',
+            'name' => 'THOMSON konflikt',
+            'brand' => 'THOMSON',
+            'model' => 'MODEL-A',
+            'part_number' => 'MODEL-B',
+            'selected' => true,
+            'is_stale' => false,
+            'local_product_id' => $product->id,
+            'import_status' => MsanProduct::IMPORT_IMPORTED,
+            'last_seen_at' => now(),
+        ]);
+        $source->categories()->attach($category->id, ['last_seen_at' => now()]);
+
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), '/1111111')) {
+                return Http::response([
+                    'eprelRegistrationNumber' => '1111111',
+                    'productGroup' => self::EPREL_GROUP_CODE,
+                    'modelIdentifier' => 'MODEL-A',
+                    'supplierOrTrademark' => 'THOMSON',
+                ]);
+            }
+            if (str_contains($request->url(), '/2222222')) {
+                return Http::response([
+                    'eprelRegistrationNumber' => '2222222',
+                    'productGroup' => self::EPREL_GROUP_CODE,
+                    'modelIdentifier' => 'MODEL-B',
+                    'supplierOrTrademark' => 'THOMSON',
+                ]);
+            }
+            if (str_contains($request->url(), 'modelIdentifier=MODEL-A')) {
+                return Http::response(['size' => 1, 'hits' => [[
+                    'eprelRegistrationNumber' => '1111111',
+                    'productGroup' => self::EPREL_GROUP_CODE,
+                    'modelIdentifier' => 'MODEL-A',
+                    'supplierOrTrademark' => 'THOMSON',
+                ]]]);
+            }
+            if (str_contains($request->url(), 'modelIdentifier=MODEL-B')) {
+                return Http::response(['size' => 1, 'hits' => [[
+                    'eprelRegistrationNumber' => '2222222',
+                    'productGroup' => self::EPREL_GROUP_CODE,
+                    'modelIdentifier' => 'MODEL-B',
+                    'supplierOrTrademark' => 'THOMSON',
+                ]]]);
+            }
+
+            return Http::response([], 404);
+        });
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->call('lookupEprel')
+            ->assertHasErrors('eprelLookup')
+            ->assertSee('Različiti modeli ili marke upućuju na više službenih EPREL zapisa.');
+
+        $this->assertDatabaseMissing('product_energy_declarations', [
+            'product_id' => $product->id,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+        ]);
+    }
+
+    public function test_exact_gtin_lookup_never_replaces_an_existing_manual_primary_declaration(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->product();
+        $product->forceFill([
+            'barcode' => self::GTIN,
+            'energy_label_required' => true,
+            'energy_efficiency_class' => 'D',
+            'energy_efficiency_scale' => 'A-G',
+            'energy_label_url' => 'https://manual.example.test/label.pdf',
+            'product_information_sheet_url' => 'https://manual.example.test/sheet.pdf',
+        ])->save();
+        $manual = ProductEnergyDeclaration::query()->create([
+            'product_id' => $product->id,
+            'context_code' => 'manual-primary',
+            'label' => 'Ručna primarna deklaracija',
+            'energy_class' => 'D',
+            'scale_min' => 'A',
+            'scale_max' => 'G',
+            'energy_label_url' => 'https://manual.example.test/label.pdf',
+            'product_information_sheet_url' => 'https://manual.example.test/sheet.pdf',
+            'is_primary' => true,
+            'source' => ProductEnergyDeclaration::SOURCE_MANUAL,
+        ]);
+        Http::fake([
+            EprelClient::BASE_URL.'/api/product/gtin/'.self::GTIN => Http::response([
+                'hits' => [[
+                    'eprelRegistrationNumber' => '646868',
+                    'productGroup' => self::EPREL_GROUP_CODE,
+                    'modelIdentifier' => 'M27FC12401',
+                    'gtinIdentifier' => self::GTIN,
+                    'energyClass' => 'F',
+                    'energyClassRange' => 'A-G',
+                ]],
+            ]),
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->call('lookupEprel')
+            ->assertHasNoErrors('eprelLookup')
+            ->assertDispatched('notify', type: 'success')
+            ->assertSet('energyDeclarations.0.id', $manual->id)
+            ->assertSet('energyDeclarations.0.source', ProductEnergyDeclaration::SOURCE_MANUAL)
+            ->assertSet('energyDeclarations.0.is_primary', true)
+            ->assertSet('energyDeclarations.1.source', ProductEnergyDeclaration::SOURCE_EPREL)
+            ->assertSet('energyDeclarations.1.is_primary', false);
+
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'id' => $manual->id,
+            'is_primary' => true,
+            'source' => ProductEnergyDeclaration::SOURCE_MANUAL,
+        ]);
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'product_id' => $product->id,
+            'eprel_registration_number' => '646868',
+            'is_primary' => false,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+        ]);
+        $product->refresh();
+        $this->assertSame('D', $product->energy_efficiency_class);
+        $this->assertSame('https://manual.example.test/label.pdf', $product->energy_label_url);
+        $this->assertSame('https://manual.example.test/sheet.pdf', $product->product_information_sheet_url);
+    }
+
+    public function test_lookup_requires_manual_declaration_changes_to_be_saved_before_immediate_import(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->product();
+        $product->forceFill(['barcode' => self::GTIN])->save();
+        Http::fake([
+            EprelClient::BASE_URL.'/api/product/gtin/'.self::GTIN => Http::response([
+                'eprelRegistrationNumber' => '646868',
+                'productGroup' => self::EPREL_GROUP_CODE,
+                'modelIdentifier' => 'M27FC12401',
+                'gtinIdentifier' => self::GTIN,
+                'energyClass' => 'F',
+                'energyClassRange' => 'A-G',
+            ]),
+        ]);
+
+        $component = Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->call('addEnergyDeclaration')
+            ->set('energyDeclarations.0.context_code', 'manual-unsaved')
+            ->set('energyDeclarations.0.label', 'Nespremljena ručna deklaracija')
+            ->set('energyDeclarations.0.energy_class', 'D')
+            ->set('energyDeclarations.0.scale_min', 'A')
+            ->set('energyDeclarations.0.scale_max', 'G')
+            ->call('setPrimaryEnergyDeclaration', 0)
+            ->call('lookupEprel')
+            ->assertHasErrors('eprelLookup')
+            ->assertSee('Prije EPREL dohvata spremite ili odbacite promjene u energetskim deklaracijama.');
+
+        Http::assertNothingSent();
+
+        $component->call('save');
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->call('lookupEprel')
+            ->assertHasNoErrors('eprelLookup')
+            ->assertSet('energyDeclarations.0.context_code', 'manual-unsaved')
+            ->assertSet('energyDeclarations.0.label', 'Nespremljena ručna deklaracija')
+            ->assertSet('energyDeclarations.0.is_primary', true)
+            ->assertSet('energyDeclarations.1.source', ProductEnergyDeclaration::SOURCE_EPREL)
+            ->assertSet('energyDeclarations.1.is_primary', false);
+
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'product_id' => $product->id,
+            'context_code' => 'manual-unsaved',
+            'energy_class' => 'D',
+            'source' => ProductEnergyDeclaration::SOURCE_MANUAL,
+            'is_primary' => true,
+        ]);
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'product_id' => $product->id,
+            'eprel_registration_number' => '646868',
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+            'is_primary' => false,
+        ]);
+    }
+
+    public function test_lookup_refuses_to_persist_against_an_unsaved_product_identity(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->product();
+        Http::fake();
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->set('form.barcode', self::GTIN)
+            ->call('lookupEprel')
+            ->assertHasErrors('eprelLookup')
+            ->assertSee('Prije EPREL dohvata spremite promjene ovih podataka: barkod.');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseMissing('product_energy_declarations', [
+            'product_id' => $product->id,
+        ]);
     }
 
     private function product(): Product

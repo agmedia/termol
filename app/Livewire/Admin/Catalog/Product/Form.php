@@ -15,11 +15,16 @@ use App\Models\Integrations\Msan\MsanProduct;
 use App\Models\Settings\Local\TaxRate;
 use App\Models\User\CustomerGroup;
 use App\Services\Catalog\CatalogFeatureService;
+use App\Services\Integrations\Msan\EprelClient;
+use App\Services\Integrations\Msan\EprelException;
+use App\Services\Integrations\Msan\EprelProductLookupService;
+use App\Services\Integrations\Msan\MsanSettingsService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use Throwable;
 
 class Form extends Component
 {
@@ -40,6 +45,12 @@ class Form extends Component
     public array $groupPrices = [];
 
     public array $energyDeclarations = [];
+
+    public string $eprelLookupGroup = '';
+
+    public string $eprelLookupModel = '';
+
+    public string $eprelLookupBrand = '';
 
     public array $form = [
         'code' => '',
@@ -87,6 +98,21 @@ class Form extends Component
     public function updatedFormLocale(): void
     {
         $this->loadTranslationForLocale();
+    }
+
+    public function updatedEprelLookupGroup(): void
+    {
+        $this->resetErrorBag('eprelLookup');
+    }
+
+    public function updatedEprelLookupModel(): void
+    {
+        $this->resetErrorBag('eprelLookup');
+    }
+
+    public function updatedEprelLookupBrand(): void
+    {
+        $this->resetErrorBag('eprelLookup');
     }
 
     public function generateSlug(): void
@@ -278,6 +304,83 @@ class Form extends Component
 
         foreach ($this->energyDeclarations as $rowIndex => $row) {
             $this->energyDeclarations[$rowIndex]['is_primary'] = $rowIndex === $index;
+        }
+    }
+
+    public function lookupEprel(EprelProductLookupService $lookup): void
+    {
+        $this->resetErrorBag('eprelLookup');
+        if (! $this->productId) {
+            $this->addError('eprelLookup', __('Najprije spremite artikl, a zatim pokrenite EPREL dohvat.'));
+
+            return;
+        }
+
+        /** @var Product|null $product */
+        $product = Product::query()->find($this->productId);
+        if (! $product) {
+            $this->addError('eprelLookup', __('Artikl više ne postoji.'));
+
+            return;
+        }
+
+        $dirtyIdentityFields = $this->dirtyEprelIdentityFields($product);
+        if ($dirtyIdentityFields !== []) {
+            $message = __('Prije EPREL dohvata spremite promjene ovih podataka: :fields.', [
+                'fields' => implode(', ', $dirtyIdentityFields),
+            ]);
+            $this->addError('eprelLookup', $message);
+
+            return;
+        }
+        if ($this->energyDeclarationsAreDirty($product)) {
+            $message = __('Prije EPREL dohvata spremite ili odbacite promjene u energetskim deklaracijama.');
+            $this->addError('eprelLookup', $message);
+
+            return;
+        }
+
+        try {
+            $outcome = $lookup->lookup($product, $this->eprelLookupOverrides());
+            if ($outcome['status'] === EprelProductLookupService::STATUS_MATCHED) {
+                $data = $outcome['data'] ?? [];
+                $this->eprelLookupGroup = (string) ($data['eprel_product_group'] ?? $this->eprelLookupGroup);
+                $this->loadEnergyDeclarations($product->fresh());
+                $this->form['energy_label_required'] = true;
+                $registration = (string) ($data['eprel_registration_number'] ?? '—');
+                $eprelIsPrimary = collect($this->energyDeclarations)->contains(
+                    static fn (array $row): bool => (string) ($row['source'] ?? '') === ProductEnergyDeclaration::SOURCE_EPREL
+                        && (string) ($row['eprel_registration_number'] ?? '') === $registration
+                        && (bool) ($row['is_primary'] ?? false),
+                );
+                $this->dispatch(
+                    'notify',
+                    type: 'success',
+                    message: $eprelIsPrimary
+                        ? __('Službena EPREL deklaracija je pronađena i odmah spremljena. EPREL broj: :number', ['number' => $registration])
+                        : __('Službena EPREL deklaracija je odmah spremljena kao sekundarna; ručna primarna deklaracija ostala je aktivna. EPREL broj: :number', ['number' => $registration]),
+                );
+
+                return;
+            }
+
+            $message = match ($outcome['status']) {
+                EprelProductLookupService::STATUS_NEEDS_GROUP => __('Automatska detekcija grupe nije uspjela. Za nastavak pretrage po modelu odaberite EPREL grupu proizvoda.'),
+                EprelProductLookupService::STATUS_NEEDS_BRAND => __('Za sigurnu pretragu po modelu potrebna je marka. Odaberite proizvođača artikla ili unesite marku u polje za EPREL dohvat.'),
+                EprelProductLookupService::STATUS_NO_IDENTIFIERS => __('Nema dostupnog EPREL broja, valjanog barkoda, modela, SKU-a ni šifre za pretragu.'),
+                default => __('EPREL nije pronašao točno podudaranje za dostupni barkod, model i kataloške brojeve.'),
+            };
+            $this->addError('eprelLookup', $message);
+            $this->dispatch('notify', type: 'warning', message: $message);
+        } catch (EprelException|\InvalidArgumentException $exception) {
+            $message = trim($exception->getMessage()) ?: __('EPREL dohvat trenutačno nije uspio.');
+            $this->addError('eprelLookup', $message);
+            $this->dispatch('notify', type: 'error', message: $message);
+        } catch (Throwable $exception) {
+            report($exception);
+            $message = __('EPREL dohvat trenutačno nije uspio. Pokušajte ponovno ili provjerite zapis u sustavu.');
+            $this->addError('eprelLookup', $message);
+            $this->dispatch('notify', type: 'error', message: $message);
         }
     }
 
@@ -523,6 +626,51 @@ class Form extends Component
             ->all();
     }
 
+    /**
+     * @return array{
+     *   registrationNumbers:list<string>,
+     *   gtins:list<string>,
+     *   models:list<string>,
+     *   brands:list<string>,
+     *   groups:list<string>
+     * }
+     */
+    public function getEprelLookupContextProperty(): array
+    {
+        $empty = [
+            'registrationNumbers' => [],
+            'gtins' => [],
+            'models' => [],
+            'brands' => [],
+            'groups' => [],
+        ];
+        if (! $this->productId) {
+            return $empty;
+        }
+
+        $product = Product::query()->find($this->productId);
+        if (! $product) {
+            return $empty;
+        }
+
+        try {
+            return app(EprelProductLookupService::class)->criteria($product, $this->eprelLookupOverrides());
+        } catch (Throwable) {
+            return $empty;
+        }
+    }
+
+    public function getEprelLookupReadyProperty(): bool
+    {
+        if (! $this->productId) {
+            return false;
+        }
+
+        $settings = app(MsanSettingsService::class);
+
+        return $settings->eprelEnabled() && $settings->hasEprelApiKey();
+    }
+
     public function render()
     {
         return view('livewire.admin.catalog.product.form', [
@@ -534,6 +682,7 @@ class Form extends Component
             'shippingLabelOptions' => Product::shippingLabelOptions(),
             'packageTypeOptions' => ProductPackage::typeOptions(),
             'energyClassOptions' => ProductEnergyDeclaration::energyClassOptions(),
+            'eprelProductGroupOptions' => EprelClient::productGroupOptions(),
         ]);
     }
 
@@ -632,8 +781,8 @@ class Form extends Component
             'energyDeclarations.*.energy_class' => ['nullable', Rule::in(ProductEnergyDeclaration::energyClassOptions())],
             'energyDeclarations.*.scale_min' => ['nullable', Rule::in(ProductEnergyDeclaration::energyClassOptions())],
             'energyDeclarations.*.scale_max' => ['nullable', Rule::in(ProductEnergyDeclaration::energyClassOptions())],
-            'energyDeclarations.*.eprel_registration_number' => ['nullable', 'string', 'max:64'],
-            'energyDeclarations.*.eprel_product_group' => ['nullable', 'string', 'max:100'],
+            'energyDeclarations.*.eprel_registration_number' => ['nullable', 'string', 'regex:/^[0-9]{1,20}$/'],
+            'energyDeclarations.*.eprel_product_group' => ['nullable', Rule::in(array_keys(EprelClient::productGroupOptions()))],
             'energyDeclarations.*.energy_label_image' => ['nullable', 'string', 'max:191'],
             'energyDeclarations.*.energy_label_url' => ['nullable', 'url', 'starts_with:https://', 'max:2048'],
             'energyDeclarations.*.product_information_sheet_url' => ['nullable', 'url', 'starts_with:https://', 'max:2048'],
@@ -761,7 +910,26 @@ class Form extends Component
             ->values()
             ->all();
 
-        $this->energyDeclarations = $product->energyDeclarations
+        $this->loadEnergyDeclarations($product);
+    }
+
+    private function loadEnergyDeclarations(?Product $product): void
+    {
+        if (! $product) {
+            $this->energyDeclarations = [];
+
+            return;
+        }
+
+        $this->energyDeclarations = $this->energyDeclarationRows($product);
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function energyDeclarationRows(Product $product): array
+    {
+        $product->load('energyDeclarations');
+
+        return $product->energyDeclarations
             ->map(fn (ProductEnergyDeclaration $declaration): array => [
                 'id' => (int) $declaration->id,
                 'context_code' => (string) $declaration->context_code,
@@ -780,6 +948,68 @@ class Form extends Component
             ])
             ->values()
             ->all();
+    }
+
+    private function energyDeclarationsAreDirty(Product $product): bool
+    {
+        $normalize = static fn (array $rows): array => collect($rows)
+            ->map(static fn (array $row): array => [
+                'id' => (int) ($row['id'] ?? 0),
+                'context_code' => trim((string) ($row['context_code'] ?? '')),
+                'label' => trim((string) ($row['label'] ?? '')),
+                'energy_class' => trim((string) ($row['energy_class'] ?? '')),
+                'scale_min' => trim((string) ($row['scale_min'] ?? '')),
+                'scale_max' => trim((string) ($row['scale_max'] ?? '')),
+                'eprel_registration_number' => trim((string) ($row['eprel_registration_number'] ?? '')),
+                'eprel_product_group' => trim((string) ($row['eprel_product_group'] ?? '')),
+                'energy_label_image' => trim((string) ($row['energy_label_image'] ?? '')),
+                'energy_label_url' => trim((string) ($row['energy_label_url'] ?? '')),
+                'product_information_sheet_url' => trim((string) ($row['product_information_sheet_url'] ?? '')),
+                'is_primary' => (bool) ($row['is_primary'] ?? false),
+                'source' => (string) ($row['source'] ?? ProductEnergyDeclaration::SOURCE_MANUAL),
+            ])
+            ->sortBy(static fn (array $row): string => sprintf(
+                '%020d|%s|%s',
+                $row['id'],
+                $row['source'],
+                $row['context_code'],
+            ))
+            ->values()
+            ->all();
+
+        return $normalize($this->energyDeclarations) !== $normalize($this->energyDeclarationRows($product));
+    }
+
+    /** @return array{model:string,brand:string,eprel_product_group:string} */
+    private function eprelLookupOverrides(): array
+    {
+        return [
+            'model' => $this->eprelLookupModel,
+            'brand' => $this->eprelLookupBrand,
+            'eprel_product_group' => $this->eprelLookupGroup,
+        ];
+    }
+
+    /** @return list<string> */
+    private function dirtyEprelIdentityFields(Product $product): array
+    {
+        $fields = [];
+        foreach ([
+            'code' => __('šifra artikla'),
+            'sku' => __('SKU'),
+            'barcode' => __('barkod'),
+        ] as $key => $label) {
+            if (trim((string) ($this->form[$key] ?? '')) !== trim((string) $product->{$key})) {
+                $fields[] = $label;
+            }
+        }
+
+        if ($this->useManufacturers()
+            && (int) ($this->form['manufacturer_id'] ?? 0) !== (int) ($product->manufacturer_id ?? 0)) {
+            $fields[] = __('proizvođač');
+        }
+
+        return $fields;
     }
 
     public function getManufacturerOptionsProperty(): Collection

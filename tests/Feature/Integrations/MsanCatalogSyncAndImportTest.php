@@ -113,6 +113,52 @@ class MsanCatalogSyncAndImportTest extends TestCase
         $this->assertNull($source->eprel_checked_at);
     }
 
+    public function test_catalog_brand_change_alone_invalidates_a_fresh_eprel_match(): void
+    {
+        $source = MsanProduct::query()->create([
+            'external_code' => 'P-EPREL-BRAND-CHANGE',
+            'name' => 'Isti model',
+            'brand' => 'OLD BRAND',
+            'model' => 'SAME-MODEL',
+            'part_number' => 'SAME-PART',
+            'eprel_match_status' => MsanProduct::EPREL_EXACT,
+            'eprel_identifier_checksum' => str_repeat('b', 64),
+            'eprel_checked_at' => now(),
+            'last_seen_at' => now()->subDay(),
+            'is_stale' => false,
+        ]);
+        $run = MsanSyncRun::query()->create([
+            'kind' => MsanSyncRun::KIND_FULL,
+            'status' => MsanSyncRun::STATUS_PENDING,
+        ]);
+        $service = new MsanCatalogSyncService(
+            $this->fixtureClient([
+                'categories' => $this->xml([['CategoryID' => 'C-BRAND', 'CategoryName' => 'Hladnjaci']]),
+                'catalog' => $this->xml([[
+                    'ProductCode' => 'P-EPREL-BRAND-CHANGE',
+                    'ProductName' => 'Isti model',
+                    'Brand' => 'NEW BRAND',
+                    'Model' => 'SAME-MODEL',
+                    'PartNo' => 'SAME-PART',
+                ]]),
+                'prices' => $this->xml([['ProductCode' => 'P-EPREL-BRAND-CHANGE', 'RecommendedRetailPrice' => '125.00']]),
+                'availability' => $this->xml([['ProductCode' => 'P-EPREL-BRAND-CHANGE', 'ProductAvailability' => '3']]),
+                'product_categories' => $this->xml([['ProductCode' => 'P-EPREL-BRAND-CHANGE', 'CategoryID' => 'C-BRAND']]),
+                'barcodes' => $this->xml([]),
+            ]),
+            app(MsanXmlStreamReader::class),
+        );
+
+        $service->sync($run);
+
+        $source->refresh();
+        $this->assertSame('NEW BRAND', $source->brand);
+        $this->assertSame('SAME-MODEL', $source->model);
+        $this->assertSame(MsanProduct::EPREL_PENDING, $source->eprel_match_status);
+        $this->assertNull($source->eprel_identifier_checksum);
+        $this->assertNull($source->eprel_checked_at);
+    }
+
     public function test_failed_incomplete_snapshot_rolls_back_every_staging_change(): void
     {
         $oldCategory = MsanCategory::query()->create([

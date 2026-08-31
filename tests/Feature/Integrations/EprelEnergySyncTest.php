@@ -10,6 +10,7 @@ use App\Models\Integrations\Msan\MsanCategoryMapping;
 use App\Models\Integrations\Msan\MsanProduct;
 use App\Models\Integrations\Msan\MsanSyncRun;
 use App\Services\Integrations\Msan\EprelClient;
+use App\Services\Integrations\Msan\EprelDeclarationWriter;
 use App\Services\Integrations\Msan\EprelEnergySyncService;
 use App\Services\Integrations\Msan\MsanCatalogSyncCoordinator;
 use App\Services\Integrations\Msan\MsanSettingsService;
@@ -73,7 +74,7 @@ class EprelEnergySyncTest extends TestCase
             $result['energy_label_url'],
         );
         $this->assertSame(
-            EprelClient::BASE_URL.'/api/products/'.self::GROUP.'/1234567/product-information-sheet?format=PDF',
+            EprelClient::BASE_URL.'/fiches/'.self::GROUP.'/Fiche_1234567_HR.pdf',
             $result['product_information_sheet_url'],
         );
 
@@ -81,6 +82,111 @@ class EprelEnergySyncTest extends TestCase
             return $request->url() === EprelClient::BASE_URL.'/api/products/'.self::GROUP.'/1234567'
                 && $request->header('x-api-key') === ['synthetic-eprel-key'];
         });
+    }
+
+    public function test_client_resolves_a_global_registration_number_only_with_a_whitelisted_response_group(): void
+    {
+        Http::fake([
+            EprelClient::BASE_URL.'/api/product/1234567' => Http::response([
+                'eprelRegistrationNumber' => '1234567',
+                'productGroup' => self::GROUP_CODE,
+                'modelIdentifier' => 'GLOBAL-COOL-1000',
+                'energyClass' => 'D',
+            ]),
+            EprelClient::BASE_URL.'/api/product/7654321' => Http::response([
+                'eprelRegistrationNumber' => '7654321',
+                'productGroup' => '../unsupported-group',
+                'modelIdentifier' => 'UNSAFE-GROUP',
+            ]),
+        ]);
+
+        $result = app(EprelClient::class)->findByRegistrationNumber('1234567');
+
+        $this->assertNotNull($result);
+        $this->assertSame('1234567', $result['eprel_registration_number']);
+        $this->assertSame(self::GROUP, $result['eprel_product_group']);
+        $this->assertSame('GLOBAL-COOL-1000', $result['model_identifier']);
+        $this->assertNull(app(EprelClient::class)->findByRegistrationNumber('7654321'));
+        Http::assertSent(static fn (Request $request): bool => $request->url()
+            === EprelClient::BASE_URL.'/api/product/1234567');
+        Http::assertSent(static fn (Request $request): bool => $request->url()
+            === EprelClient::BASE_URL.'/api/product/7654321');
+    }
+
+    public function test_gtin_lookup_validates_the_check_digit_and_accepts_one_unique_exact_product(): void
+    {
+        $gtin = '9120072372216';
+        Http::fake([
+            EprelClient::BASE_URL.'/api/product/gtin/'.$gtin => Http::response([
+                'size' => 3,
+                'hits' => [
+                    [
+                        'eprelRegistrationNumber' => '646868',
+                        'productGroup' => 'ELECTRONIC_DISPLAY',
+                        'modelIdentifier' => 'M27FC12401',
+                        'supplierOrTrademark' => 'THOMSON',
+                        // The exact GTIN resolver does not always repeat the
+                        // identifier in its response records.
+                        'energyClass' => 'F',
+                    ],
+                    [
+                        // The resolver may repeat a registration; uniqueness is
+                        // defined by the strict group and registration identity.
+                        'eprelRegistrationNumber' => '646868',
+                        'productGroup' => 'electronicdisplays',
+                        'modelIdentifier' => 'M27FC12401',
+                        'gtinIdentifier' => $gtin,
+                    ],
+                    [
+                        'eprelRegistrationNumber' => '999999',
+                        'productGroup' => 'ELECTRONIC_DISPLAY',
+                        'modelIdentifier' => 'OTHER-GTIN',
+                        'gtinIdentifier' => '9120072372209',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $result = app(EprelClient::class)->findByGtinIdentifier($gtin);
+
+        $this->assertNotNull($result);
+        $this->assertSame('646868', $result['eprel_registration_number']);
+        $this->assertSame('electronicdisplays', $result['eprel_product_group']);
+        $this->assertSame('M27FC12401', $result['model_identifier']);
+
+        Http::fake();
+        try {
+            app(EprelClient::class)->findByGtinIdentifier('9120072372217');
+            $this->fail('A GTIN with an invalid check digit must be rejected.');
+        } catch (InvalidArgumentException) {
+            Http::assertNothingSent();
+        }
+    }
+
+    public function test_gtin_lookup_rejects_multiple_unique_exact_products(): void
+    {
+        $gtin = '9120072372216';
+        Http::fake([
+            EprelClient::BASE_URL.'/api/product/gtin/'.$gtin => Http::response([
+                'hits' => [
+                    [
+                        'eprelRegistrationNumber' => '646868',
+                        'productGroup' => 'ELECTRONIC_DISPLAY',
+                        'gtinIdentifier' => $gtin,
+                    ],
+                    [
+                        'eprelRegistrationNumber' => '646869',
+                        'productGroup' => 'ELECTRONIC_DISPLAY',
+                        'gtinIdentifier' => $gtin,
+                    ],
+                ],
+            ]),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('više artikala s istim GTIN identifikatorom');
+
+        app(EprelClient::class)->findByGtinIdentifier($gtin);
     }
 
     public function test_model_lookup_accepts_only_one_exact_match_and_rejects_unofficial_document_urls(): void
@@ -129,6 +235,75 @@ class EprelEnergySyncTest extends TestCase
             $request->url(),
             EprelClient::BASE_URL.'/api/products/'.self::GROUP.'?',
         ) && str_contains($request->url(), 'modelIdentifier=MODEL-X'));
+    }
+
+    public function test_model_lookup_uses_one_brand_candidate_and_filters_it_exactly_after_normalization(): void
+    {
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), '/api/products/'.self::GROUP.'/2222222')) {
+                return Http::response([
+                    'eprelRegistrationNumber' => '2222222',
+                    'productGroup' => self::GROUP_CODE,
+                    'modelIdentifier' => 'SHARED-MODEL',
+                    'supplierOrTrademark' => 'ACME EUROPE',
+                    'energyClass' => 'C',
+                ]);
+            }
+
+            return Http::response([
+                'hits' => [
+                    [
+                        'eprelRegistrationNumber' => '1111111',
+                        'productGroup' => self::GROUP_CODE,
+                        'modelIdentifier' => 'SHARED-MODEL',
+                        'supplierOrTrademark' => 'Other brand',
+                    ],
+                    [
+                        'eprelRegistrationNumber' => '2222222',
+                        'productGroup' => self::GROUP_CODE,
+                        'modelIdentifier' => 'SHARED-MODEL',
+                        'supplierOrTrademark' => 'acme europe',
+                    ],
+                ],
+            ]);
+        });
+
+        $result = app(EprelClient::class)->findByModelIdentifier(
+            self::GROUP,
+            'SHARED-MODEL',
+            ['  Acme   Europe  ', 'ACME EUROPE'],
+        );
+
+        $this->assertNotNull($result);
+        $this->assertSame('2222222', $result['eprel_registration_number']);
+        Http::assertSent(static fn (Request $request): bool => str_starts_with(
+            $request->url(),
+            EprelClient::BASE_URL.'/api/products/'.self::GROUP.'?',
+        ) && str_contains($request->url(), 'supplierOrTrademark=Acme%20Europe'));
+    }
+
+    public function test_model_lookup_rejects_a_truncated_result_page_before_using_a_match(): void
+    {
+        Http::fake([
+            EprelClient::BASE_URL.'/api/products/'.self::GROUP.'*' => Http::response([
+                'size' => 101,
+                'hits' => [[
+                    'eprelRegistrationNumber' => '2222222',
+                    'productGroup' => self::GROUP_CODE,
+                    'modelIdentifier' => 'SHARED-MODEL',
+                    'supplierOrTrademark' => 'ACME',
+                ]],
+            ]),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('više rezultata nego što se može sigurno provjeriti');
+
+        app(EprelClient::class)->findByModelIdentifier(
+            self::GROUP,
+            'SHARED-MODEL',
+            ['ACME'],
+        );
     }
 
     public function test_client_rejects_unmapped_product_group_before_any_request(): void
@@ -269,6 +444,344 @@ class EprelEnergySyncTest extends TestCase
         app(EprelEnergySyncService::class)->sync($secondRun);
         $this->assertSame(0, $secondRun->refresh()->total_count);
         Http::assertNothingSent();
+    }
+
+    public function test_msan_no_match_does_not_delete_an_admin_verified_eprel_declaration(): void
+    {
+        $product = Product::query()->create([
+            'code' => 'ADMIN-EPREL-PROTECTED',
+            'sku' => 'ADMIN-EPREL-PROTECTED',
+            'is_active' => true,
+            'base_price' => 100,
+            'stock_qty' => 1,
+        ]);
+        app(EprelDeclarationWriter::class)->store($product->id, [
+            'eprel_registration_number' => '646868',
+            'eprel_product_group' => 'electronicdisplays',
+            'model_identifier' => 'ADMIN-MODEL',
+            'energy_class' => 'F',
+            'scale_min' => 'A',
+            'scale_max' => 'G',
+            'energy_label_image' => null,
+            'energy_label_url' => EprelClient::BASE_URL.'/api/products/electronicdisplays/646868/labels?format=PDF',
+            'product_information_sheet_url' => EprelClient::BASE_URL.'/fiches/electronicdisplays/Fiche_646868_HR.pdf',
+        ]);
+        $category = MsanCategory::query()->create([
+            'external_id' => 'WRONG-MSAN-GROUP',
+            'name' => 'Pogrešno mapirana kategorija',
+            'is_stale' => false,
+        ]);
+        MsanCategoryMapping::query()->create([
+            'msan_category_id' => $category->id,
+            'status' => MsanCategoryMapping::STATUS_MAPPED,
+            'eprel_product_group' => self::GROUP,
+            'energy_requirement' => MsanCategoryMapping::ENERGY_REQUIREMENT_REQUIRED,
+        ]);
+        $source = MsanProduct::query()->create([
+            'external_code' => 'WRONG-MSAN-GROUP-SOURCE',
+            'name' => 'Pogrešno mapirani izvor',
+            'selected' => true,
+            'is_stale' => false,
+            'local_product_id' => $product->id,
+            'import_status' => MsanProduct::IMPORT_PENDING,
+            'last_seen_at' => now(),
+        ]);
+        $source->categories()->attach($category->id, ['last_seen_at' => now()]);
+        Http::fake(fn () => Http::response([], 404));
+        $run = MsanSyncRun::query()->create([
+            'kind' => MsanSyncRun::KIND_EPREL,
+            'status' => MsanSyncRun::STATUS_PENDING,
+        ]);
+
+        app(EprelEnergySyncService::class)->sync($run);
+
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'product_id' => $product->id,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+            'eprel_registration_number' => '646868',
+        ]);
+        $product->refresh();
+        $this->assertSame('646868', $product->eprel_registration_number);
+        $this->assertSame('electronicdisplays', $product->eprel_product_group);
+        $this->assertSame(MsanSyncRun::STATUS_COMPLETED, $run->refresh()->status);
+    }
+
+    public function test_replacing_an_eprel_identity_does_not_mix_in_old_energy_values(): void
+    {
+        $product = Product::query()->create([
+            'code' => 'EPREL-IDENTITY-REPLACEMENT',
+            'sku' => 'EPREL-IDENTITY-REPLACEMENT',
+            'is_active' => true,
+            'base_price' => 100,
+            'stock_qty' => 1,
+            'energy_efficiency_class' => 'B',
+            'energy_efficiency_scale' => 'A-G',
+            'eprel_registration_number' => '1111111',
+            'eprel_product_group' => self::GROUP,
+            'eprel_energy_label_image' => 'B-old.svg',
+        ]);
+
+        app(EprelDeclarationWriter::class)->store($product->id, [
+            'eprel_registration_number' => '2222222',
+            'eprel_product_group' => 'electronicdisplays',
+            'model_identifier' => 'NEW-MODEL',
+            'energy_class' => null,
+            'scale_min' => null,
+            'scale_max' => null,
+            'energy_label_image' => null,
+            'energy_label_url' => EprelClient::BASE_URL.'/api/products/electronicdisplays/2222222/labels?format=PDF',
+            'product_information_sheet_url' => EprelClient::BASE_URL.'/fiches/electronicdisplays/Fiche_2222222_HR.pdf',
+        ]);
+
+        $product->refresh();
+        $this->assertSame('2222222', $product->eprel_registration_number);
+        $this->assertSame('electronicdisplays', $product->eprel_product_group);
+        $this->assertNull($product->energy_efficiency_class);
+        $this->assertNull($product->energy_efficiency_scale);
+        $this->assertNull($product->eprel_energy_label_image);
+    }
+
+    public function test_background_sync_rechecks_source_identity_inside_the_writer_transaction(): void
+    {
+        $product = Product::query()->create([
+            'code' => 'EPREL-SOURCE-RACE',
+            'sku' => 'EPREL-SOURCE-RACE',
+            'is_active' => true,
+            'base_price' => 100,
+            'stock_qty' => 1,
+        ]);
+        $category = MsanCategory::query()->create([
+            'external_id' => 'EPREL-SOURCE-RACE-CATEGORY',
+            'name' => 'Hladnjaci s promjenjivim identitetom',
+            'is_stale' => false,
+        ]);
+        MsanCategoryMapping::query()->create([
+            'msan_category_id' => $category->id,
+            'status' => MsanCategoryMapping::STATUS_MAPPED,
+            'eprel_product_group' => self::GROUP,
+            'energy_requirement' => MsanCategoryMapping::ENERGY_REQUIREMENT_REQUIRED,
+        ]);
+        $source = MsanProduct::query()->create([
+            'external_code' => 'EPREL-SOURCE-RACE-SOURCE',
+            'name' => 'ACME hladnjak',
+            'brand' => 'ACME',
+            'model' => 'RACE-MODEL',
+            'selected' => true,
+            'is_stale' => false,
+            'local_product_id' => $product->id,
+            'import_status' => MsanProduct::IMPORT_PENDING,
+            'last_seen_at' => now(),
+        ]);
+        $source->categories()->attach($category->id, ['last_seen_at' => now()]);
+
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), '/1234567')) {
+                return Http::response([
+                    'eprelRegistrationNumber' => '1234567',
+                    'productGroup' => self::GROUP_CODE,
+                    'modelIdentifier' => 'RACE-MODEL',
+                    'supplierOrTrademark' => 'ACME',
+                    'energyClass' => 'C',
+                ]);
+            }
+
+            return Http::response(['size' => 1, 'hits' => [[
+                'eprelRegistrationNumber' => '1234567',
+                'productGroup' => self::GROUP_CODE,
+                'modelIdentifier' => 'RACE-MODEL',
+                'supplierOrTrademark' => 'ACME',
+            ]]]);
+        });
+
+        $writer = new class((int) $source->id) extends EprelDeclarationWriter
+        {
+            public function __construct(private readonly int $sourceId) {}
+
+            public function store(
+                int $productId,
+                array $data,
+                string $origin = self::ORIGIN_ADMIN_LOOKUP,
+                array $expectedProductIdentity = [],
+                ?callable $identityGuard = null,
+            ): ProductEnergyDeclaration {
+                MsanProduct::query()->whereKey($this->sourceId)->update(['brand' => 'CHANGED-BRAND']);
+
+                return parent::store($productId, $data, $origin, $expectedProductIdentity, $identityGuard);
+            }
+        };
+        $service = new EprelEnergySyncService(
+            app(EprelClient::class),
+            app(MsanSettingsService::class),
+            $writer,
+        );
+        $run = MsanSyncRun::query()->create([
+            'kind' => MsanSyncRun::KIND_EPREL,
+            'status' => MsanSyncRun::STATUS_PENDING,
+        ]);
+
+        $service->sync($run);
+
+        $source->refresh();
+        $this->assertSame('CHANGED-BRAND', $source->brand);
+        $this->assertSame(MsanProduct::EPREL_PENDING, $source->eprel_match_status);
+        $this->assertNull($source->eprel_identifier_checksum);
+        $this->assertNull($source->eprel_checked_at);
+        $this->assertDatabaseMissing('product_energy_declarations', [
+            'product_id' => $product->id,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+        ]);
+        $run->refresh();
+        $this->assertSame(MsanSyncRun::STATUS_COMPLETED, $run->status);
+        $this->assertSame(0, $run->succeeded_count);
+        $this->assertSame(1, $run->skipped_count);
+        $this->assertSame(1, $run->summary['invalid_local_data']);
+    }
+
+    public function test_background_sync_uses_the_selected_brand_for_an_exact_model_fallback(): void
+    {
+        $product = Product::query()->create([
+            'code' => 'MODEL-BRAND-FALLBACK',
+            'sku' => 'MODEL-BRAND-FALLBACK',
+            'is_active' => true,
+            'base_price' => 100,
+            'stock_qty' => 1,
+        ]);
+        $category = MsanCategory::query()->create([
+            'external_id' => 'MODEL-BRAND-CATEGORY',
+            'name' => 'Hladnjaci po modelu',
+            'is_stale' => false,
+        ]);
+        MsanCategoryMapping::query()->create([
+            'msan_category_id' => $category->id,
+            'status' => MsanCategoryMapping::STATUS_MAPPED,
+            'eprel_product_group' => self::GROUP,
+            'energy_requirement' => MsanCategoryMapping::ENERGY_REQUIREMENT_REQUIRED,
+        ]);
+        $source = MsanProduct::query()->create([
+            'external_code' => 'MODEL-BRAND-SOURCE',
+            'name' => 'ACME hladnjak',
+            'brand' => 'ACME',
+            'model' => 'COOL-EXACT',
+            'selected' => true,
+            'is_stale' => false,
+            'local_product_id' => $product->id,
+            'import_status' => MsanProduct::IMPORT_PENDING,
+            'last_seen_at' => now(),
+        ]);
+        $source->categories()->attach($category->id, ['last_seen_at' => now()]);
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), '/1234567')) {
+                return Http::response([
+                    'eprelRegistrationNumber' => '1234567',
+                    'productGroup' => self::GROUP_CODE,
+                    'modelIdentifier' => 'COOL-EXACT',
+                    'supplierOrTrademark' => 'ACME',
+                    'energyClass' => 'C',
+                ]);
+            }
+
+            return Http::response(['size' => 1, 'hits' => [[
+                'eprelRegistrationNumber' => '1234567',
+                'productGroup' => self::GROUP_CODE,
+                'modelIdentifier' => 'COOL-EXACT',
+                'supplierOrTrademark' => 'ACME',
+            ]]]);
+        });
+        $run = MsanSyncRun::query()->create([
+            'kind' => MsanSyncRun::KIND_EPREL,
+            'status' => MsanSyncRun::STATUS_PENDING,
+        ]);
+
+        app(EprelEnergySyncService::class)->sync($run);
+
+        $this->assertSame(MsanProduct::EPREL_EXACT, $source->refresh()->eprel_match_status);
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'product_id' => $product->id,
+            'eprel_registration_number' => '1234567',
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+        ]);
+        Http::assertSent(static fn (Request $request): bool => str_contains(
+            $request->url(),
+            'supplierOrTrademark=ACME',
+        ));
+    }
+
+    public function test_background_sync_skips_conflicting_model_and_part_number_matches(): void
+    {
+        $product = Product::query()->create([
+            'code' => 'BACKGROUND-CONFLICT',
+            'sku' => 'BACKGROUND-CONFLICT',
+            'is_active' => true,
+            'base_price' => 100,
+            'stock_qty' => 1,
+        ]);
+        $category = MsanCategory::query()->create([
+            'external_id' => 'BACKGROUND-CONFLICT-CATEGORY',
+            'name' => 'Konfliktni modeli',
+            'is_stale' => false,
+        ]);
+        MsanCategoryMapping::query()->create([
+            'msan_category_id' => $category->id,
+            'status' => MsanCategoryMapping::STATUS_MAPPED,
+            'eprel_product_group' => self::GROUP,
+            'energy_requirement' => MsanCategoryMapping::ENERGY_REQUIREMENT_REQUIRED,
+        ]);
+        $source = MsanProduct::query()->create([
+            'external_code' => 'BACKGROUND-CONFLICT-SOURCE',
+            'name' => 'ACME konflikt',
+            'brand' => 'ACME',
+            'model' => 'MODEL-A',
+            'part_number' => 'MODEL-B',
+            'selected' => true,
+            'is_stale' => false,
+            'local_product_id' => $product->id,
+            'import_status' => MsanProduct::IMPORT_PENDING,
+            'last_seen_at' => now(),
+        ]);
+        $source->categories()->attach($category->id, ['last_seen_at' => now()]);
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), '/1111111')) {
+                return Http::response([
+                    'eprelRegistrationNumber' => '1111111',
+                    'productGroup' => self::GROUP_CODE,
+                    'modelIdentifier' => 'MODEL-A',
+                    'supplierOrTrademark' => 'ACME',
+                ]);
+            }
+            if (str_contains($request->url(), '/2222222')) {
+                return Http::response([
+                    'eprelRegistrationNumber' => '2222222',
+                    'productGroup' => self::GROUP_CODE,
+                    'modelIdentifier' => 'MODEL-B',
+                    'supplierOrTrademark' => 'ACME',
+                ]);
+            }
+            $model = str_contains($request->url(), 'MODEL-B') ? 'MODEL-B' : 'MODEL-A';
+            $registration = $model === 'MODEL-B' ? '2222222' : '1111111';
+
+            return Http::response(['size' => 1, 'hits' => [[
+                'eprelRegistrationNumber' => $registration,
+                'productGroup' => self::GROUP_CODE,
+                'modelIdentifier' => $model,
+                'supplierOrTrademark' => 'ACME',
+            ]]]);
+        });
+        $run = MsanSyncRun::query()->create([
+            'kind' => MsanSyncRun::KIND_EPREL,
+            'status' => MsanSyncRun::STATUS_PENDING,
+        ]);
+
+        app(EprelEnergySyncService::class)->sync($run);
+
+        $this->assertSame(MsanProduct::EPREL_INVALID, $source->refresh()->eprel_match_status);
+        $this->assertDatabaseMissing('product_energy_declarations', [
+            'product_id' => $product->id,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+        ]);
+        $run->refresh();
+        $this->assertSame(MsanSyncRun::STATUS_COMPLETED, $run->status);
+        $this->assertSame(1, $run->skipped_count);
+        $this->assertSame(1, $run->summary['invalid_local_data']);
     }
 
     public function test_no_match_attempt_is_recorded_and_not_retried_until_it_is_stale(): void

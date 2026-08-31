@@ -6,7 +6,6 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
-use RuntimeException;
 
 class EprelClient
 {
@@ -65,6 +64,44 @@ class EprelClient
         return self::PRODUCT_GROUPS;
     }
 
+    public static function isValidRegistrationNumber(string $value): bool
+    {
+        return preg_match('/^[0-9]{1,20}$/D', trim($value)) === 1;
+    }
+
+    public static function isValidModelIdentifier(string $value): bool
+    {
+        $model = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
+
+        return $model !== ''
+            && mb_strlen($model) <= 191
+            && preg_match('/^[\pL\pN][\pL\pN ._+\-\/()#]{0,190}$/uD', $model) === 1;
+    }
+
+    public static function isValidGtinIdentifier(string $value): bool
+    {
+        $gtin = trim($value);
+        if (! preg_match('/^(?:[0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$/D', $gtin)) {
+            return false;
+        }
+
+        $sum = 0;
+        $weight = 3;
+        for ($index = strlen($gtin) - 2; $index >= 0; $index--) {
+            $sum += ((int) $gtin[$index]) * $weight;
+            $weight = $weight === 3 ? 1 : 3;
+        }
+
+        return (10 - ($sum % 10)) % 10 === (int) $gtin[strlen($gtin) - 1];
+    }
+
+    public static function isValidBrandCandidate(string $value): bool
+    {
+        $brand = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
+
+        return $brand !== '' && mb_strlen($brand) <= 191 && preg_match('/\pC/u', $brand) !== 1;
+    }
+
     /**
      * @return array{
      *   eprel_registration_number:string,
@@ -78,8 +115,27 @@ class EprelClient
      *   product_information_sheet_url:?string
      * }|null
      */
-    public function findByRegistrationNumber(string $productGroup, string $registrationNumber): ?array
-    {
+    public function findByRegistrationNumber(
+        string $productGroup,
+        ?string $registrationNumber = null,
+    ): ?array {
+        if ($registrationNumber === null) {
+            $registration = $this->validatedRegistrationNumber($productGroup);
+            $response = $this->get('/api/product/'.$registration);
+
+            if ($response === null) {
+                return null;
+            }
+
+            $record = $this->singleRecord($response);
+            $group = $record ? $this->groupFromRecord($record) : null;
+            if (! $record || $group === null || ! $this->registrationMatches($record, $registration)) {
+                return null;
+            }
+
+            return $this->normalizeRecord($record, $group, $registration);
+        }
+
         $group = $this->validatedProductGroup($productGroup);
         $registration = $this->validatedRegistrationNumber($registrationNumber);
         $response = $this->get('/api/products/'.$group.'/'.$registration);
@@ -95,6 +151,63 @@ class EprelClient
         }
 
         return $this->normalizeRecord($record, $group, $registration);
+    }
+
+    /**
+     * Resolves an exact GTIN without trusting a caller-provided product group.
+     * The public resolver may repeat the same registration, but it must not
+     * resolve one GTIN to more than one unique EPREL product.
+     *
+     * @return array{
+     *   eprel_registration_number:string,
+     *   eprel_product_group:string,
+     *   model_identifier:?string,
+     *   energy_class:?string,
+     *   scale_min:?string,
+     *   scale_max:?string,
+     *   energy_label_image:?string,
+     *   energy_label_url:string,
+     *   product_information_sheet_url:?string
+     * }|null
+     */
+    public function findByGtinIdentifier(string $gtinIdentifier): ?array
+    {
+        $gtin = $this->validatedGtinIdentifier($gtinIdentifier);
+        $response = $this->get('/api/product/gtin/'.$gtin);
+
+        if ($response === null) {
+            return null;
+        }
+
+        $records = $this->records($response);
+        if ($this->totalRecords($response) > count($records)) {
+            throw new EprelMatchConflictException('EPREL GTIN pretraga vratila je više rezultata nego što se može sigurno provjeriti jednim dohvatom.');
+        }
+
+        $matches = collect($records)
+            ->filter(fn (array $record): bool => $this->gtinMatches($record, $gtin))
+            ->map(function (array $record): ?array {
+                $registration = $this->registrationFromRecord($record);
+                $group = $this->groupFromRecord($record);
+
+                return $registration !== null && $group !== null
+                    ? compact('record', 'registration', 'group')
+                    : null;
+            })
+            ->filter()
+            ->unique(fn (array $match): string => $match['group'].'|'.$match['registration'])
+            ->values();
+
+        if ($matches->isEmpty()) {
+            return null;
+        }
+        if ($matches->count() !== 1) {
+            throw new EprelMatchConflictException('EPREL je vratio više artikala s istim GTIN identifikatorom.');
+        }
+
+        $match = $matches->first();
+
+        return $this->normalizeRecord($match['record'], $match['group'], $match['registration']);
     }
 
     /**
@@ -114,23 +227,40 @@ class EprelClient
      *   product_information_sheet_url:?string
      * }|null
      */
-    public function findByModelIdentifier(string $productGroup, string $modelIdentifier): ?array
-    {
+    public function findByModelIdentifier(
+        string $productGroup,
+        string $modelIdentifier,
+        array $brandCandidates = [],
+    ): ?array {
         $group = $this->validatedProductGroup($productGroup);
         $model = $this->validatedModelIdentifier($modelIdentifier);
-        $response = $this->get('/api/products/'.$group, [
+        $brands = $this->normalizedBrandCandidates($brandCandidates);
+        if ($brandCandidates !== [] && $brands === []) {
+            throw new InvalidArgumentException('EPREL marka nije ispravna.');
+        }
+        $query = [
             '_page' => 0,
             '_limit' => 100,
             'modelIdentifier' => $model,
-        ]);
+        ];
+        if (count($brands) === 1) {
+            $query['supplierOrTrademark'] = $brands[0];
+        }
+        $response = $this->get('/api/products/'.$group, $query);
 
         if ($response === null) {
             return null;
         }
 
-        $matches = collect($this->records($response))
+        $records = $this->records($response);
+        if ($this->totalRecords($response) > count($records)) {
+            throw new EprelMatchConflictException('EPREL je vratio više rezultata nego što se može sigurno provjeriti jednim dohvatom. Unesite uži model i marku.');
+        }
+
+        $matches = collect($records)
             ->filter(fn (array $record): bool => $this->modelMatches($record, $model)
-                && $this->groupMatches($record, $group))
+                && $this->groupMatches($record, $group)
+                && ($brands === [] || $this->brandMatches($record, $brands)))
             ->unique(fn (array $record): string => (string) $this->registrationFromRecord($record))
             ->values();
 
@@ -138,7 +268,7 @@ class EprelClient
             return null;
         }
         if ($matches->count() !== 1) {
-            throw new RuntimeException('EPREL je vratio više artikala s istim identifikatorom modela.');
+            throw new EprelMatchConflictException('EPREL je vratio više artikala s istim identifikatorom modela.');
         }
 
         $registration = $this->registrationFromRecord($matches->first());
@@ -153,7 +283,8 @@ class EprelClient
         $record = $this->singleRecord($detail);
         if (! $record || ! $this->registrationMatches($record, $registration)
             || ! $this->groupMatches($record, $group)
-            || ! $this->modelMatches($record, $model)) {
+            || ! $this->modelMatches($record, $model)
+            || ($brands !== [] && ! $this->brandMatches($record, $brands))) {
             return null;
         }
 
@@ -164,7 +295,7 @@ class EprelClient
     private function get(string $path, array $query = []): ?array
     {
         if (! $this->settings->eprelEnabled()) {
-            throw new RuntimeException('EPREL dohvat nije uključen.');
+            throw new EprelException('EPREL dohvat nije uključen.');
         }
 
         try {
@@ -175,7 +306,7 @@ class EprelClient
                 ->timeout($this->settings->eprelTimeout())
                 ->get(self::BASE_URL.$path, $query);
         } catch (ConnectionException) {
-            throw new RuntimeException('Povezivanje sa službenim EPREL servisom nije uspjelo.');
+            throw new EprelException('Povezivanje sa službenim EPREL servisom nije uspjelo.');
         }
 
         if ($response->status() === 404) {
@@ -185,7 +316,7 @@ class EprelClient
 
         $payload = $response->json();
         if (! is_array($payload)) {
-            throw new RuntimeException('EPREL servis vratio je neispravan odgovor.');
+            throw new EprelException('EPREL servis vratio je neispravan odgovor.');
         }
 
         return $payload;
@@ -198,9 +329,9 @@ class EprelClient
         }
 
         throw match ($response->status()) {
-            401, 403 => new RuntimeException('EPREL je odbio API ključ ili pristup.'),
-            429 => new RuntimeException('EPREL je privremeno ograničio broj zahtjeva.'),
-            default => new RuntimeException('EPREL servis trenutačno nije dostupan (HTTP '.$response->status().').'),
+            401, 403 => new EprelException('EPREL je odbio API ključ ili pristup.'),
+            429 => new EprelException('EPREL je privremeno ograničio broj zahtjeva.'),
+            default => new EprelException('EPREL servis trenutačno nije dostupan (HTTP '.$response->status().').'),
         };
     }
 
@@ -217,7 +348,7 @@ class EprelClient
     private function validatedRegistrationNumber(string $value): string
     {
         $number = trim($value);
-        if (! preg_match('/^[0-9]{1,20}$/D', $number)) {
+        if (! self::isValidRegistrationNumber($number)) {
             throw new InvalidArgumentException('EPREL registracijski broj nije ispravan.');
         }
 
@@ -227,12 +358,51 @@ class EprelClient
     private function validatedModelIdentifier(string $value): string
     {
         $model = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
-        if ($model === '' || mb_strlen($model) > 191
-            || ! preg_match('/^[\pL\pN][\pL\pN ._+\-\/()#]{0,190}$/uD', $model)) {
+        if (! self::isValidModelIdentifier($model)) {
             throw new InvalidArgumentException('EPREL identifikator modela nije ispravan.');
         }
 
         return $model;
+    }
+
+    private function validatedGtinIdentifier(string $value): string
+    {
+        $gtin = trim($value);
+        if (! preg_match('/^(?:[0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$/D', $gtin)) {
+            throw new InvalidArgumentException('EPREL GTIN identifikator nije ispravan.');
+        }
+        if (! self::isValidGtinIdentifier($gtin)) {
+            throw new InvalidArgumentException('EPREL GTIN identifikator nema ispravnu kontrolnu znamenku.');
+        }
+
+        return $gtin;
+    }
+
+    /** @param list<mixed> $candidates */
+    private function normalizedBrandCandidates(array $candidates): array
+    {
+        $brands = [];
+        $seen = [];
+        foreach ($candidates as $candidate) {
+            if (! is_scalar($candidate)) {
+                continue;
+            }
+
+            $brand = trim(preg_replace('/\s+/u', ' ', (string) $candidate) ?? '');
+            if (! self::isValidBrandCandidate($brand)) {
+                continue;
+            }
+
+            $normalized = $this->normalizedBrand($brand);
+            if (isset($seen[$normalized])) {
+                continue;
+            }
+
+            $seen[$normalized] = true;
+            $brands[] = $brand;
+        }
+
+        return $brands;
     }
 
     /** @param array<string, mixed> $record */
@@ -253,6 +423,43 @@ class EprelClient
         return $candidate !== null && hash_equals($model, $candidate);
     }
 
+    /** @param list<string> $brands */
+    private function brandMatches(array $record, array $brands): bool
+    {
+        $candidate = $this->stringValue($record, [
+            'supplierOrTrademark', 'supplier_or_trademark', 'trademark', 'brand',
+            'product.supplierOrTrademark', 'product.trademark',
+        ]);
+        if ($candidate === null) {
+            return false;
+        }
+
+        $normalizedCandidate = $this->normalizedBrand($candidate);
+
+        return collect($brands)->contains(
+            fn (string $brand): bool => hash_equals($this->normalizedBrand($brand), $normalizedCandidate),
+        );
+    }
+
+    private function normalizedBrand(string $value): string
+    {
+        return mb_strtolower(trim(preg_replace('/\s+/u', ' ', $value) ?? ''));
+    }
+
+    /** @param array<string, mixed> $record */
+    private function gtinMatches(array $record, string $gtin): bool
+    {
+        $candidate = $this->stringValue($record, [
+            'gtinIdentifier', 'gtin_identifier', 'gtin',
+            'additionalDetails.gtinIdentifier', 'product.gtinIdentifier',
+        ]);
+
+        // This endpoint is already scoped to the exact GTIN and some EPREL
+        // representations omit the repeated identifier. If it is present,
+        // however, never accept a conflicting value.
+        return $candidate === null || hash_equals($gtin, $candidate);
+    }
+
     /** @param array<string, mixed> $record */
     private function groupMatches(array $record, string $group): bool
     {
@@ -266,6 +473,16 @@ class EprelClient
         }
 
         return hash_equals($group, $this->groupSlugFromResponse($candidate) ?? '');
+    }
+
+    /** @param array<string, mixed> $record */
+    private function groupFromRecord(array $record): ?string
+    {
+        $candidate = $this->stringValue($record, [
+            'productGroup', 'product_group', 'productGroupCode', 'product.productGroup',
+        ]);
+
+        return $candidate === null ? null : $this->groupSlugFromResponse($candidate);
     }
 
     /** @param array<string, mixed> $record */
@@ -333,11 +550,10 @@ class EprelClient
         }
 
         $labelUrl = self::BASE_URL.'/api/products/'.$group.'/'.$registration.'/labels?format=PDF';
-        $sheetUrl = $this->officialUrl($this->stringValue($record, [
-            'productInformationSheetUrl', 'productInformationSheetURL',
-            'product_information_sheet_url', 'informationSheetUrl',
-            'documents.productInformationSheet.url', 'productInformationSheet.url',
-        ])) ?: self::BASE_URL.'/fiches/'.$group.'/Fiche_'.$registration.'_HR.pdf';
+        // API document endpoints require the integration key and therefore
+        // cannot be opened by a customer browser. EPREL exposes the fiche
+        // under this public URL instead.
+        $sheetUrl = self::BASE_URL.'/fiches/'.$group.'/Fiche_'.$registration.'_HR.pdf';
 
         return [
             'eprel_registration_number' => $registration,
@@ -380,35 +596,6 @@ class EprelClient
         $class = strtoupper(trim((string) $value));
 
         return preg_match('/^(?:A\+{0,3}|[B-G])$/D', $class) ? $class : null;
-    }
-
-    private function officialUrl(?string $value): ?string
-    {
-        $url = trim((string) $value);
-        if ($url === '') {
-            return null;
-        }
-        if (str_starts_with($url, '//')) {
-            return null;
-        }
-        if (str_starts_with($url, '/')) {
-            $url = self::BASE_URL.$url;
-        } elseif (! preg_match('#^https://#i', $url)) {
-            $url = self::BASE_URL.'/'.ltrim($url, '/');
-        }
-
-        $parts = parse_url($url);
-        if (! is_array($parts)
-            || strtolower((string) ($parts['scheme'] ?? '')) !== 'https'
-            || strtolower((string) ($parts['host'] ?? '')) !== 'eprel.ec.europa.eu'
-            || isset($parts['user'])
-            || isset($parts['pass'])
-            || isset($parts['port'])
-            || isset($parts['fragment'])) {
-            return null;
-        }
-
-        return filter_var($url, FILTER_VALIDATE_URL) ? $url : null;
     }
 
     private function safeImageName(?string $value): ?string
@@ -469,5 +656,14 @@ class EprelClient
         $records = $this->records($payload);
 
         return count($records) === 1 ? $records[0] : null;
+    }
+
+    private function totalRecords(array $payload): int
+    {
+        $size = $payload['size'] ?? null;
+
+        return is_numeric($size) && (int) $size >= 0
+            ? (int) $size
+            : count($this->records($payload));
     }
 }

@@ -28,6 +28,7 @@ class EprelEnergySyncService
     public function __construct(
         private readonly EprelClient $client,
         private readonly MsanSettingsService $settings,
+        private readonly EprelDeclarationWriter $declarations,
     ) {}
 
     public function sync(MsanSyncRun $run): MsanSyncRun
@@ -77,11 +78,12 @@ class EprelEnergySyncService
             foreach ($candidates as $source) {
                 $processed++;
                 $group = $this->mappedGroup($source);
+                $sourceFingerprint = $this->sourceIdentityFingerprint($source, $group);
                 if ($group === null || ! $source->localProduct) {
                     $invalid++;
                     $skipped++;
-                    $this->clearStaleEprelDeclaration($source);
-                    $this->recordAttempt($source, MsanProduct::EPREL_INVALID, $this->identifierChecksum($source, $group));
+                    $this->clearStaleEprelDeclaration($source, $group, $sourceFingerprint);
+                    $this->recordAttempt($source, MsanProduct::EPREL_INVALID, $group, $sourceFingerprint);
                     $this->persistProgress($run, $processed, $succeeded, $skipped, $total);
 
                     continue;
@@ -94,8 +96,22 @@ class EprelEnergySyncService
                     // mapping is local data, not a reason to fail the whole run.
                     $invalid++;
                     $skipped++;
-                    $this->clearStaleEprelDeclaration($source);
-                    $this->recordAttempt($source, MsanProduct::EPREL_INVALID, $this->identifierChecksum($source, $group));
+                    $this->clearStaleEprelDeclaration($source, $group, $sourceFingerprint);
+                    $this->recordAttempt($source, MsanProduct::EPREL_INVALID, $group, $sourceFingerprint);
+                    $this->persistProgress($run, $processed, $succeeded, $skipped, $total);
+
+                    continue;
+                } catch (EprelMatchConflictException) {
+                    $invalid++;
+                    $skipped++;
+                    $this->recordAttempt($source, MsanProduct::EPREL_INVALID, $group, $sourceFingerprint);
+                    $this->persistProgress($run, $processed, $succeeded, $skipped, $total);
+
+                    continue;
+                }
+
+                if (! $this->sourceIdentityMatches($source, $group, $sourceFingerprint)) {
+                    $skipped++;
                     $this->persistProgress($run, $processed, $succeeded, $skipped, $total);
 
                     continue;
@@ -104,12 +120,38 @@ class EprelEnergySyncService
                 if ($outcome['data'] === null) {
                     $outcome['status'] === MsanProduct::EPREL_INVALID ? $invalid++ : $notMatched++;
                     $skipped++;
-                    $this->clearStaleEprelDeclaration($source);
+                    $this->clearStaleEprelDeclaration($source, $group, $sourceFingerprint);
                 } else {
-                    $this->storeDeclaration((int) $source->local_product_id, $outcome['data']);
+                    try {
+                        $this->declarations->store(
+                            (int) $source->local_product_id,
+                            $outcome['data'],
+                            EprelDeclarationWriter::ORIGIN_MSAN_SYNC,
+                            [],
+                            fn (Product $lockedProduct): bool => $this->sourceIdentityMatches(
+                                $source,
+                                $group,
+                                $sourceFingerprint,
+                                (int) $lockedProduct->getKey(),
+                                true,
+                            ),
+                        );
+                    } catch (EprelMatchConflictException) {
+                        $invalid++;
+                        $skipped++;
+                        $this->recordAttempt(
+                            $source,
+                            MsanProduct::EPREL_INVALID,
+                            $group,
+                            $sourceFingerprint,
+                        );
+                        $this->persistProgress($run, $processed, $succeeded, $skipped, $total);
+
+                        continue;
+                    }
                     $succeeded++;
                 }
-                $this->recordAttempt($source, $outcome['status'], $this->identifierChecksum($source, $group));
+                $this->recordAttempt($source, $outcome['status'], $group, $sourceFingerprint);
 
                 $this->persistProgress($run, $processed, $succeeded, $skipped, $total);
             }
@@ -157,7 +199,7 @@ class EprelEnergySyncService
     {
         return MsanProduct::query()
             ->select([
-                'id', 'external_code', 'model', 'part_number', 'selected',
+                'id', 'external_code', 'brand', 'model', 'part_number', 'selected',
                 'import_status', 'local_product_id', 'is_stale', 'eprel_match_status',
                 'eprel_identifier_checksum', 'eprel_checked_at',
             ])
@@ -225,16 +267,30 @@ class EprelEnergySyncService
             ->filter(static fn (string $value): bool => $value !== '')
             ->unique()
             ->values();
+        $brand = trim((string) $source->brand);
+        if ($brand === '') {
+            return [
+                'status' => $attempted ? MsanProduct::EPREL_NO_MATCH : MsanProduct::EPREL_INVALID,
+                'data' => null,
+            ];
+        }
+        $modelMatches = [];
         foreach ($models as $model) {
             try {
-                $result = $this->client->findByModelIdentifier($group, $model);
+                $result = $this->client->findByModelIdentifier($group, $model, [$brand]);
                 $attempted = true;
             } catch (InvalidArgumentException) {
                 continue;
             }
             if ($result !== null) {
-                return ['status' => MsanProduct::EPREL_EXACT, 'data' => $result];
+                $modelMatches[$result['eprel_registration_number']] = $result;
             }
+            if (count($modelMatches) > 1) {
+                throw new EprelMatchConflictException('M SAN model i part number upućuju na različite EPREL zapise. Ništa nije promijenjeno.');
+            }
+        }
+        if ($modelMatches !== []) {
+            return ['status' => MsanProduct::EPREL_EXACT, 'data' => reset($modelMatches)];
         }
 
         return [
@@ -276,111 +332,52 @@ class EprelEnergySyncService
         return $declaration ? trim((string) $declaration->eprel_registration_number) : null;
     }
 
-    /**
-     * @param array{
-     *   eprel_registration_number:string,
-     *   eprel_product_group:string,
-     *   model_identifier:?string,
-     *   energy_class:?string,
-     *   scale_min:?string,
-     *   scale_max:?string,
-     *   energy_label_image:?string,
-     *   energy_label_url:string,
-     *   product_information_sheet_url:?string
-     * } $data
-     */
-    private function storeDeclaration(int $productId, array $data): void
-    {
-        DB::transaction(function () use ($productId, $data): void {
-            /** @var Product|null $product */
-            $product = Product::query()
-                ->with('energyDeclarations')
-                ->lockForUpdate()
-                ->find($productId);
-            if (! $product) {
-                return;
-            }
-
-            $manualPrimary = $product->energyDeclarations
-                ->first(fn (ProductEnergyDeclaration $item): bool => $item->source === ProductEnergyDeclaration::SOURCE_MANUAL
-                    && $item->is_primary);
-            // Ownership priority is manual administrator data, then an exact
-            // official EPREL result, then supplier-detected M SAN data.
-            $promote = ! $manualPrimary;
-
-            $context = 'eprel-'.substr(hash(
-                'sha256',
-                $data['eprel_product_group'].'|'.$data['eprel_registration_number'],
-            ), 0, 32);
-
-            ProductEnergyDeclaration::query()
-                ->where('product_id', $product->id)
-                ->where('source', ProductEnergyDeclaration::SOURCE_EPREL)
-                ->where('context_code', '!=', $context)
-                ->delete();
-            if ($promote) {
-                ProductEnergyDeclaration::query()
-                    ->where('product_id', $product->id)
-                    ->where('source', '!=', ProductEnergyDeclaration::SOURCE_MANUAL)
-                    ->update(['is_primary' => false, 'updated_at' => now()]);
-            }
-
-            ProductEnergyDeclaration::query()->updateOrCreate(
-                ['product_id' => $product->id, 'context_code' => $context],
-                [
-                    'label' => 'Službena EPREL energetska oznaka',
-                    'energy_class' => $data['energy_class'],
-                    'scale_min' => $data['scale_min'],
-                    'scale_max' => $data['scale_max'],
-                    'eprel_registration_number' => $data['eprel_registration_number'],
-                    'eprel_product_group' => $data['eprel_product_group'],
-                    'energy_label_image' => $data['energy_label_image'],
-                    'energy_label_url' => $data['energy_label_url'],
-                    'product_information_sheet_url' => $data['product_information_sheet_url'],
-                    'is_primary' => $promote,
-                    'source' => ProductEnergyDeclaration::SOURCE_EPREL,
-                    'payload' => [
-                        'model_identifier' => $data['model_identifier'],
-                        'match' => 'exact',
-                    ],
-                    'synced_at' => now(),
-                ],
-            );
-
-            if ($promote) {
-                $scale = $this->scaleLabel($data['scale_min'], $data['scale_max']);
-                $product->forceFill([
-                    'energy_label_required' => true,
-                    'energy_efficiency_class' => $data['energy_class'] ?: $product->energy_efficiency_class,
-                    'energy_efficiency_scale' => $scale ?: $product->energy_efficiency_scale,
-                    'eprel_registration_number' => $data['eprel_registration_number'],
-                    'eprel_product_group' => $data['eprel_product_group'],
-                    'eprel_energy_label_image' => $data['energy_label_image'] ?: $product->eprel_energy_label_image,
-                    'energy_label_url' => $data['energy_label_url'] ?: $product->energy_label_url,
-                    'product_information_sheet_url' => $data['product_information_sheet_url']
-                        ?: $product->product_information_sheet_url,
-                    'energy_data_synced_at' => now(),
-                ])->save();
-            }
-        }, 3);
-    }
-
-    private function clearStaleEprelDeclaration(MsanProduct $source): void
-    {
+    private function clearStaleEprelDeclaration(
+        MsanProduct $source,
+        ?string $expectedGroup,
+        string $sourceFingerprint,
+    ): void {
         if (! $source->local_product_id) {
             return;
         }
 
-        DB::transaction(function () use ($source): void {
+        DB::transaction(function () use ($source, $expectedGroup, $sourceFingerprint): void {
             /** @var Product|null $product */
             $product = Product::query()->lockForUpdate()->find($source->local_product_id);
             if (! $product) {
                 return;
             }
+            if (! $this->sourceIdentityMatches(
+                $source,
+                $expectedGroup,
+                $sourceFingerprint,
+                (int) $product->getKey(),
+                true,
+            )) {
+                return;
+            }
 
-            $product->energyDeclarations()
+            $ownedDeclarationIds = $product->energyDeclarations()
                 ->where('source', ProductEnergyDeclaration::SOURCE_EPREL)
-                ->delete();
+                ->get(['id', 'payload'])
+                ->filter(function (ProductEnergyDeclaration $declaration): bool {
+                    $origins = collect(data_get($declaration->payload, 'origins', []))
+                        ->push(data_get($declaration->payload, 'origin'))
+                        ->filter(static fn ($value): bool => is_string($value) && $value !== '')
+                        ->unique();
+
+                    if ($origins->isEmpty()) {
+                        return true;
+                    }
+
+                    return $origins->contains(EprelDeclarationWriter::ORIGIN_MSAN_SYNC)
+                        && ! $origins->contains(EprelDeclarationWriter::ORIGIN_ADMIN_LOOKUP);
+                })
+                ->modelKeys();
+            if ($ownedDeclarationIds === []) {
+                return;
+            }
+            $product->energyDeclarations()->whereKey($ownedDeclarationIds)->delete();
 
             /** @var ProductEnergyDeclaration|null $primary */
             $primary = $product->energyDeclarations()
@@ -439,18 +436,86 @@ class EprelEnergySyncService
         return hash('sha256', json_encode([
             'groups' => $group !== null ? [$group] : $mappedGroups,
             'registration_number' => $this->existingRegistrationNumber($source->localProduct),
+            'brand' => trim((string) $source->brand),
             'model' => trim((string) $source->model),
             'part_number' => trim((string) $source->part_number),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
     }
 
-    private function recordAttempt(MsanProduct $source, string $status, string $identifierChecksum): void
+    private function sourceIdentityFingerprint(MsanProduct $source, ?string $group): string
     {
-        $source->forceFill([
-            'eprel_match_status' => $status,
-            'eprel_identifier_checksum' => $identifierChecksum,
-            'eprel_checked_at' => now(),
-        ])->save();
+        $mappedGroups = $source->categories
+            ->pluck('mapping.eprel_product_group')
+            ->map(static fn ($value): string => strtolower(trim((string) $value)))
+            ->filter(static fn (string $value): bool => $value !== '')
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        return hash('sha256', json_encode([
+            'local_product_id' => (int) ($source->local_product_id ?? 0),
+            'groups' => $group !== null ? [$group] : $mappedGroups,
+            'brand' => trim((string) $source->brand),
+            'model' => trim((string) $source->model),
+            'part_number' => trim((string) $source->part_number),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+    }
+
+    private function sourceIdentityMatches(
+        MsanProduct $source,
+        ?string $expectedGroup,
+        string $expectedFingerprint,
+        ?int $expectedProductId = null,
+        bool $lockForUpdate = false,
+    ): bool {
+        $query = MsanProduct::query()->with('categories.mapping');
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+        $freshSource = $query->find($source->getKey());
+        if (! $freshSource
+            || ($expectedProductId !== null && (int) $freshSource->local_product_id !== $expectedProductId)) {
+            return false;
+        }
+
+        $freshGroup = $this->mappedGroup($freshSource);
+
+        return $freshGroup === $expectedGroup
+            && hash_equals($expectedFingerprint, $this->sourceIdentityFingerprint($freshSource, $freshGroup));
+    }
+
+    private function recordAttempt(
+        MsanProduct $source,
+        string $status,
+        ?string $expectedGroup,
+        string $sourceFingerprint,
+    ): bool {
+        return DB::transaction(function () use ($source, $status, $expectedGroup, $sourceFingerprint): bool {
+            $freshSource = MsanProduct::query()
+                ->with(['categories.mapping', 'localProduct.energyDeclarations'])
+                ->lockForUpdate()
+                ->find($source->getKey());
+            if (! $freshSource) {
+                return false;
+            }
+            $freshGroup = $this->mappedGroup($freshSource);
+            if ($freshGroup !== $expectedGroup
+                || ! hash_equals(
+                    $sourceFingerprint,
+                    $this->sourceIdentityFingerprint($freshSource, $freshGroup),
+                )) {
+                return false;
+            }
+
+            $freshSource->forceFill([
+                'eprel_match_status' => $status,
+                'eprel_identifier_checksum' => $this->identifierChecksum($freshSource, $freshGroup),
+                'eprel_checked_at' => now(),
+            ])->save();
+
+            return true;
+        }, 3);
     }
 
     private function persistProgress(

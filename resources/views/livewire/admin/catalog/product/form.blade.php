@@ -196,13 +196,20 @@
 
         @if ($activeTab === 'energy')
         @php
-            $primaryEnergyRow = collect($energyDeclarations)->first(fn ($row) => (bool) ($row['is_primary'] ?? false))
-                ?? collect($energyDeclarations)->first();
             $energyMediaCollections = $this->energyMediaCollections;
-            $eprelGroup = strtolower(trim((string) ($primaryEnergyRow['eprel_product_group'] ?? '')));
-            $eprelRegistration = trim((string) ($primaryEnergyRow['eprel_registration_number'] ?? ''));
-            $hasEprelAssetIdentity = preg_match('/^[a-z0-9-]{2,100}$/', $eprelGroup) === 1
-                && preg_match('/^\d{3,20}$/', $eprelRegistration) === 1;
+            $eprelLookupContext = $this->eprelLookupContext;
+            $eprelLookupReady = $this->eprelLookupReady;
+            $eprelRegistrationCriteria = $eprelLookupContext['registrationNumbers'] ?? [];
+            $eprelGtinCriteria = $eprelLookupContext['gtins'] ?? [];
+            $eprelModelCriteria = $eprelLookupContext['models'] ?? [];
+            $eprelBrandCriteria = $eprelLookupContext['brands'] ?? [];
+            $hiddenEprelCriteriaCount = max(0, count($eprelRegistrationCriteria) - 2)
+                + max(0, count($eprelGtinCriteria) - 3)
+                + max(0, count($eprelModelCriteria) - 4)
+                + max(0, count($eprelBrandCriteria) - 2);
+            $currentAdmin = auth()->user();
+            $canManageEprelSettings = $currentAdmin
+                && ($currentAdmin->isA('superadmin') || $currentAdmin->can('integrations.msan.settings.manage'));
             $isValidHttpsUrl = static function ($value): bool {
                 $value = trim((string) $value);
                 $parts = filter_var($value, FILTER_VALIDATE_URL) !== false ? parse_url($value) : false;
@@ -211,11 +218,26 @@
                     && strtolower((string) ($parts['scheme'] ?? '')) === 'https'
                     && ! isset($parts['user'], $parts['pass']);
             };
+            $hasEprelAssetIdentity = collect($energyDeclarations)->contains(function ($row): bool {
+                $source = (string) ($row['source'] ?? '');
+                if (! in_array($source, [
+                    \App\Models\Catalog\Product\ProductEnergyDeclaration::SOURCE_EPREL,
+                    \App\Models\Catalog\Product\ProductEnergyDeclaration::SOURCE_MSAN,
+                ], true)) {
+                    return false;
+                }
+
+                $group = strtolower(trim((string) ($row['eprel_product_group'] ?? '')));
+                $registration = trim((string) ($row['eprel_registration_number'] ?? ''));
+
+                return preg_match('/^[a-z0-9-]{2,100}$/', $group) === 1
+                    && preg_match('/^\d{1,20}$/', $registration) === 1;
+            });
             $hasSavedEnergyLabel = in_array('product_energy_label', $energyMediaCollections, true)
-                || $isValidHttpsUrl($primaryEnergyRow['energy_label_url'] ?? '')
+                || collect($energyDeclarations)->contains(fn ($row) => $isValidHttpsUrl($row['energy_label_url'] ?? ''))
                 || $hasEprelAssetIdentity;
             $hasSavedInformationSheet = in_array('product_information_sheet', $energyMediaCollections, true)
-                || $isValidHttpsUrl($primaryEnergyRow['product_information_sheet_url'] ?? '')
+                || collect($energyDeclarations)->contains(fn ($row) => $isValidHttpsUrl($row['product_information_sheet_url'] ?? ''))
                 || $hasEprelAssetIdentity;
         @endphp
         <div class="admin-panel admin-form-panel p-6">
@@ -235,10 +257,118 @@
                         {{ $form['energy_label_required'] ? __('Energetska oznaka: obavezna') : __('Energetska oznaka: nije obavezna') }}
                     </button>
                     <button type="button" wire:click="addEnergyDeclaration" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
-                        {{ __('Dodaj ručnu deklaraciju') }}
+                        {{ __('Ručni unos (rezervno)') }}
                     </button>
                 </div>
             </div>
+
+            <section class="mt-5 overflow-hidden rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50 shadow-sm" data-eprel-lookup>
+                <div class="p-5">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="max-w-3xl">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h3 class="text-base font-semibold text-slate-950">{{ __('Automatski dohvati iz EPREL-a') }}</h3>
+                                <span class="rounded-full border border-cyan-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-800">{{ __('Službeni EU podaci') }}</span>
+                            </div>
+                            <p class="mt-2 text-sm leading-6 text-slate-600">
+                                {{ __('Jednim klikom tražimo točno podudaranje po EPREL broju, GTIN/EAN barkodu, M SAN modelu, part numberu, SKU-u i šifri artikla. Klasa, raspon i službene poveznice popunit će se automatski.') }}
+                            </p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-900">
+                            <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                            {{ __('Sprema se samo jednoznačan rezultat') }}
+                        </div>
+                    </div>
+
+                    <div class="mt-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Automatski pronađeni kriteriji') }}</p>
+                        <div class="mt-2 flex flex-wrap gap-2" data-eprel-lookup-criteria>
+                            @foreach (array_slice($eprelRegistrationCriteria, 0, 2) as $value)
+                                <span class="rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-800"><span class="text-indigo-500">{{ __('EPREL') }}</span> {{ $value }}</span>
+                            @endforeach
+                            @foreach (array_slice($eprelGtinCriteria, 0, 3) as $value)
+                                <span class="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-800"><span class="text-emerald-500">{{ __('Barkod') }}</span> {{ $value }}</span>
+                            @endforeach
+                            @foreach (array_slice($eprelModelCriteria, 0, 4) as $value)
+                                <span class="rounded-lg bg-sky-50 px-2.5 py-1.5 text-xs font-medium text-sky-800"><span class="text-sky-500">{{ __('Model / šifra') }}</span> {{ $value }}</span>
+                            @endforeach
+                            @foreach (array_slice($eprelBrandCriteria, 0, 2) as $value)
+                                <span class="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700"><span class="text-slate-400">{{ __('Marka') }}</span> {{ $value }}</span>
+                            @endforeach
+                            @if ($hiddenEprelCriteriaCount > 0)
+                                <span class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600">{{ __('Još kriterija: :count', ['count' => $hiddenEprelCriteriaCount]) }}</span>
+                            @endif
+                            @if ($eprelRegistrationCriteria === [] && $eprelGtinCriteria === [] && $eprelModelCriteria === [])
+                                <span class="text-sm text-amber-800">{{ __('Nema prepoznatih identifikatora. Spremite barem barkod, SKU ili šifru artikla.') }}</span>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1.15fr)_auto] xl:items-end">
+                        <div>
+                            <label for="eprel-lookup-model" class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Model (po potrebi)') }}</label>
+                            <input id="eprel-lookup-model" type="text" maxlength="191" wire:model.blur="eprelLookupModel" placeholder="{{ __('npr. WH-1000') }}" aria-describedby="eprel-lookup-model-help" @disabled(! $isEdit || ! $eprelLookupReady) class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-slate-100">
+                            <p id="eprel-lookup-model-help" class="mt-1.5 text-xs text-slate-500">{{ __('Ostavite prazno ako je model već prikazan među kriterijima iznad.') }}</p>
+                        </div>
+                        <div>
+                            <label for="eprel-lookup-brand" class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Marka (po potrebi)') }}</label>
+                            <input id="eprel-lookup-brand" type="text" maxlength="191" wire:model.blur="eprelLookupBrand" placeholder="{{ __('npr. Bosch') }}" aria-describedby="eprel-lookup-brand-help" @disabled(! $isEdit || ! $eprelLookupReady) class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-slate-100">
+                            <p id="eprel-lookup-brand-help" class="mt-1.5 text-xs text-slate-500">{{ __('Potrebno samo ako marka nije automatski pronađena.') }}</p>
+                        </div>
+                        <div>
+                            <label for="eprel-lookup-group" class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Grupa proizvoda') }}</label>
+                            <select id="eprel-lookup-group" wire:model.live="eprelLookupGroup" aria-describedby="eprel-lookup-group-help" @disabled(! $isEdit || ! $eprelLookupReady) class="admin-select w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-slate-100">
+                                <option value="">{{ __('Automatski — iz barkoda ili mapirane kategorije') }}</option>
+                                @foreach ($eprelProductGroupOptions as $groupSlug => $groupCode)
+                                    <option value="{{ $groupSlug }}">{{ str_replace('_', ' ', $groupCode) }} · {{ $groupSlug }}</option>
+                                @endforeach
+                            </select>
+                            <p id="eprel-lookup-group-help" class="mt-1.5 text-xs text-slate-500">
+                                @if (($eprelLookupContext['groups'] ?? []) !== [] && $eprelLookupGroup === '')
+                                    {{ __('Automatski prepoznato: :groups', ['groups' => implode(', ', $eprelLookupContext['groups'])]) }}
+                                @else
+                                    {{ __('Odaberite samo ako barkod nije dostupan i grupa se ne može automatski odrediti.') }}
+                                @endif
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            wire:click="lookupEprel"
+                            wire:loading.attr="disabled"
+                            wire:target="lookupEprel"
+                            @disabled(! $eprelLookupReady)
+                            class="inline-flex min-h-11 items-center justify-center rounded-xl bg-cyan-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <span wire:loading.remove wire:target="lookupEprel">{{ $hasEprelAssetIdentity ? __('Osvježi službene podatke') : __('Pronađi i preuzmi podatke') }}</span>
+                            <span wire:loading wire:target="lookupEprel" class="inline-flex items-center gap-2" role="status" aria-live="polite">
+                                <span class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                                {{ __('Pretražujem EPREL…') }}
+                            </span>
+                        </button>
+                    </div>
+
+                    @if (! $isEdit)
+                        <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                            {{ __('Najprije spremite osnovne podatke artikla. Nakon toga će automatski EPREL dohvat biti dostupan na ovom mjestu.') }}
+                        </div>
+                    @elseif (! $eprelLookupReady)
+                        <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                            {{ __('Za automatski dohvat uključite EPREL i spremite API ključ u postavkama integracije.') }}
+                            @if ($canManageEprelSettings)
+                                <a href="{{ route('admin.integrations.msan.settings') }}" class="ml-1 font-semibold underline underline-offset-2">{{ __('Otvori postavke') }}</a>
+                            @else
+                                <span class="ml-1 font-medium">{{ __('Obratite se administratoru sustava.') }}</span>
+                            @endif
+                        </div>
+                    @endif
+                    @error('eprelLookup')
+                        <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900" role="alert" data-eprel-lookup-error>{{ $message }}</div>
+                    @enderror
+                </div>
+                <div class="border-t border-cyan-100 bg-white/60 px-5 py-3 text-xs leading-5 text-slate-500">
+                    {{ __('Radi sigurnosti prihvaća se samo potpuno točan i jednoznačan zapis iste marke. Potvrđeni službeni zapis sprema se odmah; promjene u deklaracijama zato prvo spremite tipkom „Ažuriraj artikl”. Ostale nespremljene izmjene obrasca ostaju netaknute.') }}
+                </div>
+            </section>
 
             @if ($form['energy_label_required'] && (! $hasSavedEnergyLabel || ! $hasSavedInformationSheet))
                 <div class="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="alert" data-energy-compliance-warning>
@@ -280,6 +410,12 @@
                                 @endif
                             </div>
                             <div class="flex flex-wrap gap-2">
+                                @if ($isValidHttpsUrl($row['energy_label_url'] ?? ''))
+                                    <a href="{{ $row['energy_label_url'] }}" target="_blank" rel="noopener noreferrer" class="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-cyan-800 hover:bg-cyan-50">{{ __('Otvori oznaku') }}</a>
+                                @endif
+                                @if ($isValidHttpsUrl($row['product_information_sheet_url'] ?? ''))
+                                    <a href="{{ $row['product_information_sheet_url'] }}" target="_blank" rel="noopener noreferrer" class="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-cyan-800 hover:bg-cyan-50">{{ __('Otvori PIS') }}</a>
+                                @endif
                                 @if (! $row['is_primary'])
                                     <button type="button" wire:click="setPrimaryEnergyDeclaration({{ $index }})" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Postavi kao primarnu') }}</button>
                                 @endif
@@ -332,11 +468,18 @@
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('EPREL broj') }}</label>
-                                    <input type="text" wire:model="energyDeclarations.{{ $index }}.eprel_registration_number" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono">
+                                    <input type="text" inputmode="numeric" wire:model="energyDeclarations.{{ $index }}.eprel_registration_number" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono">
+                                    @error("energyDeclarations.$index.eprel_registration_number") <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('EPREL grupa') }}</label>
-                                    <input type="text" wire:model="energyDeclarations.{{ $index }}.eprel_product_group" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono">
+                                    <select wire:model="energyDeclarations.{{ $index }}.eprel_product_group" class="admin-select w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                                        <option value="">{{ __('Nije odabrano') }}</option>
+                                        @foreach ($eprelProductGroupOptions as $groupSlug => $groupCode)
+                                            <option value="{{ $groupSlug }}">{{ str_replace('_', ' ', $groupCode) }} · {{ $groupSlug }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error("energyDeclarations.$index.eprel_product_group") <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                 </div>
                                 <div class="md:col-span-2 lg:col-span-3">
                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('HTTPS URL službene energetske oznake') }}</label>
@@ -360,7 +503,7 @@
                     </section>
                 @empty
                     <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-                        {{ __('Nema energetskih deklaracija. Ako je oznaka obavezna, dodajte ručni unos ili prvo sinkronizirajte EPREL podatke.') }}
+                        {{ __('Još nema energetske deklaracije. Najprije upotrijebite automatski EPREL dohvat iznad; ručni unos je potreban samo ako službeni zapis nije dostupan.') }}
                     </div>
                 @endforelse
             </div>
