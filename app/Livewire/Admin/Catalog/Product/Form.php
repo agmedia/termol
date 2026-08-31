@@ -52,6 +52,10 @@ class Form extends Component
 
     public string $eprelLookupBrand = '';
 
+    public string $eprelLookupSearchBy = EprelProductLookupService::SEARCH_AUTO;
+
+    public string $eprelLookupQuery = '';
+
     public array $form = [
         'code' => '',
         'sku' => '',
@@ -103,6 +107,15 @@ class Form extends Component
     public function updatedEprelLookupGroup(): void
     {
         $this->resetErrorBag('eprelLookup');
+        $group = strtolower(trim($this->eprelLookupGroup));
+        if ($group !== '' && ! array_key_exists($group, EprelClient::productGroupOptions())) {
+            $this->addError('eprelLookup', __('Odabrana EPREL grupa proizvoda nije podržana.'));
+            $this->eprelLookupGroup = $this->storedEprelLookupGroup();
+
+            return;
+        }
+
+        $this->persistEprelLookupGroup($group);
     }
 
     public function updatedEprelLookupModel(): void
@@ -111,6 +124,22 @@ class Form extends Component
     }
 
     public function updatedEprelLookupBrand(): void
+    {
+        $this->resetErrorBag('eprelLookup');
+    }
+
+    public function updatedEprelLookupSearchBy(): void
+    {
+        $this->resetErrorBag('eprelLookup');
+        $searchBy = strtoupper(trim($this->eprelLookupSearchBy));
+        if ($searchBy !== EprelProductLookupService::SEARCH_AUTO
+            && ! array_key_exists($searchBy, EprelClient::searchByOptions())) {
+            $this->eprelLookupSearchBy = EprelProductLookupService::SEARCH_AUTO;
+            $this->addError('eprelLookup', __('EPREL vrsta pretrage nije podržana.'));
+        }
+    }
+
+    public function updatedEprelLookupQuery(): void
     {
         $this->resetErrorBag('eprelLookup');
     }
@@ -344,7 +373,11 @@ class Form extends Component
             $outcome = $lookup->lookup($product, $this->eprelLookupOverrides());
             if ($outcome['status'] === EprelProductLookupService::STATUS_MATCHED) {
                 $data = $outcome['data'] ?? [];
-                $this->eprelLookupGroup = (string) ($data['eprel_product_group'] ?? $this->eprelLookupGroup);
+                $matchedGroup = strtolower(trim((string) ($data['eprel_product_group'] ?? '')));
+                if (array_key_exists($matchedGroup, EprelClient::productGroupOptions())) {
+                    $this->eprelLookupGroup = $matchedGroup;
+                    $this->persistEprelLookupGroup($matchedGroup);
+                }
                 $this->loadEnergyDeclarations($product->fresh());
                 $this->form['energy_label_required'] = true;
                 $registration = (string) ($data['eprel_registration_number'] ?? '—');
@@ -364,11 +397,16 @@ class Form extends Component
                 return;
             }
 
+            $manualSearch = $this->eprelLookupSearchBy !== EprelProductLookupService::SEARCH_AUTO;
             $message = match ($outcome['status']) {
-                EprelProductLookupService::STATUS_NEEDS_GROUP => __('Automatska detekcija grupe nije uspjela. Za nastavak pretrage po modelu odaberite EPREL grupu proizvoda.'),
+                EprelProductLookupService::STATUS_NEEDS_GROUP => $manualSearch
+                    ? __('Za ručnu EPREL pretragu odaberite grupu proizvoda. Odabir će se odmah spremiti uz artikl.')
+                    : __('Automatska detekcija grupe nije uspjela. Odaberite EPREL grupu proizvoda; odabir će se odmah spremiti uz artikl.'),
                 EprelProductLookupService::STATUS_NEEDS_BRAND => __('Za sigurnu pretragu po modelu potrebna je marka. Odaberite proizvođača artikla ili unesite marku u polje za EPREL dohvat.'),
                 EprelProductLookupService::STATUS_NO_IDENTIFIERS => __('Nema dostupnog EPREL broja, valjanog barkoda, modela, SKU-a ni šifre za pretragu.'),
-                default => __('EPREL nije pronašao točno podudaranje za dostupni barkod, model i kataloške brojeve.'),
+                default => $manualSearch
+                    ? __('EPREL nije pronašao potpuno točan i jednoznačan rezultat za uneseni pojam i odabranu grupu.')
+                    : __('EPREL nije pronašao točno podudaranje za dostupni barkod, model i kataloške brojeve.'),
             };
             $this->addError('eprelLookup', $message);
             $this->dispatch('notify', type: 'warning', message: $message);
@@ -683,6 +721,7 @@ class Form extends Component
             'packageTypeOptions' => ProductPackage::typeOptions(),
             'energyClassOptions' => ProductEnergyDeclaration::energyClassOptions(),
             'eprelProductGroupOptions' => EprelClient::productGroupOptions(),
+            'eprelSearchByOptions' => EprelClient::searchByOptions(),
         ]);
     }
 
@@ -851,6 +890,7 @@ class Form extends Component
         $this->form['height_cm'] = $product->height_cm;
         $this->form['shipping_labels'] = $product->shipping_labels ?? [];
         $this->form['energy_label_required'] = (bool) $product->energy_label_required;
+        $this->eprelLookupGroup = strtolower(trim((string) $product->eprel_lookup_product_group));
         if ($this->useManufacturers()) {
             $this->form['manufacturer_id'] = $product->manufacturer_id ? (int) $product->manufacturer_id : null;
         }
@@ -980,14 +1020,43 @@ class Form extends Component
         return $normalize($this->energyDeclarations) !== $normalize($this->energyDeclarationRows($product));
     }
 
-    /** @return array{model:string,brand:string,eprel_product_group:string} */
+    /** @return array{model:string,brand:string,eprel_product_group:string,search_by:string,search_query:string} */
     private function eprelLookupOverrides(): array
     {
         return [
             'model' => $this->eprelLookupModel,
             'brand' => $this->eprelLookupBrand,
             'eprel_product_group' => $this->eprelLookupGroup,
+            'search_by' => $this->eprelLookupSearchBy,
+            'search_query' => $this->eprelLookupQuery,
         ];
+    }
+
+    private function persistEprelLookupGroup(string $group): void
+    {
+        if (! $this->productId) {
+            return;
+        }
+
+        Product::query()
+            ->whereKey($this->productId)
+            ->update([
+                'eprel_lookup_product_group' => $group !== '' ? $group : null,
+                'updated_at' => now(),
+            ]);
+    }
+
+    private function storedEprelLookupGroup(): string
+    {
+        if (! $this->productId) {
+            return '';
+        }
+
+        $group = strtolower(trim((string) Product::query()
+            ->whereKey($this->productId)
+            ->value('eprel_lookup_product_group')));
+
+        return array_key_exists($group, EprelClient::productGroupOptions()) ? $group : '';
     }
 
     /** @return list<string> */

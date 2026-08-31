@@ -54,6 +54,7 @@ class Product extends Model implements HasMedia
         'energy_efficiency_scale',
         'eprel_registration_number',
         'eprel_product_group',
+        'eprel_lookup_product_group',
         'eprel_energy_label_image',
         'energy_label_url',
         'product_information_sheet_url',

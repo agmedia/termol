@@ -308,6 +308,168 @@ class ProductEnergyDeclarationsFeatureTest extends TestCase
             && $request->header('x-api-key') === ['synthetic-product-form-eprel-key']);
     }
 
+    public function test_selected_lookup_group_is_persisted_without_changing_existing_declaration_identity(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->product();
+        $declaration = ProductEnergyDeclaration::query()->create([
+            'product_id' => $product->id,
+            'context_code' => 'existing-eprel',
+            'eprel_registration_number' => '646868',
+            'eprel_product_group' => self::EPREL_GROUP,
+            'is_primary' => true,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+        ]);
+        $product->forceFill([
+            'eprel_registration_number' => '646868',
+            'eprel_product_group' => self::EPREL_GROUP,
+        ])->save();
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->set('eprelLookupGroup', 'lightsources')
+            ->assertHasNoErrors('eprelLookup');
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'eprel_lookup_product_group' => 'lightsources',
+            'eprel_product_group' => self::EPREL_GROUP,
+            'eprel_registration_number' => '646868',
+        ]);
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'id' => $declaration->id,
+            'eprel_product_group' => self::EPREL_GROUP,
+            'eprel_registration_number' => '646868',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->assertSet('eprelLookupGroup', 'lightsources')
+            ->set('eprelLookupGroup', '')
+            ->assertHasNoErrors('eprelLookup');
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'eprel_lookup_product_group' => null,
+            'eprel_product_group' => self::EPREL_GROUP,
+        ]);
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'id' => $declaration->id,
+            'eprel_product_group' => self::EPREL_GROUP,
+        ]);
+    }
+
+    public function test_manual_commercial_name_search_uses_the_official_mode_and_stores_one_exact_result(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->product();
+        Http::fake(function (Request $request) {
+            if ($request->url() === EprelClient::BASE_URL.'/api/products/'.self::EPREL_GROUP.'/646868') {
+                return Http::response([
+                    'eprelRegistrationNumber' => '646868',
+                    'productGroup' => self::EPREL_GROUP_CODE,
+                    'modelIdentifier' => 'M27FC12401',
+                    'supplierOrTrademark' => 'THOMSON',
+                    'commercialName' => 'Thomson Easy TV',
+                    'energyClass' => 'F',
+                ]);
+            }
+
+            return Http::response(['size' => 1, 'hits' => [[
+                'eprelRegistrationNumber' => '646868',
+                'productGroup' => self::EPREL_GROUP_CODE,
+                'modelIdentifier' => 'M27FC12401',
+                'supplierOrTrademark' => 'THOMSON',
+                'additionalDetails' => ['commercialName' => '  THOMSON   EASY TV '],
+            ]]]);
+        });
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->assertSee('Identifikator modela')
+            ->assertSee('Marka ili zaštitni znak')
+            ->assertSee('Komercijalni naziv modela')
+            ->assertSee('GTIN identifikator')
+            ->assertSee('data-eprel-search-by', false)
+            ->assertSee('data-eprel-search-query', false)
+            ->set('eprelLookupGroup', self::EPREL_GROUP)
+            ->set('eprelLookupSearchBy', EprelClient::SEARCH_COMMERCIAL_NAME)
+            ->set('eprelLookupQuery', 'Thomson Easy TV')
+            ->call('lookupEprel')
+            ->assertHasNoErrors('eprelLookup')
+            ->assertDispatched('notify', type: 'success')
+            ->assertSet('energyDeclarations.0.source', ProductEnergyDeclaration::SOURCE_EPREL)
+            ->assertSet('energyDeclarations.0.energy_class', 'F');
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'eprel_lookup_product_group' => self::EPREL_GROUP,
+            'eprel_product_group' => self::EPREL_GROUP,
+        ]);
+        $this->assertDatabaseHas('product_energy_declarations', [
+            'product_id' => $product->id,
+            'eprel_registration_number' => '646868',
+            'eprel_product_group' => self::EPREL_GROUP,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+        ]);
+        Http::assertSentCount(2);
+        Http::assertSent(static fn (Request $request): bool => str_starts_with(
+            $request->url(),
+            EprelClient::BASE_URL.'/api/products/'.self::EPREL_GROUP.'?',
+        )
+            && str_contains($request->url(), '_page=1')
+            && str_contains($request->url(), 'genericField=COMMERCIAL_NAME')
+            && str_contains($request->url(), 'commercialName=Thomson%20Easy%20TV')
+            && str_contains($request->url(), 'applianceType=ANY')
+            && ! str_contains($request->url(), '_page=0'));
+    }
+
+    public function test_lookup_rechecks_the_persisted_group_before_storing_a_remote_match(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->product();
+        Http::fake(function (Request $request) use ($product) {
+            if (str_contains($request->url(), 'genericField=COMMERCIAL_NAME')) {
+                Product::query()->whereKey($product->id)->update([
+                    'eprel_lookup_product_group' => 'lightsources',
+                ]);
+
+                return Http::response(['size' => 1, 'hits' => [[
+                    'eprelRegistrationNumber' => '646868',
+                    'productGroup' => self::EPREL_GROUP_CODE,
+                    'commercialName' => 'Thomson Easy TV',
+                ]]]);
+            }
+
+            return Http::response([
+                'eprelRegistrationNumber' => '646868',
+                'productGroup' => self::EPREL_GROUP_CODE,
+                'commercialName' => 'Thomson Easy TV',
+                'energyClass' => 'F',
+            ]);
+        });
+
+        Livewire::actingAs($user)
+            ->test(ProductForm::class, ['productId' => $product->id])
+            ->call('setTab', 'energy')
+            ->set('eprelLookupGroup', self::EPREL_GROUP)
+            ->set('eprelLookupSearchBy', EprelClient::SEARCH_COMMERCIAL_NAME)
+            ->set('eprelLookupQuery', 'Thomson Easy TV')
+            ->call('lookupEprel')
+            ->assertHasErrors('eprelLookup')
+            ->assertSee('Odabrana EPREL grupa promijenjena je tijekom dohvata.');
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'eprel_lookup_product_group' => 'lightsources',
+        ]);
+        $this->assertDatabaseMissing('product_energy_declarations', [
+            'product_id' => $product->id,
+            'source' => ProductEnergyDeclaration::SOURCE_EPREL,
+        ]);
+    }
+
     public function test_linked_msan_product_falls_back_to_exact_brand_and_model_lookup_in_the_mapped_group(): void
     {
         $user = User::factory()->create();
@@ -410,7 +572,7 @@ class ProductEnergyDeclarationsFeatureTest extends TestCase
             ->assertHasErrors('eprelLookup')
             ->assertDispatched('notify', type: 'warning')
             ->assertSee('data-eprel-lookup-error', false)
-            ->assertSee('Automatska detekcija grupe nije uspjela. Za nastavak pretrage po modelu odaberite EPREL grupu proizvoda.');
+            ->assertSee('Automatska detekcija grupe nije uspjela. Odaberite EPREL grupu proizvoda; odabir će se odmah spremiti uz artikl.');
 
         $this->assertDatabaseMissing('product_energy_declarations', [
             'product_id' => $product->id,

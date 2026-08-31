@@ -10,6 +10,8 @@ use InvalidArgumentException;
 
 class EprelProductLookupService
 {
+    public const SEARCH_AUTO = 'AUTO';
+
     private const MAX_REGISTRATION_LOOKUPS = 4;
 
     private const MAX_GTIN_LOOKUPS = 8;
@@ -33,7 +35,7 @@ class EprelProductLookupService
     ) {}
 
     /**
-     * @param  array{code?:mixed,sku?:mixed,barcode?:mixed,model?:mixed,brand?:mixed,eprel_product_group?:mixed}  $overrides
+     * @param  array{code?:mixed,sku?:mixed,barcode?:mixed,model?:mixed,brand?:mixed,eprel_product_group?:mixed,search_by?:mixed,search_query?:mixed}  $overrides
      * @return array{
      *   registrationNumbers:list<string>,
      *   gtins:list<string>,
@@ -123,7 +125,10 @@ class EprelProductLookupService
                 ->reject(fn (MsanCategoryMapping $mapping): bool => $mapping->energy_requirement === MsanCategoryMapping::ENERGY_REQUIREMENT_NOT_APPLICABLE)
                 ->pluck('eprel_product_group'))
             ->all();
-        $requestedGroup = trim((string) ($overrides['eprel_product_group'] ?? ''));
+        $hasRequestedGroup = array_key_exists('eprel_product_group', $overrides);
+        $requestedGroup = trim((string) ($hasRequestedGroup
+            ? $overrides['eprel_product_group']
+            : $product->eprel_lookup_product_group));
         if ($requestedGroup !== '' && ! array_key_exists(strtolower($requestedGroup), EprelClient::productGroupOptions())) {
             throw new InvalidArgumentException('Odabrana EPREL grupa proizvoda nije podržana.');
         }
@@ -150,7 +155,7 @@ class EprelProductLookupService
     }
 
     /**
-     * @param  array{code?:mixed,sku?:mixed,barcode?:mixed,model?:mixed,brand?:mixed,eprel_product_group?:mixed}  $overrides
+     * @param  array{code?:mixed,sku?:mixed,barcode?:mixed,model?:mixed,brand?:mixed,eprel_product_group?:mixed,search_by?:mixed,search_query?:mixed}  $overrides
      * @return array{status:string,matched_by:?string,data:?array<string,mixed>,criteria:array<string,list<string>>}
      */
     public function lookup(Product $product, array $overrides = []): array
@@ -162,6 +167,40 @@ class EprelProductLookupService
         $this->settings->eprelApiKey();
 
         $criteria = $this->criteria($product, $overrides);
+        $searchBy = strtoupper(trim((string) ($overrides['search_by'] ?? self::SEARCH_AUTO)));
+        if ($searchBy !== self::SEARCH_AUTO) {
+            if (! array_key_exists($searchBy, EprelClient::searchByOptions())) {
+                throw new InvalidArgumentException('EPREL vrsta pretrage nije podržana.');
+            }
+            $searchQuery = trim((string) ($overrides['search_query'] ?? ''));
+            if ($searchQuery === '') {
+                throw new InvalidArgumentException('Unesite pojam za ručnu EPREL pretragu.');
+            }
+            $requestedGroup = strtolower(trim((string) ($overrides['eprel_product_group'] ?? '')));
+            if ($requestedGroup === '') {
+                return $this->outcome(self::STATUS_NEEDS_GROUP, null, null, $criteria);
+            }
+
+            $result = $this->client->findBySearchCriterion(
+                $requestedGroup,
+                $searchBy,
+                $searchQuery,
+                $searchBy === EprelClient::SEARCH_MODEL_IDENTIFIER ? $criteria['brands'] : [],
+            );
+            if ($result === null) {
+                return $this->outcome(self::STATUS_NOT_FOUND, null, null, $criteria);
+            }
+
+            $this->storeMatch($product, $result, $criteria, $overrides);
+
+            return $this->outcome(
+                self::STATUS_MATCHED,
+                strtolower($searchBy),
+                $result,
+                $criteria,
+            );
+        }
+
         if ($criteria['registrationNumbers'] === []
             && $criteria['gtins'] === []
             && $criteria['models'] === []) {
@@ -290,6 +329,9 @@ class EprelProductLookupService
         if ($this->criteria($freshProduct, $overrides) !== $criteria) {
             throw new EprelMatchConflictException('Identifikacijski podaci artikla promijenjeni su tijekom EPREL dohvata. Pokrenite pretragu ponovno.');
         }
+        if (! $this->lookupPreferenceMatches($freshProduct, $product, $overrides)) {
+            throw new EprelMatchConflictException('Odabrana EPREL grupa promijenjena je tijekom dohvata. Pokrenite pretragu ponovno.');
+        }
 
         $this->declarations->store(
             (int) $freshProduct->getKey(),
@@ -301,8 +343,20 @@ class EprelProductLookupService
                 'barcode' => $freshProduct->barcode,
                 'manufacturer_id' => $freshProduct->manufacturer_id,
             ],
-            fn (Product $lockedProduct): bool => $this->criteria($lockedProduct, $overrides) === $criteria,
+            fn (Product $lockedProduct): bool => $this->criteria($lockedProduct, $overrides) === $criteria
+                && $this->lookupPreferenceMatches($lockedProduct, $product, $overrides),
         );
+    }
+
+    /** @param array<string, mixed> $overrides */
+    private function lookupPreferenceMatches(Product $candidate, Product $original, array $overrides): bool
+    {
+        $expected = array_key_exists('eprel_product_group', $overrides)
+            ? strtolower(trim((string) $overrides['eprel_product_group']))
+            : strtolower(trim((string) $original->eprel_lookup_product_group));
+        $actual = strtolower(trim((string) $candidate->eprel_lookup_product_group));
+
+        return hash_equals($expected, $actual);
     }
 
     /** @return list<mixed> */

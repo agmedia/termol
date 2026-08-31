@@ -282,6 +282,121 @@ class EprelEnergySyncTest extends TestCase
         ) && str_contains($request->url(), 'supplierOrTrademark=Acme%20Europe'));
     }
 
+    public function test_model_lookup_uses_the_official_one_based_contract_and_retries_a_failed_brand_filter_safely(): void
+    {
+        Http::fake(function (Request $request) {
+            if ($request->url() === EprelClient::BASE_URL.'/api/products/'.self::GROUP.'/2222222') {
+                return Http::response([
+                    'eprelRegistrationNumber' => '2222222',
+                    'productGroup' => self::GROUP_CODE,
+                    'modelIdentifier' => 'DD-235E S',
+                    'supplierOrTrademark' => 'VIVAX',
+                    'energyClass' => 'C',
+                ]);
+            }
+
+            if (str_contains($request->url(), 'supplierOrTrademark=VIVAX')) {
+                return Http::response(['message' => 'Internal server error'], 500);
+            }
+
+            return Http::response(['size' => 1, 'hits' => [[
+                'eprelRegistrationNumber' => '2222222',
+                'productGroup' => self::GROUP_CODE,
+                'modelIdentifier' => 'DD-235E S',
+                'supplierOrTrademark' => 'VIVAX',
+            ]]]);
+        });
+
+        $result = app(EprelClient::class)->findByModelIdentifier(
+            self::GROUP,
+            'DD-235E S',
+            ['VIVAX'],
+        );
+
+        $this->assertNotNull($result);
+        $this->assertSame('2222222', $result['eprel_registration_number']);
+        $requests = collect(Http::recorded())->map(
+            static fn (array $record): string => $record[0]->url(),
+        )->values();
+        $this->assertCount(3, $requests);
+        $this->assertStringContainsString('_page=1', $requests[0]);
+        $this->assertStringContainsString('genericField=MODEL_IDENTIFIER', $requests[0]);
+        $this->assertStringContainsString('modelIdentifier=DD-235E%20S', $requests[0]);
+        $this->assertStringContainsString('supplierOrTrademark=VIVAX', $requests[0]);
+        $this->assertStringContainsString('applianceType=ANY', $requests[0]);
+        $this->assertStringNotContainsString('supplierOrTrademark=', $requests[1]);
+        $this->assertStringNotContainsString('_page=0', $requests[1]);
+    }
+
+    public function test_official_brand_search_rejects_multiple_exact_products(): void
+    {
+        Http::fake([
+            EprelClient::BASE_URL.'/api/products/'.self::GROUP.'*' => Http::response([
+                'size' => 2,
+                'hits' => [
+                    [
+                        'eprelRegistrationNumber' => '1111111',
+                        'productGroup' => self::GROUP_CODE,
+                        'supplierOrTrademark' => 'VIVAX',
+                    ],
+                    [
+                        'eprelRegistrationNumber' => '2222222',
+                        'productGroup' => self::GROUP_CODE,
+                        'supplierOrTrademark' => 'vivax',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('više točnih artikala');
+
+        app(EprelClient::class)->findBySearchCriterion(
+            self::GROUP,
+            EprelClient::SEARCH_BRAND_OR_TRADEMARK,
+            ' VIVAX ',
+        );
+    }
+
+    public function test_official_gtin_search_uses_the_selected_group_and_exact_search_field(): void
+    {
+        $gtin = '9120072372216';
+        Http::fake(function (Request $request) use ($gtin) {
+            if ($request->url() === EprelClient::BASE_URL.'/api/products/'.self::GROUP.'/646868') {
+                return Http::response([
+                    'eprelRegistrationNumber' => '646868',
+                    'productGroup' => self::GROUP_CODE,
+                    'modelIdentifier' => 'GTIN-MODEL',
+                    // Some detail responses omit the repeated GTIN.
+                    'energyClass' => 'D',
+                ]);
+            }
+
+            return Http::response(['size' => 1, 'hits' => [[
+                'eprelRegistrationNumber' => '646868',
+                'productGroup' => self::GROUP_CODE,
+                'gtinIdentifier' => $gtin,
+            ]]]);
+        });
+
+        $result = app(EprelClient::class)->findBySearchCriterion(
+            self::GROUP,
+            EprelClient::SEARCH_GTIN_IDENTIFIER,
+            $gtin,
+        );
+
+        $this->assertNotNull($result);
+        $this->assertSame('646868', $result['eprel_registration_number']);
+        Http::assertSent(static fn (Request $request): bool => str_starts_with(
+            $request->url(),
+            EprelClient::BASE_URL.'/api/products/'.self::GROUP.'?',
+        )
+            && str_contains($request->url(), '_page=1')
+            && str_contains($request->url(), 'genericField=GTIN_IDENTIFIER')
+            && str_contains($request->url(), 'gtinIdentifier='.$gtin)
+            && str_contains($request->url(), 'applianceType=ANY'));
+    }
+
     public function test_model_lookup_rejects_a_truncated_result_page_before_using_a_match(): void
     {
         Http::fake([

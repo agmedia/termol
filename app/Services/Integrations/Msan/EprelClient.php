@@ -11,6 +11,22 @@ class EprelClient
 {
     public const BASE_URL = 'https://eprel.ec.europa.eu';
 
+    public const SEARCH_MODEL_IDENTIFIER = 'MODEL_IDENTIFIER';
+
+    public const SEARCH_BRAND_OR_TRADEMARK = 'BRAND_OR_TRADEMARK';
+
+    public const SEARCH_COMMERCIAL_NAME = 'COMMERCIAL_NAME';
+
+    public const SEARCH_GTIN_IDENTIFIER = 'GTIN_IDENTIFIER';
+
+    /** @var array<string, string> Official EPREL genericField value => query parameter. */
+    private const SEARCH_FIELDS = [
+        self::SEARCH_MODEL_IDENTIFIER => 'modelIdentifier',
+        self::SEARCH_BRAND_OR_TRADEMARK => 'supplierOrTrademark',
+        self::SEARCH_COMMERCIAL_NAME => 'commercialName',
+        self::SEARCH_GTIN_IDENTIFIER => 'gtinIdentifier',
+    ];
+
     /**
      * EPREL uses stable URL slugs in its public product API while responses use
      * enum-style product-group codes. Keeping the map local also prevents an
@@ -62,6 +78,17 @@ class EprelClient
     public static function productGroupOptions(): array
     {
         return self::PRODUCT_GROUPS;
+    }
+
+    /** @return array<string, string> Official genericField value => admin label. */
+    public static function searchByOptions(): array
+    {
+        return [
+            self::SEARCH_MODEL_IDENTIFIER => 'Identifikator modela',
+            self::SEARCH_BRAND_OR_TRADEMARK => 'Marka ili zaštitni znak',
+            self::SEARCH_COMMERCIAL_NAME => 'Komercijalni naziv modela',
+            self::SEARCH_GTIN_IDENTIFIER => 'GTIN identifikator',
+        ];
     }
 
     public static function isValidRegistrationNumber(string $value): bool
@@ -239,14 +266,18 @@ class EprelClient
             throw new InvalidArgumentException('EPREL marka nije ispravna.');
         }
         $query = [
-            '_page' => 0,
+            // EPREL's public search is one-based. `_page=0` currently returns
+            // HTTP 500 even for otherwise valid searches.
+            '_page' => 1,
             '_limit' => 100,
+            'genericField' => self::SEARCH_MODEL_IDENTIFIER,
             'modelIdentifier' => $model,
+            'applianceType' => 'ANY',
         ];
         if (count($brands) === 1) {
             $query['supplierOrTrademark'] = $brands[0];
         }
-        $response = $this->get('/api/products/'.$group, $query);
+        $response = $this->searchProducts($group, $query);
 
         if ($response === null) {
             return null;
@@ -291,6 +322,109 @@ class EprelClient
         return $this->normalizeRecord($record, $group, $registration);
     }
 
+    /**
+     * Runs one of the four official EPREL "Search by" modes. Search-list
+     * records are treated only as candidates: the selected field, group and
+     * unique registration are revalidated before detail data is normalized.
+     *
+     * @param  list<mixed>  $brandCandidates
+     * @return array<string, mixed>|null
+     */
+    public function findBySearchCriterion(
+        string $productGroup,
+        string $searchBy,
+        string $searchQuery,
+        array $brandCandidates = [],
+    ): ?array {
+        $group = $this->validatedProductGroup($productGroup);
+        $criterion = strtoupper(trim($searchBy));
+        if (! isset(self::SEARCH_FIELDS[$criterion])) {
+            throw new InvalidArgumentException('EPREL vrsta pretrage nije podržana.');
+        }
+
+        if ($criterion === self::SEARCH_MODEL_IDENTIFIER) {
+            return $this->findByModelIdentifier($group, $searchQuery, $brandCandidates);
+        }
+
+        $value = match ($criterion) {
+            self::SEARCH_GTIN_IDENTIFIER => $this->validatedGtinIdentifier($searchQuery),
+            self::SEARCH_BRAND_OR_TRADEMARK => $this->validatedBrandSearch($searchQuery),
+            self::SEARCH_COMMERCIAL_NAME => $this->validatedSearchText(
+                $searchQuery,
+                'EPREL komercijalni naziv modela nije ispravan.',
+            ),
+        };
+        $field = self::SEARCH_FIELDS[$criterion];
+        $response = $this->get('/api/products/'.$group, [
+            '_page' => 1,
+            '_limit' => 100,
+            'genericField' => $criterion,
+            $field => $value,
+            'applianceType' => 'ANY',
+        ]);
+        if ($response === null) {
+            return null;
+        }
+
+        $records = $this->records($response);
+        if ($this->totalRecords($response) > count($records)) {
+            throw new EprelMatchConflictException('EPREL pretraga vratila je više rezultata nego što se može sigurno provjeriti jednim dohvatom. Unesite uži pojam.');
+        }
+
+        $matches = collect($records)
+            ->filter(fn (array $record): bool => $this->groupMatches($record, $group)
+                && $this->searchCriterionMatches($record, $criterion, $value))
+            ->map(function (array $record): ?array {
+                $registration = $this->registrationFromRecord($record);
+
+                return $registration === null ? null : compact('record', 'registration');
+            })
+            ->filter()
+            ->unique('registration')
+            ->values();
+
+        if ($matches->isEmpty()) {
+            return null;
+        }
+        if ($matches->count() !== 1) {
+            throw new EprelMatchConflictException('EPREL pretraga vratila je više točnih artikala. Suzite pojam ili upotrijebite model odnosno GTIN.');
+        }
+
+        $match = $matches->first();
+        $detail = $this->get('/api/products/'.$group.'/'.$match['registration']);
+        if ($detail === null) {
+            return null;
+        }
+        $record = $this->singleRecord($detail);
+        if (! $record
+            || ! $this->registrationMatches($record, $match['registration'])
+            || ! $this->groupMatches($record, $group)
+            || ! $this->detailCriterionMatches($record, $criterion, $value)) {
+            return null;
+        }
+
+        return $this->normalizeRecord($record, $group, $match['registration']);
+    }
+
+    /** @param array<string, mixed> $query */
+    private function searchProducts(string $group, array $query): ?array
+    {
+        try {
+            return $this->get('/api/products/'.$group, $query);
+        } catch (EprelHttpException $exception) {
+            // EPREL occasionally rejects the optional combined brand filter.
+            // Retrying the same official model search without that server-side
+            // filter is safe because exact brand matching still happens below.
+            if (! $exception->isServerError() || ! isset($query['supplierOrTrademark'])) {
+                throw $exception;
+            }
+
+            unset($query['supplierOrTrademark']);
+
+            return $this->get('/api/products/'.$group, $query);
+        }
+    }
+
     /** @return array<string, mixed>|null */
     private function get(string $path, array $query = []): ?array
     {
@@ -331,7 +465,10 @@ class EprelClient
         throw match ($response->status()) {
             401, 403 => new EprelException('EPREL je odbio API ključ ili pristup.'),
             429 => new EprelException('EPREL je privremeno ograničio broj zahtjeva.'),
-            default => new EprelException('EPREL servis trenutačno nije dostupan (HTTP '.$response->status().').'),
+            default => new EprelHttpException(
+                'EPREL servis trenutačno nije dostupan (HTTP '.$response->status().').',
+                $response->status(),
+            ),
         };
     }
 
@@ -376,6 +513,26 @@ class EprelClient
         }
 
         return $gtin;
+    }
+
+    private function validatedBrandSearch(string $value): string
+    {
+        $brand = $this->validatedSearchText($value, 'EPREL marka nije ispravna.');
+        if (! self::isValidBrandCandidate($brand)) {
+            throw new InvalidArgumentException('EPREL marka nije ispravna.');
+        }
+
+        return $brand;
+    }
+
+    private function validatedSearchText(string $value, string $message): string
+    {
+        $text = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
+        if ($text === '' || mb_strlen($text) > 191 || preg_match('/\pC/u', $text) === 1) {
+            throw new InvalidArgumentException($message);
+        }
+
+        return $text;
     }
 
     /** @param list<mixed> $candidates */
@@ -444,6 +601,43 @@ class EprelClient
     private function normalizedBrand(string $value): string
     {
         return mb_strtolower(trim(preg_replace('/\s+/u', ' ', $value) ?? ''));
+    }
+
+    /** @param array<string, mixed> $record */
+    private function searchCriterionMatches(array $record, string $criterion, string $value): bool
+    {
+        return match ($criterion) {
+            self::SEARCH_BRAND_OR_TRADEMARK => $this->brandMatches($record, [$value]),
+            self::SEARCH_COMMERCIAL_NAME => $this->normalizedText(
+                $this->stringValue($record, [
+                    'commercialName', 'commercial_name', 'additionalDetails.commercialName',
+                    'product.commercialName',
+                ]),
+            ) === $this->normalizedText($value),
+            self::SEARCH_GTIN_IDENTIFIER => ($candidate = $this->stringValue($record, [
+                'gtinIdentifier', 'gtin_identifier', 'gtin',
+                'additionalDetails.gtinIdentifier', 'product.gtinIdentifier',
+            ])) !== null && hash_equals($value, $candidate),
+            default => false,
+        };
+    }
+
+    /** @param array<string, mixed> $record */
+    private function detailCriterionMatches(array $record, string $criterion, string $value): bool
+    {
+        if ($criterion === self::SEARCH_GTIN_IDENTIFIER) {
+            // The list candidate was required to repeat the exact GTIN. Some
+            // EPREL detail representations omit it, but an explicit mismatch
+            // must still be rejected.
+            return $this->gtinMatches($record, $value);
+        }
+
+        return $this->searchCriterionMatches($record, $criterion, $value);
+    }
+
+    private function normalizedText(?string $value): string
+    {
+        return mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) $value) ?? ''));
     }
 
     /** @param array<string, mixed> $record */
