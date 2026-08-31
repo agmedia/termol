@@ -262,7 +262,12 @@ class MsanLivewireFeatureTest extends TestCase
 
         $component = Livewire::actingAs($admin)
             ->test(CategoryMappingManager::class)
-            ->set('status', 'unmapped');
+            ->set('status', 'unmapped')
+            ->assertSee('Glavna kategorija')
+            ->assertSee('Podkategorija · razina 1')
+            ->assertSee('Podkategorija · razina 2')
+            ->assertSeeHtml('data-msan-category-depth="0"')
+            ->assertSeeHtml('data-msan-category-depth="2"');
 
         $this->assertSame(
             ['A', 'A-1', 'A-1-1', 'A-2', 'B'],

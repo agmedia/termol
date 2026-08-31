@@ -349,6 +349,7 @@ class CategoryMappingManager extends Component
             ->select([
                 'id',
                 'external_id',
+                'parent_external_id',
                 'name',
                 'path',
                 'product_count',

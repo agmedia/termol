@@ -7,6 +7,9 @@
     ];
     $categoryState = static function ($category) use ($energyRequirementOptions): array {
         $mapping = $category->mapping;
+        $depth = blank($category->parent_external_id)
+            ? 0
+            : max(1, substr_count(trim((string) $category->path), ' > '));
         $mappingStatus = match (true) {
             $mapping?->status === 'ignored' => 'ignored',
             $mapping?->status === 'mapped' && $mapping?->local_category_id => 'mapped',
@@ -17,6 +20,25 @@
             ?? $localCategory?->translations?->first();
 
         return [
+            'depth' => $depth,
+            'isRoot' => $depth === 0,
+            'indentClass' => match (min($depth, 4)) {
+                1 => 'pl-5',
+                2 => 'pl-10',
+                3 => 'pl-14',
+                4 => 'pl-20',
+                default => '',
+            },
+            'mobileIndentClass' => match (min($depth, 4)) {
+                1 => 'pl-2',
+                2 => 'pl-4',
+                3 => 'pl-6',
+                4 => 'pl-8',
+                default => '',
+            },
+            'hierarchyLabel' => $depth === 0
+                ? __('Glavna kategorija')
+                : __('Podkategorija · razina :depth', ['depth' => $depth]),
             'mapping' => $mapping,
             'status' => $mappingStatus,
             'statusLabel' => match ($mappingStatus) {
@@ -93,8 +115,31 @@
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($categories as $category)
                         @php($state = $categoryState($category))
-                        <tr wire:key="msan-category-row-{{ $category->id }}" @class(['bg-cyan-50/60' => $editingCategoryId === $category->id])>
-                            <td class="px-3 py-3"><div class="max-w-[32rem] font-semibold text-slate-900">{{ $category->name }}</div>@if($category->path && $category->path !== $category->name)<div class="mt-0.5 max-w-[32rem] whitespace-normal text-xs leading-5 text-slate-500">{{ $category->path }}</div>@endif<div class="mt-1 font-mono text-[11px] text-slate-400">{{ $category->external_id }}</div></td>
+                        <tr
+                            wire:key="msan-category-row-{{ $category->id }}"
+                            data-msan-category-depth="{{ $state['depth'] }}"
+                            @class([
+                                'bg-cyan-50/60' => $editingCategoryId === $category->id,
+                                'border-t-2 border-slate-200 bg-slate-50/90 first:border-t-0' => $state['isRoot'] && $editingCategoryId !== $category->id,
+                            ])
+                        >
+                            <td class="px-3 py-3">
+                                <div class="{{ $state['indentClass'] }}">
+                                    <div class="flex max-w-[32rem] items-start gap-2.5">
+                                        @if (! $state['isRoot'])
+                                            <span class="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-200/80 text-xs font-bold text-slate-500" aria-hidden="true">↳</span>
+                                        @endif
+                                        <div class="min-w-0">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <div class="text-slate-900 {{ $state['isRoot'] ? 'font-bold' : 'font-semibold' }}">{{ $category->name }}</div>
+                                                <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide {{ $state['isRoot'] ? 'bg-cyan-100 text-cyan-800' : 'bg-slate-100 text-slate-500' }}">{{ $state['hierarchyLabel'] }}</span>
+                                            </div>
+                                            @if($category->path && $category->path !== $category->name)<div class="mt-0.5 max-w-[32rem] whitespace-normal text-xs leading-5 text-slate-500">{{ $category->path }}</div>@endif
+                                            <div class="mt-1 font-mono text-[11px] text-slate-400">{{ $category->external_id }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
                             <td class="px-3 py-3 text-right text-base font-semibold tabular-nums text-slate-800">{{ number_format((int) $category->product_count, 0, ',', '.') }}</td>
                             <td class="px-3 py-3"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $state['statusClass'] }}">{{ $state['statusLabel'] }}</span>@if($state['localCategory'])<div class="mt-2 font-medium text-slate-800">{{ $state['localName'] }}</div><div class="mt-0.5 font-mono text-[11px] text-slate-400">{{ $state['localCategory']->code }}</div>@elseif($state['status'] === 'ignored')<p class="mt-2 text-xs text-slate-500">{{ __('Preskače se pri uvozu') }}</p>@endif</td>
                             <td class="px-3 py-3 text-xs text-slate-600"><div class="max-w-64 whitespace-normal font-medium leading-5 text-slate-700">{{ $state['energyLabel'] }}</div><div class="mt-1 font-mono text-[11px] text-slate-400">{{ $state['mapping']?->eprel_product_group ?: __('EPREL grupa nije zadana') }}</div></td>
@@ -111,8 +156,23 @@
         <div class="mt-4 grid gap-3 md:grid-cols-2 xl:hidden">
             @forelse($categories as $category)
                 @php($state = $categoryState($category))
-                <article wire:key="msan-category-card-{{ $category->id }}" class="rounded-xl border p-4 {{ $editingCategoryId === $category->id ? 'border-cyan-300 bg-cyan-50/60' : 'border-slate-200 bg-white' }}">
-                    <div class="flex items-start justify-between gap-3"><div class="min-w-0"><h3 class="font-semibold leading-5 text-slate-900">{{ $category->name }}</h3><p class="mt-1 break-all font-mono text-[11px] text-slate-500">{{ $category->external_id }}</p></div><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $state['statusClass'] }}">{{ $state['statusLabel'] }}</span></div>
+                <article
+                    wire:key="msan-category-card-{{ $category->id }}"
+                    data-msan-category-depth="{{ $state['depth'] }}"
+                    class="rounded-xl border p-4 {{ $state['isRoot'] ? 'md:col-span-2' : '' }} {{ $editingCategoryId === $category->id ? 'border-cyan-300 bg-cyan-50/60' : ($state['isRoot'] ? 'border-slate-300 bg-slate-50' : 'border-slate-200 border-l-4 border-l-slate-300 bg-white') }}"
+                >
+                    <div class="{{ $state['isRoot'] ? '' : $state['mobileIndentClass'] }}">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex min-w-0 items-start gap-2.5">
+                                @if (! $state['isRoot'])<span class="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-200/80 text-xs font-bold text-slate-500" aria-hidden="true">↳</span>@endif
+                                <div class="min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2"><h3 class="leading-5 text-slate-900 {{ $state['isRoot'] ? 'font-bold' : 'font-semibold' }}">{{ $category->name }}</h3><span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide {{ $state['isRoot'] ? 'bg-cyan-100 text-cyan-800' : 'bg-slate-100 text-slate-500' }}">{{ $state['hierarchyLabel'] }}</span></div>
+                                    <p class="mt-1 break-all font-mono text-[11px] text-slate-500">{{ $category->external_id }}</p>
+                                </div>
+                            </div>
+                            <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $state['statusClass'] }}">{{ $state['statusLabel'] }}</span>
+                        </div>
+                    </div>
                     @if($category->path && $category->path !== $category->name)<p class="mt-2 text-xs leading-5 text-slate-500">{{ $category->path }}</p>@endif
                     <dl class="mt-3 grid grid-cols-2 gap-3 border-t border-slate-200 pt-3 text-xs">
                         <div><dt class="text-slate-500">{{ __('Artikli') }}</dt><dd class="mt-1 text-base font-bold tabular-nums text-slate-800">{{ number_format((int) $category->product_count, 0, ',', '.') }}</dd></div>
