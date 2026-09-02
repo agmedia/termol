@@ -97,15 +97,41 @@ class MsanSpecificationSyncTest extends TestCase
 
         $product->refresh();
         $this->assertTrue($product->attributes()->whereKey($manual->id)->exists());
-        $this->assertTrue($product->attributes()
+        $msanAttribute = $product->attributes()
             ->where('payload->source', 'msan_specification')
-            ->exists());
+            ->firstOrFail();
+        $this->assertNotNull($msanAttribute->attribute_group_id);
+        $this->assertDatabaseHas('catalog_attribute_groups', [
+            'id' => $msanAttribute->attribute_group_id,
+            'code' => $msanAttribute->group_code,
+        ]);
+        $this->assertDatabaseHas('catalog_attribute_group_translations', [
+            'attribute_group_id' => $msanAttribute->attribute_group_id,
+            'locale' => 'hr',
+            'name' => 'Boja uređaja',
+        ]);
         $this->assertDatabaseHas('catalog_product_specifications', [
             'product_id' => $product->id,
             'group_name' => 'Izgled',
             'item_name' => 'Boja uređaja',
             'measure' => 'oznaka',
         ]);
+
+        $msanAttribute->forceFill([
+            'payload' => [
+                'source' => 'manual',
+                'source_key' => 'tampered',
+            ],
+        ])->save();
+        (new RepublishMsanSpecificationDefinitionJob((int) $definition->id))
+            ->handle(app(MsanSpecificationPublisher::class));
+
+        $msanAttribute->refresh();
+        $this->assertSame(
+            Attribute::SOURCE_MSAN_SPECIFICATION,
+            data_get($msanAttribute->payload, 'source'),
+        );
+        $this->assertSame($definition->source_key, data_get($msanAttribute->payload, 'source_key'));
     }
 
     public function test_coordinator_queues_selected_specifications_on_the_integrations_queue(): void

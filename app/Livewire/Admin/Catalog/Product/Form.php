@@ -36,9 +36,13 @@ class Form extends Component
 
     public array $attributeSelections = [];
 
-    public string $attributeGroupView = 'all';
+    /** @var array<int, string> */
+    public array $addedAttributeGroupCodes = [];
 
-    public bool $attributeShowAssignedOnly = false;
+    /** @var array<int, int> */
+    public array $msanAttributeIds = [];
+
+    public string $attributeGroupToAdd = '';
 
     public array $packages = [];
 
@@ -157,6 +161,63 @@ class Form extends Component
         $this->activeTab = $tab;
     }
 
+    public function addAttributeGroup(): void
+    {
+        $groupCode = trim($this->attributeGroupToAdd);
+        $group = collect($this->attributeGroups)
+            ->first(fn (array $candidate): bool => (string) $candidate['group_code'] === $groupCode);
+
+        if (! $group || (bool) ($group['is_msan'] ?? false)) {
+            $this->addError('attributeGroupToAdd', __('Odaberite valjanu grupu atributa.'));
+
+            return;
+        }
+
+        $this->resetErrorBag('attributeGroupToAdd');
+        if (! in_array($groupCode, $this->addedAttributeGroupCodes, true)) {
+            $this->addedAttributeGroupCodes[] = $groupCode;
+        }
+
+        if (! array_key_exists($groupCode, $this->attributeSelections)) {
+            $this->attributeSelections[$groupCode] = (string) $group['type'] === Attribute::TYPE_MULTI
+                ? []
+                : '';
+        }
+
+        $this->attributeGroupToAdd = '';
+    }
+
+    public function removeAttributeGroup(string $groupCode): void
+    {
+        $groupCode = trim($groupCode);
+        if ($groupCode === '') {
+            return;
+        }
+
+        $group = collect($this->visibleAttributeGroups)
+            ->first(fn (array $candidate): bool => (string) $candidate['group_code'] === $groupCode);
+        if (! $group) {
+            return;
+        }
+
+        if ((bool) ($group['is_msan_assigned'] ?? false)) {
+            $this->dispatch(
+                'notify',
+                type: 'warning',
+                message: __('M SAN atributi održavaju se automatski kroz integraciju.'),
+            );
+
+            return;
+        }
+
+        unset($this->attributeSelections[$groupCode]);
+        $this->addedAttributeGroupCodes = array_values(array_filter(
+            $this->addedAttributeGroupCodes,
+            fn (string $code): bool => $code !== $groupCode,
+        ));
+        $this->resetErrorBag('attributeSelections.'.$groupCode);
+    }
+
     public function save()
     {
         if ($this->useAttributes()) {
@@ -245,13 +306,10 @@ class Form extends Component
             $product->categories()->sync($syncPayload);
 
             if ($this->useAttributes()) {
-                $attributeSyncPayload = [];
-                foreach (array_values($validated['form']['attribute_ids'] ?? []) as $index => $attributeId) {
-                    $attributeSyncPayload[(int) $attributeId] = [
-                        'sort_order' => $index,
-                    ];
-                }
-                $product->attributes()->sync($attributeSyncPayload);
+                $this->syncManualAttributes(
+                    $product,
+                    array_values($validated['form']['attribute_ids'] ?? []),
+                );
             }
 
             $packageIdsByCode = $this->syncPackages(
@@ -1145,12 +1203,20 @@ class Form extends Component
             return collect();
         }
 
+        $selectedIds = collect($this->form['attribute_ids'] ?? [])
+            ->merge($this->msanAttributeIds)
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
         return Attribute::query()
-            ->where(function ($q): void {
+            ->where(function ($q) use ($selectedIds): void {
                 $q->where('is_active', true);
 
-                if (! empty($this->form['attribute_ids'])) {
-                    $q->orWhereIn('id', array_map('intval', $this->form['attribute_ids']));
+                if ($selectedIds !== []) {
+                    $q->orWhereIn('id', $selectedIds);
                 }
             })
             ->with([
@@ -1163,7 +1229,7 @@ class Form extends Component
     }
 
     /**
-     * @return array<int, array{group_code:string,group_name:string,type:string,items:array<int, array{id:int,name:string}>}>
+     * @return array<int, array{group_code:string,group_name:string,type:string,is_msan:bool,items:array<int, array{id:int,name:string,is_msan:bool}>}>
      */
     public function getAttributeGroupsProperty(): array
     {
@@ -1176,19 +1242,24 @@ class Form extends Component
         foreach ($this->attributeOptions as $attribute) {
             $tr = $attribute->translations->first();
             $groupCode = (string) $attribute->group_code;
+            $isMsan = $attribute->isMsanManaged();
 
             if (! isset($groups[$groupCode])) {
                 $groups[$groupCode] = [
                     'group_code' => $groupCode,
                     'group_name' => (string) ($tr?->group_name ?? str($groupCode)->replace('_', ' ')->title()),
                     'type' => (string) $attribute->type,
+                    'is_msan' => false,
                     'items' => [],
                 ];
             }
 
+            $groups[$groupCode]['is_msan'] = $groups[$groupCode]['is_msan'] || $isMsan;
+
             $groups[$groupCode]['items'][] = [
                 'id' => (int) $attribute->id,
                 'name' => (string) ($tr?->name ?? $attribute->code),
+                'is_msan' => $isMsan,
             ];
         }
 
@@ -1200,44 +1271,58 @@ class Form extends Component
      */
     public function getAttributeGroupOptionsProperty(): array
     {
-        return array_map(
-            fn (array $group): array => [
+        return collect($this->attributeGroups)
+            ->reject(fn (array $group): bool => (bool) ($group['is_msan'] ?? false))
+            ->reject(fn (array $group): bool => in_array(
+                (string) $group['group_code'],
+                $this->addedAttributeGroupCodes,
+                true,
+            ))
+            ->map(fn (array $group): array => [
                 'group_code' => (string) $group['group_code'],
                 'group_name' => (string) $group['group_name'],
                 'type' => (string) $group['type'],
                 'item_count' => count($group['items']),
-            ],
-            $this->attributeGroups
-        );
+            ])
+            ->values()
+            ->all();
     }
 
     /**
-     * @return array<int, array{group_code:string,group_name:string,type:string,items:array<int, array{id:int,name:string}>}>
+     * @return array<int, array{group_code:string,group_name:string,type:string,is_msan:bool,is_msan_assigned:bool,selected_items:array<int, array{id:int,name:string,is_msan:bool}>,items:array<int, array{id:int,name:string,is_msan:bool}>}>
      */
     public function getVisibleAttributeGroupsProperty(): array
     {
-        $groups = $this->attributeGroups;
+        $msanIds = array_flip(array_map('intval', $this->msanAttributeIds));
 
-        $knownGroupCodes = array_map(fn (array $group): string => (string) $group['group_code'], $groups);
-        if ($this->attributeGroupView !== 'all' && ! in_array($this->attributeGroupView, $knownGroupCodes, true)) {
-            $this->attributeGroupView = 'all';
-        }
+        return collect($this->attributeGroups)
+            ->filter(fn (array $group): bool => in_array(
+                (string) $group['group_code'],
+                $this->addedAttributeGroupCodes,
+                true,
+            ))
+            ->map(function (array $group) use ($msanIds): array {
+                $groupCode = (string) $group['group_code'];
+                $manualIds = array_flip($this->attributeIdsFromSelection(
+                    $this->attributeSelections[$groupCode] ?? null,
+                ));
+                $groupItemIds = array_flip(array_map(
+                    fn (array $item): int => (int) $item['id'],
+                    $group['items'],
+                ));
+                $assignedMsanIds = array_intersect_key($msanIds, $groupItemIds);
+                $selectedIds = $manualIds + $assignedMsanIds;
 
-        if ($this->attributeGroupView !== 'all') {
-            $groups = array_values(array_filter(
-                $groups,
-                fn (array $group): bool => (string) $group['group_code'] === $this->attributeGroupView
-            ));
-        }
+                $group['is_msan_assigned'] = $assignedMsanIds !== [];
+                $group['selected_items'] = array_values(array_filter(
+                    $group['items'],
+                    fn (array $item): bool => isset($selectedIds[(int) $item['id']]),
+                ));
 
-        if ($this->attributeShowAssignedOnly) {
-            $groups = array_values(array_filter(
-                $groups,
-                fn (array $group): bool => $this->hasSelectionForAttributeGroup((string) $group['group_code'])
-            ));
-        }
-
-        return $groups;
+                return $group;
+            })
+            ->values()
+            ->all();
     }
 
     private function loadTranslationForLocale(): void
@@ -1771,43 +1856,7 @@ class Form extends Component
             return [];
         }
 
-        if (! empty($this->attributeSelections)) {
-            return $this->resolveGroupedAttributeSelections();
-        }
-
-        $ids = array_values(array_unique(array_filter(
-            array_map('intval', (array) ($this->form['attribute_ids'] ?? [])),
-            fn (int $id): bool => $id > 0
-        )));
-
-        if (empty($ids)) {
-            return [];
-        }
-
-        $rows = Attribute::query()
-            ->whereIn('id', $ids)
-            ->get(['id', 'group_code', 'type']);
-
-        if ($rows->count() !== count($ids)) {
-            $this->addError('form.attribute_ids', __('Invalid attribute selection.'));
-            $this->dispatch('notify', type: 'danger', message: __('Invalid attribute selection.'));
-
-            return false;
-        }
-
-        $byGroup = $rows->groupBy('group_code');
-
-        foreach ($byGroup as $groupCode => $groupRows) {
-            $type = (string) ($groupRows->first()->type ?? Attribute::TYPE_SELECT);
-            if ($type === Attribute::TYPE_SELECT && $groupRows->count() > 1) {
-                $this->addError('form.attribute_ids', __('Only one value is allowed for group ":group".', ['group' => $groupCode]));
-                $this->dispatch('notify', type: 'danger', message: __('Only one value is allowed for select-type attribute groups.'));
-
-                return false;
-            }
-        }
-
-        return $ids;
+        return $this->resolveGroupedAttributeSelections();
     }
 
     private function defaultTaxRateId(): ?int
@@ -1829,19 +1878,7 @@ class Form extends Component
         $allIds = [];
 
         foreach ($this->attributeSelections as $groupCode => $value) {
-            $ids = [];
-
-            if (is_array($value)) {
-                $ids = array_values(array_unique(array_filter(
-                    array_map('intval', $value),
-                    fn (int $id): bool => $id > 0
-                )));
-            } else {
-                $single = (int) $value;
-                if ($single > 0) {
-                    $ids = [$single];
-                }
-            }
+            $ids = $this->attributeIdsFromSelection($value);
 
             if (! empty($ids)) {
                 $normalizedByGroup[(string) $groupCode] = $ids;
@@ -1910,6 +1947,8 @@ class Form extends Component
     private function hydrateAttributeSelectionsFromAttributeIds(array $ids): void
     {
         $this->attributeSelections = [];
+        $this->addedAttributeGroupCodes = [];
+        $this->msanAttributeIds = [];
 
         if (empty($ids)) {
             return;
@@ -1920,11 +1959,21 @@ class Form extends Component
             ->orderBy('group_code')
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->get(['id', 'group_code', 'type']);
+            ->get(['id', 'group_code', 'type', 'payload']);
 
         foreach ($attributes as $attribute) {
             $groupCode = (string) $attribute->group_code;
             $id = (int) $attribute->id;
+
+            if (! in_array($groupCode, $this->addedAttributeGroupCodes, true)) {
+                $this->addedAttributeGroupCodes[] = $groupCode;
+            }
+
+            if ($attribute->isMsanManaged()) {
+                $this->msanAttributeIds[] = $id;
+
+                continue;
+            }
 
             if ((string) $attribute->type === Attribute::TYPE_MULTI) {
                 $existing = $this->attributeSelections[$groupCode] ?? [];
@@ -1941,20 +1990,70 @@ class Form extends Component
                 $this->attributeSelections[$groupCode] = $id;
             }
         }
+
+        $this->msanAttributeIds = array_values(array_unique($this->msanAttributeIds));
     }
 
-    private function hasSelectionForAttributeGroup(string $groupCode): bool
+    /**
+     * @return array<int, int>
+     */
+    private function attributeIdsFromSelection(mixed $value): array
     {
-        if (! array_key_exists($groupCode, $this->attributeSelections)) {
-            return false;
-        }
-
-        $value = $this->attributeSelections[$groupCode];
         if (is_array($value)) {
-            return ! empty(array_filter(array_map('intval', $value), fn (int $id): bool => $id > 0));
+            return array_values(array_unique(array_filter(
+                array_map('intval', $value),
+                fn (int $id): bool => $id > 0,
+            )));
         }
 
-        return (int) $value > 0;
+        $id = (int) $value;
+
+        return $id > 0 ? [$id] : [];
+    }
+
+    /**
+     * @param  array<int, int|string>  $submittedIds
+     */
+    private function syncManualAttributes(Product $product, array $submittedIds): void
+    {
+        $submittedIds = array_values(array_unique(array_filter(
+            array_map('intval', $submittedIds),
+            fn (int $id): bool => $id > 0,
+        )));
+        $submittedAttributes = Attribute::query()
+            ->whereIn('id', $submittedIds)
+            ->get(['id', 'payload'])
+            ->keyBy('id');
+        $manualPayload = [];
+        $manualSortOrder = 0;
+
+        foreach ($submittedIds as $attributeId) {
+            /** @var Attribute|null $attribute */
+            $attribute = $submittedAttributes->get($attributeId);
+            if (! $attribute || $attribute->isMsanManaged()) {
+                continue;
+            }
+
+            $manualPayload[$attributeId] = ['sort_order' => $manualSortOrder++];
+        }
+
+        $currentManualIds = $product->attributes()
+            ->get(['catalog_attributes.id', 'catalog_attributes.payload'])
+            ->reject(fn (Attribute $attribute): bool => $attribute->isMsanManaged())
+            ->modelKeys();
+
+        $manualIdsToDetach = array_values(array_diff(
+            array_map('intval', $currentManualIds),
+            array_map('intval', array_keys($manualPayload)),
+        ));
+
+        if ($manualIdsToDetach !== []) {
+            $product->attributes()->detach($manualIdsToDetach);
+        }
+
+        if ($manualPayload !== []) {
+            $product->attributes()->syncWithoutDetaching($manualPayload);
+        }
     }
 
     private function useOptions(): bool

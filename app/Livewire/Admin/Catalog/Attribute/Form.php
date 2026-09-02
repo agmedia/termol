@@ -3,15 +3,21 @@
 namespace App\Livewire\Admin\Catalog\Attribute;
 
 use App\Models\Catalog\Attribute\Attribute;
+use App\Models\Catalog\Attribute\AttributeGroup;
 use App\Models\Catalog\Attribute\AttributeTranslation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class Form extends Component
 {
+    #[Locked]
     public ?int $attributeId = null;
+
+    #[Locked]
+    public ?int $groupId = null;
 
     public array $form = [
         'code' => '',
@@ -28,13 +34,18 @@ class Form extends Component
         'translation_payload_text' => '',
     ];
 
-    public function mount(?int $attributeId = null): void
+    public function mount(?int $attributeId = null, ?int $groupId = null): void
     {
         $this->form['locale'] = (string) (request()->query('locale') ?: config('app.locale', 'en'));
 
         if ($attributeId) {
             $this->attributeId = $attributeId;
             $this->loadAttribute();
+        } elseif ($groupId) {
+            $this->groupId = $groupId;
+            $this->loadGroupDefaults();
+        } else {
+            abort(404);
         }
     }
 
@@ -60,6 +71,7 @@ class Form extends Component
         if ($payload === false) {
             return null;
         }
+        $payload = $this->preserveManagedPayload($payload);
 
         $translationPayload = $this->decodeJsonField('form.translation_payload_text');
         if ($translationPayload === false) {
@@ -67,12 +79,15 @@ class Form extends Component
         }
 
         $userId = auth()->id();
+        $group = $this->groupForSave();
+        $groupName = $this->localizedGroupName($group, (string) $validated['form']['locale']);
 
-        DB::transaction(function () use ($validated, $payload, $translationPayload, $userId, $wasEditing): void {
+        DB::transaction(function () use ($validated, $payload, $translationPayload, $userId, $wasEditing, $group, $groupName): void {
             $attributeData = [
+                'attribute_group_id' => $group->id,
                 'code' => trim((string) $validated['form']['code']),
-                'group_code' => trim((string) $validated['form']['group_code']),
-                'type' => (string) $validated['form']['type'],
+                'group_code' => $group->code,
+                'type' => $group->type,
                 'is_active' => (bool) $validated['form']['is_active'],
                 'sort_order' => (int) $validated['form']['sort_order'],
                 'payload' => $payload,
@@ -90,7 +105,7 @@ class Form extends Component
             $attribute->translations()->updateOrCreate(
                 ['locale' => $validated['form']['locale']],
                 [
-                    'group_name' => $validated['form']['group_name'],
+                    'group_name' => $groupName,
                     'name' => $validated['form']['name'],
                     'slug' => $validated['form']['slug'],
                     'description' => $validated['form']['description'] ?: null,
@@ -104,8 +119,8 @@ class Form extends Component
                 ->event($wasEditing ? 'updated' : 'created')
                 ->withProperties([
                     'locale' => $validated['form']['locale'],
-                    'group_code' => $validated['form']['group_code'],
-                    'group_name' => $validated['form']['group_name'],
+                    'group_code' => $group->code,
+                    'group_name' => $groupName,
                     'slug' => $validated['form']['slug'],
                 ])
                 ->log('Attribute saved');
@@ -114,7 +129,10 @@ class Form extends Component
         $message = $wasEditing ? __('Attribute updated.') : __('Attribute created.');
 
         return redirect()
-            ->route('admin.attributes', ['locale' => $this->form['locale']])
+            ->route('admin.attributes.groups.show', [
+                'attributeGroup' => $this->groupId,
+                'locale' => $this->form['locale'],
+            ])
             ->with('notify', [
                 'type' => 'success',
                 'message' => $message,
@@ -123,7 +141,10 @@ class Form extends Component
 
     public function backToList()
     {
-        return redirect()->route('admin.attributes', ['locale' => $this->form['locale']]);
+        return redirect()->route('admin.attributes.groups.show', [
+            'attributeGroup' => $this->groupId,
+            'locale' => $this->form['locale'],
+        ]);
     }
 
     /**
@@ -136,8 +157,23 @@ class Form extends Component
 
     public function render()
     {
+        $attribute = $this->attributeId
+            ? Attribute::query()->findOrFail($this->attributeId)
+            : null;
+        $group = $attribute
+            ? $this->storedGroup($attribute)
+            : ($this->groupId
+                ? AttributeGroup::query()->with('translations')->findOrFail($this->groupId)
+                : null);
+
+        if ($group) {
+            $this->groupId = (int) $group->id;
+        }
+
         return view('livewire.admin.catalog.attribute.form', [
             'isEdit' => (bool) $this->attributeId,
+            'group' => $group,
+            'attributeSource' => $attribute?->sourceCode() ?? '',
         ]);
     }
 
@@ -153,14 +189,11 @@ class Form extends Component
                 'max:120',
                 Rule::unique('catalog_attributes', 'code')->ignore($this->attributeId),
             ],
-            'form.group_code' => ['required', 'string', 'max:120'],
-            'form.type' => ['required', Rule::in(Attribute::availableTypes())],
             'form.is_active' => ['boolean'],
             'form.sort_order' => ['nullable', 'integer', 'min:0'],
             'form.payload_text' => ['nullable', 'string'],
 
             'form.locale' => ['required', 'string', 'max:12'],
-            'form.group_name' => ['required', 'string', 'max:255'],
             'form.name' => ['required', 'string', 'max:5000'],
             'form.slug' => [
                 'required',
@@ -178,13 +211,20 @@ class Form extends Component
 
     private function loadAttribute(): void
     {
-        if (!$this->attributeId) {
+        if (! $this->attributeId) {
             return;
         }
 
         $attribute = Attribute::query()
-            ->with('translations')
+            ->with(['translations', 'group.translations'])
             ->findOrFail($this->attributeId);
+
+        $this->groupId = $attribute->attribute_group_id;
+        if (! $this->groupId) {
+            $group = AttributeGroup::query()->where('code', $attribute->group_code)->firstOrFail();
+            $this->groupId = $group->id;
+            $attribute->forceFill(['attribute_group_id' => $group->id])->save();
+        }
 
         $preferredLocale = $this->form['locale'] ?: config('app.locale', 'en');
         $translation = $attribute->translations->firstWhere('locale', $preferredLocale)
@@ -214,8 +254,9 @@ class Form extends Component
 
     private function loadTranslationForLocale(): void
     {
-        if (!$this->attributeId) {
+        if (! $this->attributeId) {
             $this->clearTranslationFields();
+
             return;
         }
 
@@ -224,8 +265,9 @@ class Form extends Component
             ->where('locale', $this->form['locale'])
             ->first();
 
-        if (!$translation) {
+        if (! $translation) {
             $this->clearTranslationFields();
+
             return;
         }
 
@@ -236,6 +278,81 @@ class Form extends Component
         $this->form['translation_payload_text'] = $translation->payload
             ? json_encode($translation->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
             : '';
+    }
+
+    private function loadGroupDefaults(): void
+    {
+        $group = AttributeGroup::query()->with('translations')->findOrFail($this->groupId);
+        abort_if($group->isMsanManaged(), 403, __('M SAN attribute groups are maintained automatically.'));
+
+        $this->form['group_code'] = $group->code;
+        $this->form['type'] = $group->type;
+        $this->form['group_name'] = $this->localizedGroupName($group, $this->form['locale']);
+        $this->form['sort_order'] = (int) (($group->attributes()->max('sort_order') ?? -10) + 10);
+    }
+
+    private function localizedGroupName(AttributeGroup $group, string $locale): string
+    {
+        $group->loadMissing('translations');
+        $translation = $group->translations->firstWhere('locale', $locale)
+            ?? $group->translations->firstWhere('locale', config('app.locale', 'en'))
+            ?? $group->translations->first();
+
+        return (string) ($translation?->name ?? str($group->code)->replace(['_', '-'], ' ')->title());
+    }
+
+    private function groupForSave(): AttributeGroup
+    {
+        if (! $this->attributeId) {
+            $group = AttributeGroup::query()->findOrFail($this->groupId);
+            abort_if($group->isMsanManaged(), 403, __('M SAN attribute groups are maintained automatically.'));
+
+            return $group;
+        }
+
+        $attribute = Attribute::query()->findOrFail($this->attributeId);
+        $group = $this->storedGroup($attribute);
+        $this->groupId = (int) $group->id;
+
+        return $group;
+    }
+
+    private function storedGroup(Attribute $attribute): AttributeGroup
+    {
+        $group = $attribute->attribute_group_id
+            ? AttributeGroup::query()->with('translations')->find($attribute->attribute_group_id)
+            : AttributeGroup::query()->with('translations')->where('code', $attribute->group_code)->first();
+
+        abort_unless($group, 404);
+
+        return $group;
+    }
+
+    /**
+     * @param  array<mixed>|null  $payload
+     * @return array<mixed>|null
+     */
+    private function preserveManagedPayload(?array $payload): ?array
+    {
+        if (! $this->attributeId) {
+            return $payload;
+        }
+
+        $attribute = Attribute::query()->findOrFail($this->attributeId);
+        if (! $attribute->isMsanManaged()) {
+            return $payload;
+        }
+
+        $payload ??= [];
+        $currentPayload = is_array($attribute->payload) ? $attribute->payload : [];
+
+        foreach (['source', 'source_key'] as $managedKey) {
+            if (array_key_exists($managedKey, $currentPayload)) {
+                $payload[$managedKey] = $currentPayload[$managedKey];
+            }
+        }
+
+        return $payload;
     }
 
     private function clearTranslationFields(): void
@@ -262,12 +379,14 @@ class Form extends Component
         if (json_last_error() !== JSON_ERROR_NONE) {
             $this->addError($field, __('Invalid JSON payload.'));
             $this->dispatch('notify', type: 'danger', message: __('Invalid JSON payload.'));
+
             return false;
         }
 
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             $this->addError($field, __('JSON payload must decode to object/array.'));
             $this->dispatch('notify', type: 'danger', message: __('JSON payload must decode to object/array.'));
+
             return false;
         }
 

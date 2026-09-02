@@ -6,7 +6,7 @@
     $commentUser = auth()->user();
     $hasAttributeSpecifications = $product->relationLoaded('attributes')
         && $product->attributes->contains(
-            fn ($attribute): bool => (string) data_get($attribute->payload, 'source') !== 'msan_specification',
+            fn ($attribute): bool => ! $attribute->isMsanManaged(),
         );
     $hasImportedSpecifications = $product->relationLoaded('technicalSpecificationRows')
         && $product->technicalSpecificationRows->isNotEmpty();

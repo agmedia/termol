@@ -25,6 +25,7 @@ use App\Http\Controllers\Front\StorefrontStylesController;
 use App\Http\Controllers\Front\WishlistController;
 use App\Models\Catalog\Action\CatalogAction;
 use App\Models\Catalog\Attribute\Attribute as CatalogAttribute;
+use App\Models\Catalog\Attribute\AttributeGroup as CatalogAttributeGroup;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Option\Option;
@@ -309,9 +310,39 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
         });
         Route::middleware('catalog.feature:catalog_use_attributes')->group(function (): void {
             Route::view('attributes', 'admin.attributes')->name('attributes');
-            Route::view('attributes/create', 'admin.attributes.create')->name('attributes.create');
+
+            Route::view('attributes/groups/create', 'admin.attributes.group-create')
+                ->name('attributes.groups.create');
+            Route::get('attributes/groups/{attributeGroup}', function (CatalogAttributeGroup $attributeGroup) {
+                return view('admin.attributes.group-show', compact('attributeGroup'));
+            })->name('attributes.groups.show');
+            Route::get('attributes/groups/{attributeGroup}/edit', function (CatalogAttributeGroup $attributeGroup) {
+                return view('admin.attributes.group-edit', compact('attributeGroup'));
+            })->name('attributes.groups.edit');
+            Route::get('attributes/groups/{attributeGroup}/attributes/create', function (CatalogAttributeGroup $attributeGroup) {
+                return view('admin.attributes.attribute-create', compact('attributeGroup'));
+            })->name('attributes.groups.attributes.create');
+            Route::get('attributes/groups/{attributeGroup}/attributes/{attribute}/edit', function (
+                CatalogAttributeGroup $attributeGroup,
+                CatalogAttribute $attribute,
+            ) {
+                abort_unless((int) $attribute->attribute_group_id === (int) $attributeGroup->id, 404);
+
+                return view('admin.attributes.attribute-edit', compact('attributeGroup', 'attribute'));
+            })->name('attributes.groups.attributes.edit');
+
+            Route::get('attributes/create', function (Request $request) {
+                return redirect()->route('admin.attributes.groups.create', $request->only('locale'));
+            })->name('attributes.create');
             Route::get('attributes/{attribute}/edit', function (CatalogAttribute $attribute) {
-                return view('admin.attributes.edit', compact('attribute'));
+                $group = $attribute->group
+                    ?? CatalogAttributeGroup::query()->where('code', $attribute->group_code)->firstOrFail();
+
+                return redirect()->route('admin.attributes.groups.attributes.edit', [
+                    'attributeGroup' => $group,
+                    'attribute' => $attribute,
+                    'locale' => request()->query('locale'),
+                ]);
             })->name('attributes.edit');
         });
         Route::middleware('catalog.feature:catalog_use_manufacturers')->group(function (): void {

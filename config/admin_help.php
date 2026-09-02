@@ -243,12 +243,57 @@ return [
             ],
         ],
         'admin.attributes' => [
-            'title' => 'Attributes',
-            'summary' => 'Reusable grouped attribute values for product filters/specifications.',
+            'title' => 'Attribute groups',
+            'summary' => 'Central list of reusable attribute groups from manual and imported sources.',
             'bullets' => [
-                'Use Group Code to keep a stable machine grouping key.',
-                'Use Group Name for localized display label.',
-                'Attribute assignment is done directly in Product edit form.',
+                'Open a group to see and manage only its attribute values.',
+                'Source badges distinguish manual, Termol, Kozo, M SAN and other imported filter values.',
+                'Create the group first, then add its available attribute values.',
+            ],
+        ],
+        'admin.attributes.groups.create' => [
+            'title' => 'Create attribute group',
+            'summary' => 'Create a reusable group before adding its values.',
+            'bullets' => [
+                'The code is a stable key used by imports and storefront filters.',
+                'Select whether an article may use one or multiple values from the group.',
+                'After saving, add values from the group detail page.',
+            ],
+        ],
+        'admin.attributes.groups.edit' => [
+            'title' => 'Edit attribute group',
+            'summary' => 'Update group display content, type and ordering.',
+            'bullets' => [
+                'The stable code cannot be changed after creation.',
+                'Changing the type is applied to every value in the group.',
+                'Imported values remain marked with their source.',
+            ],
+        ],
+        'admin.attributes.groups.show' => [
+            'title' => 'Attribute group',
+            'summary' => 'Manage the reusable values inside one group.',
+            'bullets' => [
+                'Use Add new attribute to create another value in this group.',
+                'Product counts show where each value is currently used.',
+                'Automatic imports can recreate values managed by their source.',
+            ],
+        ],
+        'admin.attributes.groups.attributes.create' => [
+            'title' => 'Create attribute',
+            'summary' => 'Add one reusable value to the selected group.',
+            'bullets' => [
+                'The group code and selection type come from the parent group.',
+                'The value code should remain stable for imports.',
+                'The slug must be unique per locale.',
+            ],
+        ],
+        'admin.attributes.groups.attributes.edit' => [
+            'title' => 'Edit attribute',
+            'summary' => 'Update one reusable value in its group.',
+            'bullets' => [
+                'Source data is visible in the advanced import section.',
+                'Disabling a value keeps historical article links intact.',
+                'Use sort order to control its position inside the group.',
             ],
         ],
         'admin.attributes.create' => [

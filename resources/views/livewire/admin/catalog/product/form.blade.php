@@ -877,25 +877,27 @@
                 <a href="{{ route('admin.attributes', ['locale' => $form['locale']]) }}" class="text-sm font-semibold text-cyan-700 hover:text-cyan-800">{{ __('Upravljaj atributima') }}</a>
             </div>
 
-            <div class="mt-5 grid gap-2 lg:grid-cols-[minmax(12rem,20rem)_auto]">
+            <div class="mt-5 grid gap-2 lg:grid-cols-[minmax(16rem,28rem)_auto]">
                 <div>
-                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Vidljiva grupa') }}</label>
-                    <select wire:model.live="attributeGroupView" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                        <option value="all">{{ __('Sve grupe') }}</option>
+                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('Grupa atributa') }}</label>
+                    <select wire:model.live="attributeGroupToAdd" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                        <option value="">{{ __('Odaberite grupu...') }}</option>
                         @foreach ($this->attributeGroupOptions as $groupOption)
                             <option value="{{ $groupOption['group_code'] }}">
                                 {{ $groupOption['group_name'] }} ({{ $groupOption['item_count'] }})
                             </option>
                         @endforeach
                     </select>
+                    @error('attributeGroupToAdd') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex items-end">
                     <button
                         type="button"
-                        wire:click="$toggle('attributeShowAssignedOnly')"
-                        class="rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.1em] {{ $attributeShowAssignedOnly ? 'border-cyan-300 bg-cyan-50 text-cyan-800' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}"
+                        wire:click="addAttributeGroup"
+                        @disabled(empty($this->attributeGroupOptions))
+                        class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        {{ $attributeShowAssignedOnly ? __('Samo dodijeljeni: da') : __('Samo dodijeljeni: ne') }}
+                        {{ __('Dodaj atribut') }}
                     </button>
                 </div>
             </div>
@@ -906,13 +908,31 @@
                         $groupCode = (string) $group['group_code'];
                         $groupType = (string) $group['type'];
                     @endphp
-                    <div class="rounded-xl border border-slate-200 bg-white p-3">
+                    <div wire:key="product-attribute-group-{{ $groupCode }}" class="rounded-xl border border-slate-200 bg-white p-3">
                         <div class="mb-2 flex items-center justify-between gap-2">
                             <p class="text-sm font-semibold text-slate-800">{{ $group['group_name'] }}</p>
-                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">{{ $groupType === 'multi' ? __('Višestruki odabir') : __('Jedan odabir') }}</span>
+                            <div class="flex items-center gap-2">
+                                @if ($group['is_msan_assigned'])
+                                    <span class="rounded-full bg-cyan-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-cyan-800">{{ __('Automatski · M SAN') }}</span>
+                                @else
+                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">{{ $groupType === 'multi' ? __('Višestruki odabir') : __('Jedan odabir') }}</span>
+                                    <button type="button" wire:click='removeAttributeGroup(@js($groupCode))' class="text-xs font-semibold text-rose-600 hover:text-rose-700">
+                                        {{ __('Ukloni') }}
+                                    </button>
+                                @endif
+                            </div>
                         </div>
 
-                        @if ($groupType === 'multi')
+                        @if ($group['is_msan_assigned'])
+                            <div class="flex min-h-10 flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                @forelse ($group['selected_items'] as $item)
+                                    <span class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700">{{ $item['name'] }}</span>
+                                @empty
+                                    <span class="text-sm text-slate-500">{{ __('Nema vrijednosti') }}</span>
+                                @endforelse
+                            </div>
+                            <p class="mt-2 text-xs text-slate-500">{{ __('Vrijednost održava M SAN integracija i ovdje je samo za čitanje.') }}</p>
+                        @elseif ($groupType === 'multi')
                             <select wire:model="attributeSelections.{{ $groupCode }}" multiple size="5" class="admin-multiselect w-full rounded-xl border border-slate-300 text-sm">
                                 @foreach ($group['items'] as $item)
                                     <option value="{{ $item['id'] }}">{{ $item['name'] }}</option>
@@ -931,7 +951,7 @@
                     </div>
                 @empty
                     <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600 lg:col-span-2">
-                        {{ __('Nijedna grupa atributa ne odgovara trenutačnom filtru.') }}
+                        {{ __('Artikl još nema dodijeljenih atributa. Odaberite grupu i dodajte atribut.') }}
                     </div>
                 @endforelse
             </div>

@@ -431,6 +431,7 @@ class MsanSpecificationPublisher
     {
         $sourceKey = (string) $row->source_key;
         $code = 'msan-spec-'.substr($sourceKey, 0, 16).'-'.substr(hash('sha256', $value), 0, 16);
+        $groupCode = 'msan-'.substr($sourceKey, 0, 24);
         if (array_key_exists($code, $this->filterAttributeCache)) {
             return $this->filterAttributeCache[$code];
         }
@@ -448,13 +449,30 @@ class MsanSpecificationPublisher
             }
             $attribute = Attribute::query()->create([
                 'code' => $code,
-                'group_code' => 'msan-'.substr($sourceKey, 0, 24),
+                'group_code' => $groupCode,
                 'type' => Attribute::TYPE_SELECT,
                 'is_active' => true,
                 'sort_order' => (int) $row->item_order,
-                'payload' => ['source' => 'msan_specification', 'source_key' => $sourceKey],
+                'payload' => [
+                    'source' => Attribute::SOURCE_MSAN_SPECIFICATION,
+                    'source_key' => $sourceKey,
+                ],
             ]);
             $this->filterValueCountCache[$sourceKey] = $existingCount + 1;
+        }
+
+        $payload = is_array($attribute->payload) ? $attribute->payload : [];
+        $payload['source'] = Attribute::SOURCE_MSAN_SPECIFICATION;
+        $payload['source_key'] = $sourceKey;
+        $attribute->fill([
+            'group_code' => $groupCode,
+            'type' => Attribute::TYPE_SELECT,
+            'is_active' => true,
+            'sort_order' => (int) $row->item_order,
+            'payload' => $payload,
+        ]);
+        if ($attribute->isDirty()) {
+            $attribute->save();
         }
 
         if (! isset($this->preparedFilterTranslations[$code])) {

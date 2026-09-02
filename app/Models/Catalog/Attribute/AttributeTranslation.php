@@ -23,6 +23,42 @@ class AttributeTranslation extends Model
         'payload' => 'array',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(function (AttributeTranslation $translation): void {
+            $attribute = $translation->attribute()->first();
+            if (! $attribute) {
+                return;
+            }
+
+            $group = $attribute->group
+                ?? AttributeGroup::query()->where('code', $attribute->group_code)->first();
+            if (! $group) {
+                return;
+            }
+
+            $groupTranslation = $group->translations()
+                ->where('locale', $translation->locale)
+                ->first();
+            if ((bool) data_get($groupTranslation?->payload, 'manual_override', false)) {
+                return;
+            }
+
+            $source = Attribute::normalizeSource(data_get($translation->payload, 'source'));
+            if ($source === '') {
+                $source = $attribute->sourceCode();
+            }
+
+            $group->translations()->updateOrCreate(
+                ['locale' => $translation->locale],
+                [
+                    'name' => $translation->group_name ?: $group->code,
+                    'payload' => ['source' => $source],
+                ]
+            );
+        });
+    }
+
     public function attribute(): BelongsTo
     {
         return $this->belongsTo(Attribute::class, 'attribute_id');

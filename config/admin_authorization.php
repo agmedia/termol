@@ -50,6 +50,29 @@ return [
             'view' => ['catalog.products.view'],
         ],
 
+        'admin.attributes.groups.create' => [
+            'view' => ['catalog.attributes.create'],
+            'mutate' => ['catalog.attributes.create'],
+        ],
+        'admin.attributes.groups.edit' => [
+            'view' => ['catalog.attributes.update'],
+            'mutate' => ['catalog.attributes.update'],
+            'delete' => ['catalog.attributes.delete'],
+        ],
+        'admin.attributes.groups.attributes.create' => [
+            'view' => ['catalog.attributes.create'],
+            'mutate' => ['catalog.attributes.create'],
+        ],
+        'admin.attributes.groups.attributes.edit' => [
+            'view' => ['catalog.attributes.update'],
+            'mutate' => ['catalog.attributes.update'],
+            'delete' => ['catalog.attributes.delete'],
+        ],
+        'admin.attributes.groups.show' => [
+            'view' => ['catalog.attributes.view'],
+            'mutate' => ['catalog.attributes.update', 'catalog.attributes.create'],
+            'delete' => ['catalog.attributes.delete'],
+        ],
         'admin.attributes.create' => [
             'view' => ['catalog.attributes.create'],
             'mutate' => ['catalog.attributes.create'],
@@ -61,6 +84,8 @@ return [
         ],
         'admin.attributes' => [
             'view' => ['catalog.attributes.view'],
+            'mutate' => ['catalog.attributes.update', 'catalog.attributes.create'],
+            'delete' => ['catalog.attributes.delete'],
         ],
 
         'admin.options.create' => [

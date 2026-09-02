@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin\Catalog\Attribute;
 
 use App\Models\Catalog\Attribute\Attribute;
+use App\Models\Catalog\Attribute\AttributeGroup;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -13,11 +14,19 @@ class Manager extends Component
     use WithPagination;
 
     public string $search = '';
+
     public string $locale = 'en';
 
-    public function mount(): void
+    public ?int $groupId = null;
+
+    public function mount(?int $groupId = null): void
     {
+        $this->groupId = $groupId;
         $this->locale = (string) (request()->query('locale') ?: config('app.locale', 'en'));
+
+        if ($this->groupId) {
+            AttributeGroup::query()->findOrFail($this->groupId);
+        }
     }
 
     public function updatedSearch(): void
@@ -32,9 +41,15 @@ class Manager extends Component
 
     public function delete(int $attributeId): void
     {
-        $attribute = Attribute::query()->find($attributeId);
+        $attribute = Attribute::query()
+            ->when(
+                $this->groupId,
+                fn ($query) => $query->where('attribute_group_id', $this->groupId),
+            )
+            ->find($attributeId);
         if (! $attribute) {
             $this->dispatch('notify', type: 'warning', message: __('Attribute not found.'));
+
             return;
         }
 
@@ -69,6 +84,7 @@ class Manager extends Component
         );
 
         $rows = Attribute::query()
+            ->when($this->groupId, fn ($query) => $query->where('attribute_group_id', $this->groupId))
             ->withCount('products')
             ->with([
                 'translations' => fn ($q) => $q->where('locale', $this->locale),
@@ -76,7 +92,6 @@ class Manager extends Component
             ->when($this->search !== '', function ($query): void {
                 $query->where(function ($q): void {
                     $q->where('code', 'like', '%'.$this->search.'%')
-                        ->orWhere('group_code', 'like', '%'.$this->search.'%')
                         ->orWhere('type', 'like', '%'.$this->search.'%')
                         ->orWhereHas('translations', function ($tq): void {
                             $tq->where('group_name', 'like', '%'.$this->search.'%')
@@ -85,14 +100,20 @@ class Manager extends Component
                         });
                 });
             })
-            ->orderBy('group_code')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->paginate($perPage);
 
+        $group = $this->groupId
+            ? AttributeGroup::query()
+                ->with(['translations' => fn ($query) => $query->where('locale', $this->locale)])
+                ->findOrFail($this->groupId)
+            : null;
+
         return view('livewire.admin.catalog.attribute.manager', [
             'rows' => $rows,
             'perPage' => $perPage,
+            'group' => $group,
         ]);
     }
 }
