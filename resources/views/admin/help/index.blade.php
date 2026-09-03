@@ -38,6 +38,26 @@
             gap: 1.75rem;
         }
 
+        .admin-manual-hero {
+            border: 1px solid #cfe8ef;
+            background: #f5fafc;
+            color: #0f172a;
+            box-shadow: 0 18px 38px -28px rgba(15, 23, 42, .38);
+        }
+
+        .admin-manual-search-panel {
+            border: 1px solid rgba(148, 163, 184, .32);
+            background: #fff;
+            box-shadow: 0 14px 30px -24px rgba(15, 23, 42, .4);
+        }
+
+        .admin-manual-hero-chip {
+            border: 1px solid #dbe4ee;
+            background: rgba(255, 255, 255, .82);
+            color: #475569;
+            box-shadow: 0 4px 12px -10px rgba(15, 23, 42, .45);
+        }
+
         .admin-manual-layout {
             align-items: start;
             gap: 1.5rem;
@@ -160,7 +180,7 @@
         }
 
         .manual-entry[open] > summary {
-            background: linear-gradient(90deg, #f0fdff 0%, #fff 42%);
+            background: #f0fdff;
         }
 
         .manual-entry-summary-purpose {
@@ -228,26 +248,23 @@
 
 <x-admin-layout :title="$manual['title'] ?? 'Upute za administraciju'">
     <div id="admin-manual" class="mx-auto max-w-[100rem] space-y-6" data-manual-entry-count="{{ $manualEntryCount }}">
-        <section id="uvod" class="relative scroll-mt-24 overflow-hidden rounded-3xl bg-slate-950 px-5 py-7 text-white shadow-xl shadow-slate-950/10 sm:px-8 sm:py-9">
-            <div class="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" aria-hidden="true"></div>
-            <div class="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-violet-500/15 blur-3xl" aria-hidden="true"></div>
-
+        <section id="uvod" class="admin-manual-hero relative scroll-mt-24 overflow-hidden rounded-3xl px-5 py-7 sm:px-8 sm:py-9">
             <div class="admin-manual-hero-grid relative">
                 <div class="max-w-3xl">
-                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Termol administracija</p>
-                    <h1 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">{{ $manual['title'] ?? 'Upute za administraciju' }}</h1>
-                    <p class="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">{{ $manual['intro'] ?? '' }}</p>
+                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-cyan-700">Termol administracija</p>
+                    <h1 class="mt-3 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">{{ $manual['title'] ?? 'Upute za administraciju' }}</h1>
+                    <p class="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">{{ $manual['intro'] ?? '' }}</p>
 
-                    <div class="mt-6 flex flex-wrap gap-2 text-xs font-semibold text-slate-200">
-                        <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">{{ count($manualSections) }} područja</span>
-                        <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">{{ $manualEntryCount }} detaljnih uputa</span>
-                        <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">Redoslijed kao u navigaciji</span>
+                    <div class="mt-6 flex flex-wrap gap-2 text-xs font-semibold">
+                        <span class="admin-manual-hero-chip rounded-full px-3 py-1.5">{{ count($manualSections) }} područja</span>
+                        <span class="admin-manual-hero-chip rounded-full px-3 py-1.5">{{ $manualEntryCount }} detaljnih uputa</span>
+                        <span class="admin-manual-hero-chip rounded-full px-3 py-1.5">Redoslijed kao u navigaciji</span>
                     </div>
                 </div>
 
-                <div class="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-2xl shadow-black/20 backdrop-blur-sm sm:p-5">
-                    <label for="admin-manual-search" class="text-sm font-bold text-white">Što želite napraviti?</label>
-                    <p class="mt-1 text-xs leading-5 text-slate-300">Pretražite naziv, polje ili postupak, primjerice „zaliha”, „M SAN” ili „dostava”.</p>
+                <div class="admin-manual-search-panel rounded-2xl p-4 sm:p-5">
+                    <label for="admin-manual-search" class="text-sm font-bold text-slate-900">Što želite napraviti?</label>
+                    <p class="mt-1 text-xs leading-5 text-slate-500">Pretražite naziv, polje ili postupak, primjerice „zaliha”, „M SAN” ili „dostava”.</p>
                     <div class="relative mt-3">
                         <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                             <circle cx="8.75" cy="8.75" r="5.25" stroke="currentColor" stroke-width="1.6" />
@@ -268,7 +285,7 @@
                             title="Očisti pretragu"
                         >×</button>
                     </div>
-                    <p id="admin-manual-result-count" class="mt-2 text-xs font-semibold text-cyan-200" aria-live="polite">
+                    <p id="admin-manual-result-count" class="mt-2 text-xs font-semibold text-cyan-700" aria-live="polite">
                         Prikazano je svih {{ $manualEntryCount }} uputa.
                     </p>
                 </div>
