@@ -58,7 +58,11 @@ class AdminDocumentationFeatureTest extends TestCase
             ->assertSee('data-manual-entry="msan-postavke"', false)
             ->assertSee('data-manual-entry="msan-artikli"', false)
             ->assertSee('data-manual-entry="nacini-dostave"', false)
-            ->assertSee('data-manual-entry="uloge-ovlasti"', false);
+            ->assertSee('data-manual-entry="uloge-ovlasti"', false)
+            ->assertSee('data-manual-toc-topic="artikli"', false)
+            ->assertSee('position: sticky;', false)
+            ->assertSee('max-height: calc(100vh - 7rem);', false)
+            ->assertSee('overflow-x: clip;', false);
     }
 
     public function test_manual_config_follows_navigation_order_and_has_unique_topic_ids(): void

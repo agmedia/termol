@@ -381,6 +381,7 @@
                 min-height: 100vh;
                 min-width: 0;
                 overflow-x: hidden;
+                overflow-x: clip;
                 transition: margin-left 180ms ease, width 180ms ease;
             }
             .admin-sidebar-rail {
