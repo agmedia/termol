@@ -4,7 +4,7 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{{ __('Content / Blocks v2') }}</p>
                 <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ $this->isEdit ? __('Edit Block') : __('Create Block') }}</h1>
-                <p class="mt-2 text-sm text-slate-600">{{ __('Simple builder: choose type, set slot, pick items, edit Blade template, publish.') }}</p>
+                <p class="mt-2 text-sm text-slate-600">{{ __('Simple builder: choose type, set slot, pick items, and publish.') }}</p>
             </div>
             <div class="flex items-center gap-2">
                 <span class="admin-chip">{{ __('Locale:') }} {{ $form['locale'] }}</span>
@@ -251,8 +251,6 @@
                             @endforeach
                         </div>
                     </div>
-                @else
-                    <p class="mt-3 text-xs text-slate-500">{{ __('Main markup/content is edited in the Blade Template section below (Ace).') }}</p>
                 @endif
             </div>
 
@@ -404,27 +402,6 @@
                 </div>
             </div>
         @endif
-
-        <div class="admin-panel admin-form-panel p-6">
-            <p class="admin-section-title">{{ __('Blade Template (Per Block File)') }}</p>
-            <p class="mt-1 text-xs text-slate-500">{{ __('Saved to') }} <code>resources/views/front/content-blocks/instances/{{ $form['code'] ?: 'block-code' }}.blade.php</code>. {{ __('This block only.') }}</p>
-
-            <div class="mt-3 mb-2 flex flex-wrap items-center gap-2">
-                <button type="button" wire:click="loadTemplatePreset" class="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 hover:bg-cyan-100">{{ __('Load Default For Type') }}</button>
-                <button
-                    type="button"
-                    data-ace-open
-                    data-ace-target="content-block-template-blade"
-                    data-ace-label="Content Block Blade Template"
-                    class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                >
-                    {{ __('Open in Ace') }}
-                </button>
-            </div>
-
-            <textarea id="content-block-template-blade" rows="16" wire:model="form.template_body" data-ace-inline class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>
-            @error('form.template_body') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
 
         @if ($blockId)
             <livewire:admin.media.manager

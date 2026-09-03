@@ -3,7 +3,7 @@
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">{{ __('Content Blocks') }}</h1>
-                <p class="mt-1 text-sm text-slate-600">{{ __('Unified builder: block, primary slot, selected items, and per-block Blade template.') }}</p>
+                <p class="mt-1 text-sm text-slate-600">{{ __('Unified builder: block, primary slot, and selected items.') }}</p>
                 <p class="mt-2 text-xs text-slate-500">{{ __('Items per page') }}: <span class="admin-chip">{{ $perPage }}</span></p>
             </div>
             <div class="flex w-full gap-2 sm:w-auto sm:items-end">

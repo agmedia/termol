@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Livewire\Admin\Content\Block\Form as BlockForm;
+use App\Livewire\Admin\Content\Block\Index as BlockIndex;
 use App\Livewire\Admin\Media\Manager as MediaManager;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
@@ -19,6 +20,32 @@ use Tests\TestCase;
 class ContentBlocksFeatureTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_blade_template_editor_is_hidden_across_content_block_admin(): void
+    {
+        $user = $this->makeAdminUser();
+
+        Livewire::actingAs($user)
+            ->test(BlockForm::class)
+            ->assertDontSee(__('Blade Template (Per Block File)'))
+            ->assertDontSee(__('Load Default For Type'))
+            ->assertDontSee('content-block-template-blade', false)
+            ->assertDontSee('data-ace-open', false);
+
+        Livewire::actingAs($user)
+            ->test(BlockIndex::class)
+            ->assertDontSee(__('Unified builder: block, primary slot, selected items, and per-block Blade template.'));
+
+        $routes = config('admin_help.routes');
+
+        $this->assertIsArray($routes);
+        $help = json_encode($routes['admin.content.blocks*'] ?? null);
+
+        $this->assertIsString($help);
+        $this->assertNotSame('null', $help);
+        $this->assertStringNotContainsString('blade', strtolower($help));
+        $this->assertStringNotContainsString('template', strtolower($help));
+    }
 
     public function test_edit_form_preselects_saved_type_global_target_and_selected_items(): void
     {

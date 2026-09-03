@@ -534,7 +534,7 @@ return [
                         'Step 3: Choose Placement. This controls front location.',
                         'Step 4: Keep target fields empty for global blocks. Use target type/ref only for advanced context rendering.',
                         'Step 5: Fill text fields (title/subtitle/CTA) and select items if block type requires items.',
-                        'Step 6: Open Blade Template (Ace), adjust output, save, then preview on front.',
+                        'Step 6: Save the block, then preview it on front.',
                     ],
                 ],
                 [
@@ -542,22 +542,12 @@ return [
                     'subtitle' => 'What each main field is for.',
                     'params' => [
                         ['key' => 'type', 'value' => 'Defines block behavior and whether item picker is used.'],
-                        ['key' => 'code', 'value' => 'Technical identifier. Also maps to per-block template filename.'],
+                        ['key' => 'code', 'value' => 'Stable technical identifier used to reference the block.'],
                         ['key' => 'slot_placement', 'value' => 'Front position where this block is rendered.'],
                         ['key' => 'slot_target_type', 'value' => 'Optional advanced scope (category, product, page, blog).'],
                         ['key' => 'slot_target_ref', 'value' => 'Optional specific slug/id inside target_type.'],
                         ['key' => 'selected_item_ids', 'value' => 'Ordered selected entities for item-based block types.'],
                         ['key' => 'bg_css', 'value' => 'Optional style override for this block translation.'],
-                        ['key' => 'template_body (Ace)', 'value' => 'Primary rendering template for this exact block instance.'],
-                    ],
-                ],
-                [
-                    'title' => 'Template Editing (Ace)',
-                    'subtitle' => 'Use this as your main editing surface.',
-                    'explanation' => [
-                        'Each block has its own Blade instance file at resources/views/front/content-blocks/instances/{code}.blade.php.',
-                        'Edits in this file affect only that block instance and are safe for one-off design tweaks.',
-                        'Common variables available in template: $block, $translation, $slot, $products, $categories, $manufacturers, $blogs.',
                     ],
                 ],
                 [
@@ -568,7 +558,7 @@ return [
                         'Confirm placement is correct for the page section you are testing.',
                         'Confirm start/end dates are valid for current time.',
                         'For global blocks, target type/ref should be empty.',
-                        'If output looks stale after template changes, clear cache.',
+                        'If output looks stale after block changes, clear cache.',
                     ],
                 ],
                 [
@@ -576,9 +566,9 @@ return [
                     'subtitle' => 'Keep it maintainable for future editors.',
                     'explanation' => [
                         'Use clear block names and one purpose per block.',
-                        'Keep code stable to preserve template mapping.',
-                        'Prefer item picker UI over hardcoded IDs in templates.',
-                        'Use short template comments for non-obvious custom logic.',
+                        'Keep code stable so placements and integrations can reference the block reliably.',
+                        'Prefer the item picker over manually entering item IDs.',
+                        'Keep block content concise and preview changes before publishing.',
                     ],
                 ],
             ],
