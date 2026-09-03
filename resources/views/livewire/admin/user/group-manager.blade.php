@@ -1,4 +1,5 @@
 <div class="space-y-6">
+    @unless ($editPage)
     <div class="admin-panel admin-search-panel p-6">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -17,9 +18,10 @@
             </div>
         </div>
     </div>
+    @endunless
 
     <div class="admin-stack">
-        <div class="admin-panel admin-form-panel p-6" style="order:2;">
+        <div class="admin-panel admin-form-panel p-6" @unless($editPage) style="order:2;" @endunless>
             <h2 class="admin-section-title">{{ $editingId ? __('Edit Group') : __('Create Group') }}</h2>
 
             <form wire:submit="save" class="admin-form mt-4 space-y-4">
@@ -73,7 +75,11 @@
                     <button type="submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">
                         {{ $editingId ? __('Update Group') : __('Create Group') }}
                     </button>
-                    @if ($editingId)
+                    @if ($editPage)
+                        <a href="{{ route('admin.users.groups') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                            {{ __('Cancel') }}
+                        </a>
+                    @elseif ($editingId)
                         <button type="button" wire:click="cancelEdit" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                             {{ __('Cancel') }}
                         </button>
@@ -82,6 +88,7 @@
             </form>
         </div>
 
+        @unless ($editPage)
         <div class="admin-panel admin-panel-soft p-5" style="order:1;">
             <h2 class="admin-section-title">{{ __('admin.common.items') }}</h2>
 
@@ -124,7 +131,7 @@
                                         @if (!$row->is_default)
                                             <button type="button" wire:click="makeDefault({{ $row->id }})" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Default') }}</button>
                                         @endif
-                                        <button type="button" wire:click="edit({{ $row->id }})" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('admin.common.edit') }}</button>
+                                        <a href="{{ route('admin.users.groups.edit', ['customerGroup' => $row->id]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('admin.common.edit') }}</a>
                                         <button type="button" wire:click="delete({{ $row->id }})" wire:confirm="{{ __('Delete this group?') }}" class="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">{{ __('admin.common.delete') }}</button>
                                     </div>
                                 </td>
@@ -142,5 +149,6 @@
                 {{ $rows->links() }}
             </div>
         </div>
+        @endunless
     </div>
 </div>

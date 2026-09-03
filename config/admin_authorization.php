@@ -97,7 +97,7 @@ return [
             'mutate' => ['catalog.options.update'],
             'delete' => ['catalog.options.delete'],
         ],
-        'admin.options.values' => [
+        'admin.options.values*' => [
             'view' => ['catalog.options.values.manage'],
             'mutate' => ['catalog.options.values.manage'],
         ],
@@ -183,6 +183,10 @@ return [
             'view' => ['integrations.msan.view'],
             'mutate' => ['integrations.msan.mapping.manage'],
         ],
+        'admin.integrations.msan.specifications.edit' => [
+            'view' => ['integrations.msan.mapping.manage'],
+            'mutate' => ['integrations.msan.mapping.manage'],
+        ],
         'admin.integrations.msan.specifications' => [
             'view' => ['integrations.msan.view'],
             'mutate' => ['integrations.msan.mapping.manage'],
@@ -242,6 +246,10 @@ return [
             'view' => ['content.faqs.view'],
         ],
 
+        'admin.content.comments.edit' => [
+            'view' => ['content.comments.moderate'],
+            'mutate' => ['content.comments.moderate'],
+        ],
         'admin.content.comments.*' => [
             'view' => ['content.comments.view'],
             'mutate' => ['content.comments.moderate'],
@@ -326,7 +334,7 @@ return [
             'view' => ['users.list.view'],
             'mutate' => ['users.profile.update'],
         ],
-        'admin.users.groups' => [
+        'admin.users.groups*' => [
             'view' => ['users.groups.manage'],
             'mutate' => ['users.groups.manage'],
             'delete' => ['users.groups.manage'],

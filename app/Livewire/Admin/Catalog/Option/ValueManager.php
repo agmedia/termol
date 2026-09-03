@@ -21,11 +21,19 @@ class ValueManager extends Component
     use WithPagination;
 
     public int $optionId;
+
     public string $search = '';
+
     public string $locale = 'en';
+
     public ?int $editingId = null;
+
+    public bool $editPage = false;
+
     public ?TemporaryUploadedFile $swatchImageUpload = null;
+
     public ?string $currentSwatchImagePath = null;
+
     public bool $removeSwatchImage = false;
 
     public array $form = [
@@ -38,12 +46,18 @@ class ValueManager extends Component
         'translation_payload_text' => '',
     ];
 
-    public function mount(int $optionId): void
+    public function mount(int $optionId, ?int $recordId = null, bool $editPage = false): void
     {
         $this->optionId = $optionId;
+        $this->editPage = $editPage;
         $this->locale = (string) (request()->query('locale') ?: config('app.locale', 'en'));
 
         Option::query()->findOrFail($this->optionId);
+
+        if ($this->editPage) {
+            abort_unless($recordId, 404);
+            $this->edit($recordId);
+        }
     }
 
     public function updatedSearch(): void
@@ -68,7 +82,7 @@ class ValueManager extends Component
         }
     }
 
-    public function save(): void
+    public function save()
     {
         $validated = $this->validate($this->rules());
 
@@ -143,8 +157,22 @@ class ValueManager extends Component
             Storage::disk('public')->delete($oldSwatchImagePath);
         }
 
-        $this->dispatch('notify', type: 'success', message: $wasEditing ? __('Value updated.') : __('Value created.'));
+        $message = $wasEditing ? __('Value updated.') : __('Value created.');
+
+        if ($this->editPage) {
+            return redirect()->route('admin.options.values', [
+                'option' => $this->optionId,
+                'locale' => $this->locale,
+            ])->with('notify', [
+                'type' => 'success',
+                'message' => $message,
+            ]);
+        }
+
+        $this->dispatch('notify', type: 'success', message: $message);
         $this->resetForm();
+
+        return null;
     }
 
     public function edit(int $id): void
@@ -305,8 +333,9 @@ class ValueManager extends Component
 
     private function loadTranslationForLocale(): void
     {
-        if (!$this->editingId) {
+        if (! $this->editingId) {
             $this->clearTranslationFields();
+
             return;
         }
 
@@ -315,8 +344,9 @@ class ValueManager extends Component
             ->where('locale', $this->locale)
             ->first();
 
-        if (!$translation) {
+        if (! $translation) {
             $this->clearTranslationFields();
+
             return;
         }
 
@@ -366,12 +396,14 @@ class ValueManager extends Component
         if (json_last_error() !== JSON_ERROR_NONE) {
             $this->addError($field, __('Invalid JSON payload.'));
             $this->dispatch('notify', type: 'danger', message: __('Invalid JSON payload.'));
+
             return false;
         }
 
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             $this->addError($field, __('JSON payload must decode to object/array.'));
             $this->dispatch('notify', type: 'danger', message: __('JSON payload must decode to object/array.'));
+
             return false;
         }
 

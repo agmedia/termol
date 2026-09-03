@@ -18,7 +18,10 @@ class GroupManager extends Component
     private const PAGE_NAME = 'adminUserGroupsPage';
 
     public string $search = '';
+
     public ?int $editingId = null;
+
+    public bool $editPage = false;
 
     /**
      * @var array<string, mixed>
@@ -32,9 +35,15 @@ class GroupManager extends Component
         'sort_order' => 0,
     ];
 
-    public function mount(): void
+    public function mount(?int $recordId = null, bool $editPage = false): void
     {
         $this->authorizeAccess();
+        $this->editPage = $editPage;
+
+        if ($this->editPage) {
+            abort_unless($recordId, 404);
+            $this->edit($recordId);
+        }
     }
 
     public function updatedSearch(): void
@@ -42,7 +51,7 @@ class GroupManager extends Component
         $this->resetPage(pageName: self::PAGE_NAME);
     }
 
-    public function save(): void
+    public function save()
     {
         $validated = $this->validate($this->rules());
         $payload = $validated['form'];
@@ -64,7 +73,7 @@ class GroupManager extends Component
                 ]
             );
 
-            if (!CustomerGroup::query()->where('is_default', true)->exists()) {
+            if (! CustomerGroup::query()->where('is_default', true)->exists()) {
                 $group->update(['is_default' => true]);
             }
 
@@ -82,8 +91,19 @@ class GroupManager extends Component
                 ->log($this->editingId ? 'Customer group updated' : 'Customer group created');
         });
 
-        $this->dispatch('notify', type: 'success', message: $this->editingId ? __('Group updated.') : __('Group created.'));
+        $message = $this->editingId ? __('Group updated.') : __('Group created.');
+
+        if ($this->editPage) {
+            return redirect()->route('admin.users.groups')->with('notify', [
+                'type' => 'success',
+                'message' => $message,
+            ]);
+        }
+
+        $this->dispatch('notify', type: 'success', message: $message);
         $this->resetForm();
+
+        return null;
     }
 
     public function edit(int $groupId): void
@@ -141,7 +161,7 @@ class GroupManager extends Component
     public function toggleActive(int $groupId): void
     {
         $group = CustomerGroup::query()->findOrFail($groupId);
-        $group->update(['is_active' => !$group->is_active]);
+        $group->update(['is_active' => ! $group->is_active]);
 
         $this->dispatch('notify', type: 'info', message: $group->is_active ? __('Group activated.') : __('Group deactivated.'));
     }

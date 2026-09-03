@@ -19,10 +19,18 @@ class Manager extends Component
     use WithPagination;
 
     public string $search = '';
+
     public string $locale = 'all';
+
     public string $status = Comment::STATUS_PENDING;
+
     public string $target = 'all';
+
     public ?int $editingId = null;
+
+    public ?int $recordId = null;
+
+    public bool $editPage = false;
 
     /**
      * @var array<string, mixed>
@@ -37,9 +45,26 @@ class Manager extends Component
         'body' => '',
     ];
 
-    public function mount(): void
+    public function mount(?int $recordId = null, bool $editPage = false): void
     {
-        $this->locale = (string) (request()->query('locale') ?: 'all');
+        $this->editPage = $editPage;
+        $this->recordId = $recordId;
+
+        $search = trim((string) request()->query('search', ''));
+        $status = (string) request()->query('status', Comment::STATUS_PENDING);
+        $target = (string) request()->query('target', 'all');
+        $locale = (string) request()->query('locale', 'all');
+
+        $this->search = $search;
+        $this->status = array_key_exists($status, $this->statusOptions()) ? $status : Comment::STATUS_PENDING;
+        $this->target = array_key_exists($target, $this->targetOptions()) ? $target : 'all';
+        $this->locale = $locale !== '' ? $locale : 'all';
+
+        if ($this->editPage) {
+            abort_unless($recordId !== null && $recordId > 0, 404);
+            $this->edit($recordId);
+            abort_unless($this->editingId !== null, 404);
+        }
     }
 
     public function updatedSearch(): void
@@ -65,12 +90,18 @@ class Manager extends Component
     public function edit(int $commentId): void
     {
         $comment = Comment::query()->find($commentId);
-        if (!$comment || $comment->trashed()) {
+        if (! $comment || $comment->trashed()) {
+            if ($this->editPage) {
+                abort(404);
+            }
+
             $this->dispatch('notify', type: 'warning', message: __('Comment not found.'));
+
             return;
         }
 
         $this->editingId = $comment->id;
+        $this->recordId = $comment->id;
         $this->editForm = [
             'author_name' => (string) ($comment->author_name ?? ''),
             'author_email' => (string) ($comment->author_email ?? ''),
@@ -84,9 +115,9 @@ class Manager extends Component
         $this->resetValidation();
     }
 
-    public function saveEdit(): void
+    public function saveEdit()
     {
-        if (!$this->editingId) {
+        if (! $this->editingId) {
             return;
         }
 
@@ -94,9 +125,21 @@ class Manager extends Component
         $payload = $validated['editForm'];
 
         $comment = Comment::query()->find($this->editingId);
-        if (!$comment || $comment->trashed()) {
-            $this->dispatch('notify', type: 'warning', message: __('Comment not found.'));
+        if (! $comment || $comment->trashed()) {
+            $message = __('Comment not found.');
+
+            if ($this->editPage) {
+                return redirect()
+                    ->route('admin.content.comments.index', $this->listRouteParameters())
+                    ->with('notify', [
+                        'type' => 'warning',
+                        'message' => $message,
+                    ]);
+            }
+
+            $this->dispatch('notify', type: 'warning', message: $message);
             $this->resetEditForm();
+
             return;
         }
 
@@ -125,7 +168,20 @@ class Manager extends Component
             ])
             ->log(__('Comment updated'));
 
-        $this->dispatch('notify', type: 'success', message: __('Comment updated.'));
+        $message = __('Comment updated.');
+
+        if ($this->editPage) {
+            $this->resetEditForm();
+
+            return redirect()
+                ->route('admin.content.comments.index', $this->listRouteParameters())
+                ->with('notify', [
+                    'type' => 'success',
+                    'message' => $message,
+                ]);
+        }
+
+        $this->dispatch('notify', type: 'success', message: $message);
         $this->resetEditForm();
     }
 
@@ -152,8 +208,9 @@ class Manager extends Component
     public function delete(int $commentId): void
     {
         $comment = Comment::query()->find($commentId);
-        if (!$comment) {
+        if (! $comment) {
             $this->dispatch('notify', type: 'warning', message: __('Comment not found.'));
+
             return;
         }
 
@@ -175,8 +232,9 @@ class Manager extends Component
     public function restore(int $commentId): void
     {
         $comment = Comment::query()->withTrashed()->find($commentId);
-        if (!$comment || !$comment->trashed()) {
+        if (! $comment || ! $comment->trashed()) {
             $this->dispatch('notify', type: 'warning', message: __('Comment not in trash.'));
+
             return;
         }
 
@@ -260,13 +318,14 @@ class Manager extends Component
 
     private function setStatus(int $commentId, string $status): void
     {
-        if (!in_array($status, Comment::statuses(), true)) {
+        if (! in_array($status, Comment::statuses(), true)) {
             return;
         }
 
         $comment = Comment::query()->find($commentId);
-        if (!$comment) {
+        if (! $comment) {
             $this->dispatch('notify', type: 'warning', message: __('Comment not found.'));
+
             return;
         }
 
@@ -358,6 +417,7 @@ class Manager extends Component
     private function resetEditForm(): void
     {
         $this->editingId = null;
+        $this->recordId = null;
         $this->editForm = [
             'author_name' => '',
             'author_email' => '',
@@ -368,6 +428,19 @@ class Manager extends Component
             'body' => '',
         ];
         $this->resetValidation();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function listRouteParameters(): array
+    {
+        return array_filter([
+            'search' => $this->search !== '' ? $this->search : null,
+            'status' => $this->status !== Comment::STATUS_PENDING ? $this->status : null,
+            'target' => $this->target !== 'all' ? $this->target : null,
+            'locale' => $this->locale !== 'all' ? $this->locale : null,
+        ], static fn (?string $value): bool => $value !== null);
     }
 
     private function nullableTrim(mixed $value): ?string

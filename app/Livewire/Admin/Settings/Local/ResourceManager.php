@@ -48,6 +48,8 @@ class ResourceManager extends Component
 
     public ?int $editingId = null;
 
+    public bool $editPage = false;
+
     public string $search = '';
 
     public bool $corvusCredentialsStored = false;
@@ -103,12 +105,18 @@ class ResourceManager extends Component
         ],
     ];
 
-    public function mount(string $resource): void
+    public function mount(string $resource, ?int $recordId = null, bool $editPage = false): void
     {
         abort_unless(array_key_exists($resource, $this->resources), 404);
 
         $this->resource = $resource;
+        $this->editPage = $editPage;
         $this->resetForm();
+
+        if ($this->editPage) {
+            abort_unless($recordId, 404);
+            $this->edit($recordId);
+        }
     }
 
     public function getTitleProperty(): string
@@ -121,7 +129,7 @@ class ResourceManager extends Component
         $this->resetPage();
     }
 
-    public function save(): void
+    public function save()
     {
         $validated = $this->validate($this->rules());
 
@@ -184,7 +192,7 @@ class ResourceManager extends Component
                 && ! empty($data['is_active'])
                 && ! $this->boxNowRecordIsReady($editingRecord, $settings)
             ) {
-                $this->addError('form.boxnow_partner_id', __('Prije uključivanja postavite BOX NOW Partner ID, limite i blokiranje artikala bez mjera pod Prodaja → Dostava.'));
+                $this->addError('form.boxnow_partner_id', __('Prije uključivanja postavite BOX NOW Partner ID, limite i blokiranje artikala bez mjera pod Postavke → Lokalno → Dostava.'));
                 $this->dispatch('notify', type: 'error', message: __('Sigurnosne postavke BOX NOW-a nisu dovršene.'));
 
                 return;
@@ -262,8 +270,21 @@ class ResourceManager extends Component
                 ->update(['is_default' => false]);
         }
 
+        $wasEditing = $this->editingId !== null;
+        $message = $wasEditing ? __('Record updated.') : __('Record created.');
+
         $this->dispatch('profile-updated', name: auth()->user()->name);
-        $this->dispatch('notify', type: 'success', message: $this->editingId ? __('Record updated.') : __('Record created.'));
+
+        if ($this->editPage) {
+            return redirect()->route('admin.settings.local.resource', [
+                'resource' => $this->resource,
+            ])->with('notify', [
+                'type' => 'success',
+                'message' => $message,
+            ]);
+        }
+
+        $this->dispatch('notify', type: 'success', message: $message);
         $this->resetForm();
     }
 
@@ -356,7 +377,7 @@ class ResourceManager extends Component
                 is_array($record->settings) ? $record->settings : [],
             )
         ) {
-            $this->addError('form.boxnow_partner_id', __('Prije uključivanja postavite BOX NOW Partner ID, limite i blokiranje artikala bez mjera pod Prodaja → Dostava.'));
+            $this->addError('form.boxnow_partner_id', __('Prije uključivanja postavite BOX NOW Partner ID, limite i blokiranje artikala bez mjera pod Postavke → Lokalno → Dostava.'));
             $this->dispatch('notify', type: 'error', message: __('Sigurnosne postavke BOX NOW-a nisu dovršene.'));
 
             return;

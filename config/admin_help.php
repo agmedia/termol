@@ -415,7 +415,7 @@ return [
                 'Recent tracking events come from user_tracking_events.',
             ],
         ],
-        'admin.users.groups' => [
+        'admin.users.groups*' => [
             'title' => 'User Groups',
             'summary' => 'Segmentation groups for campaigns, pricing scope, and customer targeting.',
             'bullets' => [
@@ -505,7 +505,7 @@ return [
                 'Disable unused options to keep front filtering lean.',
             ],
         ],
-        'admin.options.values' => [
+        'admin.options.values*' => [
             'title' => 'Option Values',
             'summary' => 'Manage value rows for selected option and locale.',
             'bullets' => [

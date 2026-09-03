@@ -1202,8 +1202,7 @@
                     $catalogOpen = $catalogCategoriesActive || $catalogProductsActive || $catalogAttributesActive || $catalogOptionsActive || $catalogManufacturersActive || $catalogActionsActive || $catalogB2bPricesActive;
                     $salesOrdersActive = request()->routeIs('admin.orders*');
                     $salesWithdrawalsActive = request()->routeIs('admin.withdrawals.*');
-                    $salesShippingActive = request()->routeIs('admin.shipping.*');
-                    $salesOpen = $salesOrdersActive || $salesWithdrawalsActive || $salesShippingActive;
+                    $salesOpen = $salesOrdersActive || $salesWithdrawalsActive;
                     $contentBlogActive = request()->routeIs('admin.content.blog.*');
                     $contentPagesActive = request()->routeIs('admin.content.pages.*');
                     $contentFaqsActive = request()->routeIs('admin.content.faqs.*');
@@ -1223,8 +1222,8 @@
                         || auth()->user()->can('integrations.msan.settings.manage')
                     );
                     $canAccessMsanIntegration = $canViewMsanIntegration || $canManageMsanSettings;
-                    $settingsOpen = request()->routeIs('admin.settings.*');
-                    $settingsLocalOpen = request()->routeIs('admin.settings.local.*');
+                    $settingsOpen = request()->routeIs('admin.settings.*') || request()->routeIs('admin.shipping.*');
+                    $settingsLocalOpen = request()->routeIs('admin.settings.local.*') || request()->routeIs('admin.shipping.*');
                     $settingsSystemOpen = request()->routeIs('admin.settings.system.*');
                     $settingsApiOpen = request()->routeIs('admin.settings.api.*');
                     $canManageUsersAccess = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.access.manage'));
@@ -1248,7 +1247,7 @@
                     $showSettingsApiMenu = $canManageApiSettings && $catalogUseApi;
                     $usersListActive = request()->routeIs('admin.users') || request()->routeIs('admin.users.edit') || request()->routeIs('admin.users.show');
                     $usersB2BActive = request()->routeIs('admin.users.b2b');
-                    $usersGroupsActive = request()->routeIs('admin.users.groups');
+                    $usersGroupsActive = request()->routeIs('admin.users.groups*');
                     $usersAccessActive = $canManageUsersAccess && request()->routeIs('admin.users.access');
                     $usersActivityActive = request()->routeIs('admin.users.activity');
                     $usersNewsletterActive = request()->routeIs('admin.users.newsletter');
@@ -1259,7 +1258,9 @@
                     $canViewNewsletterSignups = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.newsletter.view'));
                     $canViewUserLoyalty = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.loyalty.view'));
                     $usersOpen = $usersListActive || $usersB2BActive || $usersGroupsActive || $usersAccessActive || $usersActivityActive || $usersNewsletterActive || $usersLoyaltyActive;
-                    $settingsResource = request()->route('resource');
+                    $settingsResource = request()->routeIs('admin.shipping.*')
+                        ? 'shipping-methods'
+                        : request()->route('resource');
                     $helpRoute = request()->route()?->getName() ?? '';
                     $helpConfig = config('admin_help', []);
                     $helpEntry = $helpConfig['default'] ?? [];
@@ -1284,7 +1285,7 @@
                         }
                     }
 
-                    if ($helpRoute === 'admin.settings.local.resource' && $settingsResource) {
+                    if (request()->routeIs('admin.settings.local.resource*') && $settingsResource) {
                         $helpEntry['title'] = 'Settings / Local / '.str_replace('-', ' ', ucwords((string) $settingsResource, '-'));
                         $helpEntry['summary'] = 'Manage local operational records. Keep sort order small and code values stable.';
                         $helpEntry['bullets'] = [
@@ -1529,15 +1530,6 @@
                                     </span>
                                 </a>
                             @endif
-                            <a
-                                href="{{ route('admin.shipping.index') }}"
-                                class="sidebar-dropdown-link block rounded-lg font-medium {{ $salesShippingActive ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
-                            >
-                                <span class="flex items-center gap-2">
-                                    <span class="sidebar-dot"></span>
-                                    <span>{{ __('Dostava') }}</span>
-                                </span>
-                            </a>
                         </div>
                     </details>
 
@@ -1659,6 +1651,7 @@
                                 <div class="ml-2 mt-1 space-y-1 border-l border-slate-200 pl-2">
                                     @foreach ([
                                         'payment-methods' => __('admin.layout.menu.payment_methods'),
+                                        'shipping-methods' => __('admin.layout.menu.shipping_methods'),
                                         'geo-zones' => __('admin.layout.menu.geo_zones'),
                                         'geo-zone-countries' => __('admin.layout.menu.geo_zone_countries'),
                                         'regions' => __('admin.layout.menu.regions'),
@@ -1668,7 +1661,7 @@
                                         'languages' => __('admin.layout.menu.languages'),
                                     ] as $slug => $label)
                                         <a
-                                            href="{{ route('admin.settings.local.resource', ['resource' => $slug]) }}"
+                                            href="{{ $slug === 'shipping-methods' ? route('admin.shipping.index') : route('admin.settings.local.resource', ['resource' => $slug]) }}"
                                             class="sidebar-dropdown-link block rounded-lg font-medium {{ $settingsResource === $slug ? 'is-active-leaf' : 'text-slate-700 hover:bg-slate-100' }}"
                                         >
                                             <span class="flex items-center gap-2">
@@ -1903,30 +1896,6 @@
                     </div>
 
                     <div class="flex shrink-0 items-center gap-2 sm:gap-3">
-                        @php
-                            $activeAdminLocale = strtolower((string) app()->getLocale());
-                            $adminLocaleOptions = ['hr', 'en'];
-                        @endphp
-                        <div class="flex items-center rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">
-                            @foreach ($adminLocaleOptions as $localeCode)
-                                <a
-                                    href="{{ request()->fullUrlWithQuery(['admin_locale' => $localeCode]) }}"
-                                    class="rounded-md px-2.5 py-1 {{ $activeAdminLocale === $localeCode ? 'bg-slate-900 text-white' : 'hover:bg-slate-100' }}"
-                                >
-                                    {{ $localeCode }}
-                                </a>
-                            @endforeach
-                        </div>
-                        <button
-                            type="button"
-                            id="admin-help-open"
-                            class="admin-help-button"
-                            aria-label="{{ __('admin.layout.assistant.open_help') }}"
-                            title="{{ __('admin.layout.assistant.help') }}"
-                        >
-                            ?
-                        </button>
-
                         @php
                             $userInitial = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr((string) auth()->user()->name, 0, 1));
                         @endphp

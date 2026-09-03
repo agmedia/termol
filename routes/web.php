@@ -29,16 +29,21 @@ use App\Models\Catalog\Attribute\AttributeGroup as CatalogAttributeGroup;
 use App\Models\Catalog\Category\Category;
 use App\Models\Catalog\Manufacturer\Manufacturer;
 use App\Models\Catalog\Option\Option;
+use App\Models\Catalog\Option\OptionValue;
 use App\Models\Catalog\Pricing\B2BPriceRule;
 use App\Models\Catalog\Product\Product;
 use App\Models\Content\Blog\BlogPost;
 use App\Models\Content\ContentBlock;
 use App\Models\Content\ContentBlockSlot;
 use App\Models\Content\Page\InfoPage;
+use App\Models\Content\Support\Comment;
 use App\Models\Content\Support\Faq;
+use App\Models\Integrations\Msan\MsanSpecificationDefinition;
 use App\Models\Sales\Order\Order as SalesOrder;
 use App\Models\Settings\Local\Language;
+use App\Models\Settings\Local\ShippingMethod;
 use App\Models\User;
+use App\Models\User\CustomerGroup;
 use App\Models\User\LoyaltyTransaction;
 use App\Models\User\UserTrackingEvent;
 use App\Services\Settings\SystemSettingsService;
@@ -278,7 +283,24 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
         Route::get('withdrawals/{withdrawal}', [ContractWithdrawalController::class, 'show'])->name('withdrawals.show');
         Route::patch('withdrawals/{withdrawal}', [ContractWithdrawalController::class, 'update'])->name('withdrawals.update');
         Route::post('withdrawals/{withdrawal}/resend', [ContractWithdrawalController::class, 'resend'])->name('withdrawals.resend');
-        Route::view('shipping', 'admin.shipping.index')->name('shipping.index');
+        Route::get('shipping', function (Request $request) {
+            $legacyEditId = (int) $request->query('edit', 0);
+
+            if ($legacyEditId > 0) {
+                $editParameters = array_filter([
+                    'shippingMethod' => $legacyEditId,
+                    'search' => trim((string) $request->query('search', '')) ?: null,
+                    'page' => (int) $request->query('page', 1) > 1 ? (int) $request->query('page') : null,
+                ], static fn (int|string|null $value): bool => $value !== null);
+
+                return redirect()->route('admin.shipping.edit', $editParameters);
+            }
+
+            return view('admin.shipping.index');
+        })->name('shipping.index');
+        Route::get('shipping/{shippingMethod}/edit', function (ShippingMethod $shippingMethod) {
+            return view('admin.shipping.edit', compact('shippingMethod'));
+        })->name('shipping.edit');
         Route::post('orders/{order}/gls/send', [OrderGlsController::class, 'send'])->name('orders.gls.send');
         Route::get('orders/{order}/gls/label', [OrderGlsController::class, 'label'])->name('orders.gls.label');
         Route::get('orders/{order}/show', function (SalesOrder $order) {
@@ -307,6 +329,11 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
             Route::get('options/{option}/values', function (Option $option) {
                 return view('admin.options.values', compact('option'));
             })->name('options.values');
+            Route::get('options/{option}/values/{value}/edit', function (Option $option, OptionValue $value) {
+                abort_unless((int) $value->option_id === (int) $option->id, 404);
+
+                return view('admin.options.value-edit', compact('option', 'value'));
+            })->name('options.values.edit');
         });
         Route::middleware('catalog.feature:catalog_use_attributes')->group(function (): void {
             Route::view('attributes', 'admin.attributes')->name('attributes');
@@ -368,6 +395,9 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
         Route::view('users/b2b', 'admin.users.b2b')->name('users.b2b');
         Route::view('users/newsletter', 'admin.users.newsletter')->name('users.newsletter');
         Route::view('users/groups', 'admin.users.groups')->name('users.groups');
+        Route::get('users/groups/{customerGroup}/edit', function (CustomerGroup $customerGroup) {
+            return view('admin.users.group-edit', compact('customerGroup'));
+        })->name('users.groups.edit');
         Route::view('users/access', 'admin.users.access')->name('users.access');
         Route::view('users/activity', 'admin.users.activity')->name('users.activity');
         Route::middleware('user.feature:user_loyalty_enabled')->group(function (): void {
@@ -457,6 +487,9 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
                         Route::view('settings', 'admin.integrations.msan.settings')->name('settings');
                         Route::view('categories', 'admin.integrations.msan.categories')->name('categories');
                         Route::view('specifications', 'admin.integrations.msan.specifications')->name('specifications');
+                        Route::get('specifications/{definition}/edit', function (MsanSpecificationDefinition $definition) {
+                            return view('admin.integrations.msan.specification-edit', compact('definition'));
+                        })->name('specifications.edit');
                         Route::get('products/{product}/image', MsanProductImageController::class)
                             ->whereNumber('product')
                             ->middleware('throttle:120,1')
@@ -488,6 +521,11 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
                     return view('admin.content.faqs.edit', compact('faq'));
                 })->name('faqs.edit');
                 Route::view('comments', 'admin.content.comments.index')->name('comments.index');
+                Route::get('comments/{comment}/edit', function (Comment $comment) {
+                    abort_if($comment->trashed(), 404);
+
+                    return view('admin.content.comments.edit', compact('comment'));
+                })->name('comments.edit');
                 Route::view('blocks', 'admin.content.blocks.index')->name('blocks');
                 Route::view('blocks/create', 'admin.content.blocks.create')->name('blocks.create');
                 Route::get('blocks/{block}/edit', function (ContentBlock $block) {
@@ -513,6 +551,16 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
                 })
                     ->where('resource', 'payment-methods|shipping-methods|geo-zones|geo-zone-countries|regions|currencies|tax-rates|order-statuses|languages')
                     ->name('local.resource');
+
+                Route::get('local/{resource}/{record}/edit', function (string $resource, string $record) {
+                    return view('admin.settings.local.edit', [
+                        'resource' => $resource,
+                        'recordId' => (int) $record,
+                    ]);
+                })
+                    ->where('resource', 'payment-methods|geo-zones|geo-zone-countries|regions|currencies|tax-rates|order-statuses|languages')
+                    ->whereNumber('record')
+                    ->name('local.resource.edit');
 
                 Route::get('system/runtime', function () {
                     $current = auth()->user();

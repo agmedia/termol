@@ -1,4 +1,5 @@
 <div class="space-y-6">
+    @unless ($editPage)
     <section class="admin-panel admin-search-panel p-6">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
@@ -72,6 +73,7 @@
             </div>
         </div>
     </section>
+    @endunless
 
     @if ($editingDefinitionId && $canManageMapping)
         <section class="admin-panel admin-form-panel p-6" wire:key="msan-specification-editor-{{ $editingDefinitionId }}">
@@ -83,7 +85,11 @@
                         <p class="mt-1 text-xs text-slate-500">{{ __('Prazna prikazna oznaka zadržava izvornu M SAN vrijednost.') }}</p>
                     </div>
                     <div class="flex gap-2">
-                        <button type="button" wire:click="cancelEdit" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">{{ __('Odustani') }}</button>
+                        @if ($editPage)
+                            <a href="{{ route('admin.integrations.msan.specifications') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">{{ __('Odustani') }}</a>
+                        @else
+                            <button type="button" wire:click="cancelEdit" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">{{ __('Odustani') }}</button>
+                        @endif
                         <button type="submit" wire:loading.attr="disabled" wire:target="saveDefinition" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-wait disabled:opacity-60">{{ __('Spremi pravilo') }}</button>
                     </div>
                 </div>
@@ -145,6 +151,7 @@
         </section>
     @endif
 
+    @unless ($editPage)
     <section class="admin-panel admin-panel-soft p-5">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="admin-section-title">{{ __('M SAN specifikacije') }}</h2>
@@ -219,7 +226,7 @@
                             </td>
                             @if ($canManageMapping)
                                 <td class="px-3 py-3 text-right">
-                                    <button type="button" wire:click="openEditor({{ $definition->id }})" class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Uredi') }}</button>
+                                    <a href="{{ route('admin.integrations.msan.specifications.edit', ['definition' => $definition->id]) }}" class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Uredi') }}</a>
                                 </td>
                             @endif
                         </tr>
@@ -236,4 +243,5 @@
 
         <div class="mt-4">{{ $definitions->links() }}</div>
     </section>
+    @endunless
 </div>

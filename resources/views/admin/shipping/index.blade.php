@@ -1,4 +1,4 @@
-<x-admin-layout :title="__('Dostava')">
+<x-admin-layout :title="__('Postavke / Lokalno / Dostava')">
     @php
         $adminUser = auth()->user();
         $canManageGls = $adminUser

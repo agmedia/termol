@@ -36,6 +36,10 @@ class SpecificationMappingManager extends Component
 
     public ?int $editingDefinitionId = null;
 
+    public ?int $recordId = null;
+
+    public bool $editPage = false;
+
     public string $editingDefinitionLabel = '';
 
     public bool $importEnabled = true;
@@ -50,11 +54,18 @@ class SpecificationMappingManager extends Component
 
     public string $displayMeasure = '';
 
-    public function mount(): void
+    public function mount(?int $recordId = null, bool $editPage = false): void
     {
         $this->authorizeView();
 
+        $this->editPage = $editPage;
+        $this->recordId = $recordId;
         $this->searchInput = $this->search;
+
+        if ($this->editPage) {
+            abort_unless($recordId !== null && $recordId > 0, 404);
+            $this->openEditor($recordId);
+        }
     }
 
     public function applySearch(): void
@@ -104,6 +115,7 @@ class SpecificationMappingManager extends Component
 
         $definition = MsanSpecificationDefinition::query()->findOrFail($definitionId);
         $this->editingDefinitionId = (int) $definition->getKey();
+        $this->recordId = (int) $definition->getKey();
         $this->editingDefinitionLabel = trim($definition->group_name.' / '.$definition->item_name, ' /');
         $this->importEnabled = (bool) $definition->import_enabled;
         $this->useAsFilter = (bool) $definition->use_as_filter;
@@ -119,7 +131,7 @@ class SpecificationMappingManager extends Component
         $this->resetEditor();
     }
 
-    public function saveDefinition(): void
+    public function saveDefinition()
     {
         $this->authorizeManage();
 
@@ -147,13 +159,27 @@ class SpecificationMappingManager extends Component
             ]);
 
         $this->resetEditor();
+        $notificationType = 'success';
+        $notificationMessage = __('Pravilo je spremljeno, a lokalna primjena na postojeće artikle stavljena je u red.');
+
         try {
             RepublishMsanSpecificationDefinitionJob::dispatch($definitionId)->onQueue('integrations');
-            $this->dispatch('notify', type: 'success', message: __('Pravilo je spremljeno, a lokalna primjena na postojeće artikle stavljena je u red.'));
         } catch (Throwable $exception) {
             report($exception);
-            $this->dispatch('notify', type: 'warning', message: __('Pravilo je spremljeno, ali lokalnu primjenu nije moguće staviti u red. Pokrenite je ponovnim spremanjem.'));
+            $notificationType = 'warning';
+            $notificationMessage = __('Pravilo je spremljeno, ali lokalnu primjenu nije moguće staviti u red. Pokrenite je ponovnim spremanjem.');
         }
+
+        if ($this->editPage) {
+            return redirect()
+                ->route('admin.integrations.msan.specifications')
+                ->with('notify', [
+                    'type' => $notificationType,
+                    'message' => $notificationMessage,
+                ]);
+        }
+
+        $this->dispatch('notify', type: $notificationType, message: $notificationMessage);
     }
 
     public function render()
@@ -234,6 +260,7 @@ class SpecificationMappingManager extends Component
     private function resetEditor(): void
     {
         $this->editingDefinitionId = null;
+        $this->recordId = null;
         $this->editingDefinitionLabel = '';
         $this->importEnabled = true;
         $this->useAsFilter = false;

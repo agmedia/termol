@@ -1,4 +1,14 @@
+@php
+    $commentListParameters = array_filter([
+        'search' => $search !== '' ? $search : null,
+        'status' => $status !== \App\Models\Content\Support\Comment::STATUS_PENDING ? $status : null,
+        'target' => $target !== 'all' ? $target : null,
+        'locale' => $locale !== 'all' ? $locale : null,
+    ], static fn (?string $value): bool => $value !== null);
+@endphp
+
 <div class="space-y-6">
+    @unless ($editPage)
     <div class="admin-panel admin-search-panel p-6">
         <div class="flex items-end justify-between gap-4">
             <div>
@@ -42,6 +52,7 @@
             </div>
         </div>
     </div>
+    @endunless
 
     @if ($editingId)
         <div class="admin-panel admin-form-panel p-6">
@@ -112,14 +123,21 @@
                     <button type="submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">
                         {{ __('Update Comment') }}
                     </button>
-                    <button type="button" wire:click="cancelEdit" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-                        {{ __('Cancel') }}
-                    </button>
+                    @if ($editPage)
+                        <a href="{{ route('admin.content.comments.index', $commentListParameters) }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                            {{ __('Cancel') }}
+                        </a>
+                    @else
+                        <button type="button" wire:click="cancelEdit" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                            {{ __('Cancel') }}
+                        </button>
+                    @endif
                 </div>
             </form>
         </div>
     @endif
 
+    @unless ($editPage)
     <div class="admin-panel admin-panel-soft p-5">
         <h2 class="admin-section-title">{{ __('Items') }}</h2>
 
@@ -188,9 +206,9 @@
                                     </button>
                                 @else
                                     <div class="inline-flex flex-wrap items-center justify-end gap-1">
-                                        <button type="button" wire:click="edit({{ $row->id }})" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                                        <a href="{{ route('admin.content.comments.edit', array_merge(['comment' => $row->id], $commentListParameters)) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
                                             {{ __('admin.common.edit') }}
-                                        </button>
+                                        </a>
                                         <button type="button" wire:click="approve({{ $row->id }})" class="rounded-lg border border-emerald-300 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
                                             {{ __('Approve') }}
                                         </button>
@@ -220,4 +238,5 @@
             {{ $rows->links() }}
         </div>
     </div>
+    @endunless
 </div>

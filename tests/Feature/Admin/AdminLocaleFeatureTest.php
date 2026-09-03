@@ -12,21 +12,34 @@ class AdminLocaleFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_locale_persists_across_navigation_without_query_param(): void
+    public function test_admin_uses_the_default_locale_and_clears_a_legacy_selection(): void
     {
         $admin = $this->makeAdminUser();
         $this->seedLanguages();
 
         $this->actingAs($admin)
+            ->withSession(['admin_locale' => 'en'])
             ->get('/admin/dashboard?admin_locale=en')
             ->assertOk()
-            ->assertSee('lang="en"', false)
-            ->assertSessionHas('admin_locale', 'en');
+            ->assertSee('lang="hr"', false)
+            ->assertSessionMissing('admin_locale');
 
         $this->get('/admin/orders')
             ->assertOk()
-            ->assertSee('lang="en"', false)
-            ->assertSessionHas('admin_locale', 'en');
+            ->assertSee('lang="hr"', false)
+            ->assertSessionMissing('admin_locale');
+    }
+
+    public function test_admin_header_does_not_render_locale_or_help_controls(): void
+    {
+        $admin = $this->makeAdminUser();
+
+        $this->actingAs($admin)
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertDontSee('admin_locale=', false)
+            ->assertDontSee('id="admin-help-open"', false)
+            ->assertDontSee('class="admin-help-button"', false);
     }
 
     private function makeAdminUser(): User

@@ -17,7 +17,11 @@ class ShippingManager extends Component
 
     public string $search = '';
 
+    public int $returnPage = 1;
+
     public ?int $editingId = null;
+
+    public bool $editPage = false;
 
     public string $islandPolicy = CroatianIslandDestinationClassifier::POLICY_UNCONNECTED_ONLY;
 
@@ -31,8 +35,12 @@ class ShippingManager extends Component
      */
     public array $rates = [];
 
-    public function mount(): void
+    public function mount(bool $editPage = false, ?int $recordId = null): void
     {
+        $this->editPage = $editPage;
+        $this->search = trim((string) request()->query('search', ''));
+        $this->returnPage = max(1, (int) request()->query('page', 1));
+
         $storedPolicy = (string) app(SystemSettingsService::class)->get(
             CroatianIslandDestinationClassifier::SETTING_KEY,
             config('termol_shipping.islands.default_policy', CroatianIslandDestinationClassifier::POLICY_UNCONNECTED_ONLY),
@@ -43,7 +51,11 @@ class ShippingManager extends Component
 
         $this->resetForm();
 
-        $requestedId = (int) request()->query('edit', 0);
+        $requestedId = $recordId ?? 0;
+        if ($this->editPage) {
+            abort_unless($requestedId > 0, 404);
+        }
+
         if ($requestedId > 0) {
             $this->edit($requestedId);
         }
@@ -152,7 +164,7 @@ class ShippingManager extends Component
         $this->rates = array_values($this->rates);
     }
 
-    public function save(): void
+    public function save()
     {
         $validated = $this->validate($this->rules());
         $form = $validated['form'];
@@ -260,12 +272,33 @@ class ShippingManager extends Component
                 ->log('Shipping method saved');
         });
 
-        $this->dispatch(
-            'notify',
-            type: 'success',
-            message: $this->editingId ? __('Način dostave je ažuriran.') : __('Način dostave je kreiran.')
-        );
+        $message = $this->editingId ? __('Način dostave je ažuriran.') : __('Način dostave je kreiran.');
+
+        if ($this->editPage) {
+            return redirect()
+                ->route('admin.shipping.index', $this->listRouteParameters())
+                ->with('notify', [
+                    'type' => 'success',
+                    'message' => $message,
+                ]);
+        }
+
+        $this->dispatch('notify', type: 'success', message: $message);
         $this->resetForm();
+
+        return null;
+    }
+
+    /**
+     * @return array<string, int|string>
+     */
+    private function listRouteParameters(): array
+    {
+        return array_filter([
+            'tab' => 'methods',
+            'search' => $this->search !== '' ? $this->search : null,
+            'page' => $this->returnPage > 1 ? $this->returnPage : null,
+        ], static fn (int|string|null $value): bool => $value !== null);
     }
 
     public function toggleActive(int $id): void
