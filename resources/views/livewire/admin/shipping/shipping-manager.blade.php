@@ -285,9 +285,44 @@
             @if (($form['carrier'] ?? '') === 'boxnow')
                 <div class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-800">BOX NOW</p>
-                    <label class="mt-3 mb-1 block text-xs font-semibold text-slate-600">{{ __('Partner ID') }}</label>
-                    <input type="text" wire:model="form.boxnow_partner_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm">
-                    @error('form.boxnow_partner_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    <div class="mt-3 grid gap-3 md:grid-cols-2">
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('Partner ID') }}</label>
+                            <input type="text" wire:model="form.boxnow_partner_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm">
+                            @error('form.boxnow_partner_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('Warehouse ID') }}</label>
+                            <input type="text" wire:model="form.boxnow_warehouse_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm">
+                            @error('form.boxnow_warehouse_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('API URL') }}</label>
+                            <input type="url" wire:model="form.boxnow_api_url" placeholder="https://api-production.boxnow.hr" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm">
+                            @error('form.boxnow_api_url') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('OAuth Client ID') }}</label>
+                            <input type="text" wire:model="form.boxnow_oauth_client_id" autocomplete="off" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm">
+                            @error('form.boxnow_oauth_client_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <div class="mb-1 flex items-center justify-between gap-2">
+                                <label class="block text-xs font-semibold text-slate-600">{{ __('OAuth Client Secret') }}</label>
+                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $boxNowOauthClientSecretStored ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600' }}">
+                                    {{ $boxNowOauthClientSecretStored ? __('Spremljeno') : __('Nije spremljeno') }}
+                                </span>
+                            </div>
+                            <input
+                                type="password"
+                                wire:model="form.boxnow_oauth_client_secret"
+                                autocomplete="new-password"
+                                placeholder="{{ $boxNowOauthClientSecretStored ? __('Ostavite prazno za zadržavanje postojeće tajne') : '' }}"
+                                class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm"
+                            >
+                            @error('form.boxnow_oauth_client_secret') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
                 </div>
             @endif
 

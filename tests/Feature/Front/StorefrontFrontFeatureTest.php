@@ -1819,6 +1819,20 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee('class="checkout-shell"', false)
             ->assertSee('class="checkout-layout" novalidate', false)
             ->assertSee('checkout-primary-button', false)
+            ->assertSee('data-boxnow-selection-summary aria-live="polite"', false)
+            ->assertSeeInOrder([
+                'data-boxnow-open',
+                'data-boxnow-selection-summary',
+                'data-boxnow-selected',
+                'data-boxnow-selected-address',
+            ], false)
+            ->assertSee('data-gls-dpm-selection-summary aria-live="polite"', false)
+            ->assertSeeInOrder([
+                'data-gls-dpm-open',
+                'data-gls-dpm-selection-summary',
+                'data-gls-dpm-selected',
+                'data-gls-dpm-selected-address',
+            ], false)
             ->assertSee('autocomplete="billing given-name"', false)
             ->assertSee('aria-controls="shipping-address-fields"', false)
             ->assertSee('items-center justify-start', false)

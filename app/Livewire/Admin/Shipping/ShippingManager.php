@@ -6,6 +6,7 @@ use App\Models\Settings\Local\GeoZone;
 use App\Models\Settings\Local\ShippingMethod;
 use App\Services\Settings\SystemSettingsService;
 use App\Services\Shipping\CroatianIslandDestinationClassifier;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
@@ -14,6 +15,8 @@ use Livewire\WithPagination;
 class ShippingManager extends Component
 {
     use WithPagination;
+
+    private const BOX_NOW_OAUTH_CLIENT_SECRET_ENCRYPTED_KEY = 'boxnow_oauth_client_secret_encrypted';
 
     public string $search = '';
 
@@ -24,6 +27,8 @@ class ShippingManager extends Component
     public bool $editPage = false;
 
     public bool $createPage = false;
+
+    public bool $boxNowOauthClientSecretStored = false;
 
     public string $islandPolicy = CroatianIslandDestinationClassifier::POLICY_UNCONNECTED_ONLY;
 
@@ -125,9 +130,14 @@ class ShippingManager extends Component
             'heavy_surcharge' => $method->heavy_surcharge,
             'missing_measurements_policy' => (string) ($method->missing_measurements_policy ?: 'allow'),
             'boxnow_partner_id' => (string) ($settings['boxnow_partner_id'] ?? ''),
+            'boxnow_api_url' => (string) ($settings['boxnow_api_url'] ?? ''),
+            'boxnow_oauth_client_id' => (string) ($settings['boxnow_oauth_client_id'] ?? ''),
+            'boxnow_oauth_client_secret' => '',
+            'boxnow_warehouse_id' => (string) ($settings['boxnow_warehouse_id'] ?? ''),
             'is_active' => (bool) $method->is_active,
             'sort_order' => (int) $method->sort_order,
         ];
+        $this->boxNowOauthClientSecretStored = trim((string) ($settings[self::BOX_NOW_OAUTH_CLIENT_SECRET_ENCRYPTED_KEY] ?? '')) !== '';
         $this->rates = $method->rates
             ->map(fn ($rate): array => [
                 'id' => (int) $rate->id,
@@ -205,11 +215,25 @@ class ShippingManager extends Component
                 : new ShippingMethod;
 
             $settings = is_array($method->settings) ? $method->settings : [];
-            $partnerId = trim((string) ($form['boxnow_partner_id'] ?? ''));
-            if ($isBoxNow && $partnerId !== '') {
-                $settings['boxnow_partner_id'] = $partnerId;
-            } elseif (! $isBoxNow) {
-                unset($settings['boxnow_partner_id']);
+            if ($isBoxNow) {
+                foreach (['boxnow_partner_id', 'boxnow_api_url', 'boxnow_oauth_client_id', 'boxnow_warehouse_id'] as $key) {
+                    $settings[$key] = trim((string) ($form[$key] ?? ''));
+                }
+
+                $clientSecret = trim((string) ($form['boxnow_oauth_client_secret'] ?? ''));
+                if ($clientSecret !== '') {
+                    $settings[self::BOX_NOW_OAUTH_CLIENT_SECRET_ENCRYPTED_KEY] = Crypt::encryptString($clientSecret);
+                }
+            } else {
+                foreach ([
+                    'boxnow_partner_id',
+                    'boxnow_api_url',
+                    'boxnow_oauth_client_id',
+                    self::BOX_NOW_OAUTH_CLIENT_SECRET_ENCRYPTED_KEY,
+                    'boxnow_warehouse_id',
+                ] as $key) {
+                    unset($settings[$key]);
+                }
             }
 
             $method->fill([
@@ -401,6 +425,10 @@ class ShippingManager extends Component
             'heavy_surcharge' => 0,
             'missing_measurements_policy' => 'allow',
             'boxnow_partner_id' => '',
+            'boxnow_api_url' => '',
+            'boxnow_oauth_client_id' => '',
+            'boxnow_oauth_client_secret' => '',
+            'boxnow_warehouse_id' => '',
             'is_active' => true,
             'sort_order' => 0,
         ];
@@ -481,6 +509,7 @@ class ShippingManager extends Component
     private function resetForm(): void
     {
         $this->editingId = null;
+        $this->boxNowOauthClientSecretStored = false;
         $this->form = $this->defaultForm();
         $this->rates = [];
         $this->resetValidation();
@@ -522,6 +551,10 @@ class ShippingManager extends Component
             'form.heavy_surcharge' => ['nullable', 'numeric', 'min:0'],
             'form.missing_measurements_policy' => ['required', Rule::in(['allow', 'block'])],
             'form.boxnow_partner_id' => ['nullable', 'string', 'max:120'],
+            'form.boxnow_api_url' => ['nullable', 'string', 'url:http,https', 'max:2048'],
+            'form.boxnow_oauth_client_id' => ['nullable', 'string', 'max:255'],
+            'form.boxnow_oauth_client_secret' => ['nullable', 'string', 'max:2048'],
+            'form.boxnow_warehouse_id' => ['nullable', 'string', 'max:120'],
             'form.is_active' => ['boolean'],
             'form.sort_order' => ['nullable', 'integer', 'min:0'],
             'rates' => ['array'],

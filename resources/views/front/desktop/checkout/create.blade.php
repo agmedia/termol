@@ -288,17 +288,19 @@
                             <input type="hidden" name="shipping_boxnow_postal_code" value="{{ $selectedBoxNowPostalCode }}" data-boxnow-postal-code>
                             <input type="hidden" name="shipping_boxnow_city" value="{{ $selectedBoxNowCity }}" data-boxnow-city>
 
-                            <div class="flex flex-wrap items-center gap-3">
+                            <div class="flex flex-col items-start gap-3">
                                 <button type="button" class="checkout-primary-button checkout-primary-button--compact px-4 py-2 text-xs uppercase tracking-wide" data-boxnow-open>
                                     {{ __('ui.checkout.boxnow.select_locker') }}
                                 </button>
-                                <span class="text-sm text-slate-700" data-boxnow-selected>
-                                    {{ $selectedBoxNowLockerId !== '' ? $selectedBoxNowLockerName.' ('.$selectedBoxNowLockerId.')' : __('ui.checkout.boxnow.no_locker_selected') }}
-                                </span>
+                                <div class="w-full border border-cyan-300 bg-cyan-50 px-3 py-3 shadow-sm" data-boxnow-selection-summary aria-live="polite">
+                                    <p class="text-sm font-semibold text-slate-900" data-boxnow-selected>
+                                        {{ $selectedBoxNowLockerId !== '' ? $selectedBoxNowLockerName.' ('.$selectedBoxNowLockerId.')' : __('ui.checkout.boxnow.no_locker_selected') }}
+                                    </p>
+                                    <p class="mt-1 text-sm text-slate-700" data-boxnow-selected-address>
+                                        {{ trim($selectedBoxNowAddressLine1.', '.$selectedBoxNowPostalCode.' '.$selectedBoxNowCity, ', ') }}
+                                    </p>
+                                </div>
                             </div>
-                            <p class="mt-2 text-sm text-slate-600" data-boxnow-selected-address>
-                                {{ trim($selectedBoxNowAddressLine1.', '.$selectedBoxNowPostalCode.' '.$selectedBoxNowCity, ', ') }}
-                            </p>
                             @error('shipping_boxnow_locker_id')
                                 <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                             @enderror
@@ -313,17 +315,19 @@
                             <input type="hidden" name="shipping_gls_dpm_postal_code" value="{{ $selectedGlsDpmPostalCode }}" data-gls-dpm-postal-code>
                             <input type="hidden" name="shipping_gls_dpm_city" value="{{ $selectedGlsDpmCity }}" data-gls-dpm-city>
 
-                            <div class="flex flex-wrap items-center gap-3">
+                            <div class="flex flex-col items-start gap-3">
                                 <button type="button" class="checkout-primary-button checkout-primary-button--compact px-4 py-2 text-xs uppercase tracking-wide" data-gls-dpm-open>
                                     {{ __('Odaberi GLS paketomat / ParcelShop') }}
                                 </button>
-                                <span class="text-sm text-slate-700" data-gls-dpm-selected>
-                                    {{ $selectedGlsDpmId !== '' ? $selectedGlsDpmName.' ('.$selectedGlsDpmId.')' : __('GLS lokacija nije odabrana.') }}
-                                </span>
+                                <div class="w-full border border-cyan-300 bg-cyan-50 px-3 py-3 shadow-sm" data-gls-dpm-selection-summary aria-live="polite">
+                                    <p class="text-sm font-semibold text-slate-900" data-gls-dpm-selected>
+                                        {{ $selectedGlsDpmId !== '' ? $selectedGlsDpmName.' ('.$selectedGlsDpmId.')' : __('GLS lokacija nije odabrana.') }}
+                                    </p>
+                                    <p class="mt-1 text-sm text-slate-700" data-gls-dpm-selected-address>
+                                        {{ trim($selectedGlsDpmAddressLine1.', '.$selectedGlsDpmPostalCode.' '.$selectedGlsDpmCity, ', ') }}
+                                    </p>
+                                </div>
                             </div>
-                            <p class="mt-2 text-sm text-slate-600" data-gls-dpm-selected-address>
-                                {{ trim($selectedGlsDpmAddressLine1.', '.$selectedGlsDpmPostalCode.' '.$selectedGlsDpmCity, ', ') }}
-                            </p>
                             @error('shipping_gls_dpm_id')
                                 <p class="mt-2 text-xs font-semibold text-rose-600">{{ $message }}</p>
                             @enderror

@@ -23,6 +23,7 @@ use App\Services\Shipping\CroatianIslandDestinationClassifier;
 use App\Services\Shipping\ShippingCalculator;
 use Database\Seeders\SystemSettingsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -236,6 +237,108 @@ class AdvancedShippingFeatureTest extends TestCase
             ->call('toggleActive', $legacyBoxNow->id)
             ->assertHasErrors(['form.boxnow_partner_id']);
         $this->assertFalse($legacyBoxNow->refresh()->is_active);
+    }
+
+    public function test_admin_boxnow_connection_fields_render_load_and_save_without_exposing_the_secret(): void
+    {
+        $admin = User::factory()->create();
+        $storedPlaintext = 'previous-client-secret';
+        $storedCiphertext = Crypt::encryptString($storedPlaintext);
+        $boxNow = $this->persistedBoxNow([
+            'boxnow_partner_id' => 'partner-before',
+            'boxnow_api_url' => 'https://api-before.boxnow.example',
+            'boxnow_oauth_client_id' => 'client-before',
+            'boxnow_oauth_client_secret_encrypted' => $storedCiphertext,
+            'boxnow_warehouse_id' => 'warehouse-before',
+        ]);
+
+        $component = Livewire::actingAs($admin)
+            ->test(ShippingManager::class, ['editPage' => true, 'recordId' => $boxNow->id])
+            ->assertSeeHtml('wire:model="form.boxnow_partner_id"')
+            ->assertSeeHtml('wire:model="form.boxnow_api_url"')
+            ->assertSeeHtml('wire:model="form.boxnow_oauth_client_id"')
+            ->assertSeeHtml('wire:model="form.boxnow_oauth_client_secret"')
+            ->assertSeeHtml('type="password"')
+            ->assertSeeHtml('autocomplete="new-password"')
+            ->assertSeeHtml('wire:model="form.boxnow_warehouse_id"')
+            ->assertSet('form.boxnow_partner_id', 'partner-before')
+            ->assertSet('form.boxnow_api_url', 'https://api-before.boxnow.example')
+            ->assertSet('form.boxnow_oauth_client_id', 'client-before')
+            ->assertSet('form.boxnow_oauth_client_secret', '')
+            ->assertSet('form.boxnow_warehouse_id', 'warehouse-before')
+            ->assertSet('boxNowOauthClientSecretStored', true)
+            ->assertSee('Spremljeno')
+            ->assertDontSee($storedPlaintext)
+            ->assertDontSee($storedCiphertext)
+            ->assertDontSee('boxnow_oauth_client_secret_encrypted');
+
+        $component
+            ->set('form.boxnow_partner_id', 'partner-after')
+            ->set('form.boxnow_api_url', 'https://api.boxnow.example/v1')
+            ->set('form.boxnow_oauth_client_id', 'client-after')
+            ->set('form.boxnow_oauth_client_secret', 'replacement-client-secret')
+            ->set('form.boxnow_warehouse_id', 'warehouse-after')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('admin.shipping.index', ['tab' => 'methods']));
+
+        $settings = $boxNow->refresh()->settings;
+        $this->assertSame('partner-after', $settings['boxnow_partner_id']);
+        $this->assertSame('https://api.boxnow.example/v1', $settings['boxnow_api_url']);
+        $this->assertSame('client-after', $settings['boxnow_oauth_client_id']);
+        $this->assertSame('warehouse-after', $settings['boxnow_warehouse_id']);
+        $this->assertNotSame('replacement-client-secret', $settings['boxnow_oauth_client_secret_encrypted']);
+        $this->assertStringNotContainsString('replacement-client-secret', $settings['boxnow_oauth_client_secret_encrypted']);
+        $this->assertArrayNotHasKey('boxnow_oauth_client_secret', $settings);
+        $this->assertStringNotContainsString('replacement-client-secret', (string) $boxNow->getRawOriginal('settings'));
+        $this->assertSame(
+            'replacement-client-secret',
+            Crypt::decryptString($settings['boxnow_oauth_client_secret_encrypted']),
+        );
+
+        Livewire::actingAs($admin)
+            ->test(ShippingManager::class, ['editPage' => true, 'recordId' => $boxNow->id])
+            ->assertSet('form.boxnow_oauth_client_secret', '')
+            ->assertSet('boxNowOauthClientSecretStored', true)
+            ->assertDontSee('replacement-client-secret');
+    }
+
+    public function test_admin_boxnow_blank_client_secret_preserves_the_encrypted_value(): void
+    {
+        $admin = User::factory()->create();
+        $encryptedSecret = Crypt::encryptString('keep-this-client-secret');
+        $boxNow = $this->persistedBoxNow([
+            'boxnow_partner_id' => 'partner-test',
+            'boxnow_oauth_client_secret_encrypted' => $encryptedSecret,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(ShippingManager::class, ['editPage' => true, 'recordId' => $boxNow->id])
+            ->set('form.boxnow_api_url', 'https://api.boxnow.example')
+            ->set('form.boxnow_oauth_client_secret', '   ')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $settings = $boxNow->refresh()->settings;
+        $this->assertSame($encryptedSecret, $settings['boxnow_oauth_client_secret_encrypted']);
+        $this->assertSame('https://api.boxnow.example', $settings['boxnow_api_url']);
+    }
+
+    public function test_admin_boxnow_rejects_an_invalid_api_url(): void
+    {
+        $admin = User::factory()->create();
+        $boxNow = $this->persistedBoxNow([
+            'boxnow_partner_id' => 'partner-test',
+            'boxnow_api_url' => 'https://api-before.boxnow.example',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(ShippingManager::class, ['editPage' => true, 'recordId' => $boxNow->id])
+            ->set('form.boxnow_api_url', 'ftp://api.boxnow.example')
+            ->call('save')
+            ->assertHasErrors(['form.boxnow_api_url' => 'url']);
+
+        $this->assertSame('https://api-before.boxnow.example', $boxNow->refresh()->settings['boxnow_api_url']);
     }
 
     public function test_admin_sets_the_shared_island_policy_without_changing_method_activation(): void
@@ -516,6 +619,31 @@ class AdvancedShippingFeatureTest extends TestCase
         $method->setRelation('rates', collect());
 
         return $method;
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function persistedBoxNow(array $settings): ShippingMethod
+    {
+        return ShippingMethod::query()->create([
+            'code' => 'boxnow',
+            'name' => 'BOX NOW paketomat',
+            'carrier' => 'boxnow',
+            'service_type' => 'parcel_locker',
+            'pricing_type' => 'flat',
+            'price' => 2.99,
+            'max_weight_kg' => 20,
+            'max_length_cm' => 60,
+            'max_width_cm' => 45,
+            'max_height_cm' => 36,
+            'allows_fragile' => false,
+            'allows_oversized' => false,
+            'allows_heavy' => false,
+            'missing_measurements_policy' => 'block',
+            'is_active' => true,
+            'settings' => $settings,
+        ]);
     }
 
     /**
