@@ -268,6 +268,7 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
     ->group(function (): void {
         Route::redirect('/', '/admin/dashboard');
         Route::view('dashboard', 'admin.dashboard')->name('dashboard');
+        Route::view('help', 'admin.help.index')->name('help.index');
         Route::view('categories', 'admin.categories')->name('categories');
         Route::view('categories/create', 'admin.categories.create')->name('categories.create');
         Route::get('categories/{category}/edit', function (Category $category) {

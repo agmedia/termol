@@ -1270,6 +1270,7 @@
                     $helpRoute = request()->route()?->getName() ?? '';
                     $helpConfig = config('admin_help', []);
                     $helpEntry = $helpConfig['default'] ?? [];
+                    $manualTopic = 'uvod';
                     $canViewUsersSection = auth()->user() && (
                         auth()->user()->isA('superadmin')
                         || auth()->user()->can('users.list.view')
@@ -1279,6 +1280,29 @@
                         || ($userLoyaltyEnabled && auth()->user()->can('users.loyalty.view'))
                         || auth()->user()->can('users.access.manage')
                     );
+
+                    foreach ((array) config('admin_manual.sections', []) as $manualSection) {
+                        foreach ((array) ($manualSection['items'] ?? []) as $manualItem) {
+                            $routeParametersMatch = true;
+                            foreach ((array) ($manualItem['route_parameters'] ?? []) as $parameter => $expectedValue) {
+                                if ((string) request()->route((string) $parameter) !== (string) $expectedValue) {
+                                    $routeParametersMatch = false;
+                                    break;
+                                }
+                            }
+
+                            if (! $routeParametersMatch) {
+                                continue;
+                            }
+
+                            foreach ((array) ($manualItem['route_patterns'] ?? []) as $pattern) {
+                                if (\Illuminate\Support\Str::is((string) $pattern, $helpRoute)) {
+                                    $manualTopic = (string) ($manualItem['id'] ?? 'uvod');
+                                    break 3;
+                                }
+                            }
+                        }
+                    }
 
                     foreach (($helpConfig['routes'] ?? []) as $pattern => $payload) {
                         if (\Illuminate\Support\Str::is($pattern, $helpRoute)) {
@@ -1898,6 +1922,21 @@
                     </div>
 
                     <div class="flex shrink-0 items-center gap-2 sm:gap-3">
+                        <a
+                            id="admin-documentation-link"
+                            href="{{ route('admin.help.index').'#'.$manualTopic }}"
+                            class="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-xl border px-0 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-600 focus-visible:ring-offset-2 sm:w-auto sm:px-3 {{ request()->routeIs('admin.help.index') ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100' }}"
+                            aria-label="{{ __('admin.layout.open_documentation') }}"
+                            title="{{ __('admin.layout.open_documentation') }}"
+                            @if(request()->routeIs('admin.help.index')) aria-current="page" @endif
+                        >
+                            <svg class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                                <path d="M4.25 3.75h7.25a2.75 2.75 0 0 1 2.75 2.75v9.75H7a2.75 2.75 0 0 0-2.75 2.75V3.75Z" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round" />
+                                <path d="M7 6.75h4.5M7 9.5h4.5M7 12.25h2.75" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" />
+                            </svg>
+                            <span class="hidden sm:inline">{{ __('admin.layout.documentation') }}</span>
+                        </a>
+
                         @php
                             $userInitial = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr((string) auth()->user()->name, 0, 1));
                         @endphp

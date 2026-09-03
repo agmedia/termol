@@ -74,6 +74,8 @@ return [
             'help' => 'Pomoć za stranicu',
         ],
         'quick_actions' => 'Brze akcije',
+        'documentation' => 'Pomoć',
+        'open_documentation' => 'Otvori upute za administraciju',
         'profile' => 'Moj profil',
         'open_frontend' => 'Otvori frontend',
         'clean_cache' => 'Očisti cache',

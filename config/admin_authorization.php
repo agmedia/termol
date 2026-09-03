@@ -17,6 +17,9 @@ return [
         'admin.dashboard' => [
             'view' => ['dashboard.view'],
         ],
+        'admin.help.index' => [
+            'view' => ['admin.access'],
+        ],
 
         'admin.categories.create' => [
             'view' => ['catalog.categories.create'],

@@ -1,0 +1,378 @@
+@php
+    $manual = (array) config('admin_manual', []);
+    $manualSections = (array) ($manual['sections'] ?? []);
+    $manualEntryCount = collect($manualSections)->sum(fn (array $section): int => count((array) ($section['items'] ?? [])));
+    $manualUser = auth()->user();
+    $catalogFeatures = app(\App\Services\Catalog\CatalogFeatureService::class);
+    $manualFeatureStates = [
+        'attributes' => $catalogFeatures->useAttributes(),
+        'options' => $catalogFeatures->useOptions(),
+        'manufacturers' => $catalogFeatures->useManufacturers(),
+        'actions' => $catalogFeatures->useActions(),
+        'blog' => $catalogFeatures->useBlog(),
+        'api' => $catalogFeatures->useApi(),
+        'loyalty' => (bool) app(\App\Services\Settings\SystemSettingsService::class)->get(
+            'user_loyalty_enabled',
+            (bool) config('user_features.flags.user_loyalty_enabled', false),
+        ),
+    ];
+@endphp
+
+<x-admin-layout :title="$manual['title'] ?? 'Upute za administraciju'">
+    <div id="admin-manual" class="mx-auto max-w-[96rem] space-y-6" data-manual-entry-count="{{ $manualEntryCount }}">
+        <section id="uvod" class="relative scroll-mt-24 overflow-hidden rounded-3xl bg-slate-950 px-5 py-7 text-white shadow-xl shadow-slate-950/10 sm:px-8 sm:py-9">
+            <div class="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" aria-hidden="true"></div>
+            <div class="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-violet-500/15 blur-3xl" aria-hidden="true"></div>
+
+            <div class="relative grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(24rem,0.72fr)] xl:items-end">
+                <div class="max-w-3xl">
+                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Termol administracija</p>
+                    <h1 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">{{ $manual['title'] ?? 'Upute za administraciju' }}</h1>
+                    <p class="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">{{ $manual['intro'] ?? '' }}</p>
+
+                    <div class="mt-6 flex flex-wrap gap-2 text-xs font-semibold text-slate-200">
+                        <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">{{ count($manualSections) }} područja</span>
+                        <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">{{ $manualEntryCount }} detaljnih uputa</span>
+                        <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">Redoslijed kao u navigaciji</span>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-2xl shadow-black/20 backdrop-blur-sm sm:p-5">
+                    <label for="admin-manual-search" class="text-sm font-bold text-white">Što želite napraviti?</label>
+                    <p class="mt-1 text-xs leading-5 text-slate-300">Pretražite naziv, polje ili postupak, primjerice „zaliha”, „M SAN” ili „dostava”.</p>
+                    <div class="relative mt-3">
+                        <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                            <circle cx="8.75" cy="8.75" r="5.25" stroke="currentColor" stroke-width="1.6" />
+                            <path d="m12.75 12.75 3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                        </svg>
+                        <input
+                            id="admin-manual-search"
+                            type="search"
+                            autocomplete="off"
+                            placeholder="Pretraži sve upute…"
+                            class="h-12 w-full rounded-xl border border-white/20 bg-white py-2 pl-10 pr-12 text-sm font-medium text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-300/20"
+                        >
+                        <button
+                            id="admin-manual-search-clear"
+                            type="button"
+                            class="absolute right-2 top-1/2 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-lg leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-600"
+                            aria-label="Očisti pretragu"
+                            title="Očisti pretragu"
+                        >×</button>
+                    </div>
+                    <p id="admin-manual-result-count" class="mt-2 text-xs font-semibold text-cyan-200" aria-live="polite">
+                        Prikazano je svih {{ $manualEntryCount }} uputa.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section aria-labelledby="admin-manual-quick-start-title">
+            <div class="mb-3 flex items-end justify-between gap-4">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-[0.16em] text-cyan-700">Siguran način rada</p>
+                    <h2 id="admin-manual-quick-start-title" class="mt-1 text-xl font-extrabold tracking-tight text-slate-950">Prije svake promjene</h2>
+                </div>
+                <div class="hidden gap-2 sm:flex">
+                    <button id="admin-manual-expand-all" type="button" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-600">Otvori sve</button>
+                    <button id="admin-manual-collapse-all" type="button" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-600">Zatvori sve</button>
+                </div>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                @foreach ((array) ($manual['quick_start'] ?? []) as $quickStart)
+                    <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <h3 class="text-sm font-extrabold text-slate-900">{{ $quickStart['title'] ?? '' }}</h3>
+                        <p class="mt-2 text-xs leading-5 text-slate-600">{{ $quickStart['text'] ?? '' }}</p>
+                    </article>
+                @endforeach
+            </div>
+
+            <div class="mt-3 flex gap-2 sm:hidden">
+                <button type="button" data-manual-expand-all class="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm">Otvori sve</button>
+                <button type="button" data-manual-collapse-all class="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm">Zatvori sve</button>
+            </div>
+        </section>
+
+        <div class="grid items-start gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
+            <aside class="lg:sticky lg:top-24" aria-label="Sadržaj uputa">
+                <nav class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div class="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                        <p class="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Sadržaj</p>
+                        <p class="mt-1 text-sm font-extrabold text-slate-900">Kao u lijevoj navigaciji</p>
+                    </div>
+                    <div class="flex gap-2 overflow-x-auto p-3 lg:block lg:space-y-1 lg:overflow-visible">
+                        @foreach ($manualSections as $section)
+                            <a
+                                href="#sekcija-{{ $section['id'] }}"
+                                class="manual-toc-link flex shrink-0 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950 lg:w-full"
+                                data-manual-toc="{{ $section['id'] }}"
+                            >
+                                <span>{{ $section['title'] }}</span>
+                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[0.68rem] font-bold text-slate-500">{{ count((array) ($section['items'] ?? [])) }}</span>
+                            </a>
+                        @endforeach
+                    </div>
+                </nav>
+
+                <div class="mt-3 hidden rounded-2xl border border-cyan-200 bg-cyan-50 p-4 text-xs leading-5 text-cyan-950 lg:block">
+                    <p class="font-extrabold">Ne vidite gumb za otvaranje?</p>
+                    <p class="mt-1 text-cyan-800">Upute su dostupne svima u administraciji, ali pojedini modul možete otvoriti samo uz odgovarajuću ovlast.</p>
+                </div>
+            </aside>
+
+            <div class="min-w-0 space-y-8">
+                @foreach ($manualSections as $sectionIndex => $section)
+                    <section
+                        id="sekcija-{{ $section['id'] }}"
+                        class="manual-section scroll-mt-24"
+                        data-manual-section="{{ $section['id'] }}"
+                    >
+                        <div class="mb-3 flex items-start gap-3">
+                            <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-extrabold text-white shadow-sm">{{ $sectionIndex + 1 }}</span>
+                            <div>
+                                <h2 class="text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl">{{ $section['title'] }}</h2>
+                                <p class="mt-1 text-sm leading-6 text-slate-600">{{ $section['description'] ?? '' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            @foreach ((array) ($section['items'] ?? []) as $itemIndex => $item)
+                                @php
+                                    $manualAbility = (string) ($item['ability'] ?? '');
+                                    $manualFeature = (string) ($item['feature'] ?? '');
+                                    $manualRoute = (string) ($item['route'] ?? '');
+                                    $manualRouteParameters = (array) ($item['route_parameters'] ?? []);
+                                    $manualAllowed = $manualAbility === ''
+                                        || ($manualUser && ($manualUser->isA('superadmin') || $manualUser->can($manualAbility)));
+                                    $manualFeatureEnabled = $manualFeature === '' || ($manualFeatureStates[$manualFeature] ?? false);
+                                    $manualRouteExists = $manualRoute !== '' && \Illuminate\Support\Facades\Route::has($manualRoute);
+                                    $manualCanOpen = $manualAllowed && $manualFeatureEnabled && $manualRouteExists;
+                                    $manualSearchParts = [
+                                        $section['title'] ?? '',
+                                        $section['description'] ?? '',
+                                        $item['eyebrow'] ?? '',
+                                        $item['title'] ?? '',
+                                        $item['purpose'] ?? '',
+                                        ...((array) ($item['steps'] ?? [])),
+                                        ...collect((array) ($item['fields'] ?? []))->flatMap(fn (array $field): array => [
+                                            $field['name'] ?? '',
+                                            $field['description'] ?? '',
+                                        ])->all(),
+                                        ...((array) ($item['tips'] ?? [])),
+                                        $item['warning'] ?? '',
+                                    ];
+                                    $manualSearchText = implode(' ', array_filter($manualSearchParts, fn (mixed $part): bool => is_scalar($part) && trim((string) $part) !== ''));
+                                @endphp
+
+                                <details
+                                    id="{{ $item['id'] }}"
+                                    class="manual-entry group scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition open:border-slate-300 open:shadow-md"
+                                    data-manual-entry="{{ $item['id'] }}"
+                                    data-manual-search="{{ $manualSearchText }}"
+                                    @if ($sectionIndex === 0 && $itemIndex === 0) open @endif
+                                >
+                                    <summary class="flex cursor-pointer list-none items-center gap-3 px-4 py-4 outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-600 sm:px-5 [&::-webkit-details-marker]:hidden [&::marker]:content-['']">
+                                        <span class="flex min-w-0 flex-1 items-center gap-3">
+                                            <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-xs font-extrabold text-cyan-800 ring-1 ring-inset ring-cyan-100">{{ $itemIndex + 1 }}</span>
+                                            <span class="min-w-0">
+                                                @if (! empty($item['eyebrow']))
+                                                    <span class="block text-[0.65rem] font-extrabold uppercase tracking-[0.14em] text-cyan-700">{{ $item['eyebrow'] }}</span>
+                                                @endif
+                                                <span class="block truncate text-sm font-extrabold text-slate-900 sm:text-base">{{ $item['title'] }}</span>
+                                            </span>
+                                        </span>
+
+                                        @if (! $manualFeatureEnabled)
+                                            <span class="hidden rounded-full bg-amber-50 px-2.5 py-1 text-[0.68rem] font-bold text-amber-800 ring-1 ring-inset ring-amber-200 sm:inline-flex">Modul je isključen</span>
+                                        @elseif (! $manualAllowed)
+                                            <span class="hidden rounded-full bg-slate-100 px-2.5 py-1 text-[0.68rem] font-bold text-slate-600 sm:inline-flex">Ograničen pristup</span>
+                                        @endif
+
+                                        <svg class="h-5 w-5 shrink-0 text-slate-400 transition duration-200 group-open:rotate-180" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                                            <path d="m5.5 7.5 4.5 4.5 4.5-4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </summary>
+
+                                    <div class="border-t border-slate-200 px-4 py-5 sm:px-5 sm:py-6">
+                                        <div class="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
+                                            <div class="max-w-3xl">
+                                                <p class="text-[0.68rem] font-extrabold uppercase tracking-[0.15em] text-slate-500">Čemu služi</p>
+                                                <p class="mt-2 text-sm leading-6 text-slate-700">{{ $item['purpose'] ?? '' }}</p>
+                                            </div>
+
+                                            <div class="shrink-0">
+                                                @if ($manualCanOpen)
+                                                    <a href="{{ route($manualRoute, $manualRouteParameters) }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-extrabold text-white shadow-sm transition hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-600 focus-visible:ring-offset-2">
+                                                        Otvori u administraciji
+                                                        <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                                                            <path d="M7 5h8v8M15 5 5 15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+                                                        </svg>
+                                                    </a>
+                                                @elseif (! $manualFeatureEnabled)
+                                                    <span class="inline-flex rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Modul je isključen u postavkama</span>
+                                                @elseif (! $manualAllowed)
+                                                    <span class="inline-flex rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">Nemate ovlast za otvaranje</span>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-5 grid gap-6 2xl:grid-cols-2">
+                                            <div>
+                                                <h3 class="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+                                                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-50 text-xs text-emerald-700">✓</span>
+                                                    Preporučeni postupak
+                                                </h3>
+                                                <ol class="mt-3 space-y-3">
+                                                    @foreach ((array) ($item['steps'] ?? []) as $stepIndex => $step)
+                                                        <li class="flex gap-3 text-sm leading-6 text-slate-700">
+                                                            <span class="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[0.65rem] font-extrabold text-slate-600">{{ $stepIndex + 1 }}</span>
+                                                            <span>{{ $step }}</span>
+                                                        </li>
+                                                    @endforeach
+                                                </ol>
+                                            </div>
+
+                                            @if (! empty($item['fields']))
+                                                <div>
+                                                    <h3 class="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+                                                        <span class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-violet-50 text-xs font-extrabold text-violet-700">i</span>
+                                                        Ključna polja i podaci
+                                                    </h3>
+                                                    <dl class="mt-3 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/70">
+                                                        @foreach ((array) $item['fields'] as $field)
+                                                            <div class="grid gap-1 px-3.5 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-3">
+                                                                <dt class="text-xs font-extrabold text-slate-800">{{ $field['name'] ?? '' }}</dt>
+                                                                <dd class="text-xs leading-5 text-slate-600">{{ $field['description'] ?? '' }}</dd>
+                                                            </div>
+                                                        @endforeach
+                                                    </dl>
+                                                </div>
+                                            @endif
+                                        </div>
+
+                                        @if (! empty($item['tips']))
+                                            <div class="mt-5 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-950">
+                                                <p class="font-extrabold">Dobro je znati</p>
+                                                <ul class="mt-2 space-y-1.5 text-xs leading-5 text-cyan-800">
+                                                    @foreach ((array) $item['tips'] as $tip)
+                                                        <li class="flex gap-2"><span aria-hidden="true">•</span><span>{{ $tip }}</span></li>
+                                                    @endforeach
+                                                </ul>
+                                            </div>
+                                        @endif
+
+                                        @if (! empty($item['warning']))
+                                            <div class="mt-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950">
+                                                <span class="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-black" aria-hidden="true">!</span>
+                                                <div>
+                                                    <p class="text-xs font-extrabold uppercase tracking-[0.12em] text-amber-800">Prije spremanja</p>
+                                                    <p class="mt-1 text-xs leading-5 text-amber-900">{{ $item['warning'] }}</p>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </details>
+                            @endforeach
+                        </div>
+                    </section>
+                @endforeach
+
+                <div id="admin-manual-no-results" class="hidden rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center shadow-sm">
+                    <span class="mx-auto inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-xl text-slate-500" aria-hidden="true">?</span>
+                    <h2 class="mt-3 text-base font-extrabold text-slate-900">Nema pronađenih uputa</h2>
+                    <p class="mt-1 text-sm text-slate-600">Pokušajte s kraćim pojmom ili nazivom iz lijeve navigacije.</p>
+                    <button type="button" data-manual-clear-search class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700">Prikaži sve upute</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            const root = document.getElementById('admin-manual');
+            if (!root) return;
+
+            const search = root.querySelector('#admin-manual-search');
+            const clearButton = root.querySelector('#admin-manual-search-clear');
+            const resultCount = root.querySelector('#admin-manual-result-count');
+            const noResults = root.querySelector('#admin-manual-no-results');
+            const sections = Array.from(root.querySelectorAll('[data-manual-section]'));
+            const entries = Array.from(root.querySelectorAll('[data-manual-entry]'));
+            const tocLinks = Array.from(root.querySelectorAll('[data-manual-toc]'));
+            const totalEntries = entries.length;
+
+            const normalize = (value) => String(value ?? '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLocaleLowerCase('hr');
+
+            const clearSearch = () => {
+                search.value = '';
+                search.dispatchEvent(new Event('input'));
+                search.focus();
+            };
+
+            const updateResults = () => {
+                const query = normalize(search.value).trim();
+                let visibleEntries = 0;
+
+                sections.forEach((section) => {
+                    const sectionEntries = Array.from(section.querySelectorAll('[data-manual-entry]'));
+                    let visibleInSection = 0;
+
+                    sectionEntries.forEach((entry) => {
+                        const matches = query === '' || normalize(entry.dataset.manualSearch).includes(query);
+                        entry.hidden = !matches;
+                        if (matches) {
+                            visibleEntries += 1;
+                            visibleInSection += 1;
+                            if (query !== '') entry.open = true;
+                        }
+                    });
+
+                    section.hidden = visibleInSection === 0;
+                    const sectionId = section.dataset.manualSection;
+                    const tocLink = tocLinks.find((link) => link.dataset.manualToc === sectionId);
+                    if (tocLink) tocLink.hidden = visibleInSection === 0;
+                });
+
+                clearButton.classList.toggle('hidden', query === '');
+                clearButton.classList.toggle('flex', query !== '');
+                noResults.classList.toggle('hidden', visibleEntries !== 0);
+                resultCount.textContent = query === ''
+                    ? `Prikazano je svih ${totalEntries} uputa.`
+                    : `Pronađeno uputa: ${visibleEntries}.`;
+            };
+
+            const setAllOpen = (open) => {
+                entries.forEach((entry) => {
+                    if (!entry.hidden) entry.open = open;
+                });
+            };
+
+            const revealHashTarget = () => {
+                const rawId = window.location.hash.slice(1);
+                if (!rawId) return;
+
+                const target = document.getElementById(decodeURIComponent(rawId));
+                if (!target) return;
+
+                if (target.matches('[data-manual-entry]')) target.open = true;
+                window.requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
+            };
+
+            search.addEventListener('input', updateResults);
+            clearButton.addEventListener('click', clearSearch);
+            root.querySelectorAll('[data-manual-clear-search]').forEach((button) => button.addEventListener('click', clearSearch));
+            root.querySelector('#admin-manual-expand-all')?.addEventListener('click', () => setAllOpen(true));
+            root.querySelector('#admin-manual-collapse-all')?.addEventListener('click', () => setAllOpen(false));
+            root.querySelectorAll('[data-manual-expand-all]').forEach((button) => button.addEventListener('click', () => setAllOpen(true)));
+            root.querySelectorAll('[data-manual-collapse-all]').forEach((button) => button.addEventListener('click', () => setAllOpen(false)));
+            window.addEventListener('hashchange', revealHashTarget);
+
+            updateResults();
+            revealHashTarget();
+        })();
+    </script>
+</x-admin-layout>

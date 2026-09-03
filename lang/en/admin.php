@@ -73,6 +73,8 @@ return [
             'help' => 'Page help',
         ],
         'quick_actions' => 'Quick Actions',
+        'documentation' => 'Help',
+        'open_documentation' => 'Open administration guide',
         'profile' => 'My Profile',
         'open_frontend' => 'Open Frontend',
         'clean_cache' => 'Clean Cache',

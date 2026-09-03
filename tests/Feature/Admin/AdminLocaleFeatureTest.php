@@ -30,14 +30,17 @@ class AdminLocaleFeatureTest extends TestCase
             ->assertSessionMissing('admin_locale');
     }
 
-    public function test_admin_header_does_not_render_locale_or_help_controls(): void
+    public function test_admin_header_omits_locale_and_legacy_help_controls_but_shows_documentation_link(): void
     {
         $admin = $this->makeAdminUser();
+        $documentationUrl = route('admin.help.index').'#nadzorna-ploca-pregled';
 
         $this->actingAs($admin)
             ->get('/admin/dashboard')
             ->assertOk()
             ->assertDontSee('admin_locale=', false)
+            ->assertSee('id="admin-documentation-link"', false)
+            ->assertSee('href="'.$documentationUrl.'"', false)
             ->assertDontSee('id="admin-help-open"', false)
             ->assertDontSee('class="admin-help-button"', false);
     }
