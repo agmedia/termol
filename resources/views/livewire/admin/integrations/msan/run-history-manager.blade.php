@@ -97,7 +97,7 @@
                                 'connection' => __('B2B veza'),
                                 'ftp_connection' => __('FTPS veza'),
                                 'dataset' => __('Skup podataka'),
-                                'staging_products' => __('Artikli u privremenom katalogu'),
+                                'staging_products' => __('Uvezeni M SAN artikli'),
                                 'price_rows_matched' => __('Usklađeni redovi cijena'),
                                 'availability_rows_matched' => __('Usklađeni redovi dostupnosti'),
                                 'local_products_eligible' => __('Lokalni artikli za ažuriranje'),

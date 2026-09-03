@@ -71,8 +71,8 @@ class MsanAvailabilitySyncTest extends TestCase
         $this->assertSame(1, $erpOwned->fresh()->availability_level);
         $this->assertNull($ownedMissing->fresh()->recommended_retail_price);
         $this->assertNull($ownedMissing->fresh()->availability_level);
-        $this->assertSame('50.0000', $unimported->fresh()->recommended_retail_price);
-        $this->assertSame(2, $unimported->fresh()->availability_level);
+        $this->assertSame('40.0000', $unimported->fresh()->recommended_retail_price);
+        $this->assertSame(4, $unimported->fresh()->availability_level);
 
         $ownedProduct = $ownedHigh->localProduct()->firstOrFail();
         $this->assertSame('150.25', $ownedProduct->base_price);
@@ -98,13 +98,65 @@ class MsanAvailabilitySyncTest extends TestCase
 
         $run->refresh();
         $this->assertSame(MsanSyncRun::STATUS_COMPLETED, $run->status);
-        $this->assertSame(8, $run->total_count);
-        $this->assertSame(6, $run->processed_count);
+        $this->assertSame(6, $run->total_count);
+        $this->assertSame(4, $run->processed_count);
         $this->assertSame(2, data_get($run->summary, 'local_products_eligible'));
         $this->assertSame(1, data_get($run->summary, 'local_prices_updated'));
         $this->assertSame(1, data_get($run->summary, 'local_prices_missing'));
         $this->assertSame(2, data_get($run->summary, 'local_stock_updated'));
         $this->assertSame(1, data_get($run->summary, 'local_products_not_msan_owned'));
+        $this->assertSame(3, data_get($run->summary, 'staging_products'));
+        $this->assertSame(2, data_get($run->summary, 'price_rows_matched'));
+        $this->assertSame(2, data_get($run->summary, 'availability_rows_matched'));
+    }
+
+    public function test_refresh_updates_imported_stock_when_only_unimported_feed_rows_have_prices(): void
+    {
+        $this->configureSync();
+        $withoutPrice = $this->sourceWithLocalProduct('IMPORTED-PRICE', 9, true, 4, 100, 110);
+        $withoutPriceOne = $this->sourceWithLocalProduct('IMPORTED-NO-PRICE-1', 9, true, 4, 200, 210);
+        $withoutPriceTwo = $this->sourceWithLocalProduct('IMPORTED-NO-PRICE-2', 9, true, 4, 300, 310);
+
+        $unimported = null;
+        foreach (range(1, 12) as $index) {
+            $source = MsanProduct::query()->create([
+                'external_code' => 'NOT-IMPORTED-'.$index,
+                'recommended_retail_price' => 50,
+                'availability_level' => 4,
+                'last_seen_at' => now(),
+                'is_stale' => false,
+            ]);
+            $unimported ??= $source;
+        }
+
+        $run = MsanSyncRun::query()->create([
+            'kind' => MsanSyncRun::KIND_PRICES,
+            'status' => MsanSyncRun::STATUS_PENDING,
+        ]);
+        $this->syncService($this->fixtureClient(
+            $this->xml([
+                ['ProductCode' => 'NOT-IMPORTED-1', 'RecommendedRetailPrice' => '150.00'],
+            ]),
+            $this->xml([
+                ['ProductCode' => 'IMPORTED-PRICE', 'ProductAvailability' => '1'],
+                ['ProductCode' => 'IMPORTED-NO-PRICE-1', 'ProductAvailability' => '2'],
+                ['ProductCode' => 'IMPORTED-NO-PRICE-2', 'ProductAvailability' => '3'],
+            ]),
+        ))->sync($run);
+
+        $this->assertSame('100.00', $withoutPrice->localProduct()->firstOrFail()->base_price);
+        $this->assertSame('200.00', $withoutPriceOne->localProduct()->firstOrFail()->base_price);
+        $this->assertSame('300.00', $withoutPriceTwo->localProduct()->firstOrFail()->base_price);
+        $this->assertSame(1, $withoutPrice->localProduct()->firstOrFail()->stock_qty);
+        $this->assertSame(3, $withoutPriceOne->localProduct()->firstOrFail()->stock_qty);
+        $this->assertSame(5, $withoutPriceTwo->localProduct()->firstOrFail()->stock_qty);
+        $this->assertSame('50.0000', $unimported?->fresh()->recommended_retail_price);
+        $this->assertSame(MsanSyncRun::STATUS_COMPLETED, $run->fresh()->status);
+        $this->assertSame(6, $run->fresh()->total_count);
+        $this->assertSame(3, data_get($run->fresh()->summary, 'staging_products'));
+        $this->assertSame(0, data_get($run->fresh()->summary, 'price_rows_matched'));
+        $this->assertSame(3, data_get($run->fresh()->summary, 'availability_rows_matched'));
+        $this->assertSame(3, data_get($run->fresh()->summary, 'local_prices_missing'));
     }
 
     public function test_incomplete_feed_rolls_back_all_staging_prices_availability_and_local_values(): void
@@ -276,57 +328,52 @@ class MsanAvailabilitySyncTest extends TestCase
 
     public function test_stale_msan_owned_product_is_made_unavailable_without_overwriting_its_price(): void
     {
+        Queue::fake();
         $this->configureSync();
         $stale = $this->sourceWithLocalProduct('STALE-1', 10, true, 4, 120, 130);
         $stale->update(['is_stale' => true]);
-        MsanProduct::query()->create([
-            'external_code' => 'ACTIVE-1',
-            'last_seen_at' => now(),
-            'is_stale' => false,
-        ]);
-        $run = MsanSyncRun::query()->create([
-            'kind' => MsanSyncRun::KIND_PRICES,
-            'status' => MsanSyncRun::STATUS_PENDING,
-        ]);
+        $run = app(MsanCatalogSyncCoordinator::class)->queuePricesAndStock();
+        $this->assertNotNull($run);
+        Queue::assertPushed(SyncMsanPricesAndStockJob::class);
 
-        $this->syncService($this->fixtureClient(
+        $client = $this->fixtureClient(
             $this->xml([['ProductCode' => 'ACTIVE-1', 'RecommendedRetailPrice' => '50.00']]),
             $this->xml([['ProductCode' => 'ACTIVE-1', 'ProductAvailability' => '2']]),
-        ))->sync($run);
+        );
+        $this->syncService($client)->sync($run);
 
         $local = $stale->localProduct()->firstOrFail();
         $this->assertSame('120.00', $local->base_price);
         $this->assertSame(0, $local->stock_qty);
+        $this->assertSame([], $client->downloads);
+        $this->assertSame(MsanSyncRun::STATUS_COMPLETED, $run->fresh()->status);
         $this->assertSame(1, data_get($run->fresh()->summary, 'local_stale_stock_zeroed'));
     }
 
-    public function test_duplicate_feed_codes_do_not_satisfy_the_coverage_guard(): void
+    public function test_duplicate_availability_codes_do_not_satisfy_the_coverage_guard(): void
     {
         $this->configureSync();
         foreach (range(1, 3) as $index) {
-            MsanProduct::query()->create([
-                'external_code' => 'DUP-'.$index,
-                'last_seen_at' => now(),
-                'is_stale' => false,
-            ]);
+            $this->sourceWithLocalProduct('DUP-'.$index, 1, true, 1, 50, 50);
         }
         $run = MsanSyncRun::query()->create([
             'kind' => MsanSyncRun::KIND_PRICES,
             'status' => MsanSyncRun::STATUS_PENDING,
         ]);
-        $duplicateRows = array_fill(0, 10, [
-            'ProductCode' => 'DUP-1',
+        $priceRows = array_map(static fn (int $index): array => [
+            'ProductCode' => 'DUP-'.$index,
             'RecommendedRetailPrice' => '50.00',
+        ], range(1, 3));
+        $duplicateAvailabilityRows = array_fill(0, 10, [
+            'ProductCode' => 'DUP-1',
+            'ProductAvailability' => '2',
         ]);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('pokriva premalo artikala');
         $this->syncService($this->fixtureClient(
-            $this->xml($duplicateRows),
-            $this->xml([
-                ['ProductCode' => 'DUP-1', 'ProductAvailability' => '2'],
-                ['ProductCode' => 'DUP-2', 'ProductAvailability' => '2'],
-            ]),
+            $this->xml($priceRows),
+            $this->xml($duplicateAvailabilityRows),
         ))->sync($run);
     }
 
@@ -334,11 +381,7 @@ class MsanAvailabilitySyncTest extends TestCase
     {
         Queue::fake();
         $this->configureSync();
-        MsanProduct::query()->create([
-            'external_code' => 'QUEUE-1',
-            'last_seen_at' => now(),
-            'is_stale' => false,
-        ]);
+        $this->sourceWithLocalProduct('QUEUE-1', 1, true, 1, 50, 50);
 
         $coordinator = app(MsanCatalogSyncCoordinator::class);
         $run = $coordinator->queuePricesAndStock();

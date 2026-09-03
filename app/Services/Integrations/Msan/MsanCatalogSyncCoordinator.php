@@ -97,12 +97,15 @@ class MsanCatalogSyncCoordinator
                 $this->settings->assertEnabled();
             }
 
-            if (! MsanProduct::query()->where('is_stale', false)->exists()) {
+            if (! MsanProduct::query()
+                ->where('import_status', MsanProduct::IMPORT_IMPORTED)
+                ->whereNotNull('local_product_id')
+                ->exists()) {
                 if ($scheduled) {
                     return null;
                 }
 
-                throw new DomainException('Najprije dohvatite M SAN katalog.');
+                throw new DomainException('Nema uvezenih M SAN artikala za osvježavanje.');
             }
 
             if ($this->hasActiveRun()) {

@@ -58,40 +58,67 @@ class MsanPricesAndStockSyncService
         Storage::disk('local')->makeDirectory($directory);
 
         try {
-            // These are the two small feeds intended for frequent refreshes. A
-            // scheduled run must never fall back to the full catalog download.
-            $this->client->downloadDataset('prices', $pricesPath);
-            $run->forceFill(['progress' => 25])->save();
-            $this->client->downloadDataset('availability', $availabilityPath);
-            $run->forceFill(['progress' => 45])->save();
-
-            $activeProductCount = MsanProduct::query()->where('is_stale', false)->count();
-            if ($activeProductCount === 0) {
-                throw new RuntimeException('M SAN katalog još nije dohvaćen.');
+            $importedProducts = MsanProduct::query()
+                ->where('import_status', MsanProduct::IMPORT_IMPORTED)
+                ->whereNotNull('local_product_id')
+                ->get(['external_code', 'is_stale']);
+            if ($importedProducts->isEmpty()) {
+                throw new RuntimeException('Nema uvezenih M SAN artikala za osvježavanje.');
             }
 
-            $result = DB::transaction(function () use ($pricesPath, $availabilityPath, $activeProductCount): array {
-                $this->clearActivePrices();
-                $priceStats = $this->syncStagingPrices($pricesPath);
-                $this->assertCoverage('valjanih MPC cijena', $priceStats['usable'], $activeProductCount);
+            $importedProductCodes = $importedProducts
+                ->where('is_stale', false)
+                ->pluck('external_code')
+                ->map(static fn ($code): string => trim((string) $code))
+                ->filter()
+                ->flip()
+                ->map(static fn (): bool => true)
+                ->all();
+            $importedProductCount = count($importedProductCodes);
+            $datasets = [];
 
-                $this->clearActiveAvailability();
-                $availabilityStats = $this->syncStagingAvailability($availabilityPath);
-                if ($availabilityStats['matched'] !== $availabilityStats['usable']) {
-                    throw new RuntimeException(sprintf(
-                        'M SAN skup dostupnosti sadrži nevaljanu vrijednost za %d poznatih artikala; prethodne cijene i zalihe su sačuvane.',
-                        $availabilityStats['matched'] - $availabilityStats['usable'],
-                    ));
-                }
-                $this->assertCoverage('dostupnosti', $availabilityStats['usable'], $activeProductCount);
+            if ($importedProductCount > 0) {
+                // M SAN exposes each refresh as one supplier-wide file. Stream
+                // that file, but stage and publish only the imported products.
+                $this->client->downloadDataset('prices', $pricesPath);
+                $run->forceFill(['progress' => 25])->save();
+                $this->client->downloadDataset('availability', $availabilityPath);
+                $run->forceFill(['progress' => 45])->save();
+                $datasets = ['prices', 'availability'];
 
-                return [
-                    'prices_matched' => $priceStats['usable'],
-                    'availability_matched' => $availabilityStats['usable'],
-                ] + $this->refreshOwnedLocalProducts();
-            }, 3);
+                $result = DB::transaction(function () use ($pricesPath, $availabilityPath, $importedProductCodes, $importedProductCount): array {
+                    $this->clearActivePrices();
+                    $priceStats = $this->syncStagingPrices($pricesPath, $importedProductCodes);
+                    if ($priceStats['feed_usable'] === 0) {
+                        throw new RuntimeException('M SAN skup nema valjanih MPC cijena; prethodne cijene i zalihe su sačuvane.');
+                    }
 
-            $totalRows = $activeProductCount * 2;
+                    $this->clearActiveAvailability();
+                    $availabilityStats = $this->syncStagingAvailability($availabilityPath, $importedProductCodes);
+                    if ($availabilityStats['matched'] !== $availabilityStats['usable']) {
+                        throw new RuntimeException(sprintf(
+                            'M SAN skup dostupnosti sadrži nevaljanu vrijednost za %d poznatih artikala; prethodne cijene i zalihe su sačuvane.',
+                            $availabilityStats['matched'] - $availabilityStats['usable'],
+                        ));
+                    }
+                    $this->assertCoverage('dostupnosti', $availabilityStats['usable'], $importedProductCount);
+
+                    return [
+                        'prices_matched' => $priceStats['usable'],
+                        'availability_matched' => $availabilityStats['usable'],
+                    ] + $this->refreshOwnedLocalProducts();
+                }, 3);
+            } else {
+                // A catalog refresh may mark the last imported products stale.
+                // Their local stock must still be zeroed without depending on
+                // another supplier download.
+                $result = DB::transaction(fn (): array => [
+                    'prices_matched' => 0,
+                    'availability_matched' => 0,
+                ] + $this->refreshOwnedLocalProducts(), 3);
+            }
+
+            $totalRows = $importedProductCount * 2;
             $processedRows = $result['prices_matched'] + $result['availability_matched'];
             $run->forceFill([
                 'status' => MsanSyncRun::STATUS_COMPLETED,
@@ -101,7 +128,7 @@ class MsanPricesAndStockSyncService
                 'succeeded_count' => $processedRows,
                 'skipped_count' => max(0, $totalRows - $processedRows),
                 'summary' => [
-                    'datasets' => ['prices', 'availability'],
+                    'datasets' => $datasets,
                     'local_prices_updated' => $result['prices_updated'],
                     'local_stock_updated' => $result['stock_updated'],
                     'local_products_not_msan_owned' => $result['not_owned'],
@@ -111,7 +138,7 @@ class MsanPricesAndStockSyncService
                     'local_stock_unchanged' => $result['stock_unchanged'],
                     'local_supplier_snapshots_updated' => $result['snapshots_updated'],
                     'local_stale_stock_zeroed' => $result['stale_stock_zeroed'],
-                    'staging_products' => $activeProductCount,
+                    'staging_products' => $importedProductCount,
                     'price_rows_matched' => $result['prices_matched'],
                     'availability_rows_matched' => $result['availability_matched'],
                 ],
@@ -140,6 +167,8 @@ class MsanPricesAndStockSyncService
     {
         MsanProduct::query()
             ->where('is_stale', false)
+            ->where('import_status', MsanProduct::IMPORT_IMPORTED)
+            ->whereNotNull('local_product_id')
             ->update([
                 'list_price' => null,
                 'discount_percent' => null,
@@ -155,6 +184,8 @@ class MsanPricesAndStockSyncService
     {
         MsanProduct::query()
             ->where('is_stale', false)
+            ->where('import_status', MsanProduct::IMPORT_IMPORTED)
+            ->whereNotNull('local_product_id')
             ->update([
                 'availability_level' => null,
                 'availability_checksum' => null,
@@ -162,10 +193,13 @@ class MsanPricesAndStockSyncService
             ]);
     }
 
-    /** @return array{matched:int, usable:int} */
-    private function syncStagingPrices(string $path): array
+    /**
+     * @param  array<string, bool>  $importedProductCodes
+     * @return array{matched:int, usable:int, feed_usable:int}
+     */
+    private function syncStagingPrices(string $path, array $importedProductCodes): array
     {
-        return $this->syncStagingRows($path, function (array $row): array {
+        return $this->syncStagingRows($path, $importedProductCodes, function (array $row): array {
             $recommendedRetailPrice = $this->nullableDecimal($row['RecommendedRetailPrice'] ?? null);
             $priceData = [
                 'list_price' => $this->nullableDecimal($row['ProductListPrice'] ?? null),
@@ -186,13 +220,16 @@ class MsanPricesAndStockSyncService
                 ],
                 'usable' => $recommendedRetailPrice !== null && (float) $recommendedRetailPrice > 0,
             ];
-        });
+        }, inspectWholeFeed: true);
     }
 
-    /** @return array{matched:int, usable:int} */
-    private function syncStagingAvailability(string $path): array
+    /**
+     * @param  array<string, bool>  $importedProductCodes
+     * @return array{matched:int, usable:int, feed_usable:int}
+     */
+    private function syncStagingAvailability(string $path, array $importedProductCodes): array
     {
-        return $this->syncStagingRows($path, function (array $row): array {
+        return $this->syncStagingRows($path, $importedProductCodes, function (array $row): array {
             $availabilityLevel = $this->availabilityLevel($row['ProductAvailability'] ?? null);
             $availabilityData = [
                 'availability_level' => $availabilityLevel,
@@ -212,11 +249,17 @@ class MsanPricesAndStockSyncService
     }
 
     /**
+     * @param  array<string, bool>  $importedProductCodes
      * @param  callable(array<string, string>): array{data:array<string, mixed>, usable:bool}  $transform
-     * @return array{matched:int, usable:int}
+     * @return array{matched:int, usable:int, feed_usable:int}
      */
-    private function syncStagingRows(string $path, callable $transform): array
-    {
+    private function syncStagingRows(
+        string $path,
+        array $importedProductCodes,
+        callable $transform,
+        bool $inspectWholeFeed = false,
+    ): array {
+        $feedUsable = 0;
         $buffer = [];
         $seenCodes = [];
         $matched = 0;
@@ -224,12 +267,24 @@ class MsanPricesAndStockSyncService
 
         foreach ($this->xml->rows($path) as $row) {
             $code = trim((string) ($row['ProductCode'] ?? ''));
-            if ($code === '' || mb_strlen($code) > 191 || isset($seenCodes[$code])) {
+            $isImported = isset($importedProductCodes[$code]);
+            if ($code === ''
+                || mb_strlen($code) > 191
+                || (! $isImported && ! $inspectWholeFeed)
+                || isset($seenCodes[$code])) {
                 continue;
             }
 
             $seenCodes[$code] = true;
-            $buffer[$code] = $transform($row);
+            $transformed = $transform($row);
+            if ($inspectWholeFeed && $transformed['usable']) {
+                $feedUsable++;
+            }
+            if (! $isImported) {
+                continue;
+            }
+
+            $buffer[$code] = $transformed;
 
             if (count($buffer) >= self::UPSERT_SIZE) {
                 $result = $this->updateProductsByCode($buffer);
@@ -244,6 +299,7 @@ class MsanPricesAndStockSyncService
         return [
             'matched' => $matched + $result['matched'],
             'usable' => $usable + $result['usable'],
+            'feed_usable' => $inspectWholeFeed ? $feedUsable : $usable + $result['usable'],
         ];
     }
 
@@ -259,6 +315,8 @@ class MsanPricesAndStockSyncService
 
         $products = MsanProduct::query()
             ->where('is_stale', false)
+            ->where('import_status', MsanProduct::IMPORT_IMPORTED)
+            ->whereNotNull('local_product_id')
             ->whereIn('external_code', array_keys($updates))
             ->get(['id', 'external_code'])
             ->keyBy('external_code');
@@ -332,6 +390,7 @@ class MsanPricesAndStockSyncService
 
         MsanProduct::query()
             ->whereNotNull('local_product_id')
+            ->where('import_status', MsanProduct::IMPORT_IMPORTED)
             ->select([
                 'id', 'external_code', 'product_type', 'brand', 'model', 'part_number',
                 'warranty_months', 'currency_code', 'list_price', 'discount_percent',
