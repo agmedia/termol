@@ -482,7 +482,8 @@ class AdvancedShippingFeatureTest extends TestCase
             ->get(route('admin.shipping.index'))
             ->assertOk()
             ->assertSee('Metode i cjenici')
-            ->assertSee('BOX NOW');
+            ->assertSee('href="'.route('admin.shipping.create').'"', false)
+            ->assertDontSee('wire:model="form.boxnow_partner_id"', false);
 
         $this->actingAs($admin)
             ->get(route('admin.shipping.index', ['tab' => 'gls']))

@@ -50,7 +50,11 @@ class ResourceManager extends Component
 
     public bool $editPage = false;
 
+    public bool $createPage = false;
+
     public string $search = '';
+
+    public int $returnPage = 1;
 
     public bool $corvusCredentialsStored = false;
 
@@ -105,12 +109,20 @@ class ResourceManager extends Component
         ],
     ];
 
-    public function mount(string $resource, ?int $recordId = null, bool $editPage = false): void
-    {
+    public function mount(
+        string $resource,
+        ?int $recordId = null,
+        bool $editPage = false,
+        bool $createPage = false,
+    ): void {
         abort_unless(array_key_exists($resource, $this->resources), 404);
+        abort_if($editPage && $createPage, 404);
 
         $this->resource = $resource;
         $this->editPage = $editPage;
+        $this->createPage = $createPage;
+        $this->search = trim((string) request()->query('search', ''));
+        $this->returnPage = max(1, (int) request()->query('page', 1));
         $this->resetForm();
 
         if ($this->editPage) {
@@ -275,10 +287,8 @@ class ResourceManager extends Component
 
         $this->dispatch('profile-updated', name: auth()->user()->name);
 
-        if ($this->editPage) {
-            return redirect()->route('admin.settings.local.resource', [
-                'resource' => $this->resource,
-            ])->with('notify', [
+        if ($this->editPage || $this->createPage) {
+            return redirect()->route('admin.settings.local.resource', $this->listRouteParameters())->with('notify', [
                 'type' => 'success',
                 'message' => $message,
             ]);
@@ -333,6 +343,16 @@ class ResourceManager extends Component
 
             $this->form[$key] = $record->{$key} ?? $default;
         }
+    }
+
+    /** @return array<string, int|string> */
+    private function listRouteParameters(): array
+    {
+        return array_filter([
+            'resource' => $this->resource,
+            'search' => $this->search !== '' ? $this->search : null,
+            'page' => $this->returnPage > 1 ? $this->returnPage : null,
+        ], static fn (int|string|null $value): bool => $value !== null);
     }
 
     public function delete(int $id): void

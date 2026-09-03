@@ -30,26 +30,86 @@ class RemainingAdminEditNavigationFeatureTest extends TestCase
         $admin = $this->makeAdmin();
         $option = $this->makeOption('navigation-color');
         $value = $this->makeOptionValue($option, 'navigation-blue');
+        $createUrl = route('admin.options.values.create', [
+            'option' => $option->id,
+            'locale' => 'en',
+            'search' => 'navigation',
+        ]);
         $editUrl = route('admin.options.values.edit', [
             'option' => $option->id,
             'value' => $value->id,
             'locale' => 'en',
+            'search' => 'navigation',
+        ]);
+        $listUrl = route('admin.options.values', [
+            'option' => $option->id,
+            'locale' => 'en',
+            'search' => 'navigation',
         ]);
 
         $this->actingAs($admin)
-            ->get(route('admin.options.values', [
-                'option' => $option->id,
-                'locale' => 'en',
-            ]))
+            ->get($listUrl)
             ->assertOk()
-            ->assertSee('href="'.$editUrl.'"', false)
+            ->assertSee('href="'.e($createUrl).'"', false)
+            ->assertSee('href="'.e($editUrl).'"', false)
+            ->assertDontSee('wire:model="form.name"', false)
             ->assertDontSee('wire:click="edit('.$value->id.')"', false);
+
+        $this->actingAs($admin)
+            ->get($createUrl)
+            ->assertOk()
+            ->assertSee('wire:model="form.name"', false)
+            ->assertSee('href="'.e($listUrl).'"', false)
+            ->assertDontSee('<table class="admin-items-table', false);
 
         $this->actingAs($admin)
             ->get($editUrl)
             ->assertOk()
             ->assertSee('wire:model="form.name"', false)
+            ->assertSee('href="'.e($listUrl).'"', false)
             ->assertDontSee('<table class="admin-items-table', false);
+    }
+
+    public function test_standalone_option_value_creator_stores_the_record_and_redirects_to_the_list(): void
+    {
+        app(SystemSettingsService::class)->put('catalog_use_options', true);
+
+        $admin = $this->makeAdmin();
+        $option = $this->makeOption('create-color');
+
+        Livewire::withQueryParams([
+            'locale' => 'en',
+            'search' => 'Green',
+            'page' => 2,
+        ])
+            ->actingAs($admin)
+            ->test(ValueManager::class, [
+                'optionId' => $option->id,
+                'createPage' => true,
+            ])
+            ->assertSet('editingId', null)
+            ->set('form.code', 'create-green')
+            ->set('form.name', 'Green')
+            ->set('form.slug', 'create-green')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('admin.options.values', [
+                'option' => $option->id,
+                'locale' => 'en',
+                'search' => 'Green',
+                'page' => 2,
+            ]))
+            ->assertSessionHas('notify.type', 'success');
+
+        $this->assertDatabaseHas('catalog_option_values', [
+            'option_id' => $option->id,
+            'code' => 'create-green',
+        ]);
+        $this->assertDatabaseHas('catalog_option_value_translations', [
+            'locale' => 'en',
+            'name' => 'Green',
+            'slug' => 'create-green',
+        ]);
     }
 
     public function test_standalone_option_value_editor_updates_the_record_and_redirects_to_the_list(): void
@@ -115,21 +175,66 @@ class RemainingAdminEditNavigationFeatureTest extends TestCase
     {
         $admin = $this->makeAdmin();
         $group = $this->makeCustomerGroup('navigation-group');
+        $createUrl = route('admin.users.groups.create', [
+            'search' => 'navigation',
+        ]);
         $editUrl = route('admin.users.groups.edit', [
             'customerGroup' => $group->id,
+            'search' => 'navigation',
+        ]);
+        $listUrl = route('admin.users.groups', [
+            'search' => 'navigation',
         ]);
 
         $this->actingAs($admin)
-            ->get(route('admin.users.groups'))
+            ->get($listUrl)
             ->assertOk()
-            ->assertSee('href="'.$editUrl.'"', false)
+            ->assertSee('href="'.e($createUrl).'"', false)
+            ->assertSee('href="'.e($editUrl).'"', false)
+            ->assertDontSee('wire:model="form.name"', false)
             ->assertDontSee('wire:click="edit('.$group->id.')"', false);
+
+        $this->actingAs($admin)
+            ->get($createUrl)
+            ->assertOk()
+            ->assertSee('wire:model="form.name"', false)
+            ->assertSee('href="'.e($listUrl).'"', false)
+            ->assertDontSee('<table class="admin-items-table', false);
 
         $this->actingAs($admin)
             ->get($editUrl)
             ->assertOk()
             ->assertSee('wire:model="form.name"', false)
+            ->assertSee('href="'.e($listUrl).'"', false)
             ->assertDontSee('<table class="admin-items-table', false);
+    }
+
+    public function test_standalone_user_group_creator_stores_the_record_and_redirects_to_the_list(): void
+    {
+        $admin = $this->makeAdmin();
+
+        Livewire::withQueryParams([
+            'search' => 'Navigation',
+            'adminUserGroupsPage' => 4,
+        ])->actingAs($admin)
+            ->test(GroupManager::class, [
+                'createPage' => true,
+            ])
+            ->assertSet('editingId', null)
+            ->set('form.code', 'create-navigation-group')
+            ->set('form.name', 'Create navigation group')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('admin.users.groups', [
+                'search' => 'Navigation',
+                'adminUserGroupsPage' => 4,
+            ]))
+            ->assertSessionHas('notify.type', 'success');
+
+        $this->assertDatabaseHas('customer_groups', [
+            'code' => 'create-navigation-group',
+            'name' => 'Create navigation group',
+        ]);
     }
 
     public function test_standalone_user_group_editor_updates_the_record_and_redirects_to_the_list(): void
@@ -314,11 +419,16 @@ class RemainingAdminEditNavigationFeatureTest extends TestCase
         $definition = $this->makeSpecification('access-only-specification');
 
         $editUrls = [
+            route('admin.options.values.create', [
+                'option' => $option->id,
+                'locale' => 'en',
+            ]),
             route('admin.options.values.edit', [
                 'option' => $option->id,
                 'value' => $value->id,
                 'locale' => 'en',
             ]),
+            route('admin.users.groups.create'),
             route('admin.users.groups.edit', ['customerGroup' => $group->id]),
             route('admin.content.comments.edit', ['comment' => $comment->id]),
             route('admin.integrations.msan.specifications.edit', ['definition' => $definition->id]),

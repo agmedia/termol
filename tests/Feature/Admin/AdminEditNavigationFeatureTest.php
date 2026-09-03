@@ -21,23 +21,72 @@ class AdminEditNavigationFeatureTest extends TestCase
     {
         $admin = $this->makeAdmin();
         $method = $this->makePaymentMethod();
+        $createUrl = route('admin.settings.local.resource.create', [
+            'resource' => 'payment-methods',
+            'search' => 'Invoice',
+        ]);
         $editUrl = route('admin.settings.local.resource.edit', [
             'resource' => 'payment-methods',
             'record' => $method->id,
+            'search' => 'Invoice',
+        ]);
+        $listUrl = route('admin.settings.local.resource', [
+            'resource' => 'payment-methods',
+            'search' => 'Invoice',
         ]);
 
         $this->actingAs($admin)
-            ->get(route('admin.settings.local.resource', ['resource' => 'payment-methods']))
+            ->get($listUrl)
             ->assertOk()
-            ->assertSee('href="'.$editUrl.'"', false)
+            ->assertSee('href="'.e($createUrl).'"', false)
+            ->assertSee('href="'.e($editUrl).'"', false)
+            ->assertDontSee('wire:model="form.name"', false)
             ->assertDontSee('wire:click="edit('.$method->id.')"', false);
+
+        $this->actingAs($admin)
+            ->get($createUrl)
+            ->assertOk()
+            ->assertSee('wire:model="form.name"', false)
+            ->assertSee('href="'.e($listUrl).'"', false)
+            ->assertDontSee('<table class="admin-items-table', false);
 
         $this->actingAs($admin)
             ->get($editUrl)
             ->assertOk()
             ->assertSee('wire:model="form.name"', false)
+            ->assertSee('href="'.e($listUrl).'"', false)
             ->assertDontSee('<table class="admin-items-table', false)
             ->assertDontSee('wire:click="toggleActive('.$method->id.')"', false);
+    }
+
+    public function test_standalone_payment_method_creator_stores_the_record_and_redirects_to_the_list(): void
+    {
+        $admin = $this->makeAdmin();
+
+        Livewire::withQueryParams([
+            'search' => 'Invoice',
+            'page' => 3,
+        ])->actingAs($admin)
+            ->test(ResourceManager::class, [
+                'resource' => 'payment-methods',
+                'createPage' => true,
+            ])
+            ->assertSet('editingId', null)
+            ->set('form.code', 'new_payment_navigation_test')
+            ->set('form.name', 'Novo testno plaćanje')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('admin.settings.local.resource', [
+                'resource' => 'payment-methods',
+                'search' => 'Invoice',
+                'page' => 3,
+            ]))
+            ->assertSessionHas('notify.type', 'success');
+
+        $this->assertDatabaseHas('payment_methods', [
+            'code' => 'new_payment_navigation_test',
+            'name' => 'Novo testno plaćanje',
+        ]);
     }
 
     public function test_standalone_payment_method_editor_updates_the_record_and_redirects_to_the_list(): void
@@ -70,6 +119,9 @@ class AdminEditNavigationFeatureTest extends TestCase
     {
         $admin = $this->makeAdmin();
         $status = $this->makeOrderStatus();
+        $createUrl = route('admin.settings.local.resource.create', [
+            'resource' => 'order-statuses',
+        ]);
         $editUrl = route('admin.settings.local.resource.edit', [
             'resource' => 'order-statuses',
             'record' => $status->id,
@@ -78,8 +130,16 @@ class AdminEditNavigationFeatureTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.settings.local.resource', ['resource' => 'order-statuses']))
             ->assertOk()
+            ->assertSee('href="'.$createUrl.'"', false)
             ->assertSee('href="'.$editUrl.'"', false)
+            ->assertDontSee('wire:model="form.name"', false)
             ->assertDontSee('wire:click="edit('.$status->id.')"', false);
+
+        $this->actingAs($admin)
+            ->get($createUrl)
+            ->assertOk()
+            ->assertSee('wire:model="form.name"', false)
+            ->assertDontSee('<table class="admin-items-table', false);
 
         $this->actingAs($admin)
             ->get($editUrl)
@@ -87,6 +147,19 @@ class AdminEditNavigationFeatureTest extends TestCase
             ->assertSee('wire:model="form.name"', false)
             ->assertDontSee('<table class="admin-items-table', false)
             ->assertDontSee('wire:click="toggleActive('.$status->id.')"', false);
+    }
+
+    public function test_unsupported_local_resources_do_not_get_a_create_page(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)
+            ->get('/admin/settings/local/shipping-methods/create')
+            ->assertNotFound();
+
+        $this->actingAs($admin)
+            ->get('/admin/settings/local/not-a-resource/create')
+            ->assertNotFound();
     }
 
     public function test_standalone_order_status_editor_updates_the_record_and_redirects_to_the_list(): void
@@ -119,6 +192,9 @@ class AdminEditNavigationFeatureTest extends TestCase
     {
         $admin = $this->makeAdmin();
         $method = $this->makeShippingMethod();
+        $createUrl = route('admin.shipping.create', [
+            'search' => 'Courier',
+        ]);
         $editUrl = route('admin.shipping.edit', [
             'shippingMethod' => $method->id,
             'search' => 'Courier',
@@ -134,7 +210,9 @@ class AdminEditNavigationFeatureTest extends TestCase
             ->assertSee('<table class="admin-items-table', false)
             ->assertSee('wire:key="shipping-method-'.$method->id.'"', false)
             ->assertDontSee('<article', false)
+            ->assertSee('href="'.e($createUrl).'"', false)
             ->assertSee('href="'.$editUrl.'"', false)
+            ->assertDontSee('wire:model="form.name"', false)
             ->assertDontSee('wire:click="edit('.$method->id.')"', false);
 
         $document = new \DOMDocument;
@@ -160,6 +238,43 @@ class AdminEditNavigationFeatureTest extends TestCase
             ])).'"', false)
             ->assertDontSee('wire:model.live.debounce.300ms="search"', false)
             ->assertDontSee('wire:click="toggleActive('.$method->id.')"', false);
+
+        $this->actingAs($admin)
+            ->get($createUrl)
+            ->assertOk()
+            ->assertSee('wire:model="form.name"', false)
+            ->assertDontSee('<table class="admin-items-table', false)
+            ->assertDontSee('wire:model.live.debounce.300ms="search"', false);
+    }
+
+    public function test_standalone_shipping_creator_stores_the_record_and_redirects_to_the_list(): void
+    {
+        $admin = $this->makeAdmin();
+        $returnParameters = [
+            'tab' => 'methods',
+            'search' => 'Courier',
+            'page' => 2,
+        ];
+
+        Livewire::withQueryParams([
+            'search' => 'Courier',
+            'page' => 2,
+        ])->actingAs($admin)
+            ->test(ShippingManager::class, [
+                'createPage' => true,
+            ])
+            ->assertSet('editingId', null)
+            ->set('form.code', 'new_shipping_navigation_test')
+            ->set('form.name', 'Nova testna dostava')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('admin.shipping.index', $returnParameters))
+            ->assertSessionHas('notify.type', 'success');
+
+        $this->assertDatabaseHas('shipping_methods', [
+            'code' => 'new_shipping_navigation_test',
+            'name' => 'Nova testna dostava',
+        ]);
     }
 
     public function test_standalone_shipping_editor_updates_the_record_and_redirects_to_the_list(): void
@@ -222,6 +337,12 @@ class AdminEditNavigationFeatureTest extends TestCase
         $method = $this->makeShippingMethod();
 
         $this->actingAs($user)
+            ->get(route('admin.settings.local.resource.create', [
+                'resource' => 'payment-methods',
+            ]))
+            ->assertForbidden();
+
+        $this->actingAs($user)
             ->get(route('admin.settings.local.resource.edit', [
                 'resource' => 'payment-methods',
                 'record' => $paymentMethod->id,
@@ -233,6 +354,10 @@ class AdminEditNavigationFeatureTest extends TestCase
                 'resource' => 'order-statuses',
                 'record' => $status->id,
             ]))
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->get(route('admin.shipping.create'))
             ->assertForbidden();
 
         $this->actingAs($user)

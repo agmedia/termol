@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    @unless ($editPage)
+    @unless ($editPage || $createPage)
     <div class="admin-panel admin-search-panel p-6">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -9,22 +9,32 @@
                 </p>
                 <p class="mt-2 text-xs text-slate-500">{{ __('Items per page') }}: <span class="admin-chip">{{ $perPage }}</span></p>
             </div>
-            <div class="w-full sm:w-72">
-                <label for="settings-search" class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.common.search') }}</label>
-                <input
-                    id="settings-search"
-                    type="text"
-                    wire:model.live.debounce.300ms="search"
-                    placeholder="{{ __('Code or name...') }}"
-                    class="admin-search-input w-full rounded-xl border px-3 py-2 text-sm"
-                />
+            <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-end">
+                <div class="w-full sm:w-72">
+                    <label for="settings-search" class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('admin.common.search') }}</label>
+                    <input
+                        id="settings-search"
+                        type="text"
+                        wire:model.live.debounce.300ms="search"
+                        placeholder="{{ __('Code or name...') }}"
+                        class="admin-search-input w-full rounded-xl border px-3 py-2 text-sm"
+                    />
+                </div>
+                <a href="{{ route('admin.settings.local.resource.create', array_filter([
+                    'resource' => $resource,
+                    'search' => $search !== '' ? $search : null,
+                    'page' => $rows->currentPage() > 1 ? $rows->currentPage() : null,
+                ], static fn (int|string|null $value): bool => $value !== null)) }}" class="rounded-xl bg-cyan-700 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-cyan-800">
+                    {{ __('Create item') }}
+                </a>
             </div>
         </div>
     </div>
     @endunless
 
     <div class="admin-stack" style="display:flex; flex-direction:column; gap:1.5rem;">
-        <div class="admin-panel admin-form-panel p-6" @unless($editPage) style="order:2;" @endunless>
+        @if ($editPage || $createPage)
+        <div class="admin-panel admin-form-panel p-6">
             <h2 class="admin-section-title">
                 {{ $editingId ? __('Edit item') : __('Create item') }}
             </h2>
@@ -513,8 +523,12 @@
                     <button type="submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">
                         {{ $editingId ? __('Update') : __('Create') }}
                     </button>
-                    @if ($editPage)
-                        <a href="{{ route('admin.settings.local.resource', ['resource' => $resource]) }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                    @if ($editPage || $createPage)
+                        <a href="{{ route('admin.settings.local.resource', array_filter([
+                            'resource' => $resource,
+                            'search' => $search !== '' ? $search : null,
+                            'page' => $returnPage > 1 ? $returnPage : null,
+                        ], static fn (int|string|null $value): bool => $value !== null)) }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                             {{ __('Cancel') }}
                         </a>
                     @elseif ($editingId)
@@ -525,9 +539,10 @@
                 </div>
             </form>
         </div>
+        @endif
 
-        @unless ($editPage)
-        <div class="admin-panel admin-panel-soft p-5" style="order:1;">
+        @unless ($editPage || $createPage)
+        <div class="admin-panel admin-panel-soft p-5">
             <h2 class="admin-section-title">{{ __('admin.common.items') }}</h2>
             <div class="mt-4 overflow-x-auto">
                 <table class="admin-items-table min-w-full text-sm">
@@ -585,7 +600,12 @@
                                         @if (isset($row->is_default))
                                             <button type="button" wire:click="makeDefault({{ $row->id }})" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('Default') }}</button>
                                         @endif
-                                        <a href="{{ route('admin.settings.local.resource.edit', ['resource' => $resource, 'record' => $row->id]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('admin.common.edit') }}</a>
+                                        <a href="{{ route('admin.settings.local.resource.edit', array_filter([
+                                            'resource' => $resource,
+                                            'record' => $row->id,
+                                            'search' => $search !== '' ? $search : null,
+                                            'page' => $rows->currentPage() > 1 ? $rows->currentPage() : null,
+                                        ], static fn (int|string|null $value): bool => $value !== null)) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('admin.common.edit') }}</a>
                                         <button type="button" wire:click="delete({{ $row->id }})" wire:confirm="{{ __('Delete this item?') }}" class="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">{{ __('admin.common.delete') }}</button>
                                     </div>
                                 </td>

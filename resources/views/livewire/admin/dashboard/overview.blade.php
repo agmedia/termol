@@ -279,6 +279,7 @@
                         <select
                             id="dashboard-statistics-month"
                             wire:model.live="statisticsMonth"
+                            data-tom-preserve-order="1"
                             class="admin-select min-h-10 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 sm:w-40"
                         >
                             @foreach ($monthOptions as $month => $monthLabel)

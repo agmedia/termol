@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    @unless ($editPage)
+    @unless ($editPage || $createPage)
     <div class="admin-panel admin-search-panel p-6">
         @php
             $optionTranslation = $option->translations->first();
@@ -33,6 +33,14 @@
                         </select>
                     </div>
                 </div>
+                <a href="{{ route('admin.options.values.create', array_filter([
+                    'option' => $option->id,
+                    'locale' => $locale,
+                    'search' => $search !== '' ? $search : null,
+                    'page' => $rows->currentPage() > 1 ? $rows->currentPage() : null,
+                ], static fn (int|string|null $value): bool => $value !== null)) }}" class="whitespace-nowrap rounded-xl bg-cyan-700 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-cyan-800">
+                    {{ __('Create Value') }}
+                </a>
                 <a href="{{ route('admin.options.edit', ['option' => $option->id, 'locale' => $locale]) }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                     {{ __('Back to Option') }}
                 </a>
@@ -41,7 +49,7 @@
     </div>
     @endunless
 
-    @unless ($editPage)
+    @unless ($editPage || $createPage)
     <div class="admin-panel admin-panel-soft p-5">
         <h2 class="admin-section-title">{{ __('admin.common.items') }}</h2>
 
@@ -88,7 +96,13 @@
                             </td>
                             <td class="px-3 py-2 text-right">
                                 <div class="inline-flex items-center gap-1">
-                                    <a href="{{ route('admin.options.values.edit', ['option' => $option->id, 'value' => $row->id, 'locale' => $locale]) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('admin.common.edit') }}</a>
+                                    <a href="{{ route('admin.options.values.edit', array_filter([
+                                        'option' => $option->id,
+                                        'value' => $row->id,
+                                        'locale' => $locale,
+                                        'search' => $search !== '' ? $search : null,
+                                        'page' => $rows->currentPage() > 1 ? $rows->currentPage() : null,
+                                    ], static fn (int|string|null $value): bool => $value !== null)) }}" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ __('admin.common.edit') }}</a>
                                     <button type="button" wire:click="delete({{ $row->id }})" wire:confirm="{{ __('Delete this value?') }}" class="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">{{ __('admin.common.delete') }}</button>
                                 </div>
                             </td>
@@ -108,6 +122,7 @@
     </div>
     @endunless
 
+    @if ($editPage || $createPage)
     <div class="admin-panel admin-form-panel p-6">
         <h2 class="admin-section-title">{{ $editingId ? __('Edit value') : __('Create value') }}</h2>
 
@@ -213,8 +228,13 @@
                 <button type="submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">
                     {{ $editingId ? __('Update Value') : __('Create Value') }}
                 </button>
-                @if ($editPage)
-                    <a href="{{ route('admin.options.values', ['option' => $option->id, 'locale' => $locale]) }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                @if ($editPage || $createPage)
+                    <a href="{{ route('admin.options.values', array_filter([
+                        'option' => $option->id,
+                        'locale' => $locale,
+                        'search' => $search !== '' ? $search : null,
+                        'page' => $returnPage > 1 ? $returnPage : null,
+                    ], static fn (int|string|null $value): bool => $value !== null)) }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                         {{ __('Cancel') }}
                     </a>
                 @elseif ($editingId)
@@ -225,4 +245,5 @@
             </div>
         </form>
     </div>
+    @endif
 </div>

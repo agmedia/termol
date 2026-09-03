@@ -56,6 +56,22 @@ class DashboardFeatureTest extends TestCase
             ->assertDontSee(__('Catalog & Content Snapshot'));
     }
 
+    public function test_dashboard_month_filter_keeps_calendar_order_in_the_enhanced_select(): void
+    {
+        $admin = $this->makeUserWithRole('admin');
+
+        $component = Livewire::actingAs($admin)->test(Overview::class)
+            ->assertViewHas(
+                'monthOptions',
+                fn (array $monthOptions): bool => array_keys($monthOptions) === range(1, 12)
+            );
+
+        self::assertMatchesRegularExpression(
+            '/<select\b(?=[^>]*\bid="dashboard-statistics-month")(?=[^>]*\bdata-tom-preserve-order="1")[^>]*>/u',
+            $component->html()
+        );
+    }
+
     public function test_dashboard_period_cards_and_statistics_use_the_expected_date_windows(): void
     {
         $now = CarbonImmutable::parse('2026-09-02 08:00:00');

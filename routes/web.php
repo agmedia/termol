@@ -298,6 +298,7 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
 
             return view('admin.shipping.index');
         })->name('shipping.index');
+        Route::view('shipping/create', 'admin.shipping.create')->name('shipping.create');
         Route::get('shipping/{shippingMethod}/edit', function (ShippingMethod $shippingMethod) {
             return view('admin.shipping.edit', compact('shippingMethod'));
         })->name('shipping.edit');
@@ -329,6 +330,9 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
             Route::get('options/{option}/values', function (Option $option) {
                 return view('admin.options.values', compact('option'));
             })->name('options.values');
+            Route::get('options/{option}/values/create', function (Option $option) {
+                return view('admin.options.value-create', compact('option'));
+            })->name('options.values.create');
             Route::get('options/{option}/values/{value}/edit', function (Option $option, OptionValue $value) {
                 abort_unless((int) $value->option_id === (int) $option->id, 404);
 
@@ -395,6 +399,7 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
         Route::view('users/b2b', 'admin.users.b2b')->name('users.b2b');
         Route::view('users/newsletter', 'admin.users.newsletter')->name('users.newsletter');
         Route::view('users/groups', 'admin.users.groups')->name('users.groups');
+        Route::view('users/groups/create', 'admin.users.group-create')->name('users.groups.create');
         Route::get('users/groups/{customerGroup}/edit', function (CustomerGroup $customerGroup) {
             return view('admin.users.group-edit', compact('customerGroup'));
         })->name('users.groups.edit');
@@ -551,6 +556,12 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
                 })
                     ->where('resource', 'payment-methods|shipping-methods|geo-zones|geo-zone-countries|regions|currencies|tax-rates|order-statuses|languages')
                     ->name('local.resource');
+
+                Route::get('local/{resource}/create', function (string $resource) {
+                    return view('admin.settings.local.create', compact('resource'));
+                })
+                    ->where('resource', 'payment-methods|geo-zones|geo-zone-countries|regions|currencies|tax-rates|order-statuses|languages')
+                    ->name('local.resource.create');
 
                 Route::get('local/{resource}/{record}/edit', function (string $resource, string $record) {
                     return view('admin.settings.local.edit', [

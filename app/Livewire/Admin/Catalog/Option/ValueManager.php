@@ -24,11 +24,15 @@ class ValueManager extends Component
 
     public string $search = '';
 
+    public int $returnPage = 1;
+
     public string $locale = 'en';
 
     public ?int $editingId = null;
 
     public bool $editPage = false;
+
+    public bool $createPage = false;
 
     public ?TemporaryUploadedFile $swatchImageUpload = null;
 
@@ -46,13 +50,22 @@ class ValueManager extends Component
         'translation_payload_text' => '',
     ];
 
-    public function mount(int $optionId, ?int $recordId = null, bool $editPage = false): void
-    {
+    public function mount(
+        int $optionId,
+        ?int $recordId = null,
+        bool $editPage = false,
+        bool $createPage = false,
+    ): void {
         $this->optionId = $optionId;
         $this->editPage = $editPage;
+        $this->createPage = $createPage;
         $this->locale = (string) (request()->query('locale') ?: config('app.locale', 'en'));
+        $this->search = trim((string) request()->query('search', ''));
+        $this->returnPage = max(1, (int) request()->query('page', 1));
 
         Option::query()->findOrFail($this->optionId);
+
+        abort_if($this->editPage && $this->createPage, 404);
 
         if ($this->editPage) {
             abort_unless($recordId, 404);
@@ -159,11 +172,8 @@ class ValueManager extends Component
 
         $message = $wasEditing ? __('Value updated.') : __('Value created.');
 
-        if ($this->editPage) {
-            return redirect()->route('admin.options.values', [
-                'option' => $this->optionId,
-                'locale' => $this->locale,
-            ])->with('notify', [
+        if ($this->editPage || $this->createPage) {
+            return redirect()->route('admin.options.values', $this->listRouteParameters())->with('notify', [
                 'type' => 'success',
                 'message' => $message,
             ]);
@@ -206,6 +216,17 @@ class ValueManager extends Component
         } else {
             $this->clearTranslationFields();
         }
+    }
+
+    /** @return array<string, int|string> */
+    private function listRouteParameters(): array
+    {
+        return array_filter([
+            'option' => $this->optionId,
+            'locale' => $this->locale,
+            'search' => $this->search !== '' ? $this->search : null,
+            'page' => $this->returnPage > 1 ? $this->returnPage : null,
+        ], static fn (int|string|null $value): bool => $value !== null);
     }
 
     public function delete(int $id): void

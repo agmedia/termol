@@ -19,9 +19,13 @@ class GroupManager extends Component
 
     public string $search = '';
 
+    public int $returnPage = 1;
+
     public ?int $editingId = null;
 
     public bool $editPage = false;
+
+    public bool $createPage = false;
 
     /**
      * @var array<string, mixed>
@@ -35,10 +39,18 @@ class GroupManager extends Component
         'sort_order' => 0,
     ];
 
-    public function mount(?int $recordId = null, bool $editPage = false): void
-    {
+    public function mount(
+        ?int $recordId = null,
+        bool $editPage = false,
+        bool $createPage = false,
+    ): void {
         $this->authorizeAccess();
         $this->editPage = $editPage;
+        $this->createPage = $createPage;
+        $this->search = trim((string) request()->query('search', ''));
+        $this->returnPage = max(1, (int) request()->query(self::PAGE_NAME, 1));
+
+        abort_if($this->editPage && $this->createPage, 404);
 
         if ($this->editPage) {
             abort_unless($recordId, 404);
@@ -93,8 +105,8 @@ class GroupManager extends Component
 
         $message = $this->editingId ? __('Group updated.') : __('Group created.');
 
-        if ($this->editPage) {
-            return redirect()->route('admin.users.groups')->with('notify', [
+        if ($this->editPage || $this->createPage) {
+            return redirect()->route('admin.users.groups', $this->listRouteParameters())->with('notify', [
                 'type' => 'success',
                 'message' => $message,
             ]);
@@ -230,6 +242,15 @@ class GroupManager extends Component
             'is_default' => false,
             'sort_order' => 0,
         ];
+    }
+
+    /** @return array<string, int|string> */
+    private function listRouteParameters(): array
+    {
+        return array_filter([
+            'search' => $this->search !== '' ? $this->search : null,
+            self::PAGE_NAME => $this->returnPage > 1 ? $this->returnPage : null,
+        ], static fn (int|string|null $value): bool => $value !== null);
     }
 
     private function authorizeAccess(): void

@@ -23,6 +23,8 @@ class ShippingManager extends Component
 
     public bool $editPage = false;
 
+    public bool $createPage = false;
+
     public string $islandPolicy = CroatianIslandDestinationClassifier::POLICY_UNCONNECTED_ONLY;
 
     /**
@@ -35,9 +37,12 @@ class ShippingManager extends Component
      */
     public array $rates = [];
 
-    public function mount(bool $editPage = false, ?int $recordId = null): void
+    public function mount(bool $editPage = false, ?int $recordId = null, bool $createPage = false): void
     {
+        abort_if($editPage && $createPage, 404);
+
         $this->editPage = $editPage;
+        $this->createPage = $createPage;
         $this->search = trim((string) request()->query('search', ''));
         $this->returnPage = max(1, (int) request()->query('page', 1));
 
@@ -274,7 +279,7 @@ class ShippingManager extends Component
 
         $message = $this->editingId ? __('Način dostave je ažuriran.') : __('Način dostave je kreiran.');
 
-        if ($this->editPage) {
+        if ($this->editPage || $this->createPage) {
             return redirect()
                 ->route('admin.shipping.index', $this->listRouteParameters())
                 ->with('notify', [
