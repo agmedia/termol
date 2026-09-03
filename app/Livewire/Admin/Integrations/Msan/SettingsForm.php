@@ -154,6 +154,19 @@ class SettingsForm extends Component
         }
     }
 
+    public function syncPricesAndStock(MsanCatalogSyncCoordinator $coordinator): void
+    {
+        $this->authorizeSync();
+
+        try {
+            $coordinator->queuePricesAndStock(auth()->id() ? (int) auth()->id() : null);
+            $this->dispatch('notify', type: 'success', message: __('Osvježavanje M SAN cijena i količina stavljeno je u red. Rezultat će biti u Izvršavanjima.'));
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->dispatch('notify', type: 'warning', message: __('Osvježavanje cijena i količina nije moguće pokrenuti. Provjerite spremljene postavke i trenutačna izvršavanja.'));
+        }
+    }
+
     public function render()
     {
         $this->authorizeSettings();
@@ -162,6 +175,8 @@ class SettingsForm extends Component
             'productEndpoint' => 'https://b2b.msan.hr/B2BService/B2BProductService.asmx',
             'ftpHost' => 'b2b.msan.hr',
             'availabilityLevelLabels' => MsanSettingsService::AVAILABILITY_LEVEL_LABELS,
+            'priceStockSyncTimezone' => MsanSettingsService::PRICE_STOCK_SYNC_TIMEZONE,
+            'canSync' => $this->canSync(),
         ]);
     }
 
@@ -174,6 +189,17 @@ class SettingsForm extends Component
             'form.msan_p12_pin' => ['nullable', 'string', 'max:255'],
             'form.msan_connect_timeout' => ['required', 'integer', 'min:2', 'max:60'],
             'form.msan_request_timeout' => ['required', 'integer', 'min:15', 'max:300'],
+            'form.msan_price_stock_sync_enabled' => ['required', 'boolean'],
+            'form.msan_price_stock_sync_cron' => [
+                'required',
+                'string',
+                'max:100',
+                static function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! MsanSettingsService::isValidPriceStockSyncCron((string) $value)) {
+                        $fail(__('Unesite valjan cron izraz s pet polja i razmakom od najmanje 10 minuta.'));
+                    }
+                },
+            ],
             'form.msan_ftp_enabled' => ['required', 'boolean'],
             'form.msan_ftp_username' => ['nullable', 'string', 'max:191'],
             'form.msan_ftp_password' => ['nullable', 'string', 'max:255'],
@@ -228,5 +254,17 @@ class SettingsForm extends Component
     {
         $user = auth()->user();
         abort_unless($user && (Bouncer::is($user)->an('superadmin') || $user->can('integrations.msan.settings.manage')), 403);
+    }
+
+    private function authorizeSync(): void
+    {
+        abort_unless($this->canSync(), 403);
+    }
+
+    private function canSync(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) ($user && (Bouncer::is($user)->an('superadmin') || $user->can('integrations.msan.sync.run')));
     }
 }

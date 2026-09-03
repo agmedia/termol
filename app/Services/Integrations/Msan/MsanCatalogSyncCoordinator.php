@@ -3,8 +3,8 @@
 namespace App\Services\Integrations\Msan;
 
 use App\Jobs\Integrations\Msan\SyncEprelEnergyJob;
-use App\Jobs\Integrations\Msan\SyncMsanAvailabilityJob;
 use App\Jobs\Integrations\Msan\SyncMsanCatalogJob;
+use App\Jobs\Integrations\Msan\SyncMsanPricesAndStockJob;
 use App\Jobs\Integrations\Msan\SyncMsanSpecificationsJob;
 use App\Jobs\Integrations\Msan\TestMsanConnectionJob;
 use App\Jobs\Integrations\Msan\TestMsanFtpConnectionJob;
@@ -73,7 +73,7 @@ class MsanCatalogSyncCoordinator
         return $run->refresh();
     }
 
-    public function queueAvailability(?int $userId = null, bool $scheduled = false): ?MsanSyncRun
+    public function queuePricesAndStock(?int $userId = null, bool $scheduled = false): ?MsanSyncRun
     {
         $lock = Cache::lock('integrations:msan:queue-run', 30);
         if (! $lock->get()) {
@@ -85,6 +85,10 @@ class MsanCatalogSyncCoordinator
         }
 
         try {
+            if ($scheduled && ! $this->settings->priceStockSyncEnabled()) {
+                return null;
+            }
+
             if (! $this->settings->enabled()) {
                 if ($scheduled) {
                     return null;
@@ -110,16 +114,16 @@ class MsanCatalogSyncCoordinator
             }
 
             $run = MsanSyncRun::query()->create([
-                'kind' => MsanSyncRun::KIND_AVAILABILITY,
+                'kind' => MsanSyncRun::KIND_PRICES,
                 'status' => MsanSyncRun::STATUS_PENDING,
                 'requested_by' => $userId,
                 'progress' => 0,
             ]);
 
             try {
-                SyncMsanAvailabilityJob::dispatch((int) $run->id)->onQueue('integrations');
+                SyncMsanPricesAndStockJob::dispatch((int) $run->id)->onQueue('integrations');
             } catch (Throwable $exception) {
-                $this->markDispatchFailed($run, 'M SAN osvježavanje dostupnosti nije moguće staviti u red.');
+                $this->markDispatchFailed($run, 'M SAN osvježavanje cijena i količina nije moguće staviti u red.');
                 throw $exception;
             }
 
@@ -127,6 +131,15 @@ class MsanCatalogSyncCoordinator
         } finally {
             $lock->release();
         }
+    }
+
+    /**
+     * Backwards-compatible entry point for callers deployed before the price
+     * refresh was added to the lightweight stock synchronization.
+     */
+    public function queueAvailability(?int $userId = null, bool $scheduled = false): ?MsanSyncRun
+    {
+        return $this->queuePricesAndStock($userId, $scheduled);
     }
 
     public function queueEprelEnergy(?int $userId = null): MsanSyncRun
@@ -260,6 +273,7 @@ class MsanCatalogSyncCoordinator
             ->whereIn('kind', [
                 MsanSyncRun::KIND_FULL,
                 MsanSyncRun::KIND_IMPORT,
+                MsanSyncRun::KIND_PRICES,
                 MsanSyncRun::KIND_AVAILABILITY,
                 MsanSyncRun::KIND_SPECIFICATIONS,
                 MsanSyncRun::KIND_EPREL,

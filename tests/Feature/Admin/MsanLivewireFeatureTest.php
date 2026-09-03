@@ -839,17 +839,17 @@ class MsanLivewireFeatureTest extends TestCase
     {
         $admin = $this->makeAdmin();
         $coordinator = Mockery::mock(MsanCatalogSyncCoordinator::class);
-        $coordinator->shouldReceive('queueAvailability')->once()->with($admin->id)->andReturn(new MsanSyncRun);
+        $coordinator->shouldReceive('queuePricesAndStock')->once()->with($admin->id)->andReturn(new MsanSyncRun);
         $coordinator->shouldReceive('queueSpecifications')->once()->with($admin->id)->andReturn(new MsanSyncRun);
         $coordinator->shouldReceive('queueEprelEnergy')->once()->with($admin->id)->andReturn(new MsanSyncRun);
         $this->app->instance(MsanCatalogSyncCoordinator::class, $coordinator);
 
         Livewire::actingAs($admin)
             ->test(Dashboard::class)
-            ->assertSee('Osvježi dostupnost')
+            ->assertSee('Osvježi cijene i količine')
             ->assertSee('Dohvati specifikacije')
             ->assertSee('Osvježi EPREL')
-            ->call('syncAvailability')
+            ->call('syncPricesAndStock')
             ->assertDispatched('notify', type: 'success')
             ->call('syncSpecifications')
             ->assertDispatched('notify', type: 'success')
@@ -900,6 +900,9 @@ class MsanLivewireFeatureTest extends TestCase
             ->test(SettingsForm::class)
             ->assertSee('Maksimalna prodajna količina prema M SAN dostupnosti')
             ->assertSee('To je prodajni limit, ne potvrđena zaliha dobavljača.')
+            ->assertSee('Automatsko osvježavanje cijena i količina')
+            ->assertSee('Osvježi cijene i količine odmah')
+            ->assertSee('Europe/Zagreb')
             ->assertSee('Niska dostupnost')
             ->assertSee('Srednja dostupnost')
             ->assertSee('Vrlo visoka dostupnost')
@@ -912,11 +915,37 @@ class MsanLivewireFeatureTest extends TestCase
             ->assertSet('form.msan_eprel_enabled', false)
             ->assertSet('form.msan_eprel_connect_timeout', 10)
             ->assertSet('form.msan_eprel_timeout', 30)
+            ->assertSet('form.msan_price_stock_sync_enabled', true)
+            ->assertSet('form.msan_price_stock_sync_cron', '*/15 * * * *')
             ->assertSet('form.msan_stock_level_0', 0)
             ->assertSet('form.msan_stock_level_1', 1)
             ->assertSet('form.msan_stock_level_2', 3)
             ->assertSet('form.msan_stock_level_3', 5)
             ->assertSet('form.msan_stock_level_4', 10);
+    }
+
+    public function test_settings_reject_a_price_and_stock_cron_that_is_invalid_or_too_frequent(): void
+    {
+        $admin = $this->makeAdmin();
+
+        Livewire::actingAs($admin)
+            ->test(SettingsForm::class)
+            ->set('form.msan_price_stock_sync_cron', '*/5 * * * *')
+            ->call('save')
+            ->assertHasErrors('form.msan_price_stock_sync_cron');
+    }
+
+    public function test_settings_manual_price_and_stock_button_queues_the_refresh(): void
+    {
+        $admin = $this->makeAdmin();
+        $coordinator = Mockery::mock(MsanCatalogSyncCoordinator::class);
+        $coordinator->shouldReceive('queuePricesAndStock')->once()->with($admin->id)->andReturn(new MsanSyncRun);
+        $this->app->instance(MsanCatalogSyncCoordinator::class, $coordinator);
+
+        Livewire::actingAs($admin)
+            ->test(SettingsForm::class)
+            ->call('syncPricesAndStock')
+            ->assertDispatched('notify', type: 'success');
     }
 
     public function test_eprel_cannot_be_enabled_without_a_stored_or_new_api_key(): void

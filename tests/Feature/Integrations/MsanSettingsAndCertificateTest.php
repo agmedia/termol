@@ -55,6 +55,8 @@ class MsanSettingsAndCertificateTest extends TestCase
         $this->assertTrue($admin['msan_enabled']);
         $this->assertSame(20, $admin['msan_connect_timeout']);
         $this->assertSame(240, $admin['msan_request_timeout']);
+        $this->assertTrue($admin['msan_price_stock_sync_enabled']);
+        $this->assertSame('*/15 * * * *', $admin['msan_price_stock_sync_cron']);
         $this->assertFalse($admin['msan_import_images']);
         $this->assertTrue($admin['msan_import_products_active']);
         $this->assertSame(0, $admin['msan_stock_level_0']);

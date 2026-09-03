@@ -11,6 +11,7 @@ use App\Models\Import\CatalogSourceMapping;
 use App\Models\Integrations\Msan\MsanCategoryMapping;
 use App\Models\Integrations\Msan\MsanProduct;
 use App\Models\Settings\Local\TaxRate;
+use App\Services\Pricing\TaxPricingService;
 use App\Services\Settings\SystemSettingsService;
 use App\Support\ImportedDescriptionHtmlCleaner;
 use DomainException;
@@ -26,6 +27,7 @@ class MsanProductImportService
         private readonly ImportedDescriptionHtmlCleaner $descriptionCleaner,
         private readonly MsanSettingsService $msanSettings,
         private readonly MsanSpecificationPublisher $specificationPublisher,
+        private readonly TaxPricingService $taxPricing,
     ) {}
 
     /**
@@ -136,6 +138,7 @@ class MsanProductImportService
             $hasCatalogOwner = ! $isNew && CatalogSourceMapping::query()
                 ->where('entity_type', CatalogSourceMapping::ENTITY_PRODUCT)
                 ->where('local_id', $product->id)
+                ->lockForUpdate()
                 ->exists();
             $hasImportedSource = ! empty($payload['import_sources'] ?? []);
             $ownsCatalogFields = $isNew || (
@@ -171,9 +174,11 @@ class MsanProductImportService
 
             if ($ownsCatalogFields) {
                 $recommendedPrice = max(0, (float) ($source->recommended_retail_price ?? 0));
-                $basePrice = $recommendedPrice > 0
-                    ? $recommendedPrice
-                    : ($product->exists ? (float) $product->base_price : 0.0);
+                $storedRecommendedPrice = $recommendedPrice > 0
+                    ? $this->storedMpcPrice($recommendedPrice, $product)
+                    : null;
+                $basePrice = $storedRecommendedPrice
+                    ?? ($product->exists ? (float) $product->base_price : 0.0);
                 $isActive = $product->exists
                     ? (bool) $product->is_active
                     : ((bool) $this->settings->get('msan_import_products_active', false) && $basePrice > 0);
@@ -291,6 +296,17 @@ class MsanProductImportService
         return $this->msanSettings->stockLevelQuantity(
             max(0, min(4, (int) ($level ?? 0))),
         );
+    }
+
+    private function storedMpcPrice(float $grossPrice, Product $product): ?float
+    {
+        $storedPrice = $this->taxPricing->pricesIncludeTax()
+            ? round($grossPrice, 2)
+            : $this->taxPricing->netFromGross($grossPrice, $product);
+
+        return is_finite($storedPrice) && $storedPrice > 0
+            ? $storedPrice
+            : null;
     }
 
     private function defaultTaxRateId(): ?int

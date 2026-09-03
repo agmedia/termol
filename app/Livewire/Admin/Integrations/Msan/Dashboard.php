@@ -51,16 +51,16 @@ class Dashboard extends Component
         }
     }
 
-    public function syncAvailability(MsanCatalogSyncCoordinator $coordinator): void
+    public function syncPricesAndStock(MsanCatalogSyncCoordinator $coordinator): void
     {
         $this->authorizeSync();
 
         try {
-            $coordinator->queueAvailability(auth()->id() ? (int) auth()->id() : null);
-            $this->dispatch('notify', type: 'success', message: __('Osvježavanje M SAN dostupnosti stavljeno je u red.'));
+            $coordinator->queuePricesAndStock(auth()->id() ? (int) auth()->id() : null);
+            $this->dispatch('notify', type: 'success', message: __('Osvježavanje M SAN cijena i količina stavljeno je u red.'));
         } catch (Throwable $exception) {
             report($exception);
-            $this->dispatch('notify', type: 'warning', message: __('Osvježavanje dostupnosti nije moguće pokrenuti. Provjerite postavke i trenutačna izvršavanja.'));
+            $this->dispatch('notify', type: 'warning', message: __('Osvježavanje cijena i količina nije moguće pokrenuti. Provjerite postavke i trenutačna izvršavanja.'));
         }
     }
 

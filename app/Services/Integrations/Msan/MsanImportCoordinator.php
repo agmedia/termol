@@ -16,9 +16,14 @@ class MsanImportCoordinator
 {
     private const STAGING_CHUNK_SIZE = 1000;
 
+    private const QUEUE_LOCK_SECONDS = 900;
+
     public function queueSelected(?int $userId = null): MsanSyncRun
     {
-        $lock = Cache::lock('integrations:msan:queue-run', 60);
+        // Staging can touch a large selected catalog before its run becomes
+        // visible to other database connections. Keep the cross-process lease
+        // comfortably above that bounded preparation window.
+        $lock = Cache::lock('integrations:msan:queue-run', self::QUEUE_LOCK_SECONDS);
         if (! $lock->get()) {
             throw new DomainException('Druga M SAN obrada upravo se pokreće.');
         }
@@ -36,6 +41,7 @@ class MsanImportCoordinator
             ->whereIn('kind', [
                 MsanSyncRun::KIND_FULL,
                 MsanSyncRun::KIND_IMPORT,
+                MsanSyncRun::KIND_PRICES,
                 MsanSyncRun::KIND_AVAILABILITY,
                 MsanSyncRun::KIND_SPECIFICATIONS,
                 MsanSyncRun::KIND_EPREL,

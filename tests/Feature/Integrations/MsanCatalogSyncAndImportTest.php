@@ -19,6 +19,7 @@ use App\Services\Integrations\Msan\MsanClient;
 use App\Services\Integrations\Msan\MsanImportCoordinator;
 use App\Services\Integrations\Msan\MsanProductImportService;
 use App\Services\Integrations\Msan\MsanXmlStreamReader;
+use App\Services\Settings\SystemSettingsService;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -371,6 +372,25 @@ class MsanCatalogSyncAndImportTest extends TestCase
         $this->assertSame(42, $product->stock_qty);
         $this->assertSame('Ručno uređeni naziv', $product->translation('hr')->firstOrFail()->name);
         $this->assertSame('125.0000', data_get($product->payload, 'supplier_sources.msan.recommended_retail_price'));
+    }
+
+    public function test_initial_import_stores_msan_mpc_according_to_shop_tax_mode(): void
+    {
+        Queue::fake();
+        $this->configureImport();
+        app(SystemSettingsService::class)->put('store_pricing_prices_include_tax', false);
+        [$netSource] = $this->eligibleSource('MSAN-NET-MPC', 'Neto pohrana');
+
+        app(MsanProductImportService::class)->import((int) $netSource->id);
+
+        $this->assertSame('100.00', $netSource->fresh()->localProduct()->firstOrFail()->base_price);
+
+        app(SystemSettingsService::class)->put('store_pricing_prices_include_tax', true);
+        [$grossSource] = $this->eligibleSource('MSAN-GROSS-MPC', 'Bruto pohrana');
+
+        app(MsanProductImportService::class)->import((int) $grossSource->id);
+
+        $this->assertSame('125.00', $grossSource->fresh()->localProduct()->firstOrFail()->base_price);
     }
 
     public function test_erp_mapping_takes_field_ownership_from_an_msan_created_product(): void

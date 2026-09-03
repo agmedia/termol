@@ -11,6 +11,8 @@ use App\Services\Import\OpenCartSizeOptionImportService;
 use App\Services\Import\TermolProductAttributeImportService;
 use App\Services\Import\TermolProductSnapshotImportService;
 use App\Services\Integrations\Msan\MsanCatalogSyncCoordinator;
+use App\Services\Integrations\Msan\MsanSettingsService;
+use App\Services\Settings\SystemSettingsService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Carbon;
@@ -19,10 +21,17 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::call(static function (): void {
-    app(MsanCatalogSyncCoordinator::class)->queueAvailability(scheduled: true);
+    // schedule:work is long lived, so discard the process-local settings
+    // snapshot before checking the administrator-configured cron expression.
+    app(SystemSettingsService::class)->clearRuntimeCache();
+    if (! app(MsanSettingsService::class)->priceStockSyncIsDue()) {
+        return;
+    }
+
+    app(MsanCatalogSyncCoordinator::class)->queuePricesAndStock(scheduled: true);
 })
-    ->name('msan-availability-sync')
-    ->everyFifteenMinutes()
+    ->name('msan-prices-stock-sync')
+    ->everyMinute()
     ->withoutOverlapping(15);
 
 Artisan::command('inspire', function () {

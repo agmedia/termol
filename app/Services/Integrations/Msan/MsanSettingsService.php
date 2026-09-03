@@ -3,13 +3,22 @@
 namespace App\Services\Integrations\Msan;
 
 use App\Services\Settings\SystemSettingsService;
+use Cron\CronExpression;
+use Cron\FieldFactory;
+use Cron\FieldInterface;
+use DateTimeImmutable;
+use DateTimeInterface;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use RuntimeException;
+use Throwable;
 
 class MsanSettingsService
 {
+    /** @var array<string, bool> */
+    private static array $priceStockCronValidityCache = [];
+
     public const KEY_ENABLED = 'msan_enabled';
 
     public const KEY_P12_PIN_ENCRYPTED = 'msan_p12_pin_encrypted';
@@ -17,6 +26,14 @@ class MsanSettingsService
     public const KEY_CONNECT_TIMEOUT = 'msan_connect_timeout';
 
     public const KEY_REQUEST_TIMEOUT = 'msan_request_timeout';
+
+    public const KEY_PRICE_STOCK_SYNC_ENABLED = 'msan_price_stock_sync_enabled';
+
+    public const KEY_PRICE_STOCK_SYNC_CRON = 'msan_price_stock_sync_cron';
+
+    public const DEFAULT_PRICE_STOCK_SYNC_CRON = '*/15 * * * *';
+
+    public const PRICE_STOCK_SYNC_TIMEZONE = 'Europe/Zagreb';
 
     public const KEY_IMPORT_IMAGES = 'msan_import_images';
 
@@ -94,6 +111,8 @@ class MsanSettingsService
             'msan_p12_pin_configured' => $this->hasP12Pin(),
             self::KEY_CONNECT_TIMEOUT => $this->connectTimeout(),
             self::KEY_REQUEST_TIMEOUT => $this->requestTimeout(),
+            self::KEY_PRICE_STOCK_SYNC_ENABLED => $this->priceStockSyncEnabled(),
+            self::KEY_PRICE_STOCK_SYNC_CRON => $this->priceStockSyncCron(),
             self::KEY_IMPORT_IMAGES => $this->toBool($this->settings->get(self::KEY_IMPORT_IMAGES, true)),
             self::KEY_IMPORT_PRODUCTS_ACTIVE => $this->toBool($this->settings->get(self::KEY_IMPORT_PRODUCTS_ACTIVE, false)),
             self::KEY_IMPORT_SPECIFICATIONS => $this->importSpecifications(),
@@ -147,6 +166,15 @@ class MsanSettingsService
                 min: 15,
                 max: 300,
             );
+        }
+        if (array_key_exists(self::KEY_PRICE_STOCK_SYNC_ENABLED, $values)) {
+            $entries[self::KEY_PRICE_STOCK_SYNC_ENABLED] = $this->toBool($values[self::KEY_PRICE_STOCK_SYNC_ENABLED]);
+        }
+        if (array_key_exists(self::KEY_PRICE_STOCK_SYNC_CRON, $values)) {
+            $expression = trim((string) $values[self::KEY_PRICE_STOCK_SYNC_CRON]);
+            $entries[self::KEY_PRICE_STOCK_SYNC_CRON] = self::isValidPriceStockSyncCron($expression)
+                ? $expression
+                : self::DEFAULT_PRICE_STOCK_SYNC_CRON;
         }
         if (array_key_exists(self::KEY_IMPORT_IMAGES, $values)) {
             $entries[self::KEY_IMPORT_IMAGES] = $this->toBool($values[self::KEY_IMPORT_IMAGES]);
@@ -296,6 +324,189 @@ class MsanSettingsService
     public function requestTimeout(): int
     {
         return $this->boundedInt($this->settings->get(self::KEY_REQUEST_TIMEOUT, 120), 120, 15, 300);
+    }
+
+    public function priceStockSyncEnabled(): bool
+    {
+        // Availability was historically refreshed every 15 minutes without a
+        // toggle, so enabled-by-default preserves the existing deployment.
+        return $this->toBool($this->settings->get(self::KEY_PRICE_STOCK_SYNC_ENABLED, true));
+    }
+
+    public function priceStockSyncCron(): string
+    {
+        $expression = trim((string) $this->settings->get(
+            self::KEY_PRICE_STOCK_SYNC_CRON,
+            self::DEFAULT_PRICE_STOCK_SYNC_CRON,
+        ));
+
+        return self::isValidPriceStockSyncCron($expression)
+            ? $expression
+            : self::DEFAULT_PRICE_STOCK_SYNC_CRON;
+    }
+
+    public function priceStockSyncIsDue(?DateTimeInterface $at = null): bool
+    {
+        if (! $this->priceStockSyncEnabled()) {
+            return false;
+        }
+
+        return (new CronExpression($this->priceStockSyncCron()))->isDue(
+            $at ?? new DateTimeImmutable('now'),
+            self::PRICE_STOCK_SYNC_TIMEZONE,
+        );
+    }
+
+    public static function isValidPriceStockSyncCron(string $expression): bool
+    {
+        $expression = trim($expression);
+        if (array_key_exists($expression, self::$priceStockCronValidityCache)) {
+            return self::$priceStockCronValidityCache[$expression];
+        }
+
+        $valid = self::validatePriceStockSyncCron($expression);
+        if (count(self::$priceStockCronValidityCache) >= 128) {
+            array_shift(self::$priceStockCronValidityCache);
+        }
+        self::$priceStockCronValidityCache[$expression] = $valid;
+
+        return $valid;
+    }
+
+    private static function validatePriceStockSyncCron(string $expression): bool
+    {
+        $parts = preg_split('/\s+/', $expression, -1, PREG_SPLIT_NO_EMPTY);
+        if (mb_strlen($expression) > 100 || ! is_array($parts) || count($parts) !== 5
+            || ! CronExpression::isValidExpression($expression)) {
+            return false;
+        }
+
+        try {
+            // CronExpression accepts some syntactically valid but impossible
+            // calendar combinations (for example, 31 February). Require at
+            // least one real run date before evaluating its daily cadence.
+            (new CronExpression($expression))->getNextRunDate(
+                new DateTimeImmutable('2000-01-01 00:00:00', new \DateTimeZone(self::PRICE_STOCK_SYNC_TIMEZONE)),
+                0,
+                true,
+                self::PRICE_STOCK_SYNC_TIMEZONE,
+            );
+            $runMinutes = self::dailyCronRunMinutes($parts);
+        } catch (Throwable) {
+            return false;
+        }
+
+        if ($runMinutes === []) {
+            return false;
+        }
+
+        foreach (array_slice($runMinutes, 1) as $index => $minute) {
+            if ($minute - $runMinutes[$index] < 10) {
+                return false;
+            }
+        }
+
+        $overnightGap = 1440 - $runMinutes[array_key_last($runMinutes)] + $runMinutes[0];
+
+        return $overnightGap >= 10 || ! self::cronCanRunOnConsecutiveDays($parts);
+    }
+
+    /**
+     * @param  list<string>  $parts
+     * @return list<int>
+     */
+    private static function dailyCronRunMinutes(array $parts): array
+    {
+        $factory = new FieldFactory;
+        $minuteField = $factory->getField(CronExpression::MINUTE);
+        $hourField = $factory->getField(CronExpression::HOUR);
+        $date = new DateTimeImmutable('2000-01-01 00:00:00', new \DateTimeZone(self::PRICE_STOCK_SYNC_TIMEZONE));
+        $matches = [];
+
+        for ($hour = 0; $hour < 24; $hour++) {
+            for ($minute = 0; $minute < 60; $minute++) {
+                $candidate = $date->setTime($hour, $minute);
+                if (self::cronFieldMatches($hourField, $candidate, $parts[CronExpression::HOUR])
+                    && self::cronFieldMatches($minuteField, $candidate, $parts[CronExpression::MINUTE])) {
+                    $matches[] = ($hour * 60) + $minute;
+                }
+            }
+        }
+
+        return $matches;
+    }
+
+    /**
+     * The Gregorian weekday/date pattern repeats every 400 years. We only
+     * need this scan when the daily time pattern crosses midnight in less
+     * than ten minutes, and can stop at the first pair of eligible days.
+     *
+     * @param  list<string>  $parts
+     */
+    private static function cronCanRunOnConsecutiveDays(array $parts): bool
+    {
+        $factory = new FieldFactory;
+        $dayField = $factory->getField(CronExpression::DAY);
+        $monthField = $factory->getField(CronExpression::MONTH);
+        $weekdayField = $factory->getField(CronExpression::WEEKDAY);
+        $timezone = new \DateTimeZone(self::PRICE_STOCK_SYNC_TIMEZONE);
+        $date = new DateTimeImmutable('2000-01-01 12:00:00', $timezone);
+        $end = new DateTimeImmutable('2400-01-01 12:00:00', $timezone);
+        $previousDayMatched = false;
+
+        while ($date <= $end) {
+            $monthMatches = self::cronFieldMatches($monthField, $date, $parts[CronExpression::MONTH]);
+            $dayMatches = self::cronDateFieldsMatch($dayField, $weekdayField, $date, $parts);
+            $currentDayMatches = $monthMatches && $dayMatches;
+            if ($currentDayMatches && $previousDayMatched) {
+                return true;
+            }
+
+            $previousDayMatched = $currentDayMatches;
+            $date = $date->modify('+1 day');
+        }
+
+        return false;
+    }
+
+    /** @param list<string> $parts */
+    private static function cronDateFieldsMatch(
+        FieldInterface $dayField,
+        FieldInterface $weekdayField,
+        DateTimeInterface $date,
+        array $parts,
+    ): bool {
+        $dayExpression = $parts[CronExpression::DAY];
+        $weekdayExpression = $parts[CronExpression::WEEKDAY];
+        $dayRestricted = ! in_array($dayExpression, ['*', '?'], true);
+        $weekdayRestricted = ! in_array($weekdayExpression, ['*', '?'], true);
+        $dayMatches = self::cronFieldMatches($dayField, $date, $dayExpression);
+        $weekdayMatches = self::cronFieldMatches($weekdayField, $date, $weekdayExpression);
+
+        if ($dayRestricted && $weekdayRestricted) {
+            // This matches CronExpression's standard DOM-or-DOW behavior.
+            return $dayMatches || $weekdayMatches;
+        }
+
+        if ($dayRestricted) {
+            return $dayMatches;
+        }
+
+        return ! $weekdayRestricted || $weekdayMatches;
+    }
+
+    private static function cronFieldMatches(
+        FieldInterface $field,
+        DateTimeInterface $date,
+        string $expression,
+    ): bool {
+        foreach (explode(',', $expression) as $part) {
+            if ($field->isSatisfiedBy($date, trim($part), false)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function stockLevelQuantity(int $level): int

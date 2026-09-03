@@ -98,7 +98,7 @@ class RunHistoryManager extends Component
     {
         return match ($kind) {
             MsanSyncRun::KIND_CATALOG => __('Katalog'),
-            MsanSyncRun::KIND_PRICES => __('Cijene'),
+            MsanSyncRun::KIND_PRICES => __('Cijene i količine'),
             MsanSyncRun::KIND_AVAILABILITY => __('Raspoloživost'),
             MsanSyncRun::KIND_CATEGORIES => __('Kategorije'),
             MsanSyncRun::KIND_FULL => __('Puna sinkronizacija'),

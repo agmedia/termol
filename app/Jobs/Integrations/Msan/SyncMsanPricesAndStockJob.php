@@ -3,13 +3,13 @@
 namespace App\Jobs\Integrations\Msan;
 
 use App\Models\Integrations\Msan\MsanSyncRun;
-use App\Services\Integrations\Msan\MsanAvailabilitySyncService;
+use App\Services\Integrations\Msan\MsanPricesAndStockSyncService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
 
-class SyncMsanAvailabilityJob implements ShouldBeUnique, ShouldQueue
+class SyncMsanPricesAndStockJob implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
 
@@ -26,10 +26,13 @@ class SyncMsanAvailabilityJob implements ShouldBeUnique, ShouldQueue
 
     public function uniqueId(): string
     {
+        // Scope the queue lock to this persisted run. A stale lock left after
+        // a failed push must not silently discard a later run and orphan it
+        // in the pending state.
         return 'msan-prices-stock-sync:'.$this->runId;
     }
 
-    public function handle(MsanAvailabilitySyncService $service): void
+    public function handle(MsanPricesAndStockSyncService $service): void
     {
         $run = MsanSyncRun::query()->find($this->runId);
         if (! $run || ! in_array($run->status, [

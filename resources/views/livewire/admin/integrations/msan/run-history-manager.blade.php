@@ -98,11 +98,17 @@
                                 'ftp_connection' => __('FTPS veza'),
                                 'dataset' => __('Skup podataka'),
                                 'staging_products' => __('Artikli u privremenom katalogu'),
+                                'price_rows_matched' => __('Usklađeni redovi cijena'),
                                 'availability_rows_matched' => __('Usklađeni redovi dostupnosti'),
                                 'local_products_eligible' => __('Lokalni artikli za ažuriranje'),
+                                'local_prices_updated' => __('Ažurirane lokalne cijene'),
+                                'local_prices_unchanged' => __('Nepromijenjene lokalne cijene'),
+                                'local_prices_missing' => __('Lokalni artikli bez valjane MPC cijene'),
                                 'local_stock_updated' => __('Ažurirane lokalne zalihe'),
                                 'local_stock_unchanged' => __('Nepromijenjene lokalne zalihe'),
-                                'local_products_not_msan_owned' => __('Artikli čija zaliha nije M SAN'),
+                                'local_supplier_snapshots_updated' => __('Ažurirani M SAN podaci na artiklima'),
+                                'local_stale_stock_zeroed' => __('Zalihe zastarjelih M SAN artikala postavljene na nulu'),
+                                'local_products_not_msan_owned' => __('Artikli čijim podacima ne upravlja M SAN'),
                                 'source' => __('Izvor specifikacija'),
                                 'source_bytes' => __('Veličina izvora u bajtovima'),
                                 'rows' => __('Redovi u izvoru'),
@@ -124,13 +130,14 @@
                                 'standard' => __('Standardni M SAN skup'),
                                 'icecat' => __('M SAN Icecat skup'),
                                 'availability' => __('Raspoloživost'),
+                                'prices' => __('Cijene'),
                             ];
                             $duration = $run->started_at && $run->completed_at
                                 ? $run->started_at->diffForHumans($run->completed_at, true)
                                 : null;
                             $kindLabel = match ((string) $run->kind) {
                                 'catalog' => __('Katalog'),
-                                'prices' => __('Cijene'),
+                                'prices' => __('Cijene i količine'),
                                 'availability' => __('Raspoloživost'),
                                 'categories' => __('Kategorije'),
                                 'full' => __('Puna sinkronizacija'),

@@ -39,7 +39,7 @@
             @if ($canSync)
                 <div class="flex shrink-0 flex-wrap gap-2 lg:max-w-xl lg:justify-end">
                     <button type="button" wire:click="testConnection" wire:loading.attr="disabled" @disabled(!$ready) class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">{{ __('Provjeri vezu') }}</button>
-                    <button type="button" wire:click="syncAvailability" wire:loading.attr="disabled" @disabled(!$ready || $counts['products'] === 0) class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">{{ __('Osvježi dostupnost') }}</button>
+                    <button type="button" wire:click="syncPricesAndStock" wire:confirm="{{ __('Pokrenuti osvježavanje cijena i količina za uvezene M SAN artikle?') }}" wire:loading.attr="disabled" @disabled(!$ready || $counts['products'] === 0) class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">{{ __('Osvježi cijene i količine') }}</button>
                     <button type="button" wire:click="syncSpecifications" wire:loading.attr="disabled" @disabled(!$specificationsReady) class="rounded-xl border border-cyan-300 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-100 disabled:opacity-50">{{ __('Dohvati specifikacije') }}</button>
                     <button type="button" wire:click="syncEprel" wire:loading.attr="disabled" @disabled(!$eprelReady) class="rounded-xl border border-cyan-300 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-100 disabled:opacity-50">{{ __('Osvježi EPREL') }}</button>
                     <button type="button" wire:click="syncCatalog" wire:confirm="{{ __('Pokrenuti puni M SAN dohvat u lokalni privremeni katalog?') }}" wire:loading.attr="disabled" wire:target="syncCatalog" @disabled(!$ready) class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-50"><span wire:loading.remove wire:target="syncCatalog">{{ __('Dohvati katalog') }}</span><span wire:loading wire:target="syncCatalog">{{ __('Pokrećem...') }}</span></button>
@@ -54,7 +54,7 @@
                 'full' => __('Puna sinkronizacija'),
                 'import' => __('Uvoz'),
                 'catalog' => __('Katalog'),
-                'prices' => __('Cijene'),
+                'prices' => __('Cijene i količine'),
                 'availability' => __('Raspoloživost'),
                 'categories' => __('Kategorije'),
                 'specifications' => __('Tehničke specifikacije'),

@@ -71,6 +71,42 @@
             </div>
 
             <div class="border-t border-slate-200 pt-6">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <h2 class="text-base font-semibold text-slate-900">{{ __('Automatsko osvježavanje cijena i količina') }}</h2>
+                        <p class="mt-1 max-w-3xl text-sm text-slate-600">{{ __('Za uvezene artikle kojima je M SAN i dalje izvor podataka osvježava prodajnu MPC cijenu i lokalni prodajni limit prema dostupnosti. Artikli koje je preuzeo ERP ili drugi izvor ostaju netaknuti.') }}</p>
+                    </div>
+                    <button type="button" wire:click="$toggle('form.msan_price_stock_sync_enabled')" class="admin-switch" data-state="{{ ($form['msan_price_stock_sync_enabled'] ?? false) ? 'on' : 'off' }}" role="switch" aria-checked="{{ ($form['msan_price_stock_sync_enabled'] ?? false) ? 'true' : 'false' }}">
+                        <span class="admin-switch-track"><span class="admin-switch-thumb"></span></span>
+                        <span class="admin-switch-label">{{ ($form['msan_price_stock_sync_enabled'] ?? false) ? __('Uključeno') : __('Isključeno') }}</span>
+                    </button>
+                </div>
+                @error('form.msan_price_stock_sync_enabled') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+
+                <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-600" for="msan-price-stock-cron">{{ __('Cron raspored') }}</label>
+                        <input id="msan-price-stock-cron" type="text" maxlength="100" list="msan-price-stock-cron-presets" wire:model="form.msan_price_stock_sync_cron" autocomplete="off" spellcheck="false" placeholder="*/15 * * * *" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm">
+                        <datalist id="msan-price-stock-cron-presets">
+                            <option value="*/15 * * * *">{{ __('Svakih 15 minuta') }}</option>
+                            <option value="*/30 * * * *">{{ __('Svakih 30 minuta') }}</option>
+                            <option value="0 * * * *">{{ __('Svaki puni sat') }}</option>
+                            <option value="0 */6 * * *">{{ __('Svakih 6 sati') }}</option>
+                            <option value="0 3 * * *">{{ __('Svaki dan u 03:00') }}</option>
+                        </datalist>
+                        <p class="mt-1 text-xs leading-5 text-slate-500">{{ __('Pet cron polja: minuta, sat, dan, mjesec i dan u tjednu. Najmanji dopušteni razmak je 10 minuta. Vrijeme se računa u zoni :timezone.', ['timezone' => $priceStockSyncTimezone]) }}</p>
+                        @error('form.msan_price_stock_sync_cron') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    @if ($canSync)
+                        <button type="button" wire:click="syncPricesAndStock" wire:confirm="{{ __('Pokrenuti osvježavanje cijena i količina za uvezene M SAN artikle?') }}" wire:loading.attr="disabled" wire:target="syncPricesAndStock" class="min-h-11 rounded-xl border border-cyan-300 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-100 disabled:cursor-wait disabled:opacity-60">
+                            <span wire:loading.remove wire:target="syncPricesAndStock">{{ __('Osvježi cijene i količine odmah') }}</span>
+                            <span wire:loading wire:target="syncPricesAndStock">{{ __('Pokrećem...') }}</span>
+                        </button>
+                    @endif
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6">
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <h2 class="text-base font-semibold text-slate-900">{{ __('FTP / FTPS slike') }}</h2>
