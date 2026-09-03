@@ -33,14 +33,14 @@ class AccountController extends Controller
             ->limit(6)
             ->get(['id', 'order_number', 'status_id', 'grand_total', 'currency_code', 'placed_at', 'created_at']);
 
-        $settings = app(SystemSettingsService::class);
-        $loyaltyEnabled = (bool) $settings->get('user_loyalty_enabled', (bool) config('user_features.flags.user_loyalty_enabled', true));
+        $loyaltyService = app(LoyaltyService::class);
+        $loyaltyEnabled = $loyaltyService->availableForUser($user);
 
         $loyaltyBalance = 0;
         $loyaltyRecent = collect();
 
         if ($loyaltyEnabled) {
-            $loyaltyBalance = app(LoyaltyService::class)->pointsBalanceForUser((int) $user->id);
+            $loyaltyBalance = $loyaltyService->pointsBalanceForUser((int) $user->id);
 
             $loyaltyRecent = LoyaltyTransaction::query()
                 ->where('user_id', $user->id)
@@ -114,9 +114,8 @@ class AccountController extends Controller
     {
         $user = $request->user();
         $settings = app(SystemSettingsService::class);
-        $loyaltyEnabled = (bool) $settings->get('user_loyalty_enabled', (bool) config('user_features.flags.user_loyalty_enabled', true));
 
-        abort_unless($loyaltyEnabled, 404);
+        abort_unless(app(LoyaltyService::class)->availableForUser($user), 404);
 
         $transactions = LoyaltyTransaction::query()
             ->where('user_id', $user->id)

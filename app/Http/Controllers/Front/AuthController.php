@@ -10,6 +10,7 @@ use App\Models\User\UserAddress;
 use App\Models\User\UserProfile;
 use App\Services\Front\AddressDirectoryService;
 use App\Services\Front\StoreSettingsService;
+use App\Services\User\DefaultCustomerGroupAssigner;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -36,6 +37,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly StoreSettingsService $storeSettings,
         private readonly AddressDirectoryService $addressDirectory,
+        private readonly DefaultCustomerGroupAssigner $defaultCustomerGroupAssigner,
     ) {}
 
     public function showLogin(Request $request): View
@@ -381,6 +383,7 @@ class AuthController extends Controller
             ]);
 
             Bouncer::assign('customer')->to($user);
+            $this->defaultCustomerGroupAssigner->assign($user);
 
             return $user;
         });

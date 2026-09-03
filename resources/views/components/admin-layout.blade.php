@@ -1252,12 +1252,18 @@
                     $usersActivityActive = request()->routeIs('admin.users.activity');
                     $usersNewsletterActive = request()->routeIs('admin.users.newsletter');
                     $usersLoyaltyActive = request()->routeIs('admin.users.loyalty');
+                    $userLoyaltyEnabled = (bool) app(\App\Services\Settings\SystemSettingsService::class)->get(
+                        'user_loyalty_enabled',
+                        (bool) config('user_features.flags.user_loyalty_enabled', false)
+                    );
                     $canViewUsersList = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.list.view'));
                     $canManageUserGroups = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.groups.manage'));
                     $canViewUserActivity = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.activity.view'));
                     $canViewNewsletterSignups = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.newsletter.view'));
-                    $canViewUserLoyalty = auth()->user() && (auth()->user()->isA('superadmin') || auth()->user()->can('users.loyalty.view'));
-                    $usersOpen = $usersListActive || $usersB2BActive || $usersGroupsActive || $usersAccessActive || $usersActivityActive || $usersNewsletterActive || $usersLoyaltyActive;
+                    $canViewUserLoyalty = $userLoyaltyEnabled
+                        && auth()->user()
+                        && (auth()->user()->isA('superadmin') || auth()->user()->can('users.loyalty.view'));
+                    $usersOpen = $usersListActive || $usersB2BActive || $usersGroupsActive || $usersAccessActive || $usersActivityActive || $usersNewsletterActive || ($userLoyaltyEnabled && $usersLoyaltyActive);
                     $settingsResource = request()->routeIs('admin.shipping.*')
                         ? 'shipping-methods'
                         : request()->route('resource');
@@ -1270,12 +1276,8 @@
                         || auth()->user()->can('users.groups.manage')
                         || auth()->user()->can('users.activity.view')
                         || auth()->user()->can('users.newsletter.view')
-                        || auth()->user()->can('users.loyalty.view')
+                        || ($userLoyaltyEnabled && auth()->user()->can('users.loyalty.view'))
                         || auth()->user()->can('users.access.manage')
-                    );
-                    $userLoyaltyEnabled = (bool) app(\App\Services\Settings\SystemSettingsService::class)->get(
-                        'user_loyalty_enabled',
-                        (bool) config('user_features.flags.user_loyalty_enabled', true)
                     );
 
                     foreach (($helpConfig['routes'] ?? []) as $pattern => $payload) {

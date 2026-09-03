@@ -128,7 +128,7 @@ return [
             'open_navigation' => 'Otvori navigaciju',
             'close_navigation' => 'Zatvori navigaciju',
             'newsletter' => [
-                'club' => 'BALI LOYALTY',
+                'club' => 'BALI NEWSLETTER',
                 'title' => 'Newsletter prijava za 10% popusta na prvu kupnju',
                 'subtitle' => 'Povremeno šaljemo novitete i posebne ponude.',
                 'placeholder' => 'Upišite email adresu',
@@ -754,8 +754,8 @@ return [
                 'spent' => 'Ukupno iskorišteno',
             ],
             'usage' => [
-                'title' => 'Uvjeti korištenja bodova',
-                'min_order' => 'Bodove možete koristiti za narudžbe od najmanje :amount.',
+                'title' => 'Kako bodovi funkcioniraju',
+                'min_order' => 'Bodovi se ostvaruju samo za narudžbe ukupne vrijednosti najmanje :amount.',
                 'instant' => 'Bodovi su dostupni odmah nakon knjiženja.',
             ],
             'table' => [

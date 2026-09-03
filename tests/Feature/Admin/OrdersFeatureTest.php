@@ -7,7 +7,9 @@ use App\Livewire\Admin\Sales\Order\Show as OrderShow;
 use App\Models\Sales\Order\Order;
 use App\Models\Settings\Local\OrderStatus;
 use App\Models\User;
+use App\Models\User\CustomerGroup;
 use App\Models\User\LoyaltyTransaction;
+use App\Services\Loyalty\LoyaltyService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -185,6 +187,7 @@ class OrdersFeatureTest extends TestCase
             'user_loyalty_enabled' => true,
             'loyalty_points_per_currency' => 1.0,
             'loyalty_min_order_total' => 100.0,
+            'loyalty_customer_group_ids' => [],
         ]);
 
         $admin = $this->makeUserWithRole('admin');
@@ -204,6 +207,70 @@ class OrdersFeatureTest extends TestCase
             'order_id' => $order->id,
             'event_key' => 'order:'.$order->id.':settlement',
             'type' => 'order_settlement',
+            'points' => 125,
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/orders/'.$order->id.'/show')
+            ->assertOk()
+            ->assertSee(__('Loyalty Settlement:'))
+            ->assertSee(__('Loyalty Redemption'));
+    }
+
+    public function test_direct_eloquent_status_changes_award_and_reverse_loyalty_points(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'user_loyalty_enabled' => true,
+            'loyalty_points_per_currency' => 1.0,
+            'loyalty_min_order_total' => 0.0,
+            'loyalty_reversal_mode' => 'zero_out',
+            'loyalty_customer_group_ids' => [],
+        ]);
+
+        $customer = $this->makeUserWithRole('customer');
+        $new = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        $paid = $this->createStatus(code: 'paid', name: 'Paid', isPaid: true, sortOrder: 2);
+        $cancelled = $this->createStatus(code: 'cancelled', name: 'Cancelled', isCancelled: true, sortOrder: 3);
+        $order = $this->createOrder($new, $customer, 'AG-DIRECT-STATUS');
+
+        $order->status_id = $paid->id;
+        $order->save();
+
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'event_key' => 'order:'.$order->id.':settlement',
+            'points' => 125,
+        ]);
+
+        $order->status_id = $cancelled->id;
+        $order->save();
+
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'event_key' => 'order:'.$order->id.':settlement',
+            'points' => 0,
+        ]);
+    }
+
+    public function test_initial_order_status_only_awards_loyalty_when_created_as_paid(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'user_loyalty_enabled' => true,
+            'loyalty_points_per_currency' => 1.0,
+            'loyalty_min_order_total' => 0.0,
+            'loyalty_customer_group_ids' => [],
+        ]);
+
+        $customer = $this->makeUserWithRole('customer');
+        $new = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        $paid = $this->createStatus(code: 'paid', name: 'Paid', isPaid: true, sortOrder: 2);
+
+        $unpaidOrder = $this->createOrder($new, $customer, 'AG-INITIAL-UNPAID');
+        $paidOrder = $this->createOrder($paid, $customer, 'AG-INITIAL-PAID');
+
+        $this->assertDatabaseMissing('loyalty_transactions', [
+            'event_key' => 'order:'.$unpaidOrder->id.':settlement',
+        ]);
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'event_key' => 'order:'.$paidOrder->id.':settlement',
             'points' => 125,
         ]);
     }
@@ -236,12 +303,25 @@ class OrdersFeatureTest extends TestCase
         $admin = $this->makeUserWithRole('admin');
         $status = $this->createStatus(code: 'new', name: 'New', isDefault: true);
         $order = $this->createOrder($status, $admin, 'AG-TEST-0007B');
+        $order->totals()->create([
+            'code' => 'loyalty_redemption',
+            'title' => 'Archived reward discount',
+            'value' => -10,
+            'sort_order' => 650,
+            'payload' => null,
+        ]);
 
         $this->actingAs($admin)
             ->get('/admin/orders/'.$order->id.'/show')
             ->assertOk()
             ->assertDontSee('Loyalty Settlement')
-            ->assertDontSee('Loyalty Redemption');
+            ->assertDontSee('Loyalty Redemption')
+            ->assertDontSee('Archived reward discount');
+
+        $this->actingAs($admin)
+            ->get('/admin/orders/'.$order->id.'/invoice')
+            ->assertOk()
+            ->assertDontSee('Archived reward discount');
 
         Livewire::actingAs($admin)
             ->test(OrderShow::class, ['orderId' => $order->id])
@@ -257,6 +337,185 @@ class OrdersFeatureTest extends TestCase
             'discount_total' => 0.00,
             'grand_total' => 124.89,
         ]);
+    }
+
+    public function test_selected_customer_groups_control_loyalty_earning_and_redemption(): void
+    {
+        $retail = CustomerGroup::query()->create([
+            'code' => 'retail',
+            'name' => 'Retail',
+            'is_active' => true,
+            'is_default' => true,
+            'sort_order' => 10,
+        ]);
+        $b2b = CustomerGroup::query()->create([
+            'code' => 'b2b',
+            'name' => 'B2B',
+            'is_active' => true,
+            'is_default' => false,
+            'sort_order' => 20,
+        ]);
+
+        app(SystemSettingsService::class)->putMany([
+            'user_loyalty_enabled' => true,
+            'loyalty_points_per_currency' => 1.0,
+            'loyalty_currency_value_per_point' => 0.01,
+            'loyalty_min_order_total' => 0.0,
+            'loyalty_customer_group_ids' => [$retail->id],
+        ]);
+
+        $admin = $this->makeUserWithRole('admin');
+        $eligible = $this->makeUserWithRole('customer');
+        $ineligible = $this->makeUserWithRole('customer');
+        $eligible->customerGroups()->attach($retail->id);
+        $ineligible->customerGroups()->attach($b2b->id);
+
+        $new = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        $paid = $this->createStatus(code: 'paid', name: 'Paid', isPaid: true, sortOrder: 2);
+        $eligibleEarningOrder = $this->createOrder($new, $eligible, 'AG-GROUP-EARN-YES');
+        $ineligibleEarningOrder = $this->createOrder($new, $ineligible, 'AG-GROUP-EARN-NO');
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $eligibleEarningOrder->id])
+            ->set('form.status_id', $paid->id)
+            ->call('updateStatus')
+            ->assertHasNoErrors();
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $ineligibleEarningOrder->id])
+            ->set('form.status_id', $paid->id)
+            ->call('updateStatus')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'event_key' => 'order:'.$eligibleEarningOrder->id.':settlement',
+            'points' => 125,
+        ]);
+        $this->assertDatabaseMissing('loyalty_transactions', [
+            'event_key' => 'order:'.$ineligibleEarningOrder->id.':settlement',
+        ]);
+
+        LoyaltyTransaction::query()->create([
+            'user_id' => $ineligible->id,
+            'order_id' => null,
+            'event_key' => 'legacy-b2b-points:'.$ineligible->id,
+            'type' => 'manual_adjustment',
+            'points' => 200,
+            'note' => 'Legacy balance before eligibility restriction.',
+            'payload' => null,
+            'created_by' => $admin->id,
+        ]);
+
+        $eligibleRedemptionOrder = $this->createOrder($new, $eligible, 'AG-GROUP-REDEEM-YES');
+        $ineligibleRedemptionOrder = $this->createOrder($new, $ineligible, 'AG-GROUP-REDEEM-NO');
+
+        $this->actingAs($admin)
+            ->get('/admin/orders/'.$eligibleRedemptionOrder->id.'/show')
+            ->assertOk()
+            ->assertSee('wire:click="applyLoyaltyRedemption"', false);
+
+        $this->actingAs($admin)
+            ->get('/admin/orders/'.$ineligibleRedemptionOrder->id.'/show')
+            ->assertOk()
+            ->assertDontSee('wire:click="applyLoyaltyRedemption"', false);
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $eligibleRedemptionOrder->id])
+            ->set('redeemPoints', 50)
+            ->call('applyLoyaltyRedemption')
+            ->assertHasNoErrors();
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $ineligibleRedemptionOrder->id])
+            ->set('redeemPoints', 50)
+            ->call('applyLoyaltyRedemption')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'event_key' => 'order:'.$eligibleRedemptionOrder->id.':redemption',
+            'points' => -50,
+        ]);
+        $this->assertDatabaseHas('orders', [
+            'id' => $eligibleRedemptionOrder->id,
+            'discount_total' => 0.50,
+            'grand_total' => 124.39,
+        ]);
+        $this->assertDatabaseMissing('loyalty_transactions', [
+            'event_key' => 'order:'.$ineligibleRedemptionOrder->id.':redemption',
+        ]);
+        $this->assertDatabaseHas('orders', [
+            'id' => $ineligibleRedemptionOrder->id,
+            'discount_total' => 0.00,
+            'grand_total' => 124.89,
+        ]);
+    }
+
+    public function test_cancellation_reconciles_existing_points_after_customer_becomes_ineligible(): void
+    {
+        $retail = CustomerGroup::query()->create([
+            'code' => 'retail-reconciliation',
+            'name' => 'Retail Reconciliation',
+            'is_active' => true,
+            'is_default' => true,
+            'sort_order' => 10,
+        ]);
+        $b2b = CustomerGroup::query()->create([
+            'code' => 'b2b-reconciliation',
+            'name' => 'B2B Reconciliation',
+            'is_active' => true,
+            'is_default' => false,
+            'sort_order' => 20,
+        ]);
+
+        app(SystemSettingsService::class)->putMany([
+            'user_loyalty_enabled' => true,
+            'loyalty_points_per_currency' => 1.0,
+            'loyalty_min_order_total' => 0.0,
+            'loyalty_reversal_mode' => 'zero_out',
+            'loyalty_customer_group_ids' => [$retail->id],
+        ]);
+
+        $admin = $this->makeUserWithRole('admin');
+        $customer = $this->makeUserWithRole('customer');
+        $customer->customerGroups()->attach($retail->id);
+        $new = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        $paid = $this->createStatus(code: 'paid', name: 'Paid', isPaid: true, sortOrder: 2);
+        $cancelled = $this->createStatus(code: 'cancelled', name: 'Cancelled', isCancelled: true, sortOrder: 3);
+        $order = $this->createOrder($new, $customer, 'AG-GROUP-RECONCILE');
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $order->id])
+            ->set('form.status_id', $paid->id)
+            ->call('updateStatus')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'event_key' => 'order:'.$order->id.':settlement',
+            'points' => 125,
+        ]);
+
+        app(SystemSettingsService::class)->put('loyalty_customer_group_ids', [$b2b->id]);
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $order->id])
+            ->set('form.status_id', $cancelled->id)
+            ->call('updateStatus')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'event_key' => 'order:'.$order->id.':settlement',
+            'points' => 0,
+        ]);
+        $this->assertSame(0, (int) LoyaltyTransaction::query()->where('user_id', $customer->id)->sum('points'));
+
+        app(SystemSettingsService::class)->put('loyalty_customer_group_ids', [$retail->id]);
+        app(LoyaltyService::class)->syncOrderSettlement($order->fresh());
+
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'event_key' => 'order:'.$order->id.':settlement',
+            'points' => 0,
+        ]);
+        $this->assertSame(0, (int) LoyaltyTransaction::query()->where('user_id', $customer->id)->sum('points'));
     }
 
     public function test_loyalty_reversal_creates_separate_negative_entry_when_mode_is_separate_entry(): void
@@ -362,12 +621,20 @@ class OrdersFeatureTest extends TestCase
         app(SystemSettingsService::class)->putMany([
             'user_loyalty_enabled' => true,
             'loyalty_points_per_currency' => 1.0,
+            'loyalty_currency_value_per_point' => 1.0,
             'loyalty_min_order_total' => 0.0,
+            'loyalty_customer_group_ids' => [],
         ]);
 
         $admin = $this->makeUserWithRole('admin');
         $status = $this->createStatus(code: 'new', name: 'New', isDefault: true);
         $order = $this->createOrder($status, $admin, 'AG-TEST-0010');
+        $order->totals()->create([
+            'code' => 'grand_total',
+            'title' => 'Grand Total',
+            'value' => 124.89,
+            'sort_order' => 900,
+        ]);
 
         LoyaltyTransaction::query()->create([
             'user_id' => $admin->id,
@@ -396,11 +663,21 @@ class OrdersFeatureTest extends TestCase
             'code' => 'loyalty_redemption',
             'value' => -50.00,
         ]);
+        $this->assertDatabaseHas('order_totals', [
+            'order_id' => $order->id,
+            'code' => 'grand_total',
+            'value' => 74.89,
+        ]);
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
             'discount_total' => 50.00,
             'grand_total' => 74.89,
         ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/orders/'.$order->id.'/invoice')
+            ->assertOk()
+            ->assertSee(__('Loyalty Redemption'));
 
         Livewire::actingAs($admin)
             ->test(OrderShow::class, ['orderId' => $order->id])
@@ -420,6 +697,11 @@ class OrdersFeatureTest extends TestCase
             'discount_total' => 0.00,
             'grand_total' => 124.89,
         ]);
+        $this->assertDatabaseHas('order_totals', [
+            'order_id' => $order->id,
+            'code' => 'grand_total',
+            'value' => 124.89,
+        ]);
 
         $this->assertTrue(
             Activity::query()
@@ -436,6 +718,7 @@ class OrdersFeatureTest extends TestCase
         app(SystemSettingsService::class)->putMany([
             'user_loyalty_enabled' => true,
             'loyalty_points_per_currency' => 2.0,
+            'loyalty_currency_value_per_point' => 0.5,
             'loyalty_min_order_total' => 0.0,
         ]);
 
@@ -468,6 +751,83 @@ class OrdersFeatureTest extends TestCase
             'id' => $order->id,
             'discount_total' => 15.00,
             'grand_total' => 109.89,
+        ]);
+    }
+
+    public function test_loyalty_earning_and_redemption_rates_are_independent(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'user_loyalty_enabled' => true,
+            'loyalty_points_per_currency' => 2.0,
+            'loyalty_currency_value_per_point' => 0.01,
+            'loyalty_min_order_total' => 0.0,
+        ]);
+
+        $admin = $this->makeUserWithRole('admin');
+        $new = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        $paid = $this->createStatus(code: 'paid', name: 'Paid', isPaid: true, sortOrder: 2);
+        $earningOrder = $this->createOrder($new, $admin, 'AG-TEST-RATES-EARN');
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $earningOrder->id])
+            ->set('form.status_id', $paid->id)
+            ->call('updateStatus')
+            ->assertHasNoErrors();
+
+        $redemptionOrder = $this->createOrder($new, $admin, 'AG-TEST-RATES-REDEEM');
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $redemptionOrder->id])
+            ->set('redeemPoints', 100)
+            ->call('applyLoyaltyRedemption')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'event_key' => 'order:'.$earningOrder->id.':settlement',
+            'points' => 250,
+        ]);
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'event_key' => 'order:'.$redemptionOrder->id.':redemption',
+            'points' => -100,
+        ]);
+        $this->assertDatabaseHas('orders', [
+            'id' => $redemptionOrder->id,
+            'discount_total' => 1.00,
+            'grand_total' => 123.89,
+        ]);
+    }
+
+    public function test_adding_a_note_does_not_recalculate_existing_loyalty_settlement(): void
+    {
+        app(SystemSettingsService::class)->putMany([
+            'user_loyalty_enabled' => true,
+            'loyalty_points_per_currency' => 1.0,
+            'loyalty_min_order_total' => 0.0,
+        ]);
+
+        $admin = $this->makeUserWithRole('admin');
+        $new = $this->createStatus(code: 'new', name: 'New', isDefault: true);
+        $paid = $this->createStatus(code: 'paid', name: 'Paid', isPaid: true, sortOrder: 2);
+        $order = $this->createOrder($new, $admin, 'AG-TEST-NOTE-1');
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $order->id])
+            ->set('form.status_id', $paid->id)
+            ->call('updateStatus')
+            ->assertHasNoErrors();
+
+        app(SystemSettingsService::class)->put('loyalty_points_per_currency', 2.0);
+
+        Livewire::actingAs($admin)
+            ->test(OrderShow::class, ['orderId' => $order->id])
+            ->set('form.status_id', $paid->id)
+            ->set('form.comment', 'Administrative note only.')
+            ->call('updateStatus')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'event_key' => 'order:'.$order->id.':settlement',
+            'points' => 125,
         ]);
     }
 

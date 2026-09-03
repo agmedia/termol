@@ -128,7 +128,7 @@ return [
             'open_navigation' => 'Open navigation',
             'close_navigation' => 'Close navigation',
             'newsletter' => [
-                'club' => 'BALI LOYALTY',
+                'club' => 'BALI NEWSLETTER',
                 'title' => 'Newsletter signup for 10% off your first purchase',
                 'subtitle' => 'We occasionally send updates and special offers.',
                 'placeholder' => 'Enter your email address',
@@ -753,8 +753,8 @@ return [
                 'spent' => 'Total spent',
             ],
             'usage' => [
-                'title' => 'Points usage conditions',
-                'min_order' => 'Points can be used for orders from at least :amount.',
+                'title' => 'How points work',
+                'min_order' => 'Points are earned only on orders totaling at least :amount.',
                 'instant' => 'Points are available immediately after booking.',
             ],
             'table' => [

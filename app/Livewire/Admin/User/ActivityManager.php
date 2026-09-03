@@ -48,7 +48,7 @@ class ActivityManager extends Component
         );
         $loyaltyEnabled = (bool) $settings->get(
             'user_loyalty_enabled',
-            (bool) config('user_features.flags.user_loyalty_enabled', true)
+            (bool) config('user_features.flags.user_loyalty_enabled', false)
         );
 
         if (! $loyaltyEnabled && $this->source === 'loyalty') {

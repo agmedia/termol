@@ -37,7 +37,7 @@ return [
             'bullets' => [
                 'Use range selector to switch between today, 7d and 30d snapshots.',
                 'Order pipeline cards open Orders with prefilled status/date filters.',
-                'Loyalty and tracking sections are hidden automatically when their feature flags are off.',
+                'Optional dashboard sections are hidden automatically when their feature flags are off.',
             ],
         ],
         'admin.categories' => [
@@ -134,7 +134,8 @@ return [
             'bullets' => [
                 'Disable User Tracking to stop writing tracking events.',
                 'Disable Loyalty System to stop order loyalty settlement updates.',
-                'Points per currency and minimum order total control loyalty awarding threshold.',
+                'Points per currency sets the earning rate, minimum order total sets the earning threshold, and value per point controls the redemption discount.',
+                'Eligible customer groups limit who can earn and use points; an empty selection allows every group.',
             ],
         ],
         'admin.users.access' => [
@@ -362,16 +363,14 @@ return [
                         '1) Verify customer, payment and shipping snapshots.',
                         '2) Check line items and total rows.',
                         '3) Use quick status actions when needed (Paid, Sent, Cancelled).',
-                        '4) Apply loyalty redemption points if customer wants to spend balance.',
-                        '5) Add/remove internal tags for operational routing.',
-                        '6) Set target status + note and verify entry in Status Timeline.',
+                        '4) Add/remove internal tags for operational routing.',
+                        '5) Set target status + note and verify entry in Status Timeline.',
                     ],
                 ],
             ],
             'bullets' => [
                 'Status updates create history rows for audit traceability.',
                 'Paid statuses automatically fill paid_at when empty.',
-                'Loyalty redemption writes negative order_redemption ledger rows and updates order totals.',
                 'Internal tags are stored in order payload under internal_tags.',
                 'Invoice / Print opens a print-focused order document view.',
             ],
@@ -429,7 +428,6 @@ return [
             'summary' => 'Read admin activity log and user tracking events from one screen.',
             'bullets' => [
                 'Admin Activity source reads Spatie activity log.',
-                'Loyalty Audit source isolates loyalty settlement/reversal/redemption events.',
                 'User Tracking source reads front/user interest events.',
                 'Use search by user/email/event/url for quick incident tracing.',
             ],

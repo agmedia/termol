@@ -37,20 +37,35 @@ use Silber\Bouncer\BouncerFacade as Bouncer;
 class DummyWebshopSeeder extends Seeder
 {
     private const TARGET_USERS = 500;
+
     private const TARGET_CATALOG_CATEGORIES = 78;
+
     private const TARGET_BLOG_CATEGORIES = 14;
+
     private const TARGET_PAGE_CATEGORIES = 8;
+
     private const TARGET_PRODUCTS = 1000;
+
     private const TARGET_MANUFACTURERS = 30;
+
     private const TARGET_BLOG_POSTS = 200;
+
     private const TARGET_INFO_PAGES = 24;
+
     private const TARGET_FAQS = 20;
+
     private const TARGET_COMMENTS = 500;
+
     private const TARGET_ORDERS = 3000;
+
     private const TARGET_CONTENT_BLOCKS = 24;
+
     private const TARGET_CONTENT_SLOTS = 60;
+
     private const TARGET_OPTIONS = 12;
+
     private const TARGET_ATTRIBUTES = 60;
+
     private const TARGET_USER_TRACKING_EVENTS = 6000;
 
     /**
@@ -132,9 +147,17 @@ class DummyWebshopSeeder extends Seeder
         $this->note('Seeding comments.');
         $this->seedComments($productIds, $blogIds, $pageIds, $faqIds, $customerUserIds);
 
-        $this->note('Seeding user tracking and loyalty entries.');
+        $this->note('Seeding user tracking entries.');
         $this->seedUserTracking($customerUserIds, $productIds, $blogIds, $pageIds);
-        $this->seedLoyaltyTransactions();
+
+        $loyaltyEnabled = (bool) app(SystemSettingsService::class)->get(
+            'user_loyalty_enabled',
+            (bool) config('user_features.flags.user_loyalty_enabled', false)
+        );
+        if ($loyaltyEnabled) {
+            $this->note('Seeding loyalty entries.');
+            $this->seedLoyaltyTransactions();
+        }
 
         $this->note('Dummy webshop data seeding complete.');
     }
@@ -471,11 +494,13 @@ class DummyWebshopSeeder extends Seeder
         if ($roots->isNotEmpty() && $this->chance(80)) {
             /** @var Category $root */
             $root = $roots->random();
+
             return $root;
         }
 
         /** @var Category $any */
         $any = $categories->random();
+
         return $any;
     }
 
@@ -691,10 +716,10 @@ class DummyWebshopSeeder extends Seeder
     }
 
     /**
-     * @param array<int, int> $catalogCategoryIds
-     * @param array<int, int> $manufacturerIds
-     * @param array<int, int> $attributeIds
-     * @param array<int, array{option_id:int,value_ids:array<int,int>}> $optionPool
+     * @param  array<int, int>  $catalogCategoryIds
+     * @param  array<int, int>  $manufacturerIds
+     * @param  array<int, int>  $attributeIds
+     * @param  array<int, array{option_id:int,value_ids:array<int,int>}>  $optionPool
      * @return array<int, int>
      */
     private function seedProducts(
@@ -789,8 +814,8 @@ class DummyWebshopSeeder extends Seeder
     }
 
     /**
-     * @param array<int, int> $productIds
-     * @param array<int, int> $attributeIds
+     * @param  array<int, int>  $productIds
+     * @param  array<int, int>  $attributeIds
      */
     private function seedProductAttributes(array $productIds, array $attributeIds): void
     {
@@ -805,7 +830,7 @@ class DummyWebshopSeeder extends Seeder
         foreach ($selectedProductIds as $productId) {
             /** @var Product|null $product */
             $product = $products->get((int) $productId);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -821,8 +846,8 @@ class DummyWebshopSeeder extends Seeder
     }
 
     /**
-     * @param array<int, int> $productIds
-     * @param array<int, array{option_id:int,value_ids:array<int,int>}> $optionPool
+     * @param  array<int, int>  $productIds
+     * @param  array<int, array{option_id:int,value_ids:array<int,int>}>  $optionPool
      */
     private function seedProductOptions(array $productIds, array $optionPool): void
     {
@@ -837,7 +862,7 @@ class DummyWebshopSeeder extends Seeder
         foreach ($selectedProductIds as $productId) {
             /** @var Product|null $product */
             $product = $products->get((int) $productId);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -887,10 +912,10 @@ class DummyWebshopSeeder extends Seeder
     }
 
     /**
-     * @param array<int, int> $productIds
-     * @param array<int, int> $categoryIds
-     * @param array<int, int> $manufacturerIds
-     * @param array<int, int> $customerUserIds
+     * @param  array<int, int>  $productIds
+     * @param  array<int, int>  $categoryIds
+     * @param  array<int, int>  $manufacturerIds
+     * @param  array<int, int>  $customerUserIds
      */
     private function seedActions(
         array $productIds,
@@ -975,7 +1000,7 @@ class DummyWebshopSeeder extends Seeder
                 ? $this->randomId($categoryIds)
                 : $this->randomId($manufacturerIds);
 
-            if (!$targetId) {
+            if (! $targetId) {
                 continue;
             }
 
@@ -1027,7 +1052,7 @@ class DummyWebshopSeeder extends Seeder
     }
 
     /**
-     * @param array<int, int> $blogCategoryIds
+     * @param  array<int, int>  $blogCategoryIds
      * @return array<int, int>
      */
     private function seedBlogPosts(array $blogCategoryIds): array
@@ -1099,7 +1124,7 @@ class DummyWebshopSeeder extends Seeder
     }
 
     /**
-     * @param array<int, int> $pageCategoryIds
+     * @param  array<int, int>  $pageCategoryIds
      * @return array<int, int>
      */
     private function seedInfoPages(array $pageCategoryIds): array
@@ -1233,10 +1258,10 @@ class DummyWebshopSeeder extends Seeder
     }
 
     /**
-     * @param array<string, array<int, string>> $categoryCodesByScope
-     * @param array<int, string> $productCodes
-     * @param array<int, string> $blogCodes
-     * @param array<int, string> $pageCodes
+     * @param  array<string, array<int, string>>  $categoryCodesByScope
+     * @param  array<int, string>  $productCodes
+     * @param  array<int, string>  $blogCodes
+     * @param  array<int, string>  $pageCodes
      */
     private function seedContentBlocksAndSlots(
         array $categoryCodesByScope,
@@ -1338,8 +1363,8 @@ class DummyWebshopSeeder extends Seeder
     }
 
     /**
-     * @param array<int, int> $productIds
-     * @param array<int, int> $customerUserIds
+     * @param  array<int, int>  $productIds
+     * @param  array<int, int>  $customerUserIds
      */
     private function seedOrders(array $productIds, array $customerUserIds): void
     {
@@ -1540,11 +1565,11 @@ class DummyWebshopSeeder extends Seeder
     }
 
     /**
-     * @param array<int, int> $productIds
-     * @param array<int, int> $blogIds
-     * @param array<int, int> $pageIds
-     * @param array<int, int> $faqIds
-     * @param array<int, int> $customerUserIds
+     * @param  array<int, int>  $productIds
+     * @param  array<int, int>  $blogIds
+     * @param  array<int, int>  $pageIds
+     * @param  array<int, int>  $faqIds
+     * @param  array<int, int>  $customerUserIds
      */
     private function seedComments(
         array $productIds,
@@ -1580,7 +1605,7 @@ class DummyWebshopSeeder extends Seeder
         for ($i = 0; $i < $toCreate; $i++) {
             $target = $typePool[array_rand($typePool)];
             $commentableId = $this->randomId($target['ids']);
-            if (!$commentableId) {
+            if (! $commentableId) {
                 continue;
             }
 
@@ -1616,10 +1641,10 @@ class DummyWebshopSeeder extends Seeder
     }
 
     /**
-     * @param array<int, int> $customerUserIds
-     * @param array<int, int> $productIds
-     * @param array<int, int> $blogIds
-     * @param array<int, int> $pageIds
+     * @param  array<int, int>  $customerUserIds
+     * @param  array<int, int>  $productIds
+     * @param  array<int, int>  $blogIds
+     * @param  array<int, int>  $pageIds
      */
     private function seedUserTracking(
         array $customerUserIds,
@@ -1782,7 +1807,7 @@ class DummyWebshopSeeder extends Seeder
             'catalog_use_manufacturers' => true,
             'catalog_use_actions' => true,
             'user_tracking_enabled' => true,
-            'user_loyalty_enabled' => true,
+            'user_loyalty_enabled' => false,
         ]);
     }
 
@@ -1804,7 +1829,7 @@ class DummyWebshopSeeder extends Seeder
     }
 
     /**
-     * @param array<int, string> $values
+     * @param  array<int, string>  $values
      */
     private function nextIndexByPattern(array $values, string $pattern): int
     {
@@ -1821,7 +1846,8 @@ class DummyWebshopSeeder extends Seeder
 
     /**
      * @template T
-     * @param array<int, T> $items
+     *
+     * @param  array<int, T>  $items
      * @return array<int, T>
      */
     private function pickMany(array $items, int $count): array
@@ -1845,7 +1871,7 @@ class DummyWebshopSeeder extends Seeder
     }
 
     /**
-     * @param array<int, int> $ids
+     * @param  array<int, int>  $ids
      */
     private function randomId(array $ids): ?int
     {
@@ -1858,7 +1884,8 @@ class DummyWebshopSeeder extends Seeder
 
     /**
      * @template T
-     * @param array<int, T> $values
+     *
+     * @param  array<int, T>  $values
      * @return T|null
      */
     private function randomValue(array $values): mixed

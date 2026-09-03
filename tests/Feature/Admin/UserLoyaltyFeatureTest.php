@@ -6,6 +6,7 @@ use App\Livewire\Admin\User\LoyaltyManager;
 use App\Models\Sales\Order\Order;
 use App\Models\Settings\Local\OrderStatus;
 use App\Models\User;
+use App\Models\User\CustomerGroup;
 use App\Models\User\LoyaltyTransaction;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,7 +27,8 @@ class UserLoyaltyFeatureTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/users/loyalty')
             ->assertOk()
-            ->assertSee('User Loyalty');
+            ->assertSee('User Loyalty')
+            ->assertSee(__('Order Redemption'));
     }
 
     public function test_loyalty_page_redirects_to_settings_when_switch_disabled(): void
@@ -71,16 +73,9 @@ class UserLoyaltyFeatureTest extends TestCase
 
         $order = $this->createOrder($status, $userA, 'AG-FLTR-0001');
 
-        $aTx = LoyaltyTransaction::query()->create([
-            'user_id' => $userA->id,
-            'order_id' => $order->id,
-            'event_key' => 'order:'.$order->id.':settlement',
-            'type' => 'order_settlement',
-            'points' => 120,
-            'note' => 'Auto settlement',
-            'payload' => null,
-            'created_by' => $admin->id,
-        ]);
+        $aTx = LoyaltyTransaction::query()
+            ->where('event_key', 'order:'.$order->id.':settlement')
+            ->firstOrFail();
 
         $bTx = LoyaltyTransaction::query()->create([
             'user_id' => $userB->id,
@@ -106,7 +101,7 @@ class UserLoyaltyFeatureTest extends TestCase
             ->set('maxPoints', '200')
             ->assertSee('Alice Filter')
             ->assertSee('AG-FLTR-0001')
-            ->assertSee('120')
+            ->assertSee('125')
             ->assertDontSee('Manual correction');
     }
 
@@ -148,6 +143,92 @@ class UserLoyaltyFeatureTest extends TestCase
             'note' => 'Manual correction after phone support.',
             'created_by' => $admin->id,
         ]);
+    }
+
+    public function test_manual_adjustment_rejects_an_order_owned_by_another_user(): void
+    {
+        app(SystemSettingsService::class)->put('user_loyalty_enabled', true);
+
+        $admin = $this->makeUserWithRole('admin');
+        $target = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $status = OrderStatus::query()->create([
+            'code' => 'new',
+            'name' => 'New',
+            'color' => 'slate',
+            'is_default' => true,
+            'is_paid' => false,
+            'is_cancelled' => false,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        $otherOrder = $this->createOrder($status, $otherUser, 'AG-MISMATCH-0001');
+
+        Livewire::actingAs($admin)
+            ->test(LoyaltyManager::class)
+            ->set('adjustment.user_id', $target->id)
+            ->set('adjustment.order_id', $otherOrder->id)
+            ->set('adjustment.points', 30)
+            ->set('adjustment.reason', 'Must not link another customer order.')
+            ->call('saveManualAdjustment')
+            ->assertHasErrors(['adjustment.order_id']);
+
+        $this->assertDatabaseCount('loyalty_transactions', 0);
+    }
+
+    public function test_manual_adjustment_cannot_be_saved_after_loyalty_is_disabled(): void
+    {
+        app(SystemSettingsService::class)->put('user_loyalty_enabled', false);
+
+        $admin = $this->makeUserWithRole('admin');
+        $target = User::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(LoyaltyManager::class)
+            ->set('adjustment.user_id', $target->id)
+            ->set('adjustment.points', 30)
+            ->set('adjustment.reason', 'Must not write while disabled.')
+            ->call('saveManualAdjustment')
+            ->assertDispatched('notify');
+
+        $this->assertDatabaseCount('loyalty_transactions', 0);
+    }
+
+    public function test_manual_adjustment_rejects_a_user_outside_eligible_customer_groups(): void
+    {
+        $retail = CustomerGroup::query()->create([
+            'code' => 'retail-loyalty',
+            'name' => 'Retail Loyalty',
+            'is_active' => true,
+            'is_default' => true,
+            'sort_order' => 10,
+        ]);
+        $b2b = CustomerGroup::query()->create([
+            'code' => 'b2b-no-loyalty',
+            'name' => 'B2B No Loyalty',
+            'is_active' => true,
+            'is_default' => false,
+            'sort_order' => 20,
+        ]);
+
+        app(SystemSettingsService::class)->putMany([
+            'user_loyalty_enabled' => true,
+            'loyalty_customer_group_ids' => [$retail->id],
+        ]);
+
+        $admin = $this->makeUserWithRole('admin');
+        $target = User::factory()->create();
+        $target->customerGroups()->attach($b2b->id);
+
+        Livewire::actingAs($admin)
+            ->test(LoyaltyManager::class)
+            ->set('adjustment.user_id', $target->id)
+            ->set('adjustment.points', 30)
+            ->set('adjustment.reason', 'Must reject an ineligible account.')
+            ->call('saveManualAdjustment')
+            ->assertHasErrors(['adjustment.user_id']);
+
+        $this->assertDatabaseCount('loyalty_transactions', 0);
     }
 
     public function test_loyalty_manager_can_boot_with_user_scope_query(): void

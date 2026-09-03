@@ -5,9 +5,11 @@ namespace App\Livewire\Admin\User;
 use App\Models\Sales\Order\Order;
 use App\Models\User;
 use App\Models\User\LoyaltyTransaction;
+use App\Services\Loyalty\LoyaltyService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -19,13 +21,21 @@ class LoyaltyManager extends Component
     private const PAGE_NAME = 'userLoyaltyPage';
 
     public string $search = '';
+
     public string $userId = '';
+
     public string $type = 'all';
+
     public string $dateFrom = '';
+
     public string $dateTo = '';
+
     public string $minPoints = '';
+
     public string $maxPoints = '';
+
     public string $adjustUserSearch = '';
+
     public string $adjustOrderSearch = '';
 
     /**
@@ -92,9 +102,22 @@ class LoyaltyManager extends Component
             403
         );
 
+        $loyaltyService = app(LoyaltyService::class);
+        if (! $loyaltyService->enabled()) {
+            $this->dispatch('notify', type: 'warning', message: __('Loyalty system is disabled.'));
+
+            return;
+        }
+
         $validated = $this->validate([
             'adjustment.user_id' => ['required', 'integer', 'exists:users,id'],
-            'adjustment.order_id' => ['nullable', 'integer', 'exists:orders,id'],
+            'adjustment.order_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('orders', 'id')->where(
+                    fn ($query) => $query->where('user_id', (int) ($this->adjustment['user_id'] ?? 0))
+                ),
+            ],
             'adjustment.points' => ['required', 'integer', 'not_in:0', 'min:-1000000', 'max:1000000'],
             'adjustment.reason' => ['required', 'string', 'min:3', 'max:400'],
         ]);
@@ -103,6 +126,13 @@ class LoyaltyManager extends Component
         $orderId = $validated['adjustment']['order_id'] ? (int) $validated['adjustment']['order_id'] : null;
         $points = (int) $validated['adjustment']['points'];
         $reason = trim((string) $validated['adjustment']['reason']);
+
+        if (! $loyaltyService->availableForUser($userId)) {
+            $this->addError('adjustment.user_id', __('Selected user is not eligible for loyalty.'));
+            $this->dispatch('notify', type: 'warning', message: __('Selected user is not eligible for loyalty.'));
+
+            return;
+        }
 
         LoyaltyTransaction::query()->create([
             'user_id' => $userId,
@@ -227,6 +257,7 @@ class LoyaltyManager extends Component
         return [
             'all' => __('All Types'),
             'order_settlement' => __('Order Settlement'),
+            'order_redemption' => __('Order Redemption'),
             'order_reversal' => __('Order Reversal'),
             'manual_adjustment' => __('Manual Adjustment'),
         ];
@@ -234,7 +265,15 @@ class LoyaltyManager extends Component
 
     public function getAdjustUserOptionsProperty()
     {
+        $eligibleGroupIds = app(LoyaltyService::class)->eligibleCustomerGroupIds();
+
         return User::query()
+            ->when($eligibleGroupIds !== [], function (Builder $builder) use ($eligibleGroupIds): void {
+                $builder->whereHas('customerGroups', function (Builder $groupQuery) use ($eligibleGroupIds): void {
+                    $groupQuery->whereIn('customer_groups.id', $eligibleGroupIds)
+                        ->where('customer_groups.is_active', true);
+                });
+            })
             ->when($this->adjustUserSearch !== '', function (Builder $builder): void {
                 $builder->where(function (Builder $q): void {
                     $q->where('name', 'like', '%'.$this->adjustUserSearch.'%')
@@ -248,7 +287,12 @@ class LoyaltyManager extends Component
 
     public function getAdjustOrderOptionsProperty()
     {
+        $selectedUserId = is_numeric($this->adjustment['user_id'] ?? null)
+            ? (int) $this->adjustment['user_id']
+            : 0;
+
         return Order::query()
+            ->where('user_id', $selectedUserId)
             ->when($this->adjustOrderSearch !== '', function (Builder $builder): void {
                 $builder->where(function (Builder $q): void {
                     $q->where('order_number', 'like', '%'.$this->adjustOrderSearch.'%')

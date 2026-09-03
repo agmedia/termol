@@ -12,6 +12,10 @@
     @php
         $boxNow = is_array($order->payload['shipping']['boxnow'] ?? null) ? $order->payload['shipping']['boxnow'] : null;
         $glsPoint = is_array($order->payload['shipping']['gls_dpm'] ?? null) ? $order->payload['shipping']['gls_dpm'] : null;
+        $loyaltyAvailable = app(\App\Services\Loyalty\LoyaltyService::class)->availableForUser($order->user_id);
+        $visibleTotals = $loyaltyAvailable
+            ? $order->totals
+            : $order->totals->reject(fn ($total) => $total->code === 'loyalty_redemption');
     @endphp
 
     <section class="front-soft-hero mb-8 px-4 py-6 text-center sm:px-6">
@@ -110,7 +114,7 @@
                 <section class="border border-slate-200 bg-white p-6">
                     <div class="space-y-2 text-sm">
                         <h2 class="text-lg font-semibold text-slate-900">{{ __('ui.account.order_show.totals.title') }}</h2>
-                        @foreach ($order->totals as $total)
+                        @foreach ($visibleTotals as $total)
                             @php
                                 $labelRaw = trim((string) $total->title);
                                 $labelKey = strtolower(str_replace([' ', '-'], '_', $labelRaw));
@@ -119,6 +123,7 @@
                                     'shipping' => __('ui.account.order_show.totals.labels.shipping'),
                                     'payment_fee' => __('ui.account.order_show.totals.labels.payment_fee'),
                                     'tax' => __('ui.account.order_show.totals.labels.tax'),
+                                    'loyalty_redemption' => __('Loyalty Redemption'),
                                     'grand_total' => __('ui.account.order_show.totals.labels.grand_total'),
                                 ];
                                 $totalLabel = $labelMap[$labelKey] ?? $labelRaw;

@@ -8,6 +8,7 @@ use App\Models\Catalog\Product\ProductOptionValue;
 use App\Models\Content\ContentBlock;
 use App\Models\Content\ContentBlockSlot;
 use App\Models\Content\ContentBlockTranslation;
+use App\Models\Sales\Order\Order;
 use App\Models\Settings\Local\Currency;
 use App\Models\Settings\Local\GeoZone;
 use App\Models\Settings\Local\GeoZoneCountry;
@@ -20,6 +21,7 @@ use App\Observers\Catalog\ProductGroupPriceObserver;
 use App\Observers\Catalog\ProductOptionValuePriceObserver;
 use App\Observers\Catalog\ProductPriceObserver;
 use App\Observers\Content\ContentCacheObserver;
+use App\Observers\Sales\OrderLoyaltyObserver;
 use App\Observers\Settings\LocalSettingObserver;
 use App\Services\Catalog\CatalogFeatureService;
 use App\Services\Content\ContentBlockResolver;
@@ -299,6 +301,7 @@ class AppServiceProvider extends ServiceProvider
         TaxRate::observe(LocalSettingObserver::class);
         OrderStatus::observe(LocalSettingObserver::class);
         Language::observe(LocalSettingObserver::class);
+        Order::observe(OrderLoyaltyObserver::class);
 
         ContentBlock::observe(ContentCacheObserver::class);
         ContentBlockTranslation::observe(ContentCacheObserver::class);

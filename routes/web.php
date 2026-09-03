@@ -46,7 +46,7 @@ use App\Models\User;
 use App\Models\User\CustomerGroup;
 use App\Models\User\LoyaltyTransaction;
 use App\Models\User\UserTrackingEvent;
-use App\Services\Settings\SystemSettingsService;
+use App\Services\Loyalty\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -416,7 +416,7 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
                 'roles:id,name,title',
                 'profile',
                 'addresses',
-                'customerGroups:id,name',
+                'customerGroups:id,name,is_active',
                 'b2bAccount.customerGroup:id,name,code',
             ]);
             $adminActivity = Activity::query()
@@ -431,10 +431,7 @@ Route::middleware(['admin.locale', 'auth', 'verified', 'admin.access', 'admin.ma
                 ->limit(12)
                 ->get();
 
-            $loyaltyEnabled = (bool) app(SystemSettingsService::class)->get(
-                'user_loyalty_enabled',
-                (bool) config('user_features.flags.user_loyalty_enabled', true)
-            );
+            $loyaltyEnabled = app(LoyaltyService::class)->availableForUser($user);
 
             $loyaltyStats = [
                 'balance' => 0,

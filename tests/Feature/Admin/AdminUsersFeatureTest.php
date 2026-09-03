@@ -2,13 +2,14 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Livewire\Admin\User\ActivityManager;
 use App\Livewire\Admin\User\Form as UserForm;
+use App\Livewire\Admin\User\Manager as UserManager;
 use App\Livewire\Admin\User\NewsletterSignupManager;
 use App\Models\Sales\Order\Order;
 use App\Models\Settings\Local\OrderStatus;
 use App\Models\User;
 use App\Models\User\CustomerGroup;
-use App\Models\User\LoyaltyTransaction;
 use App\Models\User\NewsletterSignup;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Schema\Blueprint;
@@ -253,23 +254,14 @@ class AdminUsersFeatureTest extends TestCase
         $this->assertContains('VIP', (array) $activity->getExtraProperty('groups'));
     }
 
-    public function test_users_index_and_show_include_loyalty_and_recent_orders_data(): void
+    public function test_users_index_and_show_include_loyalty_and_recent_orders_data_when_enabled(): void
     {
+        app(SystemSettingsService::class)->put('user_loyalty_enabled', true);
+
         $admin = $this->makeUserWithRole('admin');
         $target = $this->makeUserWithRole('customer');
         $status = $this->createStatus('paid', 'Paid', true, true, false, 1);
         $order = $this->createOrder($status, $target, 'AG-USR-LOY-0001');
-
-        LoyaltyTransaction::query()->create([
-            'user_id' => $target->id,
-            'order_id' => $order->id,
-            'event_key' => 'order:'.$order->id.':settlement',
-            'type' => 'order_settlement',
-            'points' => 125,
-            'note' => 'Test settlement.',
-            'payload' => null,
-            'created_by' => $admin->id,
-        ]);
 
         $this->actingAs($admin)
             ->get('/admin/users')
@@ -284,26 +276,102 @@ class AdminUsersFeatureTest extends TestCase
             ->assertSee('Loyalty')
             ->assertSee('AG-USR-LOY-0001')
             ->assertSee('125');
+
+        Livewire::actingAs($admin)
+            ->test(ActivityManager::class)
+            ->assertSee(__('Loyalty Audit'));
     }
 
-    public function test_loyalty_ui_is_hidden_when_feature_is_disabled(): void
+    public function test_loyalty_is_hidden_from_users_index_detail_and_sidebar_when_disabled(): void
     {
         app(SystemSettingsService::class)->put('user_loyalty_enabled', false);
 
         $admin = $this->makeUserWithRole('admin');
         $target = $this->makeUserWithRole('customer');
+        $status = $this->createStatus('paid', 'Paid', true, true, false, 1);
+        $this->createOrder($status, $target, 'AG-USR-NO-LOY-0001');
 
         $this->actingAs($admin)
             ->get('/admin/users')
             ->assertOk()
-            ->assertDontSee('/admin/users/loyalty', false)
-            ->assertDontSee('Loyalty</span>', false);
+            ->assertDontSee('href="'.route('admin.users.loyalty').'"', false);
+
+        Livewire::actingAs($admin)
+            ->test(UserManager::class)
+            ->assertDontSee(__('Loyalty'))
+            ->assertDontSee('/admin/users/loyalty', false);
 
         $this->actingAs($admin)
             ->get('/admin/users/'.$target->id.'/show')
             ->assertOk()
+            ->assertSee('AG-USR-NO-LOY-0001')
             ->assertDontSee('Loyalty Ledger')
             ->assertDontSee('admin-section-title">Loyalty', false);
+    }
+
+    public function test_loyalty_links_and_details_are_limited_to_eligible_customer_groups(): void
+    {
+        $retail = CustomerGroup::query()->create([
+            'code' => 'retail-loyalty',
+            'name' => 'Retail Loyalty',
+            'is_active' => true,
+            'is_default' => true,
+            'sort_order' => 10,
+        ]);
+        $b2b = CustomerGroup::query()->create([
+            'code' => 'b2b-no-loyalty',
+            'name' => 'B2B No Loyalty',
+            'is_active' => true,
+            'is_default' => false,
+            'sort_order' => 20,
+        ]);
+
+        app(SystemSettingsService::class)->putMany([
+            'user_loyalty_enabled' => true,
+            'loyalty_customer_group_ids' => [$retail->id],
+        ]);
+
+        $admin = $this->makeUserWithRole('admin');
+        $eligible = $this->makeUserWithRole('customer');
+        $ineligible = $this->makeUserWithRole('customer');
+        $eligible->customerGroups()->attach($retail->id);
+        $ineligible->customerGroups()->attach($b2b->id);
+
+        Livewire::actingAs($admin)
+            ->test(UserManager::class)
+            ->assertSee('/admin/users/loyalty?user_id='.$eligible->id, false)
+            ->assertDontSee('/admin/users/loyalty?user_id='.$ineligible->id, false);
+
+        $this->actingAs($admin)
+            ->get('/admin/users/'.$eligible->id.'/show')
+            ->assertOk()
+            ->assertSee(route('admin.users.loyalty', ['user_id' => $eligible->id]), false)
+            ->assertSee('admin-section-title">Loyalty', false);
+
+        $this->actingAs($admin)
+            ->get('/admin/users/'.$ineligible->id.'/show')
+            ->assertOk()
+            ->assertDontSee(route('admin.users.loyalty', ['user_id' => $ineligible->id]), false)
+            ->assertDontSee('admin-section-title">Loyalty', false);
+    }
+
+    public function test_loyalty_activity_source_is_hidden_and_cannot_remain_selected_when_disabled(): void
+    {
+        app(SystemSettingsService::class)->put('user_loyalty_enabled', false);
+
+        $admin = $this->makeUserWithRole('admin');
+
+        activity('loyalty')
+            ->causedBy($admin)
+            ->event('hidden_loyalty_event')
+            ->log('Hidden loyalty activity');
+
+        Livewire::actingAs($admin)
+            ->test(ActivityManager::class)
+            ->assertDontSee(__('Loyalty Audit'))
+            ->assertDontSee('Hidden loyalty activity')
+            ->set('source', 'loyalty')
+            ->assertSet('source', 'admin');
     }
 
     private function makeUserWithRole(string $role): User

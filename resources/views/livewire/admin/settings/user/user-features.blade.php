@@ -54,44 +54,79 @@
                 </div>
             </div>
 
-            <div>
-                <p class="admin-section-title">{{ __('Loyalty Rules') }}</p>
-                <div class="mt-3 grid gap-3 md:grid-cols-3">
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Points Per Currency Unit') }}</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            wire:model="form.loyalty_points_per_currency"
-                            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                        />
-                        @error('form.loyalty_points_per_currency') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            @if ((bool) ($form['user_loyalty_enabled'] ?? false))
+                <div>
+                    <p class="admin-section-title">{{ __('Loyalty Rules') }}</p>
+                    <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Points Per Currency Unit') }}</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                wire:model="form.loyalty_points_per_currency"
+                                class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                            />
+                            @error('form.loyalty_points_per_currency') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Minimum Order Total for Earning Points') }}</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                wire:model="form.loyalty_min_order_total"
+                                class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                            />
+                            @error('form.loyalty_min_order_total') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Value Per Point') }}</label>
+                            <input
+                                type="number"
+                                step="0.0001"
+                                min="0"
+                                wire:model="form.loyalty_currency_value_per_point"
+                                class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                            />
+                            @error('form.loyalty_currency_value_per_point') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Reversal Policy') }}</label>
+                            <select wire:model="form.loyalty_reversal_mode" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                                <option value="zero_out">{{ __('Zero out settlement row') }}</option>
+                                <option value="separate_entry">{{ __('Create separate reversal entry') }}</option>
+                            </select>
+                            @error('form.loyalty_reversal_mode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
                     </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Minimum Order Total') }}</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            wire:model="form.loyalty_min_order_total"
-                            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                        />
-                        @error('form.loyalty_min_order_total') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Reversal Policy') }}</label>
-                        <select wire:model="form.loyalty_reversal_mode" data-tom-select data-tom-no-search="1" class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                            <option value="zero_out">{{ __('Zero out settlement row') }}</option>
-                            <option value="separate_entry">{{ __('Create separate reversal entry') }}</option>
+                    <div class="mt-4 max-w-2xl">
+                        <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ __('Eligible Customer Groups') }}</label>
+                        <select
+                            wire:model="form.loyalty_customer_group_ids"
+                            multiple
+                            data-tom-select
+                            data-tom-placeholder="{{ __('All customer groups') }}"
+                            class="admin-select w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                        >
+                            @foreach (($customerGroupOptions ?? collect()) as $group)
+                                <option
+                                    value="{{ $group->id }}"
+                                    @selected(in_array((int) $group->id, array_map('intval', (array) ($form['loyalty_customer_group_ids'] ?? [])), true))
+                                >{{ $group->name }}</option>
+                            @endforeach
                         </select>
-                        @error('form.loyalty_reversal_mode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        <p class="mt-1 text-xs text-slate-500">{{ __('Choose which customer groups can earn and use points. Leave empty to allow all customer groups.') }}</p>
+                        @error('form.loyalty_customer_group_ids') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        @error('form.loyalty_customer_group_ids.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                        {{ __('Earning:') }} <code>round(order grand total * points per currency unit)</code>.
+                        {{ __('Redemption discount:') }} <code>redeemed points * value per point</code>.
+                        {{ __('Only paid, non-cancelled orders meeting the minimum total earn points. The reversal policy applies if an eligible order is later cancelled or refunded.') }}
                     </div>
                 </div>
-                <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                    {{ __('Award formula:') }} <code>round(order grand total * points per currency)</code>, {{ __('only when order status is marked paid and not cancelled. Reversal policy controls what happens when an awarded order moves to cancelled/refunded flow.') }}
-                </div>
-            </div>
+            @endif
 
             <div class="admin-form-actions flex items-center gap-2">
                 <button type="submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">{{ __('admin.common.save') }}</button>

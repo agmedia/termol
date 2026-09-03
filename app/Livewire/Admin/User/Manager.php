@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\User;
 
 use App\Models\User;
 use App\Models\User\CustomerGroup;
+use App\Services\Loyalty\LoyaltyService;
 use App\Services\Settings\SystemSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Component;
@@ -18,9 +19,13 @@ class Manager extends Component
     private const PAGE_NAME = 'adminUsersPage';
 
     public string $search = '';
+
     public string $role = '';
+
     public string $segment = '';
+
     public string $sortBy = 'created_at';
+
     public string $sortDir = 'desc';
 
     public function mount(): void
@@ -69,13 +74,11 @@ class Manager extends Component
             5,
             200
         );
-        $loyaltyEnabled = (bool) $settings->get(
-            'user_loyalty_enabled',
-            (bool) config('user_features.flags.user_loyalty_enabled', true)
-        );
+        $loyaltyService = app(LoyaltyService::class);
+        $loyaltyEnabled = $loyaltyService->enabled();
 
         $rowsQuery = User::query()
-            ->with(['roles:id,name,title', 'customerGroups:id,name'])
+            ->with(['roles:id,name,title', 'customerGroups:id,name,is_active'])
             ->when($this->search !== '', function (Builder $query): void {
                 $query->where(function (Builder $q): void {
                     $q->where('name', 'like', '%'.$this->search.'%')
@@ -101,6 +104,16 @@ class Manager extends Component
         $rows = $rowsQuery
             ->orderBy($this->sortBy, $this->sortDir)
             ->paginate($perPage, ['*'], self::PAGE_NAME);
+
+        foreach ($rows as $row) {
+            $available = $loyaltyService->availableForUser($row);
+            $row->setAttribute('loyalty_available', $available);
+
+            if (! $available) {
+                $row->setAttribute('loyalty_points_balance', null);
+                $row->setAttribute('loyalty_transactions_count', null);
+            }
+        }
 
         $roles = Role::query()
             ->when(! $this->canSeeSuperadminRole(), fn ($query) => $query->where('name', '!=', 'superadmin'))

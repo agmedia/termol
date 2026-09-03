@@ -13,7 +13,9 @@ use Livewire\Component;
 class Show extends Component
 {
     public int $orderId;
+
     public string $tagInput = '';
+
     public int $redeemPoints = 0;
 
     /**
@@ -41,6 +43,7 @@ class Show extends Component
         $comment = trim((string) ($validated['form']['comment'] ?? ''));
         if (! $this->applyStatusUpdate($toStatusId, $comment, 'admin')) {
             $this->dispatch('notify', type: 'info', message: __('No status change to save.'));
+
             return;
         }
 
@@ -56,6 +59,7 @@ class Show extends Component
 
         if (! $status) {
             $this->dispatch('notify', type: 'warning', message: __('Quick status is not available.'));
+
             return;
         }
 
@@ -68,6 +72,7 @@ class Show extends Component
 
         if (! $this->applyStatusUpdate((int) $status->id, $note, 'quick_action')) {
             $this->dispatch('notify', type: 'info', message: __('Order is already in selected quick status.'));
+
             return;
         }
 
@@ -124,6 +129,7 @@ class Show extends Component
 
         if (! $loyaltyService->enabled()) {
             $this->dispatch('notify', type: 'warning', message: __('Loyalty system is disabled.'));
+
             return;
         }
 
@@ -150,6 +156,7 @@ class Show extends Component
 
         if (! is_array($result)) {
             $this->dispatch('notify', type: 'warning', message: __('Loyalty redemption requires an assigned user.'));
+
             return;
         }
 
@@ -197,7 +204,7 @@ class Show extends Component
             ->get(['id', 'name', 'code', 'color']);
 
         $loyaltyService = app(LoyaltyService::class);
-        $loyaltyEnabled = $loyaltyService->enabled();
+        $loyaltyEnabled = $loyaltyService->availableForUser($order->user_id);
         $bankTransfer = app(BankTransferUpiService::class)->ensureForOrder($order);
         $currencyValuePerPoint = $loyaltyEnabled ? $loyaltyService->currencyValuePerPoint() : 0.0;
         $redemptionPoints = 0;
@@ -240,8 +247,9 @@ class Show extends Component
     {
         $order = Order::query()->findOrFail($this->orderId);
         $this->form['status_id'] = $order->status_id;
-        if (! app(LoyaltyService::class)->enabled()) {
+        if (! app(LoyaltyService::class)->availableForUser($order->user_id)) {
             $this->redeemPoints = 0;
+
             return;
         }
 
@@ -263,6 +271,7 @@ class Show extends Component
 
             if (! $changed && $comment === '') {
                 $saved = false;
+
                 return;
             }
 
@@ -305,12 +314,6 @@ class Show extends Component
                     'comment' => $comment,
                 ])
                 ->log($changed ? 'Order status updated from admin.' : 'Order note added from admin.');
-
-            app(LoyaltyService::class)->syncOrderSettlement(
-                $order,
-                $targetStatus ?: $order->status,
-                auth()->id()
-            );
 
             $saved = true;
         });

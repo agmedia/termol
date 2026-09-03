@@ -2,10 +2,10 @@
 
 namespace App\Services\Loyalty;
 
-use App\Models\User;
 use App\Models\Sales\Order\Order;
 use App\Models\Sales\Order\OrderTotal;
 use App\Models\Settings\Local\OrderStatus;
+use App\Models\User;
 use App\Models\User\LoyaltyTransaction;
 use App\Services\Settings\SystemSettingsService;
 
@@ -13,15 +13,80 @@ class LoyaltyService
 {
     public function __construct(
         private readonly SystemSettingsService $settings
-    ) {
-    }
+    ) {}
 
     public function enabled(): bool
     {
         return (bool) $this->settings->get(
             'user_loyalty_enabled',
-            (bool) config('user_features.flags.user_loyalty_enabled', true)
+            (bool) config('user_features.flags.user_loyalty_enabled', false)
         );
+    }
+
+    public function availableForUser(User|int|null $user): bool
+    {
+        return $this->enabled() && $this->userIsEligible($user);
+    }
+
+    public function userIsEligible(User|int|null $user): bool
+    {
+        $userId = $user instanceof User ? (int) $user->getKey() : (int) $user;
+        if ($userId <= 0) {
+            return false;
+        }
+
+        $eligibleGroupIds = $this->eligibleCustomerGroupIds();
+        if ($eligibleGroupIds === []) {
+            return true;
+        }
+
+        if ($user instanceof User && $user->relationLoaded('customerGroups')) {
+            if ($user->customerGroups->isEmpty()) {
+                return false;
+            }
+
+            $hasActiveState = $user->customerGroups->every(
+                fn ($group): bool => array_key_exists('is_active', $group->getAttributes())
+            );
+
+            if ($hasActiveState) {
+                return $user->customerGroups->contains(
+                    fn ($group): bool => in_array((int) $group->id, $eligibleGroupIds, true)
+                        && (bool) $group->is_active
+                );
+            }
+        }
+
+        return User::query()
+            ->whereKey($userId)
+            ->whereHas('customerGroups', function ($query) use ($eligibleGroupIds): void {
+                $query->whereIn('customer_groups.id', $eligibleGroupIds)
+                    ->where('customer_groups.is_active', true);
+            })
+            ->exists();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function eligibleCustomerGroupIds(): array
+    {
+        $raw = $this->settings->get(
+            'loyalty_customer_group_ids',
+            (array) config('user_features.loyalty.eligible_customer_group_ids', [])
+        );
+
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        return collect($raw)
+            ->filter(fn ($id): bool => is_int($id) || (is_string($id) && ctype_digit($id)))
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function pointsBalanceForUser(int $userId): int
@@ -33,13 +98,13 @@ class LoyaltyService
 
     public function currencyValuePerPoint(): float
     {
-        $rate = $this->pointsPerCurrency();
+        $raw = $this->settings->get(
+            'loyalty_currency_value_per_point',
+            (float) config('user_features.loyalty.currency_value_per_point', 0.01)
+        );
+        $value = is_numeric($raw) ? (float) $raw : 0.01;
 
-        if ($rate <= 0) {
-            return 0.0;
-        }
-
-        return 1 / $rate;
+        return max(0.0, min(10000.0, $value));
     }
 
     /**
@@ -49,7 +114,7 @@ class LoyaltyService
     {
         $requestedPoints = max(0, $requestedPoints);
 
-        if (! $this->enabled() || ! $order->user_id) {
+        if (! $this->availableForUser($order->user_id)) {
             return $this->redemptionResult($requestedPoints, 0, 0.0, 0, 0, 0.0);
         }
 
@@ -104,6 +169,11 @@ class LoyaltyService
         $order->payload = $payload;
         $order->updated_by = $actorUserId;
         $order->save();
+
+        OrderTotal::query()
+            ->where('order_id', $order->id)
+            ->where('code', 'grand_total')
+            ->update(['value' => $newGrandTotal]);
 
         if ($appliedPoints > 0) {
             $redemption = LoyaltyTransaction::query()->updateOrCreate(
@@ -189,11 +259,7 @@ class LoyaltyService
 
     public function syncOrderSettlement(Order $order, ?OrderStatus $status = null, ?int $actorUserId = null): void
     {
-        if (! $this->enabled()) {
-            return;
-        }
-
-        if (! $order->user_id) {
+        if (! $this->enabled() || ! $order->user_id) {
             return;
         }
 
@@ -204,7 +270,9 @@ class LoyaltyService
 
         $settlementEventKey = 'order:'.$order->id.':settlement';
         $reversalEventKey = 'order:'.$order->id.':reversal';
-        $targetPoints = $this->resolveSettlementPoints($order, $status);
+        $targetPoints = $this->userIsEligible((int) $order->user_id)
+            ? $this->resolveSettlementPoints($order, $status)
+            : 0;
         $reversalMode = $this->reversalMode();
         $existingSettlement = LoyaltyTransaction::query()
             ->where('event_key', $settlementEventKey)

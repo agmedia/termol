@@ -23,12 +23,14 @@ use App\Models\Content\ContentBlock;
 use App\Models\Content\Page\InfoPage;
 use App\Models\Content\Page\InfoPageTranslation;
 use App\Models\Content\Support\Comment;
+use App\Models\Sales\Order\Order;
 use App\Models\Settings\Local\Currency;
 use App\Models\Settings\Local\OrderStatus;
 use App\Models\Settings\Local\PaymentMethod;
 use App\Models\Settings\Local\ShippingMethod;
 use App\Models\Settings\Local\TaxRate;
 use App\Models\User;
+use App\Models\User\CustomerGroup;
 use App\Models\User\UserAddress;
 use App\Services\Front\NavigationMenuService;
 use App\Services\Settings\SystemSettingsService;
@@ -554,6 +556,28 @@ class StorefrontFrontFeatureTest extends TestCase
     {
         Bouncer::role()->firstOrCreate(['name' => 'customer'], ['title' => 'Customer']);
 
+        $inactiveDefault = CustomerGroup::query()->create([
+            'code' => 'inactive-default',
+            'name' => 'Inactive Default',
+            'is_active' => false,
+            'is_default' => true,
+            'sort_order' => 1,
+        ]);
+        $firstActiveDefault = CustomerGroup::query()->create([
+            'code' => 'first-active-default',
+            'name' => 'First Active Default',
+            'is_active' => true,
+            'is_default' => true,
+            'sort_order' => 10,
+        ]);
+        $laterActiveDefault = CustomerGroup::query()->create([
+            'code' => 'later-active-default',
+            'name' => 'Later Active Default',
+            'is_active' => true,
+            'is_default' => true,
+            'sort_order' => 20,
+        ]);
+
         $this->get('/auth/register')
             ->assertOk()
             ->assertSee('data-address-autofill', false)
@@ -623,6 +647,18 @@ class StorefrontFrontFeatureTest extends TestCase
             'city' => 'Split',
             'country_code' => 'HR',
             'is_default' => true,
+        ]);
+        $this->assertDatabaseHas('customer_group_user', [
+            'user_id' => $user->id,
+            'customer_group_id' => $firstActiveDefault->id,
+        ]);
+        $this->assertDatabaseMissing('customer_group_user', [
+            'user_id' => $user->id,
+            'customer_group_id' => $inactiveDefault->id,
+        ]);
+        $this->assertDatabaseMissing('customer_group_user', [
+            'user_id' => $user->id,
+            'customer_group_id' => $laterActiveDefault->id,
         ]);
     }
 
@@ -1635,7 +1671,7 @@ class StorefrontFrontFeatureTest extends TestCase
         ]);
     }
 
-    public function test_account_dashboard_hides_loyalty_summary_when_loyalty_feature_is_disabled(): void
+    public function test_disabled_loyalty_is_hidden_from_account_navigation_dashboard_and_direct_route(): void
     {
         app(SystemSettingsService::class)->put('user_loyalty_enabled', false);
 
@@ -1650,7 +1686,11 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertSee(__('ui.account.dashboard.subtitle_without_loyalty'))
             ->assertSee('class="grid gap-5 md:grid-cols-2"', false)
             ->assertDontSee('id="loyalty"', false)
-            ->assertDontSee(__('ui.account.dashboard.cards.loyalty_disabled'));
+            ->assertDontSee(__('ui.account.nav.loyalty'));
+
+        $this->actingAs($user)
+            ->get('/account/loyalty')
+            ->assertNotFound();
 
         $mobileResponse = $this
             ->actingAs($user)
@@ -1663,6 +1703,238 @@ class StorefrontFrontFeatureTest extends TestCase
             ->assertOk()
             ->assertDontSee(__('ui.account.nav.loyalty'))
             ->assertDontSee(__('ui.account.dashboard.cards.disabled'));
+    }
+
+    public function test_disabled_loyalty_total_is_hidden_from_account_order_history(): void
+    {
+        app(SystemSettingsService::class)->put('user_loyalty_enabled', false);
+
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $order = $this->createAccountOrder($user, 'ACCOUNT-NO-LOYALTY-1');
+        $order->totals()->create([
+            'code' => 'loyalty_redemption',
+            'title' => 'Archived reward discount',
+            'value' => -10,
+            'sort_order' => 650,
+            'payload' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/account/orders/'.$order->order_number)
+            ->assertOk()
+            ->assertDontSee('Archived reward discount');
+    }
+
+    public function test_enabled_loyalty_is_visible_in_account_and_order_history(): void
+    {
+        app(SystemSettingsService::class)->put('user_loyalty_enabled', true);
+
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $order = $this->createAccountOrder($user, 'ACCOUNT-LOYALTY-1');
+        $order->totals()->create([
+            'code' => 'loyalty_redemption',
+            'title' => 'Archived reward discount',
+            'value' => -10,
+            'sort_order' => 650,
+            'payload' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/account')
+            ->assertOk()
+            ->assertSee('id="loyalty"', false)
+            ->assertSee(__('ui.account.nav.loyalty'));
+
+        $this->actingAs($user)
+            ->get('/account/loyalty')
+            ->assertOk();
+
+        $this->actingAs($user)
+            ->get('/account/orders/'.$order->order_number)
+            ->assertOk()
+            ->assertSee('Archived reward discount');
+    }
+
+    public function test_enabled_loyalty_is_visible_only_to_eligible_customer_groups(): void
+    {
+        $retail = CustomerGroup::query()->create([
+            'code' => 'retail-loyalty',
+            'name' => 'Retail Loyalty',
+            'is_active' => true,
+            'is_default' => true,
+            'sort_order' => 10,
+        ]);
+        $b2b = CustomerGroup::query()->create([
+            'code' => 'b2b-no-loyalty',
+            'name' => 'B2B No Loyalty',
+            'is_active' => true,
+            'is_default' => false,
+            'sort_order' => 20,
+        ]);
+
+        app(SystemSettingsService::class)->putMany([
+            'user_loyalty_enabled' => true,
+            'loyalty_customer_group_ids' => [$retail->id],
+        ]);
+
+        $eligible = User::factory()->create(['email_verified_at' => now()]);
+        $ineligible = User::factory()->create(['email_verified_at' => now()]);
+        $eligible->customerGroups()->attach($retail->id);
+        $ineligible->customerGroups()->attach($b2b->id);
+
+        $this->actingAs($eligible)
+            ->get('/account')
+            ->assertOk()
+            ->assertSee('id="loyalty"', false)
+            ->assertSee(__('ui.account.nav.loyalty'));
+        $this->actingAs($eligible)
+            ->get('/account/loyalty')
+            ->assertOk();
+
+        $this->actingAs($ineligible)
+            ->get('/account')
+            ->assertOk()
+            ->assertDontSee('id="loyalty"', false)
+            ->assertDontSee(__('ui.account.nav.loyalty'));
+        $this->actingAs($ineligible)
+            ->get('/account/loyalty')
+            ->assertNotFound();
+
+        $eligibleOrder = $this->createAccountOrder($eligible, 'ACCOUNT-GROUP-YES');
+        $eligibleOrder->totals()->create([
+            'code' => 'loyalty_redemption',
+            'title' => 'Eligible reward discount',
+            'value' => -10,
+            'sort_order' => 650,
+            'payload' => null,
+        ]);
+        $ineligibleOrder = $this->createAccountOrder($ineligible, 'ACCOUNT-GROUP-NO');
+        $ineligibleOrder->totals()->create([
+            'code' => 'loyalty_redemption',
+            'title' => 'Ineligible reward discount',
+            'value' => -10,
+            'sort_order' => 650,
+            'payload' => null,
+        ]);
+
+        $this->actingAs($eligible)
+            ->get('/account/orders/'.$eligibleOrder->order_number)
+            ->assertOk()
+            ->assertSee('Eligible reward discount');
+        $this->actingAs($ineligible)
+            ->get('/account/orders/'.$ineligibleOrder->order_number)
+            ->assertOk()
+            ->assertDontSee('Ineligible reward discount');
+    }
+
+    public function test_checkout_account_registration_assigns_the_first_active_default_customer_group(): void
+    {
+        [$category] = $this->seedCategory();
+        [$product] = $this->seedProduct($category->id);
+
+        $inactiveDefault = CustomerGroup::query()->create([
+            'code' => 'checkout-inactive-default',
+            'name' => 'Checkout Inactive Default',
+            'is_active' => false,
+            'is_default' => true,
+            'sort_order' => 1,
+        ]);
+        $firstActiveDefault = CustomerGroup::query()->create([
+            'code' => 'checkout-first-default',
+            'name' => 'Checkout First Default',
+            'is_active' => true,
+            'is_default' => true,
+            'sort_order' => 10,
+        ]);
+        $laterActiveDefault = CustomerGroup::query()->create([
+            'code' => 'checkout-later-default',
+            'name' => 'Checkout Later Default',
+            'is_active' => true,
+            'is_default' => true,
+            'sort_order' => 20,
+        ]);
+
+        Currency::query()->create([
+            'code' => 'EUR',
+            'name' => 'Euro',
+            'symbol' => 'EUR',
+            'symbol_position' => 'left',
+            'decimal_places' => 2,
+            'exchange_rate' => 1,
+            'is_default' => true,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        OrderStatus::query()->create([
+            'code' => 'new',
+            'name' => 'New',
+            'is_default' => true,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        ShippingMethod::query()->create([
+            'code' => 'standard',
+            'name' => 'Standard Shipping',
+            'price' => 4.99,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        PaymentMethod::query()->create([
+            'code' => 'bank',
+            'name' => 'Bank Transfer',
+            'provider' => 'bank',
+            'fee_type' => 'fixed',
+            'fee_value' => 0,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $this->post('/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 1,
+        ])->assertRedirect();
+
+        $response = $this->post('/checkout', [
+            'customer_first_name' => 'Checkout',
+            'customer_last_name' => 'Buyer',
+            'customer_email' => 'checkout-account@example.test',
+            'customer_phone' => '+38591000003',
+            'billing_first_name' => 'Checkout',
+            'billing_last_name' => 'Buyer',
+            'billing_address_line_1' => 'Main Street 1',
+            'billing_postal_code' => '10000',
+            'billing_city' => 'Zagreb',
+            'billing_country_code' => 'HR',
+            'ship_to_different_address' => '0',
+            'shipping_method_code' => 'standard',
+            'payment_method_code' => 'bank',
+            'register_account' => '1',
+            'register_password' => 'Password123!',
+            'register_password_confirmation' => 'Password123!',
+            'accept_terms' => '1',
+        ]);
+
+        $user = User::query()->where('email', 'checkout-account@example.test')->firstOrFail();
+        $order = Order::query()->where('user_id', $user->id)->firstOrFail();
+
+        $response->assertRedirect(route('checkout.success', ['orderNumber' => $order->order_number]));
+        $this->assertAuthenticatedAs($user);
+        $this->assertDatabaseHas('customer_group_user', [
+            'user_id' => $user->id,
+            'customer_group_id' => $firstActiveDefault->id,
+        ]);
+        $this->assertDatabaseMissing('customer_group_user', [
+            'user_id' => $user->id,
+            'customer_group_id' => $inactiveDefault->id,
+        ]);
+        $this->assertDatabaseMissing('customer_group_user', [
+            'user_id' => $user->id,
+            'customer_group_id' => $laterActiveDefault->id,
+        ]);
     }
 
     public function test_checkout_creates_order_with_pretty_checkout_routes(): void
@@ -3067,6 +3339,65 @@ class StorefrontFrontFeatureTest extends TestCase
             'slug' => $code,
             'excerpt' => null,
             'body_html' => '<p>'.$bodyHtml.'</p>',
+        ]);
+    }
+
+    private function createAccountOrder(User $user, string $number): Order
+    {
+        $status = OrderStatus::query()->create([
+            'code' => 'new-'.strtolower($number),
+            'name' => 'New',
+            'description' => null,
+            'color' => 'slate',
+            'is_default' => true,
+            'is_paid' => false,
+            'is_cancelled' => false,
+            'is_active' => true,
+            'sort_order' => 1,
+            'settings' => null,
+        ]);
+
+        return Order::query()->create([
+            'order_number' => $number,
+            'status_id' => $status->id,
+            'user_id' => $user->id,
+            'source' => 'web',
+            'locale' => 'en',
+            'currency_code' => 'EUR',
+            'currency_rate' => 1,
+            'customer_name' => $user->name,
+            'customer_email' => $user->email,
+            'customer_phone' => '+38591000111',
+            'billing_first_name' => 'Test',
+            'billing_last_name' => 'User',
+            'billing_address_line_1' => 'Street 1',
+            'billing_postal_code' => '10000',
+            'billing_city' => 'Zagreb',
+            'billing_country_code' => 'HR',
+            'shipping_first_name' => 'Test',
+            'shipping_last_name' => 'User',
+            'shipping_address_line_1' => 'Street 1',
+            'shipping_postal_code' => '10000',
+            'shipping_city' => 'Zagreb',
+            'shipping_country_code' => 'HR',
+            'payment_method_code' => 'bank',
+            'payment_method_name' => 'Bank Transfer',
+            'shipping_method_code' => 'standard',
+            'shipping_method_name' => 'Standard Shipping',
+            'item_qty' => 1,
+            'subtotal' => 99.90,
+            'shipping_total' => 4.99,
+            'payment_fee_total' => 0,
+            'discount_total' => 0,
+            'tax_total' => 20,
+            'grand_total' => 124.89,
+            'customer_note' => null,
+            'admin_note' => null,
+            'payload' => null,
+            'placed_at' => now(),
+            'paid_at' => null,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
         ]);
     }
 

@@ -85,18 +85,29 @@
                 </table>
             </div>
 
+            @php
+                $loyaltyAvailable = app(\App\Services\Loyalty\LoyaltyService::class)->availableForUser($order->user_id);
+                $invoiceTotals = $loyaltyAvailable
+                    ? $order->totals
+                    : $order->totals->reject(fn ($total) => $total->code === 'loyalty_redemption');
+            @endphp
             <div class="mt-6 ml-auto w-full max-w-sm space-y-2">
-                @forelse ($order->totals as $total)
+                @forelse ($invoiceTotals as $total)
                     @php
                         $totalLabelMap = [
                             'subtotal' => __('ui.account.order_show.totals.labels.subtotal'),
                             'shipping' => __('ui.account.order_show.totals.labels.shipping'),
                             'payment_fee' => __('ui.account.order_show.totals.labels.payment_fee'),
                             'tax' => __('ui.account.order_show.totals.labels.tax'),
+                            'loyalty_redemption' => __('Loyalty Redemption'),
                             'grand_total' => __('ui.account.order_show.totals.labels.grand_total'),
                         ];
                         $totalLabelRaw = trim((string) ($total->title ?? ''));
-                        $totalLabel = $totalLabelMap[(string) ($total->code ?? '')] ?? $totalLabelRaw;
+                        $isCustomLoyaltyLabel = (string) ($total->code ?? '') === 'loyalty_redemption'
+                            && strcasecmp($totalLabelRaw, 'Loyalty Redemption') !== 0;
+                        $totalLabel = $isCustomLoyaltyLabel
+                            ? $totalLabelRaw
+                            : ($totalLabelMap[(string) ($total->code ?? '')] ?? $totalLabelRaw);
                     @endphp
                     <div class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         <span class="text-slate-700">{{ $totalLabel }}</span>

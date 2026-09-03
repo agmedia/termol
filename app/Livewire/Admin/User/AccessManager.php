@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin\User;
 
+use App\Services\Settings\SystemSettingsService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -147,6 +148,11 @@ class AccessManager extends Component
 
     public function render()
     {
+        $loyaltyEnabled = (bool) app(SystemSettingsService::class)->get(
+            'user_loyalty_enabled',
+            (bool) config('user_features.flags.user_loyalty_enabled', false)
+        );
+
         $roles = Role::query()
             ->orderBy('id')
             ->get(['id', 'name', 'title']);
@@ -167,9 +173,16 @@ class AccessManager extends Component
             ->orderBy('name')
             ->get(['id', 'name', 'title', 'options']);
 
+        if (! $loyaltyEnabled) {
+            $abilities = $abilities
+                ->reject(fn (Ability $ability): bool => str_starts_with((string) $ability->name, 'users.loyalty.')
+                    || $this->resolveAbilityGroupKey($ability) === 'users.loyalty')
+                ->values();
+        }
+
         $permissionMap = $this->buildPermissionMap($matrixRoles->pluck('id')->all(), $abilities->pluck('id')->all());
         $abilityGroups = $this->groupAbilities($abilities->all());
-        $groupOptions = $this->buildGroupOptions($abilityGroups);
+        $groupOptions = $this->buildGroupOptions($abilityGroups, $loyaltyEnabled);
 
         return view('livewire.admin.user.access-manager', [
             'roles' => $matrixRoles,
@@ -239,9 +252,12 @@ class AccessManager extends Component
      * @param  array<string, array{key: string, label: string, abilities: array<int, Ability>}>  $abilityGroups
      * @return array<string, string>
      */
-    private function buildGroupOptions(array $abilityGroups): array
+    private function buildGroupOptions(array $abilityGroups, bool $loyaltyEnabled): array
     {
         $options = $this->defaultGroupLabels();
+        if (! $loyaltyEnabled) {
+            unset($options['users.loyalty']);
+        }
 
         foreach ($abilityGroups as $groupKey => $groupData) {
             $options[$groupKey] = (string) $groupData['label'];

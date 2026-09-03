@@ -6,7 +6,6 @@ use App\Livewire\Admin\Dashboard\Overview;
 use App\Models\Sales\Order\Order;
 use App\Models\Settings\Local\OrderStatus;
 use App\Models\User;
-use App\Services\Settings\SystemSettingsService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -36,13 +35,8 @@ class DashboardFeatureTest extends TestCase
             ->assertDontSee('data-dashboard-chart', false);
     }
 
-    public function test_dashboard_never_renders_loyalty_or_secondary_analytics_sections(): void
+    public function test_dashboard_never_renders_secondary_analytics_sections(): void
     {
-        app(SystemSettingsService::class)->putMany([
-            'user_loyalty_enabled' => true,
-            'user_tracking_enabled' => true,
-        ]);
-
         $admin = $this->makeUserWithRole('admin');
 
         $this->actingAs($admin)

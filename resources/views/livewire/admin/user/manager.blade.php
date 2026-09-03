@@ -112,14 +112,18 @@
                             </td>
                             @if ($loyaltyEnabled)
                                 <td class="px-3 py-2 text-center">
-                                    <a href="{{ route('admin.users.loyalty', ['user_id' => $row->id]) }}" class="inline-block rounded-lg border border-slate-300 px-2 py-1 hover:bg-slate-100">
-                                        <div class="text-xs font-semibold {{ ((int) ($row->loyalty_points_balance ?? 0)) >= 0 ? 'text-emerald-700' : 'text-rose-700' }}">
-                                            {{ (int) ($row->loyalty_points_balance ?? 0) }} {{ __('pts') }}
-                                        </div>
-                                        <div class="text-[11px] text-slate-500">
-                                            {{ (int) ($row->loyalty_transactions_count ?? 0) }} {{ __('entries') }}
-                                        </div>
-                                    </a>
+                                    @if ((bool) ($row->loyalty_available ?? false))
+                                        <a href="{{ route('admin.users.loyalty', ['user_id' => $row->id]) }}" class="inline-block rounded-lg border border-slate-300 px-2 py-1 hover:bg-slate-100">
+                                            <div class="text-xs font-semibold {{ ((int) ($row->loyalty_points_balance ?? 0)) >= 0 ? 'text-emerald-700' : 'text-rose-700' }}">
+                                                {{ (int) ($row->loyalty_points_balance ?? 0) }} {{ __('pts') }}
+                                            </div>
+                                            <div class="text-[11px] text-slate-500">
+                                                {{ (int) ($row->loyalty_transactions_count ?? 0) }} {{ __('entries') }}
+                                            </div>
+                                        </a>
+                                    @else
+                                        <span class="text-xs text-slate-400">—</span>
+                                    @endif
                                 </td>
                             @endif
                             <td class="px-3 py-2 text-center">

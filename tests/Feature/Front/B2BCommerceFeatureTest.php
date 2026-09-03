@@ -30,6 +30,14 @@ class B2BCommerceFeatureTest extends TestCase
 
     public function test_business_registration_creates_pending_account_profile_and_billing_address(): void
     {
+        CustomerGroup::query()->create([
+            'code' => 'retail-default',
+            'name' => 'Retail Default',
+            'is_active' => true,
+            'is_default' => true,
+            'sort_order' => 1,
+        ]);
+
         $response = $this->post(route('front.auth.b2b-register.store'), [
             'first_name' => 'Ana',
             'last_name' => 'Horvat',
@@ -74,6 +82,9 @@ class B2BCommerceFeatureTest extends TestCase
             'address_line_2' => null,
         ]);
         $this->assertCount(0, $user->customerGroups);
+        $this->assertDatabaseMissing('customer_group_user', [
+            'user_id' => $user->id,
+        ]);
     }
 
     public function test_logged_in_b2b_user_is_redirected_from_registration_to_their_account(): void

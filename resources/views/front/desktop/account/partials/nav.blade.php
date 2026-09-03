@@ -1,12 +1,9 @@
 @php
     $current = $current ?? 'dashboard';
     try {
-        $loyaltyEnabled = (bool) app(\App\Services\Settings\SystemSettingsService::class)->get(
-            'user_loyalty_enabled',
-            (bool) config('user_features.flags.user_loyalty_enabled', true)
-        );
+        $loyaltyEnabled = app(\App\Services\Loyalty\LoyaltyService::class)->availableForUser(auth()->user());
     } catch (\Throwable) {
-        $loyaltyEnabled = (bool) config('user_features.flags.user_loyalty_enabled', true);
+        $loyaltyEnabled = false;
     }
 
     $items = [

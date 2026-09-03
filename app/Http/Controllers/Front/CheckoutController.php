@@ -16,6 +16,7 @@ use App\Services\Payments\BankTransferUpiService;
 use App\Services\Payments\CorvusPayFormService;
 use App\Services\Payments\KeksPayService;
 use App\Services\Payments\WSPayFormService;
+use App\Services\User\DefaultCustomerGroupAssigner;
 use App\Support\Currency;
 use App\Support\GlsShipping;
 use Illuminate\Http\JsonResponse;
@@ -34,7 +35,8 @@ class CheckoutController extends Controller
     public function __construct(
         private readonly CartService $cart,
         private readonly CheckoutService $checkout,
-        private readonly StoreNotificationService $notifications
+        private readonly StoreNotificationService $notifications,
+        private readonly DefaultCustomerGroupAssigner $defaultCustomerGroupAssigner,
     ) {}
 
     public function create(Request $request): View|RedirectResponse
@@ -261,6 +263,7 @@ class CheckoutController extends Controller
                 'email' => (string) $validated['customer_email'],
                 'password' => Hash::make((string) $validated['register_password']),
             ]);
+            $this->defaultCustomerGroupAssigner->assign($checkoutUser);
 
             Auth::login($checkoutUser);
             $request->setUserResolver(static fn () => $checkoutUser);

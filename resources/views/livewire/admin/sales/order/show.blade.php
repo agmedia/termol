@@ -400,10 +400,15 @@
                             'shipping' => __('ui.account.order_show.totals.labels.shipping'),
                             'payment_fee' => __('ui.account.order_show.totals.labels.payment_fee'),
                             'tax' => __('ui.account.order_show.totals.labels.tax'),
+                            'loyalty_redemption' => __('Loyalty Redemption'),
                             'grand_total' => __('ui.account.order_show.totals.labels.grand_total'),
                         ];
                         $totalLabelRaw = trim((string) ($total->title ?? ''));
-                        $totalLabel = $totalLabelMap[(string) ($total->code ?? '')] ?? $totalLabelRaw;
+                        $isCustomLoyaltyLabel = (string) ($total->code ?? '') === 'loyalty_redemption'
+                            && strcasecmp($totalLabelRaw, 'Loyalty Redemption') !== 0;
+                        $totalLabel = $isCustomLoyaltyLabel
+                            ? $totalLabelRaw
+                            : ($totalLabelMap[(string) ($total->code ?? '')] ?? $totalLabelRaw);
                     @endphp
                     <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
                         <span class="text-slate-700">{{ $totalLabel }}</span>

@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Livewire\Admin\User\AccessManager;
 use App\Models\User;
+use App\Services\Settings\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -39,6 +40,34 @@ class UserAccessFeatureTest extends TestCase
         $this->actingAs($editor)
             ->get('/admin/users/access')
             ->assertForbidden();
+    }
+
+    public function test_loyalty_abilities_are_hidden_when_feature_is_disabled(): void
+    {
+        app(SystemSettingsService::class)->put('user_loyalty_enabled', false);
+
+        $admin = $this->makeUserWithRole('superadmin');
+
+        $this->actingAs($admin)
+            ->get('/admin/users/access')
+            ->assertOk()
+            ->assertDontSee(__('Users / Loyalty'))
+            ->assertDontSee('users.loyalty.view')
+            ->assertDontSee('users.loyalty.adjust');
+    }
+
+    public function test_loyalty_abilities_are_visible_when_feature_is_enabled(): void
+    {
+        app(SystemSettingsService::class)->put('user_loyalty_enabled', true);
+
+        $admin = $this->makeUserWithRole('superadmin');
+
+        $this->actingAs($admin)
+            ->get('/admin/users/access')
+            ->assertOk()
+            ->assertSee(__('Users / Loyalty'))
+            ->assertSee('users.loyalty.view')
+            ->assertSee('users.loyalty.adjust');
     }
 
     public function test_superadmin_can_create_ability_and_toggle_role_permission(): void
